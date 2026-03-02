@@ -3,15 +3,31 @@ export const onRequestPost: PagesFunction = async (context) => {
     // ✅ Suporta 2 jeitos comuns de autenticar:
     // 1) Bearer token: MANDABEM_TOKEN
     // 2) api_id + api_token (muito comum em integrações tipo Yampi): MANDABEM_API_ID + MANDABEM_API_TOKEN
-    const bearer = (context.env.MANDABEM_TOKEN as string | undefined) || undefined;
-    const apiId = (context.env.MANDABEM_API_ID as string | undefined) || undefined;
-    const apiToken = (context.env.MANDABEM_API_TOKEN as string | undefined) || undefined;
+    // ✅ Aceita dois padrões de nomes (você pode ter criado com ou sem underscore):
+    // - MANDABEM_* (padrão do nosso código)
+    // - MANDA_BEM_* (padrão mais "legível" no painel)
+    const bearer =
+      (context.env.MANDABEM_TOKEN as string | undefined) ||
+      (context.env.MANDA_BEM_TOKEN as string | undefined) ||
+      undefined;
+
+    const apiId =
+      (context.env.MANDABEM_API_ID as string | undefined) ||
+      (context.env.MANDA_BEM_API_ID as string | undefined) ||
+      undefined;
+
+    const apiToken =
+      (context.env.MANDABEM_API_TOKEN as string | undefined) ||
+      (context.env.MANDA_BEM_API_TOKEN as string | undefined) ||
+      undefined;
 
     // ✅ IMPORTANTE: seu erro "error code: 1016" é Cloudflare dizendo que o host não existe/resolve.
     // O default abaixo usa um endpoint REAL que aparece em docs públicas de integração.
     // Se o seu endpoint for outro, só troque a variável no Cloudflare e pronto.
-    const freightUrl = (context.env.MANDABEM_FREIGHT_URL as string | undefined)
-      || "https://mandabem.com.br/yampi/calcula_frete";
+    const freightUrl =
+      (context.env.MANDABEM_FREIGHT_URL as string | undefined) ||
+      (context.env.MANDA_BEM_FREIGHT_URL as string | undefined) ||
+      "https://mandabem.com.br/yampi/calcula_frete";
 
     if (!bearer && !(apiId && apiToken)) {
       return json(
