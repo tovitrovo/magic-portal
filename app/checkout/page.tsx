@@ -53,7 +53,19 @@ export default function CheckoutPage() {
           valor_declarado: subtotal
         })
       });
-      const data = await res.json();
+      // Em alguns erros de proxy/DNS/WAF o Cloudflare devolve HTML/texto (ex: "error code: 1016"),
+      // e o res.json() quebra com "Unexpected token".
+      const raw = await res.text();
+      let data: any = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        throw new Error(
+          `Resposta de frete não é JSON. Primeiros caracteres: ${raw
+            .replace(/\s+/g, " ")
+            .slice(0, 140)}`
+        );
+      }
       setQuote(data);
     } catch (e:any) {
       setQuote({ ok:false, error: e?.message || "Erro desconhecido" });
