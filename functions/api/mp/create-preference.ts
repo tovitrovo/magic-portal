@@ -20,9 +20,9 @@ export const onRequestPost: PagesFunction = async (context) => {
       payer: body?.email ? { email: String(body.email) } : undefined,
       // Ajuste essas URLs quando quiser páginas de retorno:
       back_urls: {
-        success: context.request.headers.get("origin") + "/?pay=success",
-        pending: context.request.headers.get("origin") + "/?pay=pending",
-        failure: context.request.headers.get("origin") + "/?pay=failure",
+        success: context.request.headers.get("origin") + "/success?status=success",
+        pending: context.request.headers.get("origin") + "/success?status=pending",
+        failure: context.request.headers.get("origin") + "/success?status=failure",
       },
       auto_return: "approved",
       shipments: body?.shipping?.cost ? {

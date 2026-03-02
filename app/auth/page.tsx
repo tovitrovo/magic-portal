@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { clearUser, getUser, setUser } from "@/lib/auth";
+import { clearUser, getUser, setPendingSignup, setUser } from "@/lib/auth";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
@@ -24,9 +24,16 @@ export default function AuthPage() {
       return;
     }
 
+    if (mode === "signup") {
+      // Mostra o Goblin explicando antes de liberar o portal.
+      setPendingSignup(email);
+      window.location.href = "/onboarding";
+      return;
+    }
+
     setUser({ email });
     setUserEmail(email);
-    window.location.href = "/checkout";
+    window.location.href = "/wants";
   }
 
   function logout() {

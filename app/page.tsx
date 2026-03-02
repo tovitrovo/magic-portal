@@ -38,6 +38,11 @@ export default function Home() {
         <div className="small">
           Quanto mais o grupo compra, menor o preço. Se o preço cair depois que você travar seu pedido, a diferença vira cartas bônus.
         </div>
+        <div className="row" style={{ marginTop: 12, flexWrap: "wrap" }}>
+          <a className="btn primary" href="/auth">Entrar / Criar conta</a>
+          <a className="btn" href="/wants">Montar wants</a>
+          <a className="btn" href="/checkout">Ir pro checkout</a>
+        </div>
         <hr />
         <div className="grid">
           <div className="col-6">
