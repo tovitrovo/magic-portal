@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { calcTierPrice, calcTotalQty, loadState } from "@/lib/storage";
+import { calcBonusCards, calcTierPrice, calcTotalQty, loadState } from "@/lib/storage";
 import { getUser } from "@/lib/auth";
+import { saveOrderToDb } from "@/lib/db";
 
 type ShippingQuote = {
   ok: boolean;
@@ -25,6 +26,10 @@ export default function CheckoutPage() {
   const unit = useMemo(() => calcTierPrice(totalQty), [totalQty]);
   const subtotal = useMemo(() => totalQty * unit, [totalQty, unit]);
   const total = useMemo(() => subtotal + (quote?.price ?? 0), [subtotal, quote]);
+  const bonusInfo = useMemo(() => {
+    if (!state.lockedOrder) return { credit: 0, bonus: 0 };
+    return calcBonusCards(state.lockedOrder.lockedUnitPrice, unit, totalQty);
+  }, [state.lockedOrder, unit, totalQty]);
 
   useEffect(() => {
     const u = getUser();
@@ -90,6 +95,21 @@ export default function CheckoutPage() {
       });
       const data = await res.json();
       if (!data?.init_point) throw new Error(data?.error || "Não veio init_point");
+
+      // salva no banco (se Supabase estiver configurado). não bloqueia o pagamento.
+      try {
+        await saveOrderToDb({
+          state: { ...state, tierUnitPrice: unit },
+          shipping: quote ?? null,
+          mp_preference_id: data?.preference_id,
+          total_brl: Number(total.toFixed(2)),
+          unit_price_brl: Number(unit),
+          bonus_cards: bonusInfo.bonus,
+        });
+      } catch (e) {
+        console.warn("saveOrderToDb failed", e);
+      }
+
       window.location.href = data.init_point;
     } catch (e:any) {
       alert(e?.message || "Erro no checkout");
@@ -128,6 +148,12 @@ export default function CheckoutPage() {
               <span className="tag">Total</span>
               <span className="tag"><b>R$ {total.toFixed(2)}</b></span>
             </div>
+
+            {bonusInfo.bonus > 0 && (
+              <div style={{marginTop:12}} className="notice">
+                <b>Cartas bônus:</b> {bonusInfo.bonus} <span className="small">(crédito: R$ {bonusInfo.credit.toFixed(2)})</span>
+              </div>
+            )}
           </div>
 
           <div className="col-6">

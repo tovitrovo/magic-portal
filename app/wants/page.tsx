@@ -3,12 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { getUser } from "@/lib/auth";
 import { calcTierPrice, calcTotalQty, defaultState, loadState, saveState, type WantItem } from "@/lib/storage";
+import { supabase } from "@/lib/supabase";
+import { loadWantsFromDb, saveWantsToDb } from "@/lib/db";
 
 export default function WantsPage() {
   const [guild, setGuild] = useState(defaultState.guild);
   const [wants, setWants] = useState<WantItem[]>([]);
   const [name, setName] = useState("");
   const [qty, setQty] = useState(1);
+  const [dbStatus, setDbStatus] = useState<string>(supabase ? "DB: conectado" : "DB: desligado");
 
   useEffect(() => {
     const u = getUser();
@@ -22,10 +25,43 @@ export default function WantsPage() {
     setWants(s.wants);
   }, []);
 
+  // se tiver Supabase e a lista local vier vazia, tenta puxar do DB
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!supabase) return;
+      if (wants.length > 0) return;
+      setDbStatus("DB: carregando wants...");
+      const dbWants = await loadWantsFromDb();
+      if (cancelled) return;
+      if (dbWants && dbWants.length) {
+        setWants(dbWants);
+        setDbStatus(`DB: wants carregados (${dbWants.length})`);
+      } else {
+        setDbStatus("DB: sem wants salvos");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const s = loadState();
     saveState({ ...s, guild, wants });
   }, [guild, wants]);
+
+  // autosave no banco com debounce (não trava UX)
+  useEffect(() => {
+    if (!supabase) return;
+    const t = setTimeout(async () => {
+      setDbStatus("DB: salvando wants...");
+      const ok = await saveWantsToDb(wants);
+      setDbStatus(ok ? "DB: wants salvos" : "DB: erro ao salvar wants");
+    }, 800);
+    return () => clearTimeout(t);
+  }, [wants]);
 
   const totalQty = useMemo(() => calcTotalQty(wants), [wants]);
   const price = useMemo(() => calcTierPrice(totalQty), [totalQty]);
@@ -56,6 +92,7 @@ export default function WantsPage() {
     <div className="grid">
       <div className="col-12 card">
         <h1 className="h1">Wants</h1>
+        <div className="small" style={{opacity:0.8, marginTop:-8, marginBottom:10}}>{dbStatus}</div>
         <div className="row" style={{justifyContent:"space-between", alignItems:"center"}}>
           <span className="tag">Total: <b style={{marginLeft:6}}>{totalQty}</b></span>
           <span className="tag">Preço atual: <b style={{marginLeft:6}}>R$ {price}</b></span>
