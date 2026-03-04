@@ -131,6 +131,31 @@ function calcBrlPrice(usdPerCard, pricing) {
 }
 
 // ══════════════════════════════════════════════════════
+// FLOATING MANA BACKGROUND
+// ══════════════════════════════════════════════════════
+
+function FloatingMana({theme}){
+  const symbols=['☀️','💧','💀','🔥','🌿','⚔️','🛡️','🔮','✨','💎'];
+  const items=useMemo(()=>symbols.map((s,i)=>({
+    emoji:s,
+    left:Math.random()*100,
+    delay:Math.random()*20,
+    dur:18+Math.random()*22,
+    size:14+Math.random()*16,
+    drift:-30+Math.random()*60,
+  })),[]);
+  return <div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:0,overflow:'hidden'}}>
+    {items.map((m,i)=><div key={i} style={{
+      position:'absolute',bottom:'-40px',left:m.left+'%',fontSize:m.size,opacity:0.04,
+      animation:`manaFloat ${m.dur}s ${m.delay}s linear infinite`,
+      filter:'blur(1px)',
+    }}>{m.emoji}</div>)}
+    <div style={{position:'absolute',top:0,left:'20%',width:'60%',height:'40%',background:`radial-gradient(ellipse,${theme.primary}08 0%,transparent 70%)`,pointerEvents:'none'}}/>
+    <div style={{position:'absolute',bottom:0,right:0,width:'40%',height:'30%',background:`radial-gradient(ellipse,${theme.secondary}06 0%,transparent 70%)`,pointerEvents:'none'}}/>
+  </div>;
+}
+
+// ══════════════════════════════════════════════════════
 // UI PRIMITIVES
 // ══════════════════════════════════════════════════════
 
@@ -200,13 +225,13 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
 const TUTORIAL_STEPS=[
   {title:'Catálogo',body:'Aqui ficam todas as cartas disponíveis. Use busca e filtros para encontrar o que precisa.',navTo:'catalog',tabIndex:1,spotlightId:null},
   {title:'Busca e filtros',body:'Digite o nome da carta na busca. Use os botões Normal, Holo e Foil para filtrar por tipo.',navTo:'catalog',tabIndex:1,spotlightId:'tut-search-area',scrollTo:true},
-  {title:'Adicionar à lista',body:'Escolha a quantidade e clique na seta verde → para enviar a carta para seus Wants.',navTo:'catalog',tabIndex:1,spotlightId:'tut-add-btn',scrollTo:true},
+  {title:'Adicionar à lista',body:'Escolha a quantidade e clique na seta → para enviar a carta para seus Wants.',navTo:'catalog',tabIndex:1,spotlightId:'tut-add-btn',scrollTo:true},
   {title:'Sua lista de Wants',body:'Todas as cartas adicionadas ficam aqui organizadas.',navTo:'wants',tabIndex:2,spotlightId:null},
   {title:'Selecionar para o carrinho',body:'Toque no ○ círculo ao lado da carta para selecioná-la (fica ✓). As cartas selecionadas vão para o checkout.',navTo:'wants',tabIndex:2,spotlightId:'tut-cart-toggle',scrollTo:true},
-  {title:'Bônus grátis',body:'Se o grupo cresceu e o preço caiu, as primeiras cartas selecionadas saem de graça! O contador de bônus aparece aqui no topo em verde.',navTo:'wants',tabIndex:2,spotlightId:'tut-wants-tags',scrollTo:true},
+  {title:'Bônus grátis',body:'Se o grupo cresceu e o preço caiu, as primeiras cartas selecionadas saem de graça! O contador de bônus aparece aqui no topo em destaque.',navTo:'wants',tabIndex:2,spotlightId:'tut-wants-tags',scrollTo:true},
   {title:'Checkout',body:'Revise seu pedido. Cartas bônus (grátis) aparecem separadas das pagas.',navTo:'checkout',tabIndex:3,spotlightId:'tut-checkout-summary'},
   {title:'Endereço e frete',body:'Preencha o CEP e o endereço será preenchido automaticamente.',navTo:'checkout',tabIndex:3,spotlightId:'tut-address'},
-  {title:'Pagamento',body:'Escolha entre Mercado Pago ou PIX. No PIX, envie o comprovante.',navTo:'checkout',tabIndex:3,spotlightId:'tut-payment'},
+  {title:'Pagamento',body:'Finalize o pedido e pague com segurança via Mercado Pago. Cartão, boleto ou saldo.',navTo:'checkout',tabIndex:3,spotlightId:'tut-payment'},
   {title:'Perfil',body:'Veja pedidos, edite endereço, mude suas cores de mana e reabra este tutorial a qualquer momento.',navTo:'profile',tabIndex:4,spotlightId:null},
 ];
 
@@ -450,7 +475,6 @@ function AddressDisplay({address,onEdit}){
 
 function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token,orderId,campaignId,onOrderDone,toast}){
   const [frete,setFrete]=useState(null);const [lF,setLF]=useState(false);const [submitting,setSubmitting]=useState(false);
-  const [pay,setPay]=useState('mp');const [pixReceipt,setPixReceipt]=useState(null);const [pixFile,setPixFile]=useState(null);const [pixSent,setPixSent]=useState(false);
   const [addr,setAddr]=useState({cep:profile?.cep||'',rua:profile?.rua||'',numero:profile?.numero||'',complemento:profile?.complemento||'',bairro:profile?.bairro||'',cidade:profile?.cidade||'',uf:profile?.uf||''});
 
   const cart=wants.filter(w=>cartIds.includes(w.id));
@@ -461,24 +485,14 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
   const isFullBonus=totalPaid===0&&totalBonus>0;
   const sub=totalPaid*priceBRL;const fV=frete?frete.price:0;const total=sub+fV;
 
-  // TODO: replace with real Edge Function call
-  function calcFrete(cep){setLF(true);setTimeout(()=>{setFrete({ok:true,price:18.90,deadline_days:7,carrier:'MandaBem PAC'});setLF(false);SFX.success();},1000);}
-
-  function handleUpload(e){const f=e.target.files&&e.target.files[0];if(f){setPixFile(f);const r=new FileReader();r.onload=ev=>setPixReceipt(ev.target.result);r.readAsDataURL(f);}}
-
-  async function finalize(method){
+  async function finalize(){
     setSubmitting(true);
     try {
       // 1. Create order_batch
       const batchData = {
-        order_id: orderId,
-        status: 'DRAFT',
-        brl_unit_price_locked: priceBRL,
-        qty_in_batch: totalQty,
-        subtotal_locked: sub,
-        shipping_locked: fV,
-        total_locked: isFullBonus ? 0 : total,
-        payment_method: method === 'pix' ? 'PIX_MANUAL' : 'MERCADO_PAGO',
+        order_id: orderId, status: 'DRAFT', brl_unit_price_locked: priceBRL,
+        qty_in_batch: totalQty, subtotal_locked: sub, shipping_locked: fV,
+        total_locked: isFullBonus ? 0 : total, payment_method: 'MERCADO_PAGO',
       };
       const [batch] = await sbPost('order_batches', batchData, token);
 
@@ -487,21 +501,12 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
         await sbPatch('order_items', `id=eq.${item.id}`, { batch_id: batch.id, unit_price_brl: priceBRL }, token);
       }
 
-      // 3. Upload PIX receipt if applicable
-      if (method === 'pix' && pixFile) {
-        const path = `${orderId}/${batch.id}.jpg`;
-        await sbUpload('receipts', path, pixFile, token);
-        await sbPost('pix_receipts', { batch_id: batch.id, order_id: orderId, storage_path: path }, token);
-      }
-
-      // 4. Update order totals
+      // 3. Update order totals
       await sbPatch('orders', `id=eq.${orderId}`, {
-        qty_paid: totalPaid,
-        qty_bonus: totalBonus,
-        shipping_price_brl_locked: fV,
+        qty_paid: totalPaid, qty_bonus: totalBonus, shipping_price_brl_locked: fV,
       }, token);
 
-      // 5. Save address to profile
+      // 4. Save address to profile
       if (addr.rua) {
         await sbPatch('profiles', `id=eq.${profile.id}`, {
           cep: addr.cep, rua: addr.rua, numero: addr.numero,
@@ -509,8 +514,26 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
         }, token);
       }
 
+      // 5. Call Mercado Pago Edge Function (if not full bonus)
+      if (!isFullBonus) {
+        try {
+          const mpRes = await fetch(`${SB_URL}/functions/v1/create-mp-link`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ batch_id: batch.id, order_id: orderId, total_brl: total, description: `Cartas para Jogar - ${totalPaid} cartas` })
+          });
+          const mpData = await mpRes.json();
+          if (mpData.payment_url) {
+            window.open(mpData.payment_url, '_blank');
+          }
+        } catch(mpErr) {
+          console.warn('MP link:', mpErr);
+          toast('Pedido salvo! Link de pagamento será enviado por WhatsApp.', 'info');
+        }
+      }
+
       SFX.confirm();
-      onOrderDone({ method, totalPaid, totalBonus, priceBRL, isFullBonus, batchId: batch.id });
+      onOrderDone({ method: isFullBonus ? 'bonus' : 'mp', totalPaid, totalBonus, priceBRL, isFullBonus, batchId: batch.id, cards: cart.map(c=>({name:c.card_name,type:c.card_type,qty:c.quantity})) });
       nav('success');
     } catch(e) {
       console.error(e);
@@ -537,25 +560,15 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
     </Card>
 
     {!isFullBonus&&<Card style={{padding:16}}>
-      <SectionTitle sub="Preencha para calcular frete">Endereço</SectionTitle>
-      <AddressForm address={addr} setAddress={setAddr} onCalcFrete={calcFrete} frete={frete} loadingFrete={lF}/>
+      <SectionTitle>Endereço de entrega</SectionTitle>
+      <AddressForm address={addr} setAddress={setAddr} onCalcFrete={()=>{}} frete={frete} loadingFrete={lF}/>
     </Card>}
 
-    {isFullBonus?<Btn full variant="success" onClick={()=>finalize('bonus')} disabled={submitting} sfx="">{submitting?<Spin size={16}/>:<><Gift size={18}/> Finalizar bônus</>}</Btn>:(
-      <Card id="tut-payment" style={{padding:16}}>
-        <SectionTitle>Pagamento</SectionTitle>
-        <div style={{display:'flex',gap:8,marginBottom:14}}>
-          {[{key:'mp',label:'Mercado Pago',icon:CreditCard},{key:'pix',label:'PIX',icon:DollarSign}].map(m=>(<button key={m.key} onClick={()=>{SFX.toggle();setPay(m.key);}} style={{flex:1,padding:'12px 10px',borderRadius:12,border:'1px solid '+(pay===m.key?(m.key==='pix'?'rgba(0,190,164,0.2)':theme.primary+'30'):'rgba(255,255,255,0.06)'),background:pay===m.key?(m.key==='pix'?'rgba(0,190,164,0.1)':theme.primary+'15'):'rgba(255,255,255,0.03)',color:pay===m.key?'#fff':'rgba(255,255,255,0.35)',fontWeight:700,fontSize:13,cursor:'pointer',fontFamily:"'Outfit',sans-serif",display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><m.icon size={15}/>{m.label}</button>))}
-        </div>
-        {pay==='mp'&&<Btn full onClick={()=>finalize('mp')} disabled={submitting} sfx="">{submitting?<Spin size={16}/>:<><CreditCard size={16}/> Pagar via Mercado Pago</>}</Btn>}
-        {pay==='pix'&&<>{!pixSent?<>
-          <div style={{padding:'12px 14px',borderRadius:12,background:'rgba(0,190,164,0.06)',border:'1px solid rgba(0,190,164,0.12)',marginBottom:12}}><div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginBottom:4}}>Chave PIX</div><div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}><span style={{fontSize:14,fontWeight:700,color:'#00bea4',fontFamily:'monospace'}}>cartas@meupix.com</span><button onClick={()=>{SFX.click();navigator.clipboard&&navigator.clipboard.writeText('cartas@meupix.com');}} style={{background:'none',border:'none',color:'rgba(0,190,164,0.6)',cursor:'pointer',padding:4}}><Copy size={16}/></button></div></div>
-          <div style={{padding:'12px 14px',borderRadius:12,background:'rgba(255,255,255,0.03)',marginBottom:12}}><div style={{fontSize:22,fontWeight:800,color:'#00bea4'}}>R$ {total.toFixed(2)}</div></div>
-          {pixReceipt?<div style={{position:'relative',borderRadius:14,overflow:'hidden',marginBottom:10}}><img src={pixReceipt} style={{width:'100%',maxHeight:200,objectFit:'cover',borderRadius:14,opacity:.8}}/><button onClick={()=>{setPixReceipt(null);setPixFile(null);}} style={{position:'absolute',top:8,right:8,background:'rgba(0,0,0,0.7)',border:'none',borderRadius:20,padding:6,cursor:'pointer',color:'#fff'}}><X size={16}/></button></div>:<label style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,padding:'24px 16px',borderRadius:14,border:'2px dashed rgba(0,190,164,0.2)',background:'rgba(0,190,164,0.03)',cursor:'pointer',marginBottom:10}}><Camera size={24} style={{color:'rgba(0,190,164,0.5)'}}/><span style={{fontSize:13,color:'rgba(255,255,255,0.35)'}}>Enviar comprovante</span><input type="file" accept="image/*" onChange={handleUpload} style={{display:'none'}}/></label>}
-          <Btn full variant="pix" onClick={()=>{SFX.success();finalize('pix');}} disabled={!pixReceipt||submitting} sfx="">{submitting?<Spin size={16}/>:<><Upload size={16}/> Enviar</>}</Btn>
-        </>:<Card glow="rgba(0,190,164,0.15)" style={{textAlign:'center',padding:16}}><Check size={28} style={{color:'#00bea4',marginBottom:6}}/><div style={{fontWeight:700,color:'#00bea4'}}>Comprovante enviado!</div><div style={{fontSize:12,color:'rgba(255,255,255,0.3)',marginTop:4}}>Aguardando confirmação</div></Card>}</>}
-      </Card>
-    )}
+    <Card id="tut-payment" style={{padding:16}}>
+      {isFullBonus?<Btn full variant="success" onClick={finalize} disabled={submitting} sfx="">{submitting?<Spin size={16}/>:<><Gift size={18}/> Finalizar pedido bônus</>}</Btn>:
+      <><SectionTitle sub="Pagamento seguro via Mercado Pago">Pagamento</SectionTitle>
+      <Btn full onClick={finalize} disabled={submitting} sfx="">{submitting?<Spin size={16}/>:<><CreditCard size={18}/> Pagar R$ {total.toFixed(2)}</>}</Btn></>}
+    </Card>
   </div>);
 }
 
@@ -578,7 +591,7 @@ function SuccessPage({lastOrder,theme,nav}){
 // PROFILE
 // ══════════════════════════════════════════════════════
 
-function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProfile,onLogout}){
+function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProfile,onLogout,myOrders=[]}){
   const [colors,setColors]=useState(profile?.mana_color_1&&profile?.mana_color_2?[profile.mana_color_1,profile.mana_color_2]:['U','R']);
   const [editAddr,setEditAddr]=useState(false);
   const [addr,setAddr]=useState({cep:profile?.cep||'',rua:profile?.rua||'',numero:profile?.numero||'',complemento:profile?.complemento||'',bairro:profile?.bairro||'',cidade:profile?.cidade||'',uf:profile?.uf||''});
@@ -602,6 +615,24 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
 
   return(<div style={{display:'flex',flexDirection:'column',gap:14}}>
     <Card style={{padding:18,textAlign:'center'}}>{guild&&<GuildBadge guild={guild} size={44}/>}<div style={{marginTop:8,fontWeight:700,fontSize:16}}>{profile?.name||profile?.email||'—'}</div>{profile?.whatsapp&&<div style={{fontSize:12,color:'rgba(255,255,255,0.3)',marginTop:2,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Phone size={11}/>{profile.whatsapp}</div>}<div style={{fontSize:12,color:'rgba(255,255,255,0.3)',marginTop:2}}>{guild?'Guilda '+guild:'Escolha 2 cores'}</div></Card>
+
+    <Card style={{padding:16}}>
+      <SectionTitle sub="Histórico de pedidos">Meus Pedidos</SectionTitle>
+      {myOrders.length===0?<div style={{fontSize:13,color:'rgba(255,255,255,0.25)',textAlign:'center',padding:12}}>Nenhum pedido ainda</div>:
+      myOrders.map((o,i)=>(<div key={o.id||i} style={{padding:'10px 0',borderBottom:i<myOrders.length-1?'1px solid rgba(255,255,255,0.04)':'none'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+            <Tag style={{fontSize:9,padding:'2px 6px'}}>{o.payment_method==='MERCADO_PAGO'?'MP':'Bônus'}</Tag>
+            <span style={{fontSize:12,fontWeight:700}}>{Number(o.total_locked)>0?'R$ '+Number(o.total_locked).toFixed(2):'Bônus'}</span>
+          </div>
+          <Tag color={o.status==='DRAFT'?'#c9a96e':o.status==='CONFIRMED'?'#2ee59d':'#4a90d9'} style={{fontSize:10}}>{o.status==='DRAFT'?'Pendente':o.status==='CONFIRMED'?'Pago':o.status}</Tag>
+        </div>
+        <div style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>
+          {o.qty_in_batch} cartas | {new Date(o.created_at).toLocaleDateString('pt-BR')}
+          {o.cards&&<span> | {o.cards.map(c=>c.name+' x'+c.qty).join(', ')}</span>}
+        </div>
+      </div>))}
+    </Card>
 
     {editAddr?<Card style={{padding:16}}>
       <SectionTitle>Editar endereço</SectionTitle>
@@ -823,6 +854,7 @@ export default function MagicPortal(){
   const [cartIds,setCartIds]=useState([]);
   const [bonusGrants,setBonusGrants]=useState([]);
   const [lastOrder,setLastOrder]=useState(null);
+  const [myOrders,setMyOrders]=useState([]);
 
   // UI state
   const [page,setPage]=useState('home');
@@ -898,6 +930,10 @@ export default function MagicPortal(){
         // Bonus grants
         const bg = await sbGet('bonus_grants', `user_id=eq.${userId}&campaign_id=eq.${camp.id}`, tkn);
         setBonusGrants(bg);
+
+        // Order history (batches with items)
+        const batches = await sbGet('order_batches', `order_id=eq.${ord.id}&select=id,status,total_locked,payment_method,created_at,qty_in_batch`, tkn);
+        setMyOrders(batches);
       }
     } catch(e) {
       console.error('loadAppData', e);
@@ -921,7 +957,7 @@ export default function MagicPortal(){
 
   function handleLogout(){
     setSession(null);setProfile(null);setCampaign(null);setTiers([]);setPricing(null);
-    setOrderId(null);setWants([]);setCartIds([]);setBonusGrants([]);
+    setOrderId(null);setWants([]);setCartIds([]);setBonusGrants([]);setMyOrders([]);
     setPage('home');setIsNew(false);
   }
 
@@ -985,9 +1021,9 @@ export default function MagicPortal(){
   // ─── Order done ───────────────────────────────────
   async function handleOrderDone(order) {
     setLastOrder(order);
-    // Clear wants that were in cart
     setWants(prev => prev.filter(w => !cartIds.includes(w.id)));
     setCartIds([]);
+    setMyOrders(prev => [{ id: order.batchId, status: 'DRAFT', total_locked: order.isFullBonus ? 0 : order.totalPaid * order.priceBRL, payment_method: order.method === 'bonus' ? 'BONUS' : 'MERCADO_PAGO', qty_in_batch: order.totalPaid + order.totalBonus, created_at: new Date().toISOString(), cards: order.cards }, ...prev]);
     toast('Pedido registrado!', 'success');
   }
 
@@ -1008,8 +1044,9 @@ export default function MagicPortal(){
   const cartCount = wants.filter(w => cartIds.includes(w.id)).reduce((s, w) => s + w.quantity, 0);
   const bottomTabs = [{ key: 'home', icon: Home, label: 'Início' }, { key: 'catalog', icon: BookOpen, label: 'Catálogo' }, { key: 'wants', icon: ScrollText, label: 'Wants' }, { key: 'checkout', icon: ShoppingCart, label: 'Checkout' }, { key: 'profile', icon: User, label: 'Perfil' }];
 
-  return (<div style={{ '--gp': theme.primary, '--gs': theme.secondary, '--gg': theme.glow, minHeight: '100vh', background: 'radial-gradient(ellipse at 50% -10%,' + theme.primary + '06 0%,#08080f 50%)', color: '#e9edf7', fontFamily: "'Outfit',sans-serif", maxWidth: 480, margin: '0 auto', position: 'relative', paddingBottom: 78 }}>
-    <style>{"@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');*{box-sizing:border-box;margin:0;padding:0}body{background:#08080f;margin:0}input:focus{border-color:var(--gp)!important;outline:none}button:active:not(:disabled){transform:scale(.97)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.07);border-radius:3px}@keyframes spin{to{transform:rotate(360deg)}}@keyframes tutPulse{0%,100%{opacity:1;box-shadow:0 0 0 9999px rgba(0,0,0,0.78),0 0 30px var(--gg)}50%{opacity:.85;box-shadow:0 0 0 9999px rgba(0,0,0,0.78),0 0 50px var(--gg)}}@keyframes flyToWants{0%{transform:translate(-50%,-50%) scale(1);opacity:1}50%{transform:translate(calc(-50vw + 160px),-60vh) scale(0.6);opacity:0.8}100%{transform:translate(calc(-50vw + 160px),-80vh) scale(0.2);opacity:0}}"}</style>
+  return (<div style={{ '--gp': theme.primary, '--gs': theme.secondary, '--gg': theme.glow, minHeight: '100vh', background: `radial-gradient(ellipse at 50% -20%,${theme.primary}12 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,${theme.secondary}08 0%,transparent 40%),#08080f`, color: '#e9edf7', fontFamily: "'Outfit',sans-serif", maxWidth: 480, margin: '0 auto', position: 'relative', paddingBottom: 78 }}>
+    <FloatingMana theme={theme}/>
+    <style>{"@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');*{box-sizing:border-box;margin:0;padding:0}body{background:#08080f;margin:0}input:focus{border-color:var(--gp)!important;outline:none}button:active:not(:disabled){transform:scale(.97)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.07);border-radius:3px}@keyframes spin{to{transform:rotate(360deg)}}@keyframes tutPulse{0%,100%{opacity:1;box-shadow:0 0 0 9999px rgba(0,0,0,0.78),0 0 30px var(--gg)}50%{opacity:.85;box-shadow:0 0 0 9999px rgba(0,0,0,0.78),0 0 50px var(--gg)}}@keyframes manaFloat{0%{transform:translateY(0) translateX(0) rotate(0deg);opacity:0}10%{opacity:0.06}90%{opacity:0.03}100%{transform:translateY(-110vh) translateX(var(--drift,20px)) rotate(360deg);opacity:0}}@keyframes flyToWants{0%{transform:translate(-50%,-50%) scale(1);opacity:1}50%{transform:translate(calc(-50vw + 160px),-60vh) scale(0.6);opacity:0.8}100%{transform:translate(calc(-50vw + 160px),-80vh) scale(0.2);opacity:0}}"}</style>
 
     {toastMsg && <Toast msg={toastMsg.msg} type={toastMsg.type} onClose={() => setToastMsg(null)} />}
     {showTutorial && <TutorialOverlay step={tutStep} steps={TUTORIAL_STEPS} onNext={tutNext} onSkip={tutSkip} theme={theme} onNavTo={p => setPage(p)} isFirstTime={isFirstTimeTut} />}
@@ -1062,7 +1099,7 @@ export default function MagicPortal(){
         {page === 'wants' && <WantsPage wants={wants} cartIds={cartIds} setCartIds={setCartIds} onRemoveWant={handleRemoveWant} onUpdateWantQty={handleUpdateWantQty} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} />}
         {page === 'checkout' && <CheckoutPage wants={wants} cartIds={cartIds} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} />}
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
-        {page === 'profile' && <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} />}
+        {page === 'profile' && <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} />}
         {page === 'admin' && <AdminPage pool={pool} tiers={computedTiers} priceBRL={priceBRL} pricing={pricing} campaign={campaign} theme={theme} token={token} nav={nav} />}
         {page === 'onboarding' && <OnboardingPage onComplete={handleOnboardingComplete} theme={theme} />}
       </div>
