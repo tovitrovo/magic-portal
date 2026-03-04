@@ -24,6 +24,13 @@ async function sbPost(table, data, token) {
   return r.json();
 }
 
+async function sbUpsert(table, data, token) {
+  const h = { ...sbH(token), 'Prefer': 'return=representation,resolution=merge-duplicates' };
+  const r = await fetch(`${SB_URL}/rest/v1/${table}`, { method: 'POST', headers: h, body: JSON.stringify(data) });
+  if (!r.ok) { const t = await r.text(); throw new Error(`UPSERT ${table}: ${t}`); }
+  return r.json();
+}
+
 async function sbPatch(table, query, data, token) {
   const r = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, { method: 'PATCH', headers: sbH(token), body: JSON.stringify(data) });
   if (!r.ok) { const t = await r.text(); throw new Error(`PATCH ${table}: ${t}`); }
@@ -38,12 +45,22 @@ async function sbDelete(table, query, token) {
 
 async function sbAuthSignUp(email, password) {
   const r = await fetch(`${SB_URL}/auth/v1/signup`, { method: 'POST', headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
-  const d = await r.json(); if (d.error || d.msg) throw new Error(d.error?.message || d.msg || 'Erro no cadastro'); return d;
+  if (!r.ok) { const t = await r.text(); throw new Error(t || 'Erro no cadastro'); }
+  const d = await r.json();
+  if (d.error || d.msg) throw new Error(d.error?.message || d.msg || 'Erro no cadastro');
+  if (!d.user?.id) throw new Error('Cadastro falhou — resposta inesperada');
+  return d;
 }
 
 async function sbAuthSignIn(email, password) {
   const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, { method: 'POST', headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
-  const d = await r.json(); if (d.error || d.error_description) throw new Error(d.error_description || d.error || 'Erro no login'); return d;
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    throw new Error(d.error_description || d.msg || 'Email ou senha incorretos');
+  }
+  const d = await r.json();
+  if (!d.access_token) throw new Error('Login falhou — sem token');
+  return d;
 }
 
 async function sbUpload(bucket, path, file, token) {
@@ -609,12 +626,22 @@ function AuthPage({onLogin,theme}){
         if(!name){setErr('Preencha o nome');setLoading(false);return;}
         if(!whatsapp||whatsapp.length<10){setErr('WhatsApp inválido');setLoading(false);return;}
         const res=await sbAuthSignUp(email,senha);
-        // Auto sign in after signup
-        const login=await sbAuthSignIn(email,senha);
-        // Create profile
-        await sbPost('profiles',{id:login.user.id,name,whatsapp,is_admin:false},login.access_token);
+        // If signup returns a session (confirm email disabled), use it directly
+        let session;
+        if (res.access_token) {
+          session = res;
+        } else if (res.session?.access_token) {
+          session = res.session;
+        } else {
+          // Need to sign in separately (confirm email disabled but no session in response)
+          session = await sbAuthSignIn(email, senha);
+        }
+        const userId = session.user?.id || res.user?.id;
+        const token = session.access_token;
+        // Create profile - use service role via upsert to avoid conflicts
+        await sbUpsert('profiles', { id: userId, name, whatsapp, is_admin: false }, token);
         SFX.confirm();
-        onLogin(login,'signup');
+        onLogin(session, 'signup');
       } else {
         const res=await sbAuthSignIn(email,senha);
         SFX.success();
