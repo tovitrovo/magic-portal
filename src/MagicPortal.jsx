@@ -27,7 +27,7 @@ async function sbPost(table, data, token) {
 async function sbUpsert(table, data, token) {
   const h = { ...sbH(token), 'Prefer': 'return=representation,resolution=merge-duplicates' };
   const r = await fetch(`${SB_URL}/rest/v1/${table}`, { method: 'POST', headers: h, body: JSON.stringify(data) });
-  if (!r.ok) { const t = await r.text(); throw new Error(`UPSERT ${table}: ${t}`); }
+  if (!r.ok) { const t = await r.text(); throw new Error('Erro ao criar conta. Tente novamente.'); }
   return r.json();
 }
 
@@ -45,10 +45,12 @@ async function sbDelete(table, query, token) {
 
 async function sbAuthSignUp(email, password) {
   const r = await fetch(`${SB_URL}/auth/v1/signup`, { method: 'POST', headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
-  if (!r.ok) { const t = await r.text(); throw new Error(t || 'Erro no cadastro'); }
+  if (!r.ok) { const t = await r.text(); if (t.includes('already registered') || t.includes('already been registered')) throw new Error('Este usuário já está cadastrado'); throw new Error('Erro ao criar conta. Tente novamente.'); }
   const d = await r.json();
-  if (d.error || d.msg) throw new Error(d.error?.message || d.msg || 'Erro no cadastro');
-  if (!d.user?.id) throw new Error('Cadastro falhou — resposta inesperada');
+  if (d.error || d.msg) { const m = d.error?.message || d.msg || ''; if (m.includes('already registered') || m.includes('already been registered')) throw new Error('Este usuário já está cadastrado'); throw new Error('Erro ao criar conta. Tente novamente.'); }
+  // Supabase returns identities=[] for existing users (when confirm email is off)
+  if (d.user && d.user.identities && d.user.identities.length === 0) throw new Error('Este usuário já está cadastrado');
+  if (!d.user?.id) throw new Error('Erro ao criar conta. Tente novamente.');
   return d;
 }
 
@@ -56,7 +58,10 @@ async function sbAuthSignIn(email, password) {
   const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, { method: 'POST', headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
   if (!r.ok) {
     const d = await r.json().catch(() => ({}));
-    throw new Error(d.error_description || d.msg || 'Email ou senha incorretos');
+    const msg = d.error_description || d.msg || '';
+    if (msg.includes('Invalid login')) throw new Error('Usuário ou senha incorretos');
+    if (msg.includes('Email not confirmed')) throw new Error('Email não confirmado. Verifique sua caixa de entrada.');
+    throw new Error('Usuário ou senha incorretos');
   }
   const d = await r.json();
   if (!d.access_token) throw new Error('Login falhou — sem token');
@@ -148,19 +153,15 @@ function FlyingCard({show,onDone}){
   </div>;
 }
 
-function VirtualKeyboard({onKey,onBackspace,onDone}){
-  const rows=[['1','2','3','4','5','6','7','8','9','0'],['q','w','e','r','t','y','u','i','o','p'],['a','s','d','f','g','h','j','k','l'],['z','x','c','v','b','n','m','!','@','#']];
-  const [shifted,setShifted]=useState(false);
-  return(<div style={{background:'rgba(0,0,0,0.6)',backdropFilter:'blur(10px)',borderRadius:16,padding:8,border:'1px solid rgba(255,255,255,0.06)'}}>
-    {rows.map((row,ri)=>(<div key={ri} style={{display:'flex',justifyContent:'center',gap:3,marginBottom:3}}>
-      {row.map(k=>{const display=shifted?k.toUpperCase():k;return <button key={k} onClick={()=>{SFX.click();onKey(display);}} style={{width:30,height:36,borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(255,255,255,0.05)',color:'#e9edf7',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif",display:'grid',placeItems:'center'}}>{display}</button>;})}
+function VirtualKeyboard({onKey,onBackspace,onDone,maxLen=6,currentLen=0}){
+  const rows=[['1','2','3'],['4','5','6'],['7','8','9'],['⌫','0','OK']];
+  return(<div style={{background:'rgba(0,0,0,0.6)',backdropFilter:'blur(10px)',borderRadius:16,padding:10,border:'1px solid rgba(255,255,255,0.06)',maxWidth:220,margin:'0 auto'}}>
+    {rows.map((row,ri)=>(<div key={ri} style={{display:'flex',justifyContent:'center',gap:4,marginBottom:4}}>
+      {row.map(k=>{
+        const isBack=k==='⌫';const isOk=k==='OK';const isNum=!isBack&&!isOk;
+        const disabled=isNum&&currentLen>=maxLen;
+        return <button key={k} onClick={()=>{if(isBack){SFX.click();onBackspace();}else if(isOk){SFX.confirm();onDone();}else if(!disabled){SFX.click();onKey(k);}}} disabled={disabled} style={{width:60,height:48,borderRadius:12,border:isOk?'none':'1px solid rgba(255,255,255,0.08)',background:isOk?'var(--gp)':isBack?'rgba(255,70,70,0.1)':'rgba(255,255,255,0.05)',color:isOk?'#fff':isBack?'#ff6b7a':'#e9edf7',fontSize:isNum?20:isOk?13:18,fontWeight:700,cursor:disabled?'not-allowed':'pointer',fontFamily:"'Outfit',sans-serif",display:'grid',placeItems:'center',opacity:disabled?.3:1}}>{k}</button>;})}
     </div>))}
-    <div style={{display:'flex',gap:3,justifyContent:'center',marginTop:2}}>
-      <button onClick={()=>{SFX.toggle();setShifted(!shifted);}} style={{flex:1,height:36,borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:shifted?'var(--gp)':'rgba(255,255,255,0.05)',color:'#fff',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{shifted?'abc':'ABC'}</button>
-      <button onClick={()=>{SFX.click();onKey(' ');}} style={{flex:3,height:36,borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(255,255,255,0.05)',color:'rgba(255,255,255,0.3)',fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>espaço</button>
-      <button onClick={()=>{SFX.click();onBackspace();}} style={{flex:1,height:36,borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(255,255,255,0.05)',color:'#ff6b7a',fontSize:13,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>⌫</button>
-      <button onClick={()=>{SFX.confirm();onDone();}} style={{flex:1,height:36,borderRadius:8,border:'none',background:'var(--gp)',color:'#fff',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>OK</button>
-    </div>
   </div>);
 }
 
@@ -168,15 +169,15 @@ function VirtualKeyboard({onKey,onBackspace,onDone}){
 // TUTORIAL
 // ══════════════════════════════════════════════════════
 
-function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo}){
+function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
   if(step<0||step>=steps.length)return null;
   const s=steps[step];const isLast=step===steps.length-1;const [rect,setRect]=useState(null);
   useEffect(()=>{if(s.navTo&&onNavTo)onNavTo(s.navTo);},[step]);
-  useEffect(()=>{const findEl=()=>{if(!s.spotlightId){setRect(null);return;}const el=document.getElementById(s.spotlightId);if(el){const r=el.getBoundingClientRect();setRect({top:r.top-6,left:r.left-6,width:r.width+12,height:r.height+12});}else{setRect(null);}};const t=setTimeout(findEl,150);return()=>clearTimeout(t);},[step,s.spotlightId]);
+  useEffect(()=>{const findEl=()=>{if(!s.spotlightId){setRect(null);return;}const el=document.getElementById(s.spotlightId);if(el){if(s.scrollTo)el.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>{const r=el.getBoundingClientRect();setRect({top:r.top-6,left:r.left-6,width:r.width+12,height:r.height+12});},s.scrollTo?300:0);}else{setRect(null);}};const t=setTimeout(findEl,200);return()=>clearTimeout(t);},[step,s.spotlightId]);
   const msgTop=rect?(rect.top>window.innerHeight/2?Math.max(60,rect.top-180):rect.top+rect.height+16):null;
   return(<div style={{position:'fixed',inset:0,zIndex:100,pointerEvents:'auto'}}>
-    <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.78)'}} onClick={onSkip}/>
-    {rect&&<div style={{position:'absolute',top:rect.top,left:rect.left,width:rect.width,height:rect.height,borderRadius:14,border:'2px solid '+theme.primary,boxShadow:'0 0 0 9999px rgba(0,0,0,0.78), 0 0 20px '+theme.glow,background:'transparent',zIndex:101,pointerEvents:'none'}}/>}
+    <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.78)'}} onClick={isFirstTime?undefined:onSkip}/>
+    {rect&&<div style={{position:'absolute',top:rect.top,left:rect.left,width:rect.width,height:rect.height,borderRadius:14,border:'2.5px solid '+theme.primary,boxShadow:'0 0 0 9999px rgba(0,0,0,0.78), 0 0 30px '+theme.glow+', inset 0 0 20px '+theme.glow,background:'transparent',zIndex:101,pointerEvents:'none',animation:'tutPulse 1.5s ease-in-out infinite'}}/>}
     <div style={{position:rect?'absolute':'fixed',top:msgTop||'50%',left:'50%',transform:rect?'translateX(-50%)':'translate(-50%,-50%)',width:'calc(100% - 40px)',maxWidth:420,zIndex:102}}>
       <Card glow={theme.glow} style={{padding:18,background:'rgba(12,12,20,0.97)',border:'1px solid '+theme.primary+'30'}}>
         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
@@ -187,9 +188,9 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo}){
         <div style={{fontSize:13,lineHeight:1.6,color:'rgba(255,255,255,0.6)',marginBottom:14}}>{s.body}</div>
         <div style={{display:'flex',gap:5,justifyContent:'center',marginBottom:12}}>{steps.map((_,i)=><div key={i} style={{width:i===step?18:6,height:5,borderRadius:3,background:i===step?theme.primary:'rgba(255,255,255,0.08)',transition:'all .3s'}}/>)}</div>
         <div style={{display:'flex',gap:8}}>
-          <Btn variant="ghost" onClick={onSkip} style={{flex:1,fontSize:12}} sfx="nav">Pular</Btn>
+          {!isFirstTime&&<Btn variant="ghost" onClick={onSkip} style={{flex:1,fontSize:12}} sfx="nav">Pular</Btn>}
           {isLast?<Btn onClick={onNext} style={{flex:2,fontSize:13}} sfx="confirm"><BookOpen size={15}/> Ver cartas!</Btn>:
-          <Btn onClick={onNext} style={{flex:2,fontSize:13}} sfx="click">Entendi <ArrowRight size={14}/></Btn>}
+          <Btn onClick={onNext} style={{flex:isFirstTime?1:2,fontSize:13}} sfx="click">Entendi <ArrowRight size={14}/></Btn>}
         </div>
       </Card>
     </div>
@@ -197,16 +198,16 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo}){
 }
 
 const TUTORIAL_STEPS=[
-  {title:'Catálogo',body:'Aqui ficam todas as cartas disponíveis. Busque por nome e filtre por tipo.',navTo:'catalog',tabIndex:1,spotlightId:null},
-  {title:'Busca e filtros',body:'Use a barra de busca para encontrar cartas. Filtre por Normal, Holo ou Foil.',navTo:'catalog',tabIndex:1,spotlightId:'tut-search-area'},
-  {title:'Adicionar à lista',body:'Escolha a quantidade e clique na seta para enviar a carta para seus Wants.',navTo:'catalog',tabIndex:1,spotlightId:'tut-add-btn'},
-  {title:'Sua lista de Wants',body:'Todas as cartas adicionadas ficam aqui.',navTo:'wants',tabIndex:2,spotlightId:null},
-  {title:'Selecionar para o carrinho',body:'Toque no círculo para selecionar. As cartas selecionadas vão para o checkout.',navTo:'wants',tabIndex:2,spotlightId:'tut-cart-toggle'},
-  {title:'Bônus grátis',body:'Se o preço caiu desde que você pagou, primeiras cartas selecionadas saem grátis!',navTo:'wants',tabIndex:2,spotlightId:'tut-wants-tags'},
-  {title:'Checkout',body:'Revise o pedido. Cartas bônus aparecem separadas das pagas.',navTo:'checkout',tabIndex:3,spotlightId:'tut-checkout-summary'},
-  {title:'Endereço e frete',body:'Preencha seu endereço e calcule o frete.',navTo:'checkout',tabIndex:3,spotlightId:'tut-address'},
-  {title:'Pagamento',body:'Escolha entre Mercado Pago ou PIX.',navTo:'checkout',tabIndex:3,spotlightId:'tut-payment'},
-  {title:'Perfil',body:'Veja pedidos, edite endereço, mude a guilda e reabra este tutorial.',navTo:'profile',tabIndex:4,spotlightId:null},
+  {title:'Catálogo',body:'Aqui ficam todas as cartas disponíveis. Use busca e filtros para encontrar o que precisa.',navTo:'catalog',tabIndex:1,spotlightId:null},
+  {title:'Busca e filtros',body:'Digite o nome da carta na busca. Use os botões Normal, Holo e Foil para filtrar por tipo.',navTo:'catalog',tabIndex:1,spotlightId:'tut-search-area',scrollTo:true},
+  {title:'Adicionar à lista',body:'Escolha a quantidade e clique na seta verde → para enviar a carta para seus Wants.',navTo:'catalog',tabIndex:1,spotlightId:'tut-add-btn',scrollTo:true},
+  {title:'Sua lista de Wants',body:'Todas as cartas adicionadas ficam aqui organizadas.',navTo:'wants',tabIndex:2,spotlightId:null},
+  {title:'Selecionar para o carrinho',body:'Toque no ○ círculo ao lado da carta para selecioná-la (fica ✓). As cartas selecionadas vão para o checkout.',navTo:'wants',tabIndex:2,spotlightId:'tut-cart-toggle',scrollTo:true},
+  {title:'Bônus grátis',body:'Se o grupo cresceu e o preço caiu, as primeiras cartas selecionadas saem de graça! O contador de bônus aparece aqui no topo em verde.',navTo:'wants',tabIndex:2,spotlightId:'tut-wants-tags',scrollTo:true},
+  {title:'Checkout',body:'Revise seu pedido. Cartas bônus (grátis) aparecem separadas das pagas.',navTo:'checkout',tabIndex:3,spotlightId:'tut-checkout-summary'},
+  {title:'Endereço e frete',body:'Preencha o CEP e o endereço será preenchido automaticamente.',navTo:'checkout',tabIndex:3,spotlightId:'tut-address'},
+  {title:'Pagamento',body:'Escolha entre Mercado Pago ou PIX. No PIX, envie o comprovante.',navTo:'checkout',tabIndex:3,spotlightId:'tut-payment'},
+  {title:'Perfil',body:'Veja pedidos, edite endereço, mude suas cores de mana e reabra este tutorial a qualquer momento.',navTo:'profile',tabIndex:4,spotlightId:null},
 ];
 
 // ══════════════════════════════════════════════════════
@@ -397,11 +398,25 @@ function WantsPage({wants,cartIds,setCartIds,onRemoveWant,onUpdateWantQty,priceB
 // ══════════════════════════════════════════════════════
 
 function AddressForm({address,setAddress,onCalcFrete,frete,loadingFrete}){
-  const a=address||{};const upd=(k,v)=>setAddress({...a,[k]:v});const cepClean=(a.cep||'').replace(/\D/g,'');
+  const a=address||{};const upd=(k,v)=>setAddress({...a,[k]:v});
+  const [cepLoading,setCepLoading]=useState(false);
+  async function handleCep(raw){
+    const clean=raw.replace(/\D/g,'').slice(0,8);
+    upd('cep',clean);
+    if(clean.length===8){
+      setCepLoading(true);
+      try{
+        const r=await fetch(`https://viacep.com.br/ws/${clean}/json/`);
+        const d=await r.json();
+        if(!d.erro){
+          setAddress(prev=>({...prev,cep:clean,rua:d.logradouro||prev.rua||'',bairro:d.bairro||prev.bairro||'',cidade:d.localidade||prev.cidade||'',uf:d.uf||prev.uf||''}));
+        }
+      }catch(e){console.error('ViaCEP',e);}
+      setCepLoading(false);
+    }
+  }
   return(<div id="tut-address" style={{display:'flex',flexDirection:'column',gap:8}}>
-    <div style={{display:'flex',gap:8}}>
-      <div style={{flex:1}}><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:3,display:'block'}}>CEP</label><div style={{display:'flex',gap:6}}><Input placeholder="00000-000" value={a.cep||''} onChange={e=>upd('cep',e.target.value.replace(/\D/g,'').slice(0,8))} style={{flex:1}}/><Btn variant="secondary" onClick={()=>onCalcFrete(cepClean)} disabled={cepClean.length<8||loadingFrete} sfx="click" style={{padding:'10px 14px'}}>{loadingFrete?<Spin size={14}/>:'Calcular'}</Btn></div></div>
-    </div>
+    <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:3,display:'block'}}>CEP</label><div style={{position:'relative'}}><Input placeholder="00000-000" value={a.cep||''} onChange={e=>handleCep(e.target.value)}/>{cepLoading&&<div style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)'}}><Spin size={14}/></div>}</div></div>
     <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:3,display:'block'}}>Rua / Avenida</label><Input icon={MapPin} placeholder="Ex: Rua das Flores" value={a.rua||''} onChange={e=>upd('rua',e.target.value)}/></div>
     <div style={{display:'flex',gap:8}}>
       <div style={{flex:1}}><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:3,display:'block'}}>Número</label><Input placeholder="123" value={a.numero||''} onChange={e=>upd('numero',e.target.value)}/></div>
@@ -615,30 +630,35 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
 // ══════════════════════════════════════════════════════
 
 function AuthPage({onLogin,theme}){
-  const [mode,setMode]=useState('login');const [email,setEmail]=useState('');const [senha,setSenha]=useState('');
+  const [mode,setMode]=useState('login');const [email,setEmail]=useState('');const [senha,setSenha]=useState('');const [senha2,setSenha2]=useState('');
   const [name,setName]=useState('');const [whatsapp,setWhatsapp]=useState('');
-  const [showVK,setShowVK]=useState(false);const [loading,setLoading]=useState(false);const [err,setErr]=useState('');
+  const [showVK,setShowVK]=useState(false);const [vkTarget,setVkTarget]=useState('senha');
+  const [loading,setLoading]=useState(false);const [err,setErr]=useState('');
+
+  function openVK(target){setVkTarget(target);setShowVK(true);}
+  function vkKey(k){if(vkTarget==='senha')setSenha(p=>p.length<6?p+k:p);else setSenha2(p=>p.length<6?p+k:p);}
+  function vkBack(){if(vkTarget==='senha')setSenha(p=>p.slice(0,-1));else setSenha2(p=>p.slice(0,-1));}
+  const currentVKLen=vkTarget==='senha'?senha.length:senha2.length;
+
+  const senhaOk=/^[0-9]{6}$/.test(senha);
+  const canSubmit=email.includes('@')&&senhaOk&&!loading&&(mode==='login'||senha===senha2);
 
   async function submit(){
-    setErr('');setLoading(true);
+    setErr('');
+    if(!senhaOk){setErr('A senha deve conter 6 números');return;}
+    if(mode==='signup'&&senha!==senha2){setErr('As senhas não coincidem');return;}
+    setLoading(true);
     try {
       if(mode==='signup'){
         if(!name){setErr('Preencha o nome');setLoading(false);return;}
         if(!whatsapp||whatsapp.length<10){setErr('WhatsApp inválido');setLoading(false);return;}
         const res=await sbAuthSignUp(email,senha);
-        // If signup returns a session (confirm email disabled), use it directly
         let session;
-        if (res.access_token) {
-          session = res;
-        } else if (res.session?.access_token) {
-          session = res.session;
-        } else {
-          // Need to sign in separately (confirm email disabled but no session in response)
-          session = await sbAuthSignIn(email, senha);
-        }
+        if (res.access_token) session = res;
+        else if (res.session?.access_token) session = res.session;
+        else session = await sbAuthSignIn(email, senha);
         const userId = session.user?.id || res.user?.id;
         const token = session.access_token;
-        // Create profile - use service role via upsert to avoid conflicts
         await sbUpsert('profiles', { id: userId, name, whatsapp, is_admin: false }, token);
         SFX.confirm();
         onLogin(session, 'signup');
@@ -656,19 +676,26 @@ function AuthPage({onLogin,theme}){
 
   return(<div style={{display:'flex',flexDirection:'column',gap:14,paddingTop:16}}>
     <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>⚔️</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:22}}>{mode==='login'?'Bem-vindo':'Junte-se'}</h1></div>
-    <div style={{display:'flex',borderRadius:12,background:'rgba(255,255,255,0.025)',padding:3,gap:3}}>{['login','signup'].map(m=>(<button key={m} onClick={()=>{SFX.toggle();setMode(m);setErr('');}} style={{flex:1,padding:'9px 0',borderRadius:10,border:'none',background:mode===m?'rgba(255,255,255,0.07)':'transparent',color:mode===m?'#fff':'rgba(255,255,255,0.3)',fontWeight:700,fontSize:13,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{m==='login'?'Entrar':'Criar conta'}</button>))}</div>
+    <div style={{display:'flex',borderRadius:12,background:'rgba(255,255,255,0.025)',padding:3,gap:3}}>{['login','signup'].map(m=>(<button key={m} onClick={()=>{SFX.toggle();setMode(m);setErr('');setSenha('');setSenha2('');setShowVK(false);}} style={{flex:1,padding:'9px 0',borderRadius:10,border:'none',background:mode===m?'rgba(255,255,255,0.07)':'transparent',color:mode===m?'#fff':'rgba(255,255,255,0.3)',fontWeight:700,fontSize:13,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{m==='login'?'Entrar':'Criar conta'}</button>))}</div>
     {mode==='signup'&&<Input icon={User} placeholder="Seu nome" value={name} onChange={e=>setName(e.target.value)}/>}
     <Input icon={Mail} placeholder="seu@email.com" value={email} onChange={e=>setEmail(e.target.value)}/>
     {mode==='signup'&&<Input icon={Phone} placeholder="WhatsApp (11999999999)" value={whatsapp} onChange={e=>setWhatsapp(e.target.value.replace(/\D/g,'').slice(0,11))}/>}
     <div>
-      <div onClick={()=>setShowVK(true)} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:senha?'#e9edf7':'rgba(255,255,255,0.3)',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+      <div onClick={()=>openVK('senha')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='senha'?'var(--gp)':'rgba(255,255,255,0.08)'),background:'rgba(0,0,0,0.3)',color:senha?'#e9edf7':'rgba(255,255,255,0.3)',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
         <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,0.22)'}}/>
-        {senha?'•'.repeat(senha.length):'Senha (teclado virtual)'}
+        {senha?<span style={{letterSpacing:6}}>{'●'.repeat(senha.length)}<span style={{color:'rgba(255,255,255,0.15)',letterSpacing:4}}>{'○'.repeat(6-senha.length)}</span></span>:'Senha (6 dígitos)'}
       </div>
-      {showVK&&<div style={{marginTop:8}}><VirtualKeyboard onKey={k=>setSenha(p=>p+k)} onBackspace={()=>setSenha(p=>p.slice(0,-1))} onDone={()=>setShowVK(false)}/></div>}
     </div>
+    {mode==='signup'&&<div>
+      <div onClick={()=>openVK('senha2')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='senha2'?'var(--gp)':'rgba(255,255,255,0.08)'),background:'rgba(0,0,0,0.3)',color:senha2?'#e9edf7':'rgba(255,255,255,0.3)',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+        <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,0.22)'}}/>
+        {senha2?<span style={{letterSpacing:6}}>{'●'.repeat(senha2.length)}<span style={{color:'rgba(255,255,255,0.15)',letterSpacing:4}}>{'○'.repeat(6-senha2.length)}</span></span>:'Confirmar senha'}
+      </div>
+      {senha2.length===6&&senha!==senha2&&<div style={{fontSize:11,color:'#ff6b7a',marginTop:4,textAlign:'center'}}>As senhas não coincidem</div>}
+    </div>}
+    {showVK&&<div style={{marginTop:4}}><VirtualKeyboard onKey={vkKey} onBackspace={vkBack} onDone={()=>setShowVK(false)} maxLen={6} currentLen={currentVKLen}/></div>}
     {err&&<div style={{fontSize:12,color:'#ff6b7a',textAlign:'center',padding:4}}><AlertTriangle size={12}/> {err}</div>}
-    <Btn full onClick={submit} disabled={!email.includes('@')||senha.length<4||loading} sfx="">{loading?<Spin size={16}/>:<>{mode==='login'?'Entrar':'Criar conta'} <ArrowRight size={16}/></>}</Btn>
+    <Btn full onClick={submit} disabled={!canSubmit} sfx="">{loading?<Spin size={16}/>:<>{mode==='login'?'Entrar':'Criar conta'} <ArrowRight size={16}/></>}</Btn>
   </div>);
 }
 
@@ -689,11 +716,10 @@ function OnboardingPage({onComplete,theme}){
 
   if(askTutorial)return(<div style={{display:'flex',flexDirection:'column',gap:16,paddingTop:40,alignItems:'center',textAlign:'center'}}>
     <div style={{width:56,height:56,borderRadius:14,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.06)',display:'grid',placeItems:'center',fontSize:28}}>🧙</div>
-    <h2 style={{fontFamily:"'Cinzel',serif",fontSize:20}}>"Deseja que eu guie seus primeiros passos?"</h2>
+    <h2 style={{fontFamily:"'Cinzel',serif",fontSize:20}}>"Agora vou guiar seus primeiros passos!"</h2>
     <p style={{fontSize:13,color:'rgba(255,255,255,0.4)',maxWidth:300,fontStyle:'italic'}}>Um grimório rápido sobre o ritual da encomenda</p>
     <div style={{display:'flex',gap:10,width:'100%',maxWidth:300}}>
-      <Btn variant="secondary" onClick={()=>onComplete(colors,guild,false)} style={{flex:1}} sfx="nav">Depois</Btn>
-      <Btn onClick={()=>onComplete(colors,guild,true)} style={{flex:2}} sfx="confirm">Mostre-me 🔮</Btn>
+      <Btn onClick={()=>onComplete(colors,guild,true)} style={{flex:1}} sfx="confirm">Vamos lá! 🔮</Btn>
     </div>
   </div>);
 
@@ -802,6 +828,7 @@ export default function MagicPortal(){
   const [page,setPage]=useState('home');
   const [showTutorial,setShowTutorial]=useState(false);
   const [tutStep,setTutStep]=useState(0);
+  const [isFirstTimeTut,setIsFirstTimeTut]=useState(false);
   const [soundOn,setSoundOn]=useState(true);
   const [appLoading,setAppLoading]=useState(false);
   const [toastMsg,setToastMsg]=useState(null);
@@ -905,7 +932,7 @@ export default function MagicPortal(){
       setProfile(p => ({ ...p, mana_color_1: colors[0], mana_color_2: colors[1], guild }));
     }
     setIsNew(false);
-    if (showTut) setShowTutorial(true);
+    if (showTut) { setIsFirstTimeTut(true); setShowTutorial(true); }
     setPage('home');
   }
 
@@ -920,15 +947,21 @@ export default function MagicPortal(){
 
   // ─── Add want ─────────────────────────────────────
   async function handleAddWant(card, qty) {
-    if (!token || !orderId) return;
-    const existing = wants.find(w => w.card_id === card.id);
-    if (existing) {
-      const newQty = existing.quantity + qty;
-      await sbPatch('order_items', `id=eq.${existing.id}`, { quantity: newQty }, token);
-      setWants(prev => prev.map(w => w.id === existing.id ? { ...w, quantity: newQty } : w));
-    } else {
-      const [item] = await sbPost('order_items', { order_id: orderId, card_id: card.id, quantity: qty, is_bonus: false, unit_price_brl: 0 }, token);
-      setWants(prev => [{ ...item, card_name: card.name, card_type: card.type }, ...prev]);
+    if (!token || !orderId) { toast('Faça login primeiro','error'); return; }
+    try {
+      const existing = wants.find(w => w.card_id === card.id);
+      if (existing) {
+        const newQty = existing.quantity + qty;
+        await sbPatch('order_items', `id=eq.${existing.id}`, { quantity: newQty }, token);
+        setWants(prev => prev.map(w => w.id === existing.id ? { ...w, quantity: newQty } : w));
+      } else {
+        const [item] = await sbPost('order_items', { order_id: orderId, card_id: card.id, quantity: qty, is_bonus: false, unit_price_brl: 0 }, token);
+        setWants(prev => [{ ...item, card_name: card.name, card_type: card.type }, ...prev]);
+      }
+      toast(qty+'x '+card.name+' adicionada!','success');
+    } catch(e) {
+      console.error('addWant',e);
+      toast('Erro ao adicionar: '+e.message,'error');
     }
   }
 
@@ -968,18 +1001,18 @@ export default function MagicPortal(){
 
   // Tutorial
   useEffect(() => { if (showTutorial) setTutStep(0); }, [showTutorial]);
-  function tutNext() { if (tutStep < TUTORIAL_STEPS.length - 1) setTutStep(s => s + 1); else { setShowTutorial(false); setTutStep(0); setPage('catalog'); } }
-  function tutSkip() { setShowTutorial(false); setTutStep(0); }
+  function tutNext() { if (tutStep < TUTORIAL_STEPS.length - 1) setTutStep(s => s + 1); else { setShowTutorial(false); setTutStep(0); setIsFirstTimeTut(false); setPage('catalog'); } }
+  function tutSkip() { setShowTutorial(false); setTutStep(0); setIsFirstTimeTut(false); }
 
   const wantsCount = wants.reduce((s, w) => s + w.quantity, 0);
   const cartCount = wants.filter(w => cartIds.includes(w.id)).reduce((s, w) => s + w.quantity, 0);
   const bottomTabs = [{ key: 'home', icon: Home, label: 'Início' }, { key: 'catalog', icon: BookOpen, label: 'Catálogo' }, { key: 'wants', icon: ScrollText, label: 'Wants' }, { key: 'checkout', icon: ShoppingCart, label: 'Checkout' }, { key: 'profile', icon: User, label: 'Perfil' }];
 
   return (<div style={{ '--gp': theme.primary, '--gs': theme.secondary, '--gg': theme.glow, minHeight: '100vh', background: 'radial-gradient(ellipse at 50% -10%,' + theme.primary + '06 0%,#08080f 50%)', color: '#e9edf7', fontFamily: "'Outfit',sans-serif", maxWidth: 480, margin: '0 auto', position: 'relative', paddingBottom: 78 }}>
-    <style>{"@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');*{box-sizing:border-box;margin:0;padding:0}body{background:#08080f;margin:0}input:focus{border-color:var(--gp)!important;outline:none}button:active:not(:disabled){transform:scale(.97)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.07);border-radius:3px}@keyframes spin{to{transform:rotate(360deg)}}@keyframes flyToWants{0%{transform:translate(-50%,-50%) scale(1);opacity:1}50%{transform:translate(calc(-50vw + 160px),-60vh) scale(0.6);opacity:0.8}100%{transform:translate(calc(-50vw + 160px),-80vh) scale(0.2);opacity:0}}"}</style>
+    <style>{"@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');*{box-sizing:border-box;margin:0;padding:0}body{background:#08080f;margin:0}input:focus{border-color:var(--gp)!important;outline:none}button:active:not(:disabled){transform:scale(.97)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.07);border-radius:3px}@keyframes spin{to{transform:rotate(360deg)}}@keyframes tutPulse{0%,100%{opacity:1;box-shadow:0 0 0 9999px rgba(0,0,0,0.78),0 0 30px var(--gg)}50%{opacity:.85;box-shadow:0 0 0 9999px rgba(0,0,0,0.78),0 0 50px var(--gg)}}@keyframes flyToWants{0%{transform:translate(-50%,-50%) scale(1);opacity:1}50%{transform:translate(calc(-50vw + 160px),-60vh) scale(0.6);opacity:0.8}100%{transform:translate(calc(-50vw + 160px),-80vh) scale(0.2);opacity:0}}"}</style>
 
     {toastMsg && <Toast msg={toastMsg.msg} type={toastMsg.type} onClose={() => setToastMsg(null)} />}
-    {showTutorial && <TutorialOverlay step={tutStep} steps={TUTORIAL_STEPS} onNext={tutNext} onSkip={tutSkip} theme={theme} onNavTo={p => setPage(p)} />}
+    {showTutorial && <TutorialOverlay step={tutStep} steps={TUTORIAL_STEPS} onNext={tutNext} onSkip={tutSkip} theme={theme} onNavTo={p => setPage(p)} isFirstTime={isFirstTimeTut} />}
 
     {/* Not logged in */}
     {!session && <div style={{ padding: '14px 20px' }}><AuthPage onLogin={handleLogin} theme={theme} /></div>}
@@ -1017,7 +1050,14 @@ export default function MagicPortal(){
 
       {/* Pages */}
       <div style={{ padding: page === 'onboarding' ? '0 20px' : '14px 20px' }}>
-        {page === 'home' && computedTiers.length > 0 && <HomePage pool={pool} tiers={computedTiers} priceBRL={priceBRL} closeDate={campaign?.close_at} theme={theme} nav={nav} wantsCount={wantsCount} cartCount={cartCount} bonusAvail={bonusAvail} credit={0} />}
+        {page === 'home' && (computedTiers.length > 0 ? <HomePage pool={pool} tiers={computedTiers} priceBRL={priceBRL} closeDate={campaign?.close_at} theme={theme} nav={nav} wantsCount={wantsCount} cartCount={cartCount} bonusAvail={bonusAvail} credit={0} /> : !appLoading && <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <div style={{textAlign:'center',padding:'6px 0 0'}}>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.28)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>
+            <h1 style={{margin:'5px 0 0',fontSize:26,fontFamily:"'Cinzel',serif",background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Cartas para Jogar</h1>
+          </div>
+          <Card style={{padding:20,textAlign:'center'}}><Spin size={24}/><div style={{marginTop:8,fontSize:13,color:'rgba(255,255,255,0.35)'}}>Carregando campanha...</div></Card>
+          <Btn full variant="secondary" onClick={()=>{loadAppData(token,session?.user?.id);}} sfx="click"><RefreshCw size={16}/> Recarregar</Btn>
+        </div>)}
         {page === 'catalog' && <CatalogPage token={token} wants={wants} onAddWant={handleAddWant} priceBRL={priceBRL} theme={theme} />}
         {page === 'wants' && <WantsPage wants={wants} cartIds={cartIds} setCartIds={setCartIds} onRemoveWant={handleRemoveWant} onUpdateWantQty={handleUpdateWantQty} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} />}
         {page === 'checkout' && <CheckoutPage wants={wants} cartIds={cartIds} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} />}
