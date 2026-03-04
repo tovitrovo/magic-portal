@@ -478,7 +478,7 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
         subtotal_locked: sub,
         shipping_locked: fV,
         total_locked: isFullBonus ? 0 : total,
-        payment_method: method === 'pix' ? 'PIX' : 'MERCADO_PAGO',
+        payment_method: method === 'pix' ? 'PIX_MANUAL' : 'MERCADO_PAGO',
       };
       const [batch] = await sbPost('order_batches', batchData, token);
 
