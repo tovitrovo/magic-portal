@@ -640,6 +640,65 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
   </div>);
 }
 
+async function pagarAgoraPedido(p) {
+  try {
+    toast('Gerando link de pagamento...','info');
+
+    // 1) Se já existe link salvo no pedido, usa ele
+    const link = p?.mp_link || p?.mpLink || p?.payment_link || p?.payment_url || p?.mp_init_point;
+    if (link) {
+      window.location.href = link;
+      return;
+    }
+
+    // 2) Monta orderId e total a partir do próprio registro (tenta vários campos comuns)
+    const orderId = String(
+      p?.batch_id ?? p?.batch?.id ?? p?.batchId ?? p?.id ?? p?.order_id ?? p?.orderId ?? ''
+    ).trim();
+
+    const total = Number(
+      p?.total_locked ?? p?.total_brl ?? p?.total ?? p?.total_locked_brl ?? p?.amount ?? p?.total_locked_value ?? 0
+    );
+
+    if (!orderId || !Number.isFinite(total) || total <= 0) {
+      toast('Pedido sem ID/valor para pagamento', 'error');
+      console.log('Pedido inválido para pagar:', p);
+      return;
+    }
+
+    const mpRes = await fetch('/api/mp-create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId,
+        total: Number(total.toFixed(2)),
+        descricao: `Pedido #${orderId}`
+      })
+    });
+
+    const mpData = await mpRes.json().catch(() => ({}));
+
+    if (!mpRes.ok) {
+      toast(`Erro MP: ${mpData?.error || 'falha ao gerar link'}`, 'error');
+      console.log('mp-create erro:', mpData);
+      return;
+    }
+
+    const mpLink = mpData?.mpLink || mpData?.init_point || mpData?.sandbox_init_point;
+    if (mpLink) {
+      window.location.href = mpLink;
+      return;
+    }
+
+    toast('MP não retornou link de pagamento', 'error');
+    console.log('mp-create resposta:', mpData);
+  } catch (e) {
+    toast(`Falha ao pagar: ${String(e?.message || e)}`, 'error');
+    console.error(e);
+  }
+}
+
+
 // ══════════════════════════════════════════════════════
 // SUCCESS
 // ══════════════════════════════════════════════════════
@@ -724,7 +783,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
             <span style={{fontWeight:700}}>x{c.qty}</span>
           </div>))}</div>:<div style={{fontSize:11,color:'rgba(255,255,255,0.2)',marginTop:8}}>Detalhes não disponíveis</div>}
           {isPending&&<div style={{display:'flex',gap:6,marginTop:10}}>
-              <Btn variant="warn" onClick={(e)=>{e.stopPropagation();if(o.mp_link){window.location.href=o.mp_link;}else{nav('checkout');}}} style={{flex:2,fontSize:12}} sfx="nav"><CreditCard size={14}/> Pagar agora</Btn>
+              <Btn variant="warn" onClick={(e)=>{e.stopPropagation();pagarAgoraPedido(o);}} style={{flex:2,fontSize:12}} sfx="nav"><CreditCard size={14}/> Pagar agora</Btn>
               <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(confirm('Cancelar este pedido?')){try{await sbPatch('order_batches','id=eq.'+(o.id),{status:'CANCELLED'},token);SFX.click();toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+err.message,'error');}}}} style={{flex:1,fontSize:12}} sfx=""><X size={14}/> Cancelar</Btn>
             </div>}
             {!isPending&&o.status!=='CANCELLED'&&<div style={{fontSize:10,color:'rgba(255,255,255,0.2)',marginTop:6}}>Para cancelar pedido pago, entre em contato.</div>}
