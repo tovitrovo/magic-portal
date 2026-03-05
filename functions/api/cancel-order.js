@@ -1,0 +1,59 @@
+export async function onRequest(context) {
+  const CORS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+  if (context.request.method === "OPTIONS") return new Response("ok", { headers: CORS });
+
+  try {
+    const { SB_URL, SB_SERVICE_ROLE_KEY } = context.env;
+    if (!SB_URL || !SB_SERVICE_ROLE_KEY) {
+      return new Response(JSON.stringify({ ok: false, error: "SB_URL/SB_SERVICE_ROLE_KEY não configurado" }), {
+        status: 500, headers: { ...CORS, "Content-Type": "application/json" }
+      });
+    }
+
+    const body = await context.request.json().catch(() => ({}));
+    const batchId = String(body.batchId || body.id || "").trim();
+    const orderId = String(body.orderId || body.order_id || "").trim();
+
+    if (!batchId && !orderId) {
+      return new Response(JSON.stringify({ ok: false, error: "batchId/orderId ausente" }), {
+        status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+      });
+    }
+
+    const headers = {
+      apikey: SB_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    };
+
+    const del = async (table, filter) => {
+      const url = `${SB_URL}/rest/v1/${table}?${filter}`;
+      await fetch(url, { method: "DELETE", headers });
+    };
+
+    // Best-effort cascade based on batchId
+    if (batchId) {
+      try { await del("order_items", `batch_id=eq.${encodeURIComponent(batchId)}`); } catch {}
+      try { await del("order_batches", `id=eq.${encodeURIComponent(batchId)}`); } catch {}
+    }
+
+    // Optional: cleanup by orderId (depends on your schema)
+    if (orderId) {
+      try { await del("order_batches", `order_id=eq.${encodeURIComponent(orderId)}`); } catch {}
+      try { await del("orders", `id=eq.${encodeURIComponent(orderId)}`); } catch {}
+    }
+
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200, headers: { ...CORS, "Content-Type": "application/json" }
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ ok: false, error: String(e?.message || e) }), {
+      status: 500, headers: { "Content-Type": "application/json" }
+    });
+  }
+}
