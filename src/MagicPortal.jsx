@@ -37,6 +37,32 @@ async function sbPatch(table, query, data, token) {
   return r.json();
 }
 
+
+async function sbFunc(fnName, body, token) {
+  const headers = new Headers();
+  headers.set('Content-Type', 'application/json');
+  headers.set('apikey', SB_KEY);
+  headers.set('Authorization', `Bearer ${token || SB_KEY}`);
+
+  const r = await fetch(`${SB_URL}/functions/v1/${fnName}`, {
+    method: 'POST',
+    mode: 'cors',
+    headers,
+    body: JSON.stringify(body || {}),
+  });
+
+  const text = await r.text();
+  let data;
+  try { data = JSON.parse(text); }
+  catch { throw new Error(`Função ${fnName} retornou resposta inválida: ${text.slice(0, 200)}`); }
+
+  if (!r.ok) {
+    const msg = data?.error || data?.message || `Erro ${r.status} na função ${fnName}`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
 async function sbDelete(table, query, token) {
   const r = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, { method: 'DELETE', headers: sbH(token) });
   if (!r.ok) { const t = await r.text(); throw new Error(`DEL ${table}: ${t}`); }
@@ -555,14 +581,7 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
     if(cepClean.length<8){toast('CEP inválido','error');return;}
     setLF(true);setFreteOptions([]);setSelectedFrete(null);
     try{
-      const r=await fetch(`${SB_URL}/functions/v1/frete`,{
-        method:'POST',headers:{'apikey':SB_KEY,'Authorization':`Bearer ${token||SB_KEY}`,'Content-Type':'application/json'},
-        body:JSON.stringify({cepDestino:cepClean,quantidade:totalQty})
-      });
-      const text=await r.text();
-      console.log('Frete response:',r.status,text);
-      let d;
-      try{d=JSON.parse(text);}catch(pe){toast('Frete retornou resposta inválida','error');setLF(false);return;}
+      const d=await sbFunc('frete',{cepDestino:cepClean,quantidade:totalQty},token);
       if(d.error){toast('Erro frete: '+d.error,'error');}
       else if(d.opcoes&&d.opcoes.length>0){
         const opts=d.opcoes.map(o=>({carrier:o.nome,price:o.preco,deadline_days:o.prazo}));
@@ -592,8 +611,7 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
 
       if(!isFullBonus){
         toast('Gerando link de pagamento...','info');
-        const mpRes=await fetch(`${SB_URL}/functions/v1/mp-create`,{method:'POST',headers:{'apikey':SB_KEY,'Authorization':`Bearer ${token||SB_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({orderId:String(batch.id),total:Number(total.toFixed(2)),descricao:`Pedido #${shortId} - ${totalPaid} cartas`})});
-        const mpData=await mpRes.json();
+        const mpData=await sbFunc('mp-create',{orderId:String(batch.id),total:Number(total.toFixed(2)),descricao:`Pedido #${shortId} - ${totalPaid} cartas`},token);
         if(mpData.mpLink){window.location.href=mpData.mpLink;return;}
         else if(mpData.error){console.error('MP:',mpData.error);toast('Erro MP: '+mpData.error,'error');}
         nav('success');
