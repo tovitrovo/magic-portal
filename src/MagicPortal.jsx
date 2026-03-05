@@ -68,6 +68,24 @@ async function sbAuthSignIn(email, password) {
   return d;
 }
 
+async function sbAuthResetPassword(email) {
+  const r = await fetch(`${SB_URL}/auth/v1/recover`, {
+    method: 'POST', headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  });
+  if (!r.ok) throw new Error('Erro ao enviar email de recuperação');
+  return true;
+}
+
+async function sbAuthUpdatePassword(newPassword, token) {
+  const r = await fetch(`${SB_URL}/auth/v1/user`, {
+    method: 'PUT', headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: newPassword })
+  });
+  if (!r.ok) { const t = await r.text(); throw new Error('Erro ao alterar senha'); }
+  return true;
+}
+
 async function sbUpload(bucket, path, file, token) {
   const r = await fetch(`${SB_URL}/storage/v1/object/${bucket}/${path}`, {
     method: 'POST', headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${token}` }, body: file
@@ -474,7 +492,8 @@ function AddressDisplay({address,onEdit}){
 // ══════════════════════════════════════════════════════
 
 function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token,orderId,campaignId,onOrderDone,toast}){
-  const [frete,setFrete]=useState(null);const [lF,setLF]=useState(false);const [submitting,setSubmitting]=useState(false);
+  const [freteOptions,setFreteOptions]=useState([]);const [selectedFrete,setSelectedFrete]=useState(null);
+  const [lF,setLF]=useState(false);const [submitting,setSubmitting]=useState(false);
   const [addr,setAddr]=useState({cep:profile?.cep||'',rua:profile?.rua||'',numero:profile?.numero||'',complemento:profile?.complemento||'',bairro:profile?.bairro||'',cidade:profile?.cidade||'',uf:profile?.uf||''});
 
   const cart=wants.filter(w=>cartIds.includes(w.id));
@@ -483,7 +502,38 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
   const bd=cart.map(c=>{const bq=Math.min(c.quantity,bL);bL-=bq;return{...c,bonusQty:bq,paidQty:c.quantity-bq};});
   const totalBonus=bd.reduce((s,c)=>s+c.bonusQty,0);const totalPaid=bd.reduce((s,c)=>s+c.paidQty,0);
   const isFullBonus=totalPaid===0&&totalBonus>0;
-  const sub=totalPaid*priceBRL;const fV=frete?frete.price:0;const total=sub+fV;
+  const sub=totalPaid*priceBRL;const fV=selectedFrete?selectedFrete.price:0;const total=sub+fV;
+
+  // Auto-calculate frete when CEP reaches 8 digits
+  const cepClean=(addr.cep||'').replace(/\D/g,'');
+  useEffect(()=>{
+    if(cepClean.length===8&&!isFullBonus){
+      calcFrete(cepClean);
+    }
+  },[cepClean]);
+
+  async function calcFrete(cep){
+    setLF(true);setFreteOptions([]);setSelectedFrete(null);
+    try{
+      const r=await fetch(`${SB_URL}/functions/v1/frete`,{
+        method:'POST',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+        body:JSON.stringify({cepDestino:cep,quantidade:totalQty})
+      });
+      const d=await r.json();
+      if(d.opcoes&&d.opcoes.length>0){
+        const opts=d.opcoes.map(o=>({carrier:o.nome,price:o.preco,deadline_days:o.prazo}));
+        setFreteOptions(opts);
+        setSelectedFrete(opts[0]);
+        SFX.success();
+      } else {
+        toast('Nenhuma opção de frete para este CEP','error');
+      }
+    }catch(e){
+      console.warn('frete',e);
+      toast('Erro ao calcular frete','error');
+    }
+    setLF(false);
+  }
 
   async function finalize(){
     setSubmitting(true);
@@ -514,27 +564,29 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
         }, token);
       }
 
-      // 5. Call Mercado Pago Edge Function (if not full bonus)
+      // 5. Save order locally
+      SFX.confirm();
+      onOrderDone({ method: isFullBonus ? 'bonus' : 'mp', totalPaid, totalBonus, priceBRL, isFullBonus, batchId: batch.id, cards: cart.map(c=>({name:c.card_name,type:c.card_type,qty:c.quantity})) });
+
+      // 6. Call Mercado Pago (if not full bonus) and redirect
       if (!isFullBonus) {
         try {
           const mpRes = await fetch(`${SB_URL}/functions/v1/mp-create`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ batch_id: batch.id, order_id: orderId, total_brl: total, description: `Cartas para Jogar - ${totalPaid} cartas` })
+            body: JSON.stringify({ orderId: batch.id, total: total, descricao: `Cartas para Jogar - ${totalPaid} cartas` })
           });
           const mpData = await mpRes.json();
-          if (mpData.payment_url) {
-            window.open(mpData.payment_url, '_blank');
+          if (mpData.mpLink) {
+            window.location.href = mpData.mpLink;
+            return;
           }
-        } catch(mpErr) {
-          console.warn('MP link:', mpErr);
-          toast('Pedido salvo! Link de pagamento será enviado por WhatsApp.', 'info');
-        }
+        } catch(mpErr) { console.warn('MP:', mpErr); }
+        toast('Pedido salvo! Link de pagamento será enviado por WhatsApp.', 'info');
+        nav('success');
+      } else {
+        nav('success');
       }
-
-      SFX.confirm();
-      onOrderDone({ method: isFullBonus ? 'bonus' : 'mp', totalPaid, totalBonus, priceBRL, isFullBonus, batchId: batch.id, cards: cart.map(c=>({name:c.card_name,type:c.card_type,qty:c.quantity})) });
-      nav('success');
     } catch(e) {
       console.error(e);
       toast('Erro ao finalizar: ' + e.message, 'error');
@@ -553,7 +605,7 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
         {bd.filter(c=>c.paidQty>0).map((c,i)=>(<div key={'p'+i} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(255,255,255,0.03)'}}><span style={{color:'rgba(255,255,255,0.6)'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.paidQty}</span><span style={{fontWeight:700}}>R$ {(c.paidQty*priceBRL).toFixed(2)}</span></div>))}</>}
       <div style={{marginTop:14,display:'flex',flexDirection:'column',gap:5}}>
         {totalPaid>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'rgba(255,255,255,0.4)'}}><span>Subtotal</span><span style={{color:'#fff',fontWeight:600}}>R$ {sub.toFixed(2)}</span></div>}
-        {!isFullBonus&&<div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'rgba(255,255,255,0.4)'}}><span>Frete</span><span style={{color:'#fff',fontWeight:600}}>{frete?'R$ '+fV.toFixed(2):'—'}</span></div>}
+        {!isFullBonus&&<div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'rgba(255,255,255,0.4)'}}><span>Frete</span><span style={{color:'#fff',fontWeight:600}}>{selectedFrete?'R$ '+fV.toFixed(2):lF?'Calculando...':'—'}</span></div>}
         <div style={{height:1,background:'rgba(255,255,255,0.06)',margin:'3px 0'}}/>
         <div style={{display:'flex',justifyContent:'space-between',fontSize:18,fontWeight:800}}><span>Total</span><span style={{color:isFullBonus?'#2ee59d':theme.primary}}>{isFullBonus?'R$ 0,00 (bônus!)':'R$ '+total.toFixed(2)}</span></div>
       </div>
@@ -561,7 +613,21 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
 
     {!isFullBonus&&<Card style={{padding:16}}>
       <SectionTitle>Endereço de entrega</SectionTitle>
-      <AddressForm address={addr} setAddress={setAddr} onCalcFrete={()=>{}} frete={frete} loadingFrete={lF}/>
+      <AddressForm address={addr} setAddress={(a)=>setAddr(a)} onCalcFrete={()=>{}} frete={null} loadingFrete={false}/>
+      {lF&&<div style={{textAlign:'center',padding:12}}><Spin size={18}/><div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginTop:4}}>Calculando frete...</div></div>}
+      {freteOptions.length>0&&<div style={{marginTop:12}}>
+        <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.4)',marginBottom:8}}>Opções de envio</div>
+        {freteOptions.map((opt,i)=>(<button key={i} onClick={()=>{SFX.toggle();setSelectedFrete(opt);}} style={{width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',borderRadius:12,border:'1px solid '+(selectedFrete===opt?theme.primary+'30':'rgba(255,255,255,0.06)'),background:selectedFrete===opt?theme.primary+'10':'rgba(255,255,255,0.02)',cursor:'pointer',marginBottom:4,fontFamily:"'Outfit',sans-serif"}}>
+          <div style={{textAlign:'left'}}>
+            <div style={{fontSize:13,fontWeight:600,color:selectedFrete===opt?'#fff':'rgba(255,255,255,0.5)'}}>{opt.carrier||'Envio'}</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.25)'}}>{opt.deadline_days} dias úteis</div>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+            <span style={{fontSize:14,fontWeight:800,color:selectedFrete===opt?theme.primary:'rgba(255,255,255,0.5)'}}>R$ {Number(opt.price).toFixed(2)}</span>
+            {selectedFrete===opt&&<CheckCircle size={16} style={{color:theme.primary}}/>}
+          </div>
+        </button>))}
+      </div>}
     </Card>}
 
     <Card id="tut-payment" style={{padding:16}}>
@@ -596,10 +662,26 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
   const [editAddr,setEditAddr]=useState(false);
   const [addr,setAddr]=useState({cep:profile?.cep||'',rua:profile?.rua||'',numero:profile?.numero||'',complemento:profile?.complemento||'',bairro:profile?.bairro||'',cidade:profile?.cidade||'',uf:profile?.uf||''});
   const [saving,setSaving]=useState(false);
+  const [expandedOrder,setExpandedOrder]=useState(null);
+  const [showChangePw,setShowChangePw]=useState(false);
+  const [newPw,setNewPw]=useState('');const [newPw2,setNewPw2]=useState('');
+  const [pwVK,setPwVK]=useState(false);const [pwVKTarget,setPwVKTarget]=useState('pw1');
+  const [pwLoading,setPwLoading]=useState(false);const [pwMsg,setPwMsg]=useState(null);
   function toggleC(k){setColors(p=>{if(p.includes(k))return p.filter(c=>c!==k);if(p.length>=2)return[p[1],k];return[...p,k];});}
   const guild=colors.length===2?getGuild(colors[0],colors[1]):null;const gT=guild?GT[guild]:null;
   const origColors=[profile?.mana_color_1,profile?.mana_color_2].filter(Boolean);
   const changed=JSON.stringify(colors)!==JSON.stringify(origColors);
+
+  function pwVKKey(k){if(pwVKTarget==='pw1')setNewPw(p=>p.length<6?p+k:p);else setNewPw2(p=>p.length<6?p+k:p);}
+  function pwVKBack(){if(pwVKTarget==='pw1')setNewPw(p=>p.slice(0,-1));else setNewPw2(p=>p.slice(0,-1));}
+  async function changePassword(){
+    if(!/^[0-9]{6}$/.test(newPw)){setPwMsg({t:'error',m:'A senha deve conter 6 números'});return;}
+    if(newPw!==newPw2){setPwMsg({t:'error',m:'As senhas não coincidem'});return;}
+    setPwLoading(true);
+    try{await sbAuthUpdatePassword(newPw,token);SFX.success();setPwMsg({t:'success',m:'Senha alterada!'});setNewPw('');setNewPw2('');setPwVK(false);setTimeout(()=>setShowChangePw(false),1500);}
+    catch(e){setPwMsg({t:'error',m:e.message});}
+    setPwLoading(false);
+  }
 
   async function saveGuild(){
     setSaving(true);
@@ -614,24 +696,33 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
   }
 
   return(<div style={{display:'flex',flexDirection:'column',gap:14}}>
-    <Card style={{padding:18,textAlign:'center'}}>{guild&&<GuildBadge guild={guild} size={44}/>}<div style={{marginTop:8,fontWeight:700,fontSize:16}}>{profile?.name||profile?.email||'—'}</div>{profile?.whatsapp&&<div style={{fontSize:12,color:'rgba(255,255,255,0.3)',marginTop:2,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Phone size={11}/>{profile.whatsapp}</div>}<div style={{fontSize:12,color:'rgba(255,255,255,0.3)',marginTop:2}}>{guild?'Guilda '+guild:'Escolha 2 cores'}</div></Card>
+    <Card style={{padding:18,textAlign:'center'}}><div style={{fontSize:28,marginBottom:4}}>⚔️</div><div style={{fontWeight:700,fontSize:16}}>{profile?.name||profile?.email||'—'}</div>{profile?.whatsapp&&<div style={{fontSize:12,color:'rgba(255,255,255,0.3)',marginTop:2,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Phone size={11}/>{profile.whatsapp}</div>}</Card>
 
     <Card style={{padding:16}}>
       <SectionTitle sub="Histórico de pedidos">Meus Pedidos</SectionTitle>
       {myOrders.length===0?<div style={{fontSize:13,color:'rgba(255,255,255,0.25)',textAlign:'center',padding:12}}>Nenhum pedido ainda</div>:
-      myOrders.map((o,i)=>(<div key={o.id||i} style={{padding:'10px 0',borderBottom:i<myOrders.length-1?'1px solid rgba(255,255,255,0.04)':'none'}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
-          <div style={{display:'flex',alignItems:'center',gap:6}}>
+      myOrders.map((o,i)=>{const isExp=expandedOrder===i;const isPending=o.status==='DRAFT';return(<Card key={o.id||i} style={{padding:0,marginBottom:6,borderColor:isPending?'rgba(201,169,110,0.15)':undefined,cursor:'pointer'}} onClick={()=>setExpandedOrder(isExp?null:i)}>
+        <div style={{padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
             <Tag style={{fontSize:9,padding:'2px 6px'}}>{o.payment_method==='MERCADO_PAGO'?'MP':'Bônus'}</Tag>
-            <span style={{fontSize:12,fontWeight:700}}>{Number(o.total_locked)>0?'R$ '+Number(o.total_locked).toFixed(2):'Bônus'}</span>
+            <div>
+              <div style={{fontSize:13,fontWeight:700}}>{Number(o.total_locked)>0?'R$ '+Number(o.total_locked).toFixed(2):'Bônus'}</div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{o.qty_in_batch} cartas | {new Date(o.created_at).toLocaleDateString('pt-BR')}</div>
+            </div>
           </div>
-          <Tag color={o.status==='DRAFT'?'#c9a96e':o.status==='CONFIRMED'?'#2ee59d':'#4a90d9'} style={{fontSize:10}}>{o.status==='DRAFT'?'Pendente':o.status==='CONFIRMED'?'Pago':o.status}</Tag>
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+            <Tag color={isPending?'#c9a96e':o.status==='CONFIRMED'?'#2ee59d':'#4a90d9'} style={{fontSize:10}}>{isPending?'Pendente':o.status==='CONFIRMED'?'Pago':o.status}</Tag>
+            <ChevronRight size={14} style={{color:'rgba(255,255,255,0.2)',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
+          </div>
         </div>
-        <div style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>
-          {o.qty_in_batch} cartas | {new Date(o.created_at).toLocaleDateString('pt-BR')}
-          {o.cards&&<span> | {o.cards.map(c=>c.name+' x'+c.qty).join(', ')}</span>}
-        </div>
-      </div>))}
+        {isExp&&<div style={{padding:'0 14px 14px',borderTop:'1px solid rgba(255,255,255,0.04)'}}>
+          {o.cards&&o.cards.length>0?<div style={{marginTop:10}}>{o.cards.map((c,ci)=>(<div key={ci} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:12,borderBottom:ci<o.cards.length-1?'1px solid rgba(255,255,255,0.03)':'none'}}>
+            <span style={{color:'rgba(255,255,255,0.5)'}}>{c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
+            <span style={{fontWeight:700}}>x{c.qty}</span>
+          </div>))}</div>:<div style={{fontSize:11,color:'rgba(255,255,255,0.2)',marginTop:8}}>Detalhes não disponíveis</div>}
+          {isPending&&<Btn full variant="warn" onClick={(e)=>{e.stopPropagation();nav('checkout');}} style={{marginTop:10,fontSize:13}} sfx="nav"><CreditCard size={15}/> Pagar agora</Btn>}
+        </div>}
+      </Card>);})}
     </Card>
 
     {editAddr?<Card style={{padding:16}}>
@@ -650,6 +741,25 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
       {changed&&guild&&<Btn full variant="success" onClick={saveGuild} disabled={saving} sfx="success">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar guilda</>}</Btn>}
     </Card>
 
+    <Btn full variant="secondary" onClick={()=>{SFX.toggle();setShowChangePw(!showChangePw);setPwMsg(null);setNewPw('');setNewPw2('');setPwVK(false);}} sfx=""><Lock size={16}/> {showChangePw?'Cancelar':'Alterar senha'}</Btn>
+    {showChangePw&&<Card style={{padding:16}}>
+      <SectionTitle sub="Apenas números, 6 dígitos">Nova Senha</SectionTitle>
+      <div style={{display:'flex',flexDirection:'column',gap:8}}>
+        <div onClick={()=>{setPwVKTarget('pw1');setPwVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(pwVK&&pwVKTarget==='pw1'?'var(--gp)':'rgba(255,255,255,0.08)'),background:'rgba(0,0,0,0.3)',color:newPw?'#e9edf7':'rgba(255,255,255,0.3)',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+          <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,0.22)'}}/>
+          {newPw?<span style={{letterSpacing:6}}>{'●'.repeat(newPw.length)}<span style={{color:'rgba(255,255,255,0.15)',letterSpacing:4}}>{'○'.repeat(6-newPw.length)}</span></span>:'Nova senha'}
+        </div>
+        <div onClick={()=>{setPwVKTarget('pw2');setPwVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(pwVK&&pwVKTarget==='pw2'?'var(--gp)':'rgba(255,255,255,0.08)'),background:'rgba(0,0,0,0.3)',color:newPw2?'#e9edf7':'rgba(255,255,255,0.3)',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+          <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,0.22)'}}/>
+          {newPw2?<span style={{letterSpacing:6}}>{'●'.repeat(newPw2.length)}<span style={{color:'rgba(255,255,255,0.15)',letterSpacing:4}}>{'○'.repeat(6-newPw2.length)}</span></span>:'Confirmar nova senha'}
+        </div>
+        {newPw2.length===6&&newPw!==newPw2&&<div style={{fontSize:11,color:'#ff6b7a',textAlign:'center'}}>As senhas não coincidem</div>}
+        {pwVK&&<VirtualKeyboard onKey={pwVKKey} onBackspace={pwVKBack} onDone={()=>setPwVK(false)} maxLen={6} currentLen={pwVKTarget==='pw1'?newPw.length:newPw2.length}/>}
+        {pwMsg&&<div style={{fontSize:12,color:pwMsg.t==='error'?'#ff6b7a':'#2ee59d',textAlign:'center'}}>{pwMsg.m}</div>}
+        <Btn full variant="success" onClick={changePassword} disabled={newPw.length<6||newPw!==newPw2||pwLoading} sfx="">{pwLoading?<Spin size={14}/>:<><Check size={14}/> Salvar nova senha</>}</Btn>
+      </div>
+    </Card>}
+
     <Btn full variant="secondary" onClick={()=>{SFX.nav();setShowTutorial(true);}} sfx=""><HelpCircle size={16}/> Ver tutorial</Btn>
     {isAdmin&&<Btn full variant="warn" onClick={()=>nav('admin')} sfx="nav"><Shield size={16}/> Painel Admin</Btn>}
     <Btn full variant="danger" onClick={onLogout} sfx="click"><LogOut size={14}/> Sair</Btn>
@@ -665,6 +775,7 @@ function AuthPage({onLogin,theme}){
   const [name,setName]=useState('');const [whatsapp,setWhatsapp]=useState('');
   const [showVK,setShowVK]=useState(false);const [vkTarget,setVkTarget]=useState('senha');
   const [loading,setLoading]=useState(false);const [err,setErr]=useState('');
+  const [forgotMode,setForgotMode]=useState(false);const [resetSent,setResetSent]=useState(false);
 
   function openVK(target){setVkTarget(target);setShowVK(true);}
   function vkKey(k){if(vkTarget==='senha')setSenha(p=>p.length<6?p+k:p);else setSenha2(p=>p.length<6?p+k:p);}
@@ -705,6 +816,32 @@ function AuthPage({onLogin,theme}){
     setLoading(false);
   }
 
+  async function handleForgot(){
+    if(!email.includes('@')){setErr('Digite seu email primeiro');return;}
+    setErr('');setLoading(true);
+    try{
+      await sbAuthResetPassword(email);
+      setResetSent(true);SFX.success();
+    }catch(e){setErr(e.message);}
+    setLoading(false);
+  }
+
+  if(forgotMode)return(<div style={{display:'flex',flexDirection:'column',gap:14,paddingTop:16}}>
+    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>🔑</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:22}}>Recuperar Senha</h1></div>
+    {resetSent?<Card glow="rgba(46,229,157,0.15)" style={{padding:20,textAlign:'center'}}>
+      <Check size={32} style={{color:'#2ee59d',marginBottom:8}}/>
+      <div style={{fontWeight:700,color:'#2ee59d',fontSize:15}}>Email enviado!</div>
+      <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginTop:6}}>Verifique sua caixa de entrada e spam. Clique no link para redefinir sua senha.</div>
+      <Btn full variant="secondary" onClick={()=>{setForgotMode(false);setResetSent(false);}} style={{marginTop:16}} sfx="nav">Voltar ao login</Btn>
+    </Card>:<>
+      <div style={{fontSize:13,color:'rgba(255,255,255,0.4)',textAlign:'center'}}>Digite seu email e enviaremos um link para redefinir sua senha.</div>
+      <Input icon={Mail} placeholder="seu@email.com" value={email} onChange={e=>setEmail(e.target.value)}/>
+      {err&&<div style={{fontSize:12,color:'#ff6b7a',textAlign:'center',padding:4}}><AlertTriangle size={12}/> {err}</div>}
+      <Btn full onClick={handleForgot} disabled={!email.includes('@')||loading} sfx="">{loading?<Spin size={16}/>:<><Mail size={16}/> Enviar link de recuperação</>}</Btn>
+      <button onClick={()=>{setForgotMode(false);setErr('');}} style={{background:'none',border:'none',color:'var(--gp)',fontSize:13,cursor:'pointer',fontFamily:"'Outfit',sans-serif",padding:8,textAlign:'center'}}>Voltar ao login</button>
+    </>}
+  </div>);
+
   return(<div style={{display:'flex',flexDirection:'column',gap:14,paddingTop:16}}>
     <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>⚔️</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:22}}>{mode==='login'?'Bem-vindo':'Junte-se'}</h1></div>
     <div style={{display:'flex',borderRadius:12,background:'rgba(255,255,255,0.025)',padding:3,gap:3}}>{['login','signup'].map(m=>(<button key={m} onClick={()=>{SFX.toggle();setMode(m);setErr('');setSenha('');setSenha2('');setShowVK(false);}} style={{flex:1,padding:'9px 0',borderRadius:10,border:'none',background:mode===m?'rgba(255,255,255,0.07)':'transparent',color:mode===m?'#fff':'rgba(255,255,255,0.3)',fontWeight:700,fontSize:13,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{m==='login'?'Entrar':'Criar conta'}</button>))}</div>
@@ -727,6 +864,7 @@ function AuthPage({onLogin,theme}){
     {showVK&&<div style={{marginTop:4}}><VirtualKeyboard onKey={vkKey} onBackspace={vkBack} onDone={()=>setShowVK(false)} maxLen={6} currentLen={currentVKLen}/></div>}
     {err&&<div style={{fontSize:12,color:'#ff6b7a',textAlign:'center',padding:4}}><AlertTriangle size={12}/> {err}</div>}
     <Btn full onClick={submit} disabled={!canSubmit} sfx="">{loading?<Spin size={16}/>:<>{mode==='login'?'Entrar':'Criar conta'} <ArrowRight size={16}/></>}</Btn>
+    {mode==='login'&&<button onClick={()=>{setForgotMode(true);setErr('');}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',fontSize:12,cursor:'pointer',fontFamily:"'Outfit',sans-serif",padding:4,textAlign:'center'}}>Esqueci minha senha</button>}
   </div>);
 }
 
@@ -840,10 +978,17 @@ function AdminPage({pool,tiers,priceBRL,pricing,campaign,theme,token,nav}){
 // ══════════════════════════════════════════════════════
 
 export default function MagicPortal(){
-  // Auth state
-  const [session,setSession]=useState(null); // {access_token, user}
+  // Auth state — persist in localStorage
+  const [session,setSession]=useState(()=>{try{const s=localStorage.getItem('cpj_session');return s?JSON.parse(s):null;}catch(e){return null;}});
   const [profile,setProfile]=useState(null);
   const [isNew,setIsNew]=useState(false);
+
+  // Persist session
+  useEffect(()=>{if(session)localStorage.setItem('cpj_session',JSON.stringify(session));else localStorage.removeItem('cpj_session');},[session]);
+
+  // Auto-load on mount if session exists
+  const didAutoLoad=useRef(false);
+  useEffect(()=>{if(session&&!profile&&!didAutoLoad.current){didAutoLoad.current=true;loadAppData(session.access_token,session.user.id).catch(()=>{setSession(null);});}},[session,profile]);
 
   // Data state
   const [campaign,setCampaign]=useState(null);
@@ -937,6 +1082,11 @@ export default function MagicPortal(){
       }
     } catch(e) {
       console.error('loadAppData', e);
+      if (e.message && (e.message.includes('JWT') || e.message.includes('401') || e.message.includes('token'))) {
+        toast('Sessão expirada. Faça login novamente.', 'error');
+        handleLogout();
+        return;
+      }
       toast('Erro ao carregar dados: '+e.message, 'error');
     }
     setAppLoading(false);
@@ -956,9 +1106,10 @@ export default function MagicPortal(){
   }
 
   function handleLogout(){
+    localStorage.removeItem('cpj_session');
     setSession(null);setProfile(null);setCampaign(null);setTiers([]);setPricing(null);
     setOrderId(null);setWants([]);setCartIds([]);setBonusGrants([]);setMyOrders([]);
-    setPage('home');setIsNew(false);
+    setPage('home');setIsNew(false);didAutoLoad.current=false;
   }
 
   // ─── Onboarding complete ──────────────────────────
@@ -1054,6 +1205,9 @@ export default function MagicPortal(){
     {/* Not logged in */}
     {!session && <div style={{ padding: '14px 20px' }}><AuthPage onLogin={handleLogin} theme={theme} /></div>}
 
+    {/* Session exists but still loading */}
+    {session && !profile && !appLoading && <div style={{ padding: '60px 20px', textAlign: 'center' }}><Spin size={32} /><div style={{ marginTop: 12, fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>Carregando perfil...</div></div>}
+
     {/* Logged in */}
     {session && <>
       {/* Loading overlay */}
@@ -1069,8 +1223,6 @@ export default function MagicPortal(){
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button onClick={() => setSoundOn(s => !s)} style={{ background: 'none', border: 'none', color: soundOn ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)', cursor: 'pointer', padding: 2 }}>{soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}</button>
-          {tier && <Tag style={{ fontSize: 10, padding: '3px 8px' }}>{tier.label} | {pool}</Tag>}
-          <GuildBadge guild={guild} size={20} />
         </div>
       </div>}
 
