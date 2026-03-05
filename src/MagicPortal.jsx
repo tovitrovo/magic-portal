@@ -555,8 +555,8 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
     if(cepClean.length<8){toast('CEP inválido','error');return;}
     setLF(true);setFreteOptions([]);setSelectedFrete(null);
     try{
-      const r=await fetch(`${SB_URL}/functions/v1/frete?apikey=${SB_KEY}`,{
-        method:'POST',headers:{'Authorization':`Bearer ${token||SB_KEY}`,'Content-Type':'application/json'},
+      const r=await fetch(`${SB_URL}/functions/v1/frete`,{
+        method:'POST',headers:{'apikey':SB_KEY,'Authorization':`Bearer ${token||SB_KEY}`,'Content-Type':'application/json'},
         body:JSON.stringify({cepDestino:cepClean,quantidade:totalQty})
       });
       const text=await r.text();
@@ -592,7 +592,7 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
 
       if(!isFullBonus){
         toast('Gerando link de pagamento...','info');
-        const mpRes=await fetch(`${SB_URL}/functions/v1/mp-create?apikey=${SB_KEY}`,{method:'POST',headers:{'Authorization':`Bearer ${token||SB_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({orderId:String(batch.id),total:Number(total.toFixed(2)),descricao:`Pedido #${shortId} - ${totalPaid} cartas`})});
+        const mpRes=await fetch(`${SB_URL}/functions/v1/mp-create`,{method:'POST',headers:{'apikey':SB_KEY,'Authorization':`Bearer ${token||SB_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({orderId:String(batch.id),total:Number(total.toFixed(2)),descricao:`Pedido #${shortId} - ${totalPaid} cartas`})});
         const mpData=await mpRes.json();
         if(mpData.mpLink){window.location.href=mpData.mpLink;return;}
         else if(mpData.error){console.error('MP:',mpData.error);toast('Erro MP: '+mpData.error,'error');}
