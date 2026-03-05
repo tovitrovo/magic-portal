@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
 
 // ══════════════════════════════════════════════════════
@@ -8,21 +7,6 @@ import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, Chev
 
 const SB_URL = 'https://kjyqnlpiohoewmqmsuxp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqeXFubHBpb2hvZXdtcW1zdXhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyNTA5NDAsImV4cCI6MjA4NzgyNjk0MH0.1BjTAFgv7yfJ00uY6WNlwUOYd4c4YOqFTV78CLvLBk0';
-
-
-const supabase = createClient(SB_URL, SB_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
-});
-
-async function sbInvoke(fnName, body, token) {
-  const { data, error } = await supabase.functions.invoke(fnName, {
-    body: body || {},
-    headers: { Authorization: `Bearer ${token || SB_KEY}` },
-  });
-  if (error) throw new Error(error.message || `Erro na função ${fnName}`);
-  return data;
-}
-
 
 function sbH(token) {
   return { 'apikey': SB_KEY, 'Authorization': `Bearer ${token || SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
@@ -571,7 +555,7 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
     if(cepClean.length<8){toast('CEP inválido','error');return;}
     setLF(true);setFreteOptions([]);setSelectedFrete(null);
     try{
-      const r=await fetch(`${SB_URL}/functions/v1/frete`,{
+      const r=await fetch(`/api/frete`,{
         method:'POST',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
         body:JSON.stringify({cepDestino:cepClean,quantidade:totalQty})
       });
