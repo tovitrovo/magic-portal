@@ -148,6 +148,15 @@ function calcBrlPrice(usdPerCard, pricing) {
   return Math.ceil(marked + (pricing.profit_fixed_brl || 0));
 }
 
+function calcUsdFromBrl(brlTarget, pricing) {
+  if (!pricing || !brlTarget) return 0;
+  const marked = brlTarget - (pricing.profit_fixed_brl || 0);
+  const brl = marked / (1 + (pricing.markup_percent || 0) / 100);
+  const taxed = brl / (pricing.usd_brl_rate || 5.68);
+  const base = taxed / (1 + (pricing.tax_percent || 0) / 100);
+  return parseFloat((base / (1 + (pricing.card_fee_percent || 0) / 100)).toFixed(4));
+}
+
 // ══════════════════════════════════════════════════════
 // FLOATING MANA BACKGROUND
 // ══════════════════════════════════════════════════════
@@ -515,13 +524,19 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
         method:'POST',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
         body:JSON.stringify({cepDestino:cepClean,quantidade:totalQty})
       });
-      const d=await r.json();
+      const text=await r.text();
+      console.log('Frete response:',r.status,text);
+      let d;
+      try{d=JSON.parse(text);}catch(pe){toast('Frete retornou resposta inválida','error');setLF(false);return;}
       if(d.error){toast('Erro frete: '+d.error,'error');}
       else if(d.opcoes&&d.opcoes.length>0){
         const opts=d.opcoes.map(o=>({carrier:o.nome,price:o.preco,deadline_days:o.prazo}));
         setFreteOptions(opts);setSelectedFrete(opts[0]);SFX.success();
-      } else {toast('Nenhuma opção de frete para este CEP','error');}
-    }catch(e){console.warn('frete',e);toast('Erro ao calcular frete','error');}
+      } else {
+        toast('Sem opções de frete. Verifique o CEP.','error');
+        console.warn('Frete data:',d);
+      }
+    }catch(e){console.warn('frete',e);toast('Erro ao conectar com frete','error');}
     setLF(false);
   }
 
@@ -820,6 +835,41 @@ function AuthPage({onLogin,theme}){
 }
 
 // ══════════════════════════════════════════════════════
+// PASSWORD RECOVERY PAGE
+// ══════════════════════════════════════════════════════
+
+function RecoveryPage({token,onDone,theme}){
+  const [pw,setPw]=useState('');const [pw2,setPw2]=useState('');
+  const [showVK,setShowVK]=useState(false);const [vkTarget,setVkTarget]=useState('pw');
+  const [loading,setLoading]=useState(false);const [err,setErr]=useState('');
+  function vkKey(k){if(vkTarget==='pw')setPw(p=>p.length<6?p+k:p);else setPw2(p=>p.length<6?p+k:p);}
+  function vkBack(){if(vkTarget==='pw')setPw(p=>p.slice(0,-1));else setPw2(p=>p.slice(0,-1));}
+  async function save(){
+    if(!/^[0-9]{6}$/.test(pw)){setErr('A senha deve conter 6 números');return;}
+    if(pw!==pw2){setErr('As senhas não coincidem');return;}
+    setLoading(true);setErr('');
+    try{await sbAuthUpdatePassword(pw,token);onDone();}
+    catch(e){setErr(e.message);}
+    setLoading(false);
+  }
+  return(<div style={{display:'flex',flexDirection:'column',gap:14,paddingTop:16}}>
+    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>🔑</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:22}}>Nova Senha</h1><p style={{fontSize:13,color:'rgba(255,255,255,0.4)',marginTop:6}}>Digite sua nova senha de 6 dígitos</p></div>
+    <div onClick={()=>{setVkTarget('pw');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='pw'?'var(--gp)':'rgba(255,255,255,0.08)'),background:'rgba(0,0,0,0.3)',color:pw?'#e9edf7':'rgba(255,255,255,0.3)',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+      <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,0.22)'}}/>
+      {pw?<span style={{letterSpacing:6}}>{'●'.repeat(pw.length)}<span style={{color:'rgba(255,255,255,0.15)',letterSpacing:4}}>{'○'.repeat(6-pw.length)}</span></span>:'Nova senha'}
+    </div>
+    <div onClick={()=>{setVkTarget('pw2');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='pw2'?'var(--gp)':'rgba(255,255,255,0.08)'),background:'rgba(0,0,0,0.3)',color:pw2?'#e9edf7':'rgba(255,255,255,0.3)',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+      <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,0.22)'}}/>
+      {pw2?<span style={{letterSpacing:6}}>{'●'.repeat(pw2.length)}<span style={{color:'rgba(255,255,255,0.15)',letterSpacing:4}}>{'○'.repeat(6-pw2.length)}</span></span>:'Confirmar senha'}
+    </div>
+    {pw2.length===6&&pw!==pw2&&<div style={{fontSize:11,color:'#ff6b7a',textAlign:'center'}}>As senhas não coincidem</div>}
+    {showVK&&<VirtualKeyboard onKey={vkKey} onBackspace={vkBack} onDone={()=>setShowVK(false)} maxLen={6} currentLen={vkTarget==='pw'?pw.length:pw2.length}/>}
+    {err&&<div style={{fontSize:12,color:'#ff6b7a',textAlign:'center'}}><AlertTriangle size={12}/> {err}</div>}
+    <Btn full onClick={save} disabled={pw.length<6||pw!==pw2||loading} sfx="">{loading?<Spin size={16}/>:<><Check size={16}/> Salvar nova senha</>}</Btn>
+  </div>);
+}
+
+// ══════════════════════════════════════════════════════
 // ONBOARDING
 // ══════════════════════════════════════════════════════
 
@@ -980,12 +1030,10 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
         {editTiers.map((t,i)=>(<div key={i} style={{padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
           <div style={{display:'flex',gap:6,alignItems:'center',marginBottom:4}}>
             <input value={t.label} onChange={e=>{const v=[...editTiers];v[i]={...v[i],label:e.target.value};setEditTiers(v);}} style={{flex:2,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",outline:'none'}}/>
-            <div style={{display:'flex',alignItems:'center',gap:2}}><span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>US$</span><input type="number" step="0.01" value={t.usd} onChange={e=>{const v=[...editTiers];v[i]={...v[i],usd:parseFloat(e.target.value)||0};setEditTiers(v);}} style={{width:60,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/></div>
+            <div style={{display:'flex',alignItems:'center',gap:2}}><span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>US$</span><input type="number" step="0.01" value={t.usd} onChange={e=>{const v=[...editTiers];v[i]={...v[i],usd:parseFloat(e.target.value)||0};setEditTiers(v);}} style={{width:55,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/></div>
+            <div style={{display:'flex',alignItems:'center',gap:2}}><span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>R$</span><input type="number" step="1" value={calcBrlPrice(t.usd,editPricing)} onChange={e=>{const brl=parseFloat(e.target.value)||0;const usd=calcUsdFromBrl(brl,editPricing);const v=[...editTiers];v[i]={...v[i],usd};setEditTiers(v);}} style={{width:55,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:theme.primary,fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/></div>
           </div>
-          <div style={{display:'flex',gap:4,fontSize:10,color:'rgba(255,255,255,0.2)'}}>
-            <span>{t.min}-{t.max>999999?'∞':t.max} cartas</span>
-            <span>→ R$ {calcBrlPrice(t.usd,editPricing).toFixed(2)}</span>
-          </div>
+          <div style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>{t.min}-{t.max>999999?'∞':t.max} cartas</div>
         </div>))}
         <Btn full variant="success" onClick={saveTiers} disabled={saving} style={{marginTop:10}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar tiers</>}</Btn>
       </Card>
@@ -1053,6 +1101,20 @@ export default function MagicPortal(){
   const [soundOn,setSoundOn]=useState(true);
   const [appLoading,setAppLoading]=useState(false);
   const [toastMsg,setToastMsg]=useState(null);
+  const [recoveryToken,setRecoveryToken]=useState(null);
+
+  // Detect password recovery token in URL hash
+  useEffect(()=>{
+    const hash=window.location.hash;
+    if(hash&&hash.includes('type=recovery')){
+      const params=new URLSearchParams(hash.replace('#',''));
+      const at=params.get('access_token');
+      if(at){
+        setRecoveryToken(at);
+        window.history.replaceState(null,'',window.location.pathname);
+      }
+    }
+  },[]);
 
   const token = session?.access_token;
   const guild = profile?.guild || 'Izzet';
@@ -1088,7 +1150,7 @@ export default function MagicPortal(){
       setProfile(prof);
 
       // Campaign
-      const camps = await sbGet('campaigns', `status=eq.ACTIVE&limit=1`, tkn);
+      const camps = await sbGet('campaigns', `status=neq.CANCELLED&status=neq.DONE&limit=1&order=created_at.desc`, tkn);
       const camp = camps[0] || null;
       setCampaign(camp);
 
@@ -1246,14 +1308,19 @@ export default function MagicPortal(){
     {toastMsg && <Toast msg={toastMsg.msg} type={toastMsg.type} onClose={() => setToastMsg(null)} />}
     {showTutorial && <TutorialOverlay step={tutStep} steps={TUTORIAL_STEPS} onNext={tutNext} onSkip={tutSkip} theme={theme} onNavTo={p => setPage(p)} isFirstTime={isFirstTimeTut} />}
 
+    {/* Password recovery mode */}
+    {recoveryToken && <div style={{ padding: '14px 20px' }}>
+      <RecoveryPage token={recoveryToken} onDone={()=>{setRecoveryToken(null);toast('Senha alterada! Faça login.','success');}} theme={theme}/>
+    </div>}
+
     {/* Not logged in */}
-    {!session && <div style={{ padding: '14px 20px' }}><AuthPage onLogin={handleLogin} theme={theme} /></div>}
+    {!session && !recoveryToken && <div style={{ padding: '14px 20px' }}><AuthPage onLogin={handleLogin} theme={theme} /></div>}
 
     {/* Session exists but still loading */}
-    {session && !profile && !appLoading && <div style={{ padding: '60px 20px', textAlign: 'center' }}><Spin size={32} /><div style={{ marginTop: 12, fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>Carregando perfil...</div></div>}
+    {session && !recoveryToken && !profile && !appLoading && <div style={{ padding: '60px 20px', textAlign: 'center' }}><Spin size={32} /><div style={{ marginTop: 12, fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>Carregando perfil...</div></div>}
 
     {/* Logged in */}
-    {session && <>
+    {session && !recoveryToken && <>
       {/* Loading overlay */}
       {appLoading && <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(8,8,15,0.92)', display: 'grid', placeItems: 'center' }}>
         <div style={{ textAlign: 'center' }}><Spin size={36} /><div style={{ marginTop: 12, fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>Carregando dados...</div></div>
