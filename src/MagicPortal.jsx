@@ -582,9 +582,9 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
     try {
       const batchData = {order_id:orderId,status:'DRAFT',brl_unit_price_locked:priceBRL,qty_in_batch:totalQty,subtotal_locked:sub,shipping_locked:fV,total_locked:isFullBonus?0:total,payment_method:'MERCADO_PAGO'};
       const [batch] = await sbPost('order_batches', batchData, token);
-      for (const item of cart) await sbPatch('order_items',`id=eq.${item.id}`,{batch_id:batch.id,unit_price_brl:priceBRL},token);
-      await sbPatch('orders',`id=eq.${orderId}`,{qty_paid:totalPaid,qty_bonus:totalBonus,shipping_price_brl_locked:fV},token);
-      if(addr.rua)await sbPatch('profiles',`id=eq.${profile.id}`,{cep:addr.cep,rua:addr.rua,numero:addr.numero,complemento:addr.complemento,bairro:addr.bairro,cidade:addr.cidade,uf:addr.uf},token);
+      for (const item of cart) await sbPatch('order_items','id=eq.'+item.id,{batch_id:batch.id,unit_price_brl:priceBRL},token);
+      await sbPatch('orders','id=eq.'+(orderId),{qty_paid:totalPaid,qty_bonus:totalBonus,shipping_price_brl_locked:fV},token);
+      if(addr.rua)await sbPatch('profiles','id=eq.'+(profile.id),{cep:addr.cep,rua:addr.rua,numero:addr.numero,complemento:addr.complemento,bairro:addr.bairro,cidade:addr.cidade,uf:addr.uf},token);
 
       const shortId=String(batch.id).slice(0,8).toUpperCase();
       SFX.confirm();
@@ -725,7 +725,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
           </div>))}</div>:<div style={{fontSize:11,color:'rgba(255,255,255,0.2)',marginTop:8}}>Detalhes não disponíveis</div>}
           {isPending&&<div style={{display:'flex',gap:6,marginTop:10}}>
               <Btn variant="warn" onClick={(e)=>{e.stopPropagation();if(o.mp_link){window.location.href=o.mp_link;}else{nav('checkout');}}} style={{flex:2,fontSize:12}} sfx="nav"><CreditCard size={14}/> Pagar agora</Btn>
-              <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(confirm('Cancelar este pedido?')){try{await sbPatch('order_batches',`id=eq.${o.id}`,{status:'CANCELLED'},token);SFX.click();toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+err.message,'error');}}}} style={{flex:1,fontSize:12}} sfx=""><X size={14}/> Cancelar</Btn>
+              <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(confirm('Cancelar este pedido?')){try{await sbPatch('order_batches','id=eq.'+(o.id),{status:'CANCELLED'},token);SFX.click();toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+err.message,'error');}}}} style={{flex:1,fontSize:12}} sfx=""><X size={14}/> Cancelar</Btn>
             </div>}
             {!isPending&&o.status!=='CANCELLED'&&<div style={{fontSize:10,color:'rgba(255,255,255,0.2)',marginTop:6}}>Para cancelar pedido pago, entre em contato.</div>}
         </div>}
@@ -977,7 +977,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
 
   async function confirmBatch(batchId){
     try{
-      await sbPatch('order_batches',`id=eq.${batchId}`,{status:'CONFIRMED',confirmed_at:new Date().toISOString()},token);
+      await sbPatch('order_batches','id=eq.'+(batchId),{status:'CONFIRMED',confirmed_at:new Date().toISOString()},token);
       setOrders(prev=>prev.map(o=>({...o,order_batches:o.order_batches?.map(b=>b.id===batchId?{...b,status:'CONFIRMED'}:b)})));
       SFX.success();
     }catch(e){console.error(e);}
@@ -987,7 +987,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
     setSaving(true);
     try{
       for(const t of editTiers){
-        await sbPatch('tiers',`id=eq.${t.id}`,{usd_per_card:t.usd,label:t.label,min_qty:t.min,max_qty:t.max>999999?null:t.max,quest_text:t.quest},token);
+        await sbPatch('tiers','id=eq.'+(t.id),{usd_per_card:t.usd,label:t.label,min_qty:t.min,max_qty:t.max>999999?null:t.max,quest_text:t.quest},token);
       }
       SFX.success();if(onReload)onReload();
     }catch(e){console.error(e);}
@@ -999,7 +999,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
     try{
       const {id,...rest}=editPricing;
       delete rest.is_active;delete rest.created_at;delete rest.updated_at;
-      await sbPatch('pricing_config',`id=eq.${id}`,rest,token);
+      await sbPatch('pricing_config','id=eq.'+(id),rest,token);
       SFX.success();if(onReload)onReload();
     }catch(e){console.error(e);}
     setSaving(false);
@@ -1008,7 +1008,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   async function saveCampaign(){
     setSaving(true);
     try{
-      await sbPatch('campaigns',`id=eq.${editCamp.id}`,{name:editCamp.name,status:editCamp.status,close_at:editCamp.close_at,max_cards:editCamp.max_cards},token);
+      await sbPatch('campaigns','id=eq.'+(editCamp.id),{name:editCamp.name,status:editCamp.status,close_at:editCamp.close_at,max_cards:editCamp.max_cards},token);
       SFX.success();if(onReload)onReload();
     }catch(e){console.error(e);}
     setSaving(false);
@@ -1060,9 +1060,9 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
               </div>
               {isPending&&<div style={{display:'flex',gap:4,marginTop:6}}>
                 <Btn variant="success" onClick={(e)=>{e.stopPropagation();confirmBatch(b.id);}} style={{flex:2,padding:'6px 10px',fontSize:10}} sfx=""><Check size={11}/> Confirmar</Btn>
-                <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();await sbPatch('order_batches',`id=eq.${b.id}`,{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}} style={{flex:1,padding:'6px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar</Btn>
+                <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();await sbPatch('order_batches','id=eq.'+(b.id),{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}} style={{flex:1,padding:'6px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar</Btn>
               </div>}
-              {b.status==='CONFIRMED'&&<Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(confirm('Cancelar pedido pago? Reembolso deve ser feito no Mercado Pago.')){await sbPatch('order_batches',`id=eq.${b.id}`,{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}}} style={{marginTop:6,padding:'5px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar (pago)</Btn>}
+              {b.status==='CONFIRMED'&&<Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(confirm('Cancelar pedido pago? Reembolso deve ser feito no Mercado Pago.')){await sbPatch('order_batches','id=eq.'+(b.id),{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}}} style={{marginTop:6,padding:'5px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar (pago)</Btn>}
             </div>
           );})}
           {o.profiles?.whatsapp&&<a href={'https://wa.me/55'+o.profiles.whatsapp} target="_blank" rel="noopener noreferrer" style={{display:'inline-flex',alignItems:'center',gap:4,marginTop:6,fontSize:11,color:'#25d366',textDecoration:'none'}}><MessageCircle size={12}/> WhatsApp</a>}
@@ -1222,7 +1222,7 @@ export default function MagicPortal(){
     setAppLoading(true);
     try {
       // Profile
-      const [prof] = await sbGet('profiles', `id=eq.${userId}`, tkn);
+      const [prof] = await sbGet('profiles', 'id=eq.'+(userId), tkn);
       setProfile(prof);
 
       // Campaign
@@ -1297,7 +1297,7 @@ export default function MagicPortal(){
   // ─── Onboarding complete ──────────────────────────
   async function handleOnboardingComplete(colors, guild, showTut) {
     if (token && profile) {
-      await sbPatch('profiles', `id=eq.${profile.id}`, { mana_color_1: colors[0], mana_color_2: colors[1], guild: guild || '' }, token);
+      await sbPatch('profiles', 'id=eq.'+(profile.id), { mana_color_1: colors[0], mana_color_2: colors[1], guild: guild || '' }, token);
       setProfile(p => ({ ...p, mana_color_1: colors[0], mana_color_2: colors[1], guild }));
     }
     setIsNew(false);
@@ -1308,7 +1308,7 @@ export default function MagicPortal(){
   // ─── Save profile ─────────────────────────────────
   async function handleSaveProfile(data) {
     if (!token || !profile) return;
-    await sbPatch('profiles', `id=eq.${profile.id}`, data, token);
+    await sbPatch('profiles', 'id=eq.'+(profile.id), data, token);
     setProfile(p => ({ ...p, ...data }));
     SFX.success();
     toast('Perfil salvo!', 'success');
@@ -1321,7 +1321,7 @@ export default function MagicPortal(){
       const existing = wants.find(w => w.card_id === card.id);
       if (existing) {
         const newQty = existing.quantity + qty;
-        await sbPatch('order_items', `id=eq.${existing.id}`, { quantity: newQty }, token);
+        await sbPatch('order_items', 'id=eq.'+(existing.id), { quantity: newQty }, token);
         setWants(prev => prev.map(w => w.id === existing.id ? { ...w, quantity: newQty } : w));
       } else {
         const [item] = await sbPost('order_items', { order_id: orderId, card_id: card.id, quantity: qty, is_bonus: false, unit_price_brl: 0 }, token);
@@ -1337,7 +1337,7 @@ export default function MagicPortal(){
   // ─── Remove want ──────────────────────────────────
   async function handleRemoveWant(itemId) {
     if (!token) return;
-    await sbDelete('order_items', `id=eq.${itemId}`, token);
+    await sbDelete('order_items', 'id=eq.'+(itemId), token);
     setWants(prev => prev.filter(w => w.id !== itemId));
     setCartIds(prev => prev.filter(x => x !== itemId));
     SFX.click();
@@ -1347,7 +1347,7 @@ export default function MagicPortal(){
   async function handleUpdateWantQty(itemId, newQty) {
     if (!token) return;
     if (newQty <= 0) { handleRemoveWant(itemId); return; }
-    await sbPatch('order_items', `id=eq.${itemId}`, { quantity: newQty }, token);
+    await sbPatch('order_items', 'id=eq.'+(itemId), { quantity: newQty }, token);
     setWants(prev => prev.map(w => w.id === itemId ? { ...w, quantity: newQty } : w));
   }
 
