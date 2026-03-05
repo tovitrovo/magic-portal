@@ -517,7 +517,7 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
       // 5. Call Mercado Pago Edge Function (if not full bonus)
       if (!isFullBonus) {
         try {
-          const mpRes = await fetch(`${SB_URL}/functions/v1/create-mp-link`, {
+          const mpRes = await fetch(`${SB_URL}/functions/v1/mp-create`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ batch_id: batch.id, order_id: orderId, total_brl: total, description: `Cartas para Jogar - ${totalPaid} cartas` })
