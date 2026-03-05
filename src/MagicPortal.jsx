@@ -14,7 +14,6 @@ const supabase = createClient(SB_URL, SB_KEY, {
   auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
 });
 
-// Edge Functions (garante apikey + Authorization corretos)
 async function sbInvoke(fnName, body, token) {
   const { data, error } = await supabase.functions.invoke(fnName, {
     body: body || {},
@@ -572,5 +571,893 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
     if(cepClean.length<8){toast('CEP inválido','error');return;}
     setLF(true);setFreteOptions([]);setSelectedFrete(null);
     try{
-      const d = await sbInvoke('frete', { cepDestino: cepClean, quantidade: totalQty }, token);
+      const r=await fetch(`${SB_URL}/functions/v1/frete`,{
+        method:'POST',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+        body:JSON.stringify({cepDestino:cepClean,quantidade:totalQty})
+      });
+      const text=await r.text();
+      console.log('Frete response:',r.status,text);
+      let d;
+      try{d=JSON.parse(text);}catch(pe){toast('Frete retornou resposta inválida','error');setLF(false);return;}
+      if(d.error){toast('Erro frete: '+d.error,'error');}
+      else if(d.opcoes&&d.opcoes.length>0){
+        const opts=d.opcoes.map(o=>({carrier:o.nome,price:o.preco,deadline_days:o.prazo}));
+        setFreteOptions(opts);setSelectedFrete(opts[0]);SFX.success();
+      } else {
+        toast('O MandaBem não retornou opções para este CEP. Tente outro ou entre em contato.','error');
+        console.warn('Frete data:',d);
+      }
+    }catch(e){console.warn('frete',e);toast('Erro ao conectar com frete','error');}
+    setLF(false);
+  }
 
+  async function finalize(){
+    if(!isFullBonus&&!selectedFrete){toast('Calcule o frete primeiro','error');return;}
+    // Campaign must be active (but we don't block the whole flow — admin can override)
+    setSubmitting(true);
+    try {
+      const batchData = {order_id:orderId,status:'DRAFT',brl_unit_price_locked:priceBRL,qty_in_batch:totalQty,subtotal_locked:sub,shipping_locked:fV,total_locked:isFullBonus?0:total,payment_method:'MERCADO_PAGO'};
+      const [batch] = await sbPost('order_batches', batchData, token);
+      for (const item of cart) await sbPatch('order_items',`id=eq.${item.id}`,{batch_id:batch.id,unit_price_brl:priceBRL},token);
+      await sbPatch('orders',`id=eq.${orderId}`,{qty_paid:totalPaid,qty_bonus:totalBonus,shipping_price_brl_locked:fV},token);
+      if(addr.rua)await sbPatch('profiles',`id=eq.${profile.id}`,{cep:addr.cep,rua:addr.rua,numero:addr.numero,complemento:addr.complemento,bairro:addr.bairro,cidade:addr.cidade,uf:addr.uf},token);
+
+      const shortId=String(batch.id).slice(0,8).toUpperCase();
+      SFX.confirm();
+      onOrderDone({method:isFullBonus?'bonus':'mp',totalPaid,totalBonus,priceBRL,isFullBonus,batchId:batch.id,shortId,cards:cart.map(c=>({name:c.card_name,type:c.card_type,qty:c.quantity}))});
+
+      if(!isFullBonus){
+        toast('Gerando link de pagamento...','info');
+        const mpRes=await fetch(`${SB_URL}/functions/v1/mp-create`,{method:'POST',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({orderId:String(batch.id),total:Number(total.toFixed(2)),descricao:`Pedido #${shortId} - ${totalPaid} cartas`})});
+        const mpData=await mpRes.json();
+        if(mpData.mpLink){window.location.href=mpData.mpLink;return;}
+        else if(mpData.error){console.error('MP:',mpData.error);toast('Erro MP: '+mpData.error,'error');}
+        nav('success');
+      } else {nav('success');}
+    }catch(e){console.error(e);toast('Erro ao finalizar: '+e.message,'error');}
+    setSubmitting(false);
+  }
+
+  if(totalQty===0)return(<div style={{paddingTop:40}}><EmptyState icon={ShoppingCart} title="Carrinho vazio" sub="Selecione cartas nos wants"/><div style={{textAlign:'center',marginTop:16}}><Btn onClick={()=>nav('wants')} sfx="nav"><ScrollText size={16}/> Wants</Btn></div></div>);
+
+  return(<div style={{display:'flex',flexDirection:'column',gap:14}}>
+    <Card id="tut-checkout-summary" style={{padding:18}}>
+      <SectionTitle sub={totalQty+' cartas ('+totalBonus+' bônus + '+totalPaid+' pagas)'}>Resumo</SectionTitle>
+      {totalBonus>0&&<><div style={{fontSize:11,fontWeight:700,color:'#2ee59d',marginBottom:6,display:'flex',alignItems:'center',gap:5}}><Gift size={12}/> Bônus (grátis)</div>
+        {bd.filter(c=>c.bonusQty>0).map((c,i)=>(<div key={'b'+i} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(46,229,157,0.08)'}}><span style={{color:'rgba(255,255,255,0.6)'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.bonusQty}</span><span style={{fontWeight:700,color:'#2ee59d'}}>R$ 0,00</span></div>))}</>}
+      {totalPaid>0&&<><div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.4)',marginTop:totalBonus>0?12:0,marginBottom:6,display:'flex',alignItems:'center',gap:5}}><CreditCard size={12}/> Pagas</div>
+        {bd.filter(c=>c.paidQty>0).map((c,i)=>(<div key={'p'+i} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(255,255,255,0.03)'}}><span style={{color:'rgba(255,255,255,0.6)'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.paidQty}</span><span style={{fontWeight:700}}>R$ {(c.paidQty*priceBRL).toFixed(2)}</span></div>))}</>}
+      <div style={{marginTop:14,display:'flex',flexDirection:'column',gap:5}}>
+        {totalPaid>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'rgba(255,255,255,0.4)'}}><span>Subtotal</span><span style={{color:'#fff',fontWeight:600}}>R$ {sub.toFixed(2)}</span></div>}
+        {!isFullBonus&&<div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'rgba(255,255,255,0.4)'}}><span>Frete</span><span style={{color:'#fff',fontWeight:600}}>{selectedFrete?'R$ '+fV.toFixed(2):lF?'Calculando...':'—'}</span></div>}
+        <div style={{height:1,background:'rgba(255,255,255,0.06)',margin:'3px 0'}}/>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:18,fontWeight:800}}><span>Total</span><span style={{color:isFullBonus?'#2ee59d':theme.primary}}>{isFullBonus?'R$ 0,00 (bônus!)':'R$ '+total.toFixed(2)}</span></div>
+      </div>
+    </Card>
+
+    {!isFullBonus&&<Card style={{padding:16}}>
+      <SectionTitle>Endereço de entrega</SectionTitle>
+      <AddressForm address={addr} setAddress={(a)=>setAddr(a)} onCalcFrete={()=>{}} frete={null} loadingFrete={false}/>
+      <Btn full variant="secondary" onClick={calcFrete} disabled={cepClean.length<8||lF} style={{marginTop:10}} sfx="click">{lF?<Spin size={14}/>:<><Truck size={15}/> Calcular frete</>}</Btn>
+      {freteOptions.length>0&&<div style={{marginTop:12}}>
+        <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.4)',marginBottom:8}}>Opções de envio</div>
+        {freteOptions.map((opt,i)=>(<button key={i} onClick={()=>{SFX.toggle();setSelectedFrete(opt);}} style={{width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',borderRadius:12,border:'1px solid '+(selectedFrete===opt?theme.primary+'30':'rgba(255,255,255,0.06)'),background:selectedFrete===opt?theme.primary+'10':'rgba(255,255,255,0.02)',cursor:'pointer',marginBottom:4,fontFamily:"'Outfit',sans-serif"}}>
+          <div style={{textAlign:'left'}}><div style={{fontSize:13,fontWeight:600,color:selectedFrete===opt?'#fff':'rgba(255,255,255,0.5)'}}>{opt.carrier}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.25)'}}>{opt.deadline_days} dias úteis</div></div>
+          <div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:14,fontWeight:800,color:selectedFrete===opt?theme.primary:'rgba(255,255,255,0.5)'}}>R$ {Number(opt.price).toFixed(2)}</span>{selectedFrete===opt&&<CheckCircle size={16} style={{color:theme.primary}}/>}</div>
+        </button>))}
+      </div>}
+    </Card>}
+
+    <Card id="tut-payment" style={{padding:16}}>
+      {isFullBonus?<Btn full variant="success" onClick={finalize} disabled={submitting} sfx="">{submitting?<Spin size={16}/>:<><Gift size={18}/> Finalizar pedido bônus</>}</Btn>:
+      <><SectionTitle sub="Pagamento seguro via Mercado Pago">Pagamento</SectionTitle>
+      <Btn full onClick={finalize} disabled={submitting||(!isFullBonus&&!selectedFrete)} sfx="">{submitting?<Spin size={16}/>:<><CreditCard size={18}/> Pagar R$ {total.toFixed(2)}</>}</Btn></>}
+    </Card>
+  </div>);
+}
+
+// ══════════════════════════════════════════════════════
+// SUCCESS
+// ══════════════════════════════════════════════════════
+
+function SuccessPage({lastOrder,theme,nav}){
+  if(!lastOrder)return <EmptyState icon={Check} title="Sem pedido" sub=""/>;
+  const isBonus=lastOrder.isFullBonus;
+  return(<div style={{display:'flex',flexDirection:'column',gap:16,alignItems:'center',textAlign:'center',paddingTop:20}}>
+    <div style={{width:72,height:72,borderRadius:36,background:isBonus?'linear-gradient(135deg,#2ee59d,#00bea4)':'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',display:'grid',placeItems:'center',boxShadow:'0 0 36px '+(isBonus?'rgba(46,229,157,0.3)':theme.glow)}}>{isBonus?<Gift size={32} color="#fff"/>:<Check size={32} color="#fff"/>}</div>
+    <div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:22}}>{isBonus?'Pedido Bônus!':'Pedido Registrado!'}</h1><p style={{color:'rgba(255,255,255,0.35)',fontSize:13,margin:'6px 0 0'}}>{isBonus?'Bônus escolhidos':lastOrder.totalPaid+' cartas a R$ '+lastOrder.priceBRL.toFixed(2)}</p></div>
+    <div style={{fontSize:12,color:'rgba(255,255,255,0.25)'}}>Pedido salvo no banco de dados.</div>
+    <Btn full onClick={()=>nav('home')} sfx="nav"><Home size={16}/> Voltar</Btn>
+  </div>);
+}
+
+// ══════════════════════════════════════════════════════
+// PROFILE
+// ══════════════════════════════════════════════════════
+
+function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProfile,onLogout,myOrders=[],onReloadOrders,toast:toastFn}){
+  const [colors,setColors]=useState(profile?.mana_color_1&&profile?.mana_color_2?[profile.mana_color_1,profile.mana_color_2]:['U','R']);
+  const [editAddr,setEditAddr]=useState(false);
+  const [addr,setAddr]=useState({cep:profile?.cep||'',rua:profile?.rua||'',numero:profile?.numero||'',complemento:profile?.complemento||'',bairro:profile?.bairro||'',cidade:profile?.cidade||'',uf:profile?.uf||''});
+  const [saving,setSaving]=useState(false);const [liveUsd,setLiveUsd]=useState(null);
+  useEffect(()=>{fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL').then(r=>r.json()).then(d=>{if(d.USDBRL)setLiveUsd(parseFloat(d.USDBRL.bid));}).catch(()=>{});},[]);
+  const [expandedOrder,setExpandedOrder]=useState(null);
+  const [showChangePw,setShowChangePw]=useState(false);
+  const [newPw,setNewPw]=useState('');const [newPw2,setNewPw2]=useState('');
+  const [pwVK,setPwVK]=useState(false);const [pwVKTarget,setPwVKTarget]=useState('pw1');
+  const [pwLoading,setPwLoading]=useState(false);const [pwMsg,setPwMsg]=useState(null);
+  function toggleC(k){setColors(p=>{if(p.includes(k))return p.filter(c=>c!==k);if(p.length>=2)return[p[1],k];return[...p,k];});}
+  const guild=colors.length===2?getGuild(colors[0],colors[1]):null;const gT=guild?GT[guild]:null;
+  const origColors=[profile?.mana_color_1,profile?.mana_color_2].filter(Boolean);
+  const changed=JSON.stringify(colors)!==JSON.stringify(origColors);
+
+  function pwVKKey(k){if(pwVKTarget==='pw1')setNewPw(p=>p.length<6?p+k:p);else setNewPw2(p=>p.length<6?p+k:p);}
+  function pwVKBack(){if(pwVKTarget==='pw1')setNewPw(p=>p.slice(0,-1));else setNewPw2(p=>p.slice(0,-1));}
+  async function changePassword(){
+    if(!/^[0-9]{6}$/.test(newPw)){setPwMsg({t:'error',m:'A senha deve conter 6 números'});return;}
+    if(newPw!==newPw2){setPwMsg({t:'error',m:'As senhas não coincidem'});return;}
+    setPwLoading(true);
+    try{await sbAuthUpdatePassword(newPw,token);SFX.success();setPwMsg({t:'success',m:'Senha alterada!'});setNewPw('');setNewPw2('');setPwVK(false);setTimeout(()=>setShowChangePw(false),1500);}
+    catch(e){setPwMsg({t:'error',m:e.message});}
+    setPwLoading(false);
+  }
+
+  async function saveGuild(){
+    setSaving(true);
+    await onSaveProfile({mana_color_1:colors[0],mana_color_2:colors[1],guild:guild||''});
+    setSaving(false);
+  }
+  async function saveAddr(){
+    setSaving(true);
+    await onSaveProfile(addr);
+    setEditAddr(false);
+    setSaving(false);
+  }
+
+  return(<div style={{display:'flex',flexDirection:'column',gap:14}}>
+    <Card style={{padding:18,textAlign:'center'}}><div style={{fontSize:28,marginBottom:4}}>⚔️</div><div style={{fontWeight:700,fontSize:16}}>{profile?.name||profile?.email||'—'}</div>{profile?.whatsapp&&<div style={{fontSize:12,color:'rgba(255,255,255,0.3)',marginTop:2,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Phone size={11}/>{profile.whatsapp}</div>}</Card>
+
+    <Card style={{padding:16}}>
+      <SectionTitle sub="Histórico de pedidos">Meus Pedidos</SectionTitle>
+      {myOrders.length===0?<div style={{fontSize:13,color:'rgba(255,255,255,0.25)',textAlign:'center',padding:12}}>Nenhum pedido ainda</div>:
+      myOrders.map((o,i)=>{const isExp=expandedOrder===i;const isPending=o.status==='DRAFT';return(<Card key={o.id||i} style={{padding:0,marginBottom:6,borderColor:isPending?'rgba(201,169,110,0.15)':undefined,cursor:'pointer'}} onClick={()=>setExpandedOrder(isExp?null:i)}>
+        <div style={{padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <Tag style={{fontSize:9,padding:'2px 6px'}}>{o.payment_method==='MERCADO_PAGO'?'MP':'Bônus'}</Tag>
+            <div>
+              <div style={{fontSize:13,fontWeight:700}}><span style={{fontFamily:'monospace',fontSize:10,color:'rgba(255,255,255,0.3)',marginRight:6}}>#{String(o.id).slice(0,8).toUpperCase()}</span>{Number(o.total_locked)>0?'R$ '+Number(o.total_locked).toFixed(2):'Bônus'}</div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{o.qty_in_batch} cartas | {new Date(o.created_at).toLocaleDateString('pt-BR')}</div>
+            </div>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+            <Tag color={isPending?'#c9a96e':o.status==='CONFIRMED'?'#2ee59d':'#4a90d9'} style={{fontSize:10}}>{isPending?'Pendente':o.status==='CONFIRMED'?'Pago':o.status}</Tag>
+            <ChevronRight size={14} style={{color:'rgba(255,255,255,0.2)',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
+          </div>
+        </div>
+        {isExp&&<div style={{padding:'0 14px 14px',borderTop:'1px solid rgba(255,255,255,0.04)'}}>
+          {o.cards&&o.cards.length>0?<div style={{marginTop:10}}>{o.cards.map((c,ci)=>(<div key={ci} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:12,borderBottom:ci<o.cards.length-1?'1px solid rgba(255,255,255,0.03)':'none'}}>
+            <span style={{color:'rgba(255,255,255,0.5)'}}>{c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
+            <span style={{fontWeight:700}}>x{c.qty}</span>
+          </div>))}</div>:<div style={{fontSize:11,color:'rgba(255,255,255,0.2)',marginTop:8}}>Detalhes não disponíveis</div>}
+          {isPending&&<div style={{display:'flex',gap:6,marginTop:10}}>
+              <Btn variant="warn" onClick={(e)=>{e.stopPropagation();if(o.mp_link){window.location.href=o.mp_link;}else{nav('checkout');}}} style={{flex:2,fontSize:12}} sfx="nav"><CreditCard size={14}/> Pagar agora</Btn>
+              <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(confirm('Cancelar este pedido?')){try{await sbPatch('order_batches',`id=eq.${o.id}`,{status:'CANCELLED'},token);SFX.click();toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+err.message,'error');}}}} style={{flex:1,fontSize:12}} sfx=""><X size={14}/> Cancelar</Btn>
+            </div>}
+            {!isPending&&o.status!=='CANCELLED'&&<div style={{fontSize:10,color:'rgba(255,255,255,0.2)',marginTop:6}}>Para cancelar pedido pago, entre em contato.</div>}
+        </div>}
+      </Card>);})}
+    </Card>
+
+    {editAddr?<Card style={{padding:16}}>
+      <SectionTitle>Editar endereço</SectionTitle>
+      <AddressForm address={addr} setAddress={setAddr} onCalcFrete={()=>{}} frete={null} loadingFrete={false}/>
+      <div style={{display:'flex',gap:8,marginTop:10}}>
+        <Btn variant="success" onClick={saveAddr} disabled={saving} style={{flex:1}} sfx="success">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar</>}</Btn>
+        <Btn variant="ghost" onClick={()=>setEditAddr(false)} style={{flex:1}} sfx="click">Cancelar</Btn>
+      </div>
+    </Card>:<AddressDisplay address={addr} onEdit={()=>setEditAddr(true)}/>}
+
+    <Card style={{padding:16}}>
+      <SectionTitle sub="2 cores = guilda">Mana</SectionTitle>
+      <div style={{display:'flex',justifyContent:'center',gap:12,margin:'14px 0'}}>{MANA_COLORS.map(m=><ManaOrb key={m.key} mana={m.key} selected={colors.includes(m.key)} onClick={()=>toggleC(m.key)} size={46}/>)}</div>
+      {guild&&<div style={{textAlign:'center',marginBottom:10,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}><GuildBadge guild={guild} size={18}/><span style={{fontWeight:700,fontSize:15,color:gT?gT.primary:'#fff'}}>{guild}</span></div>}
+      {changed&&guild&&<Btn full variant="success" onClick={saveGuild} disabled={saving} sfx="success">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar guilda</>}</Btn>}
+    </Card>
+
+    <Btn full variant="secondary" onClick={()=>{SFX.toggle();setShowChangePw(!showChangePw);setPwMsg(null);setNewPw('');setNewPw2('');setPwVK(false);}} sfx=""><Lock size={16}/> {showChangePw?'Cancelar':'Alterar senha'}</Btn>
+    {showChangePw&&<Card style={{padding:16}}>
+      <SectionTitle sub="Apenas números, 6 dígitos">Nova Senha</SectionTitle>
+      <div style={{display:'flex',flexDirection:'column',gap:8}}>
+        <div onClick={()=>{setPwVKTarget('pw1');setPwVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(pwVK&&pwVKTarget==='pw1'?'var(--gp)':'rgba(255,255,255,0.08)'),background:'rgba(0,0,0,0.3)',color:newPw?'#e9edf7':'rgba(255,255,255,0.3)',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+          <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,0.22)'}}/>
+          {newPw?<span style={{letterSpacing:6}}>{'●'.repeat(newPw.length)}<span style={{color:'rgba(255,255,255,0.15)',letterSpacing:4}}>{'○'.repeat(6-newPw.length)}</span></span>:'Nova senha'}
+        </div>
+        <div onClick={()=>{setPwVKTarget('pw2');setPwVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(pwVK&&pwVKTarget==='pw2'?'var(--gp)':'rgba(255,255,255,0.08)'),background:'rgba(0,0,0,0.3)',color:newPw2?'#e9edf7':'rgba(255,255,255,0.3)',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+          <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,0.22)'}}/>
+          {newPw2?<span style={{letterSpacing:6}}>{'●'.repeat(newPw2.length)}<span style={{color:'rgba(255,255,255,0.15)',letterSpacing:4}}>{'○'.repeat(6-newPw2.length)}</span></span>:'Confirmar nova senha'}
+        </div>
+        {newPw2.length===6&&newPw!==newPw2&&<div style={{fontSize:11,color:'#ff6b7a',textAlign:'center'}}>As senhas não coincidem</div>}
+        {pwVK&&<VirtualKeyboard onKey={pwVKKey} onBackspace={pwVKBack} onDone={()=>setPwVK(false)} maxLen={6} currentLen={pwVKTarget==='pw1'?newPw.length:newPw2.length}/>}
+        {pwMsg&&<div style={{fontSize:12,color:pwMsg.t==='error'?'#ff6b7a':'#2ee59d',textAlign:'center'}}>{pwMsg.m}</div>}
+        <Btn full variant="success" onClick={changePassword} disabled={newPw.length<6||newPw!==newPw2||pwLoading} sfx="">{pwLoading?<Spin size={14}/>:<><Check size={14}/> Salvar nova senha</>}</Btn>
+      </div>
+    </Card>}
+
+    <Btn full variant="secondary" onClick={()=>{SFX.nav();setShowTutorial(true);}} sfx=""><HelpCircle size={16}/> Ver tutorial</Btn>
+    {isAdmin&&<Btn full variant="warn" onClick={()=>nav('admin')} sfx="nav"><Shield size={16}/> Painel Admin</Btn>}
+    <Btn full variant="danger" onClick={onLogout} sfx="click"><LogOut size={14}/> Sair</Btn>
+  </div>);
+}
+
+// ══════════════════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════════════════
+
+function AuthPage({onLogin,theme}){
+  const [mode,setMode]=useState('login');const [email,setEmail]=useState('');const [senha,setSenha]=useState('');const [senha2,setSenha2]=useState('');
+  const [name,setName]=useState('');const [whatsapp,setWhatsapp]=useState('');
+  const [showVK,setShowVK]=useState(false);const [vkTarget,setVkTarget]=useState('senha');
+  const [loading,setLoading]=useState(false);const [err,setErr]=useState('');
+  const [forgotMode,setForgotMode]=useState(false);const [resetSent,setResetSent]=useState(false);
+
+  function openVK(target){setVkTarget(target);setShowVK(true);}
+  function vkKey(k){if(vkTarget==='senha')setSenha(p=>p.length<6?p+k:p);else setSenha2(p=>p.length<6?p+k:p);}
+  function vkBack(){if(vkTarget==='senha')setSenha(p=>p.slice(0,-1));else setSenha2(p=>p.slice(0,-1));}
+  const currentVKLen=vkTarget==='senha'?senha.length:senha2.length;
+
+  const senhaOk=/^[0-9]{6}$/.test(senha);
+  const canSubmit=email.includes('@')&&senhaOk&&!loading&&(mode==='login'||senha===senha2);
+
+  async function submit(){
+    setErr('');
+    if(!senhaOk){setErr('A senha deve conter 6 números');return;}
+    if(mode==='signup'&&senha!==senha2){setErr('As senhas não coincidem');return;}
+    setLoading(true);
+    try {
+      if(mode==='signup'){
+        if(!name){setErr('Preencha o nome');setLoading(false);return;}
+        if(!whatsapp||whatsapp.length<10){setErr('WhatsApp inválido');setLoading(false);return;}
+        const res=await sbAuthSignUp(email,senha);
+        let session;
+        if (res.access_token) session = res;
+        else if (res.session?.access_token) session = res.session;
+        else session = await sbAuthSignIn(email, senha);
+        const userId = session.user?.id || res.user?.id;
+        const token = session.access_token;
+        await sbUpsert('profiles', { id: userId, name, whatsapp, is_admin: false }, token);
+        SFX.confirm();
+        onLogin(session, 'signup');
+      } else {
+        const res=await sbAuthSignIn(email,senha);
+        SFX.success();
+        onLogin(res,'login');
+      }
+    } catch(e) {
+      SFX.error();
+      setErr(e.message||'Erro desconhecido');
+    }
+    setLoading(false);
+  }
+
+  async function handleForgot(){
+    if(!email.includes('@')){setErr('Digite seu email primeiro');return;}
+    setErr('');setLoading(true);
+    try{
+      await sbAuthResetPassword(email);
+      setResetSent(true);SFX.success();
+    }catch(e){setErr(e.message);}
+    setLoading(false);
+  }
+
+  if(forgotMode)return(<div style={{display:'flex',flexDirection:'column',gap:14,paddingTop:16}}>
+    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>🔑</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:22}}>Recuperar Senha</h1></div>
+    {resetSent?<Card glow="rgba(46,229,157,0.15)" style={{padding:20,textAlign:'center'}}>
+      <Check size={32} style={{color:'#2ee59d',marginBottom:8}}/>
+      <div style={{fontWeight:700,color:'#2ee59d',fontSize:15}}>Email enviado!</div>
+      <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginTop:6}}>Verifique sua caixa de entrada e spam. Clique no link para redefinir sua senha.</div>
+      <Btn full variant="secondary" onClick={()=>{setForgotMode(false);setResetSent(false);}} style={{marginTop:16}} sfx="nav">Voltar ao login</Btn>
+    </Card>:<>
+      <div style={{fontSize:13,color:'rgba(255,255,255,0.4)',textAlign:'center'}}>Digite seu email e enviaremos um link para redefinir sua senha.</div>
+      <Input icon={Mail} placeholder="seu@email.com" value={email} onChange={e=>setEmail(e.target.value)}/>
+      {err&&<div style={{fontSize:12,color:'#ff6b7a',textAlign:'center',padding:4}}><AlertTriangle size={12}/> {err}</div>}
+      <Btn full onClick={handleForgot} disabled={!email.includes('@')||loading} sfx="">{loading?<Spin size={16}/>:<><Mail size={16}/> Enviar link de recuperação</>}</Btn>
+      <button onClick={()=>{setForgotMode(false);setErr('');}} style={{background:'none',border:'none',color:'var(--gp)',fontSize:13,cursor:'pointer',fontFamily:"'Outfit',sans-serif",padding:8,textAlign:'center'}}>Voltar ao login</button>
+    </>}
+  </div>);
+
+  return(<div style={{display:'flex',flexDirection:'column',gap:14,paddingTop:16}}>
+    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>⚔️</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:22}}>{mode==='login'?'Bem-vindo':'Junte-se'}</h1></div>
+    <div style={{display:'flex',borderRadius:12,background:'rgba(255,255,255,0.025)',padding:3,gap:3}}>{['login','signup'].map(m=>(<button key={m} onClick={()=>{SFX.toggle();setMode(m);setErr('');setSenha('');setSenha2('');setShowVK(false);}} style={{flex:1,padding:'9px 0',borderRadius:10,border:'none',background:mode===m?'rgba(255,255,255,0.07)':'transparent',color:mode===m?'#fff':'rgba(255,255,255,0.3)',fontWeight:700,fontSize:13,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{m==='login'?'Entrar':'Criar conta'}</button>))}</div>
+    {mode==='signup'&&<Input icon={User} placeholder="Seu nome" value={name} onChange={e=>setName(e.target.value)}/>}
+    <Input icon={Mail} placeholder="seu@email.com" value={email} onChange={e=>setEmail(e.target.value)}/>
+    {mode==='signup'&&<Input icon={Phone} placeholder="WhatsApp (11999999999)" value={whatsapp} onChange={e=>setWhatsapp(e.target.value.replace(/\D/g,'').slice(0,11))}/>}
+    <div>
+      <div onClick={()=>openVK('senha')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='senha'?'var(--gp)':'rgba(255,255,255,0.08)'),background:'rgba(0,0,0,0.3)',color:senha?'#e9edf7':'rgba(255,255,255,0.3)',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+        <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,0.22)'}}/>
+        {senha?<span style={{letterSpacing:6}}>{'●'.repeat(senha.length)}<span style={{color:'rgba(255,255,255,0.15)',letterSpacing:4}}>{'○'.repeat(6-senha.length)}</span></span>:'Senha (6 dígitos)'}
+      </div>
+    </div>
+    {mode==='signup'&&<div>
+      <div onClick={()=>openVK('senha2')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='senha2'?'var(--gp)':'rgba(255,255,255,0.08)'),background:'rgba(0,0,0,0.3)',color:senha2?'#e9edf7':'rgba(255,255,255,0.3)',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+        <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,0.22)'}}/>
+        {senha2?<span style={{letterSpacing:6}}>{'●'.repeat(senha2.length)}<span style={{color:'rgba(255,255,255,0.15)',letterSpacing:4}}>{'○'.repeat(6-senha2.length)}</span></span>:'Confirmar senha'}
+      </div>
+      {senha2.length===6&&senha!==senha2&&<div style={{fontSize:11,color:'#ff6b7a',marginTop:4,textAlign:'center'}}>As senhas não coincidem</div>}
+    </div>}
+    {showVK&&<div style={{marginTop:4}}><VirtualKeyboard onKey={vkKey} onBackspace={vkBack} onDone={()=>setShowVK(false)} maxLen={6} currentLen={currentVKLen}/></div>}
+    {err&&<div style={{fontSize:12,color:'#ff6b7a',textAlign:'center',padding:4}}><AlertTriangle size={12}/> {err}</div>}
+    <Btn full onClick={submit} disabled={!canSubmit} sfx="">{loading?<Spin size={16}/>:<>{mode==='login'?'Entrar':'Criar conta'} <ArrowRight size={16}/></>}</Btn>
+    {mode==='login'&&<button onClick={()=>{setForgotMode(true);setErr('');}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',fontSize:12,cursor:'pointer',fontFamily:"'Outfit',sans-serif",padding:4,textAlign:'center'}}>Esqueci minha senha</button>}
+  </div>);
+}
+
+// ══════════════════════════════════════════════════════
+// PASSWORD RECOVERY PAGE
+// ══════════════════════════════════════════════════════
+
+function RecoveryPage({token,onDone,theme}){
+  const [pw,setPw]=useState('');const [pw2,setPw2]=useState('');
+  const [showVK,setShowVK]=useState(false);const [vkTarget,setVkTarget]=useState('pw');
+  const [loading,setLoading]=useState(false);const [err,setErr]=useState('');
+  function vkKey(k){if(vkTarget==='pw')setPw(p=>p.length<6?p+k:p);else setPw2(p=>p.length<6?p+k:p);}
+  function vkBack(){if(vkTarget==='pw')setPw(p=>p.slice(0,-1));else setPw2(p=>p.slice(0,-1));}
+  async function save(){
+    if(!/^[0-9]{6}$/.test(pw)){setErr('A senha deve conter 6 números');return;}
+    if(pw!==pw2){setErr('As senhas não coincidem');return;}
+    setLoading(true);setErr('');
+    try{await sbAuthUpdatePassword(pw,token);onDone();}
+    catch(e){setErr(e.message);}
+    setLoading(false);
+  }
+  return(<div style={{display:'flex',flexDirection:'column',gap:14,paddingTop:16}}>
+    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>🔑</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:22}}>Nova Senha</h1><p style={{fontSize:13,color:'rgba(255,255,255,0.4)',marginTop:6}}>Digite sua nova senha de 6 dígitos</p></div>
+    <div onClick={()=>{setVkTarget('pw');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='pw'?'var(--gp)':'rgba(255,255,255,0.08)'),background:'rgba(0,0,0,0.3)',color:pw?'#e9edf7':'rgba(255,255,255,0.3)',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+      <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,0.22)'}}/>
+      {pw?<span style={{letterSpacing:6}}>{'●'.repeat(pw.length)}<span style={{color:'rgba(255,255,255,0.15)',letterSpacing:4}}>{'○'.repeat(6-pw.length)}</span></span>:'Nova senha'}
+    </div>
+    <div onClick={()=>{setVkTarget('pw2');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='pw2'?'var(--gp)':'rgba(255,255,255,0.08)'),background:'rgba(0,0,0,0.3)',color:pw2?'#e9edf7':'rgba(255,255,255,0.3)',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+      <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,0.22)'}}/>
+      {pw2?<span style={{letterSpacing:6}}>{'●'.repeat(pw2.length)}<span style={{color:'rgba(255,255,255,0.15)',letterSpacing:4}}>{'○'.repeat(6-pw2.length)}</span></span>:'Confirmar senha'}
+    </div>
+    {pw2.length===6&&pw!==pw2&&<div style={{fontSize:11,color:'#ff6b7a',textAlign:'center'}}>As senhas não coincidem</div>}
+    {showVK&&<VirtualKeyboard onKey={vkKey} onBackspace={vkBack} onDone={()=>setShowVK(false)} maxLen={6} currentLen={vkTarget==='pw'?pw.length:pw2.length}/>}
+    {err&&<div style={{fontSize:12,color:'#ff6b7a',textAlign:'center'}}><AlertTriangle size={12}/> {err}</div>}
+    <Btn full onClick={save} disabled={pw.length<6||pw!==pw2||loading} sfx="">{loading?<Spin size={16}/>:<><Check size={16}/> Salvar nova senha</>}</Btn>
+  </div>);
+}
+
+// ══════════════════════════════════════════════════════
+// ONBOARDING
+// ══════════════════════════════════════════════════════
+
+function OnboardingPage({onComplete,theme}){
+  const [step,setStep]=useState(0);const [colors,setColors]=useState([]);const [askTutorial,setAskTutorial]=useState(false);
+  function toggleC(k){setColors(p=>{if(p.includes(k))return p.filter(c=>c!==k);if(p.length>=2)return[p[1],k];return[...p,k];});}
+  const guild=colors.length===2?getGuild(colors[0],colors[1]):null;const gT=guild?GT[guild]:theme;
+  const steps=[
+    {mood:'🧙',title:'A Convocação',body:'"Sozinho você paga caro. Quando a guilda se une, o mana flui e os preços caem."'},
+    {mood:'⚡',title:'O Encantamento do Bônus',body:'"Se o preço do tier cair depois, a diferença vira cartas extras. Mas se não escolher antes do fechamento, o encantamento se dissipa."'},
+    {mood:'🔮',title:'Escolha sua Guilda',body:'"Duas cores de mana definem sua essência. Cada combinação invoca uma guilda diferente."',hasColors:true},
+  ];
+  const s=steps[step];
+
+  if(askTutorial)return(<div style={{display:'flex',flexDirection:'column',gap:16,paddingTop:40,alignItems:'center',textAlign:'center'}}>
+    <div style={{width:56,height:56,borderRadius:14,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.06)',display:'grid',placeItems:'center',fontSize:28}}>🧙</div>
+    <h2 style={{fontFamily:"'Cinzel',serif",fontSize:20}}>"Agora vou guiar seus primeiros passos!"</h2>
+    <p style={{fontSize:13,color:'rgba(255,255,255,0.4)',maxWidth:300,fontStyle:'italic'}}>Um grimório rápido sobre o ritual da encomenda</p>
+    <div style={{display:'flex',gap:10,width:'100%',maxWidth:300}}>
+      <Btn onClick={()=>onComplete(colors,guild,true)} style={{flex:1}} sfx="confirm">Vamos lá! 🔮</Btn>
+    </div>
+  </div>);
+
+  return(<div style={{display:'flex',flexDirection:'column',gap:16,paddingTop:16,minHeight:'70vh',justifyContent:'space-between'}}>
+    <div>
+      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:18}}><div style={{width:44,height:44,borderRadius:12,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.06)',display:'grid',placeItems:'center',fontSize:22}}>{s.mood}</div><div><div style={{fontWeight:800,fontSize:14}}>Goblin Guia</div><div style={{fontSize:11,color:'rgba(255,255,255,0.28)'}}>Guardião do Portal</div></div></div>
+      <h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:23}}>{s.title}</h1>
+      <p style={{fontSize:14,lineHeight:1.7,color:'rgba(255,255,255,0.55)',marginTop:10,fontStyle:'italic'}}>{s.body}</p>
+      {s.hasColors&&<div style={{marginTop:18}}><div style={{display:'flex',justifyContent:'center',gap:14,marginBottom:14}}>{MANA_COLORS.map(m=><ManaOrb key={m.key} mana={m.key} selected={colors.includes(m.key)} onClick={()=>toggleC(m.key)} size={50}/>)}</div>{guild&&<div style={{textAlign:'center'}}><GuildBadge guild={guild} size={24}/><span style={{fontFamily:"'Cinzel',serif",fontSize:18,fontWeight:700,color:gT.primary,marginLeft:8}}>{guild}</span></div>}</div>}
+    </div>
+    <div>
+      <div style={{display:'flex',gap:5,justifyContent:'center',marginBottom:12}}>{steps.map((_,i)=><div key={i} style={{width:i===step?20:6,height:6,borderRadius:3,background:i===step?gT.primary:'rgba(255,255,255,0.1)'}}/>)}</div>
+      <div style={{display:'flex',gap:10}}>{step>0&&<Btn variant="secondary" onClick={()=>setStep(s=>s-1)} style={{flex:1}} sfx="nav"><ChevronLeft size={15}/></Btn>}{step<steps.length-1?<Btn onClick={()=>setStep(s=>s+1)} style={{flex:1}} sfx="click">Próximo <ChevronRight size={15}/></Btn>:<Btn onClick={()=>{if(!guild)return;SFX.confirm();setAskTutorial(true);}} disabled={!guild} style={{flex:1}} sfx=""><Sparkles size={15}/> Continuar</Btn>}</div>
+    </div>
+  </div>);
+}
+
+// ══════════════════════════════════════════════════════
+// ADMIN — full management panel
+// ══════════════════════════════════════════════════════
+
+const CAMPAIGN_STATUSES=['DRAFT','ACTIVE','LOCKED','ORDERING','ORDERED','RECEIVED','PACKING','SHIPPING','DONE','CANCELLED'];
+
+function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:campProp,theme,token,nav,onReload}){
+  const [tab,setTab]=useState('orders');const [orders,setOrders]=useState([]);const [loading,setLoading]=useState(true);
+  const [searchOrd,setSearchOrd]=useState('');const [expandedOrd,setExpandedOrd]=useState(null);
+  // Editable copies
+  const [editTiers,setEditTiers]=useState(tiersProp.map(t=>({...t})));
+  const [editPricing,setEditPricing]=useState(pricingProp?{...pricingProp}:{});
+  const [editCamp,setEditCamp]=useState(campProp?{...campProp}:{});
+  const [saving,setSaving]=useState(false);const [liveUsd,setLiveUsd]=useState(null);
+  useEffect(()=>{fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL').then(r=>r.json()).then(d=>{if(d.USDBRL)setLiveUsd(parseFloat(d.USDBRL.bid));}).catch(()=>{});},[]);
+  const tier=tiersProp.length>0?getTier(pool,tiersProp):null;
+
+  useEffect(()=>{
+    (async()=>{
+      try {
+        const data = await sbGet('orders', `select=id,user_id,status,qty_paid,qty_bonus,created_at,profiles(name,whatsapp,email),order_batches(id,status,total_locked,payment_method,confirmed_at,qty_in_batch)&campaign_id=eq.${campProp?.id}&order=created_at.desc`, token);
+        setOrders(data);
+      } catch(e) { console.error(e); }
+      setLoading(false);
+    })();
+  },[token,campProp?.id]);
+
+  async function confirmBatch(batchId){
+    try{
+      await sbPatch('order_batches',`id=eq.${batchId}`,{status:'CONFIRMED',confirmed_at:new Date().toISOString()},token);
+      setOrders(prev=>prev.map(o=>({...o,order_batches:o.order_batches?.map(b=>b.id===batchId?{...b,status:'CONFIRMED'}:b)})));
+      SFX.success();
+    }catch(e){console.error(e);}
+  }
+
+  async function saveTiers(){
+    setSaving(true);
+    try{
+      for(const t of editTiers){
+        await sbPatch('tiers',`id=eq.${t.id}`,{usd_per_card:t.usd,label:t.label,min_qty:t.min,max_qty:t.max>999999?null:t.max,quest_text:t.quest},token);
+      }
+      SFX.success();if(onReload)onReload();
+    }catch(e){console.error(e);}
+    setSaving(false);
+  }
+
+  async function savePricing(){
+    setSaving(true);
+    try{
+      const {id,...rest}=editPricing;
+      delete rest.is_active;delete rest.created_at;delete rest.updated_at;
+      await sbPatch('pricing_config',`id=eq.${id}`,rest,token);
+      SFX.success();if(onReload)onReload();
+    }catch(e){console.error(e);}
+    setSaving(false);
+  }
+
+  async function saveCampaign(){
+    setSaving(true);
+    try{
+      await sbPatch('campaigns',`id=eq.${editCamp.id}`,{name:editCamp.name,status:editCamp.status,close_at:editCamp.close_at,max_cards:editCamp.max_cards},token);
+      SFX.success();if(onReload)onReload();
+    }catch(e){console.error(e);}
+    setSaving(false);
+  }
+
+  const filteredOrders=searchOrd?orders.filter(o=>{
+    const q=searchOrd.toLowerCase();
+    return (o.profiles?.name||'').toLowerCase().includes(q)||(o.profiles?.email||'').toLowerCase().includes(q)||String(o.id).toLowerCase().includes(q)||o.order_batches?.some(b=>String(b.id).slice(0,8).toUpperCase().includes(q.toUpperCase()));
+  }):orders;
+
+  const tabs=[{key:'orders',icon:Package,label:'Pedidos'},{key:'list',icon:ScrollText,label:'Lista Final'},{key:'tiers',icon:DollarSign,label:'Tiers'},{key:'pricing',icon:Settings,label:'Taxas'},{key:'campaign',icon:Calendar,label:'Campanha'}];
+  return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+      <div style={{display:'flex',alignItems:'center',gap:8}}><Shield size={18} style={{color:theme.primary}}/><span style={{fontFamily:"'Cinzel',serif",fontSize:18,fontWeight:700}}>Admin</span></div>
+      <Btn variant="ghost" onClick={()=>nav('profile')} style={{padding:'6px 10px',fontSize:12}} sfx="nav"><ChevronLeft size={14}/></Btn>
+    </div>
+    <Card style={{padding:12}}><div style={{display:'flex',justifyContent:'space-between',fontSize:12}}>
+      <div><span style={{color:'rgba(255,255,255,0.3)'}}>Pool</span> <b style={{color:theme.primary}}>{pool}</b></div>
+      <div><span style={{color:'rgba(255,255,255,0.3)'}}>Tier</span> <b style={{color:theme.primary}}>{tier?.label} R${priceBRL.toFixed(2)}</b></div>
+      <div><span style={{color:'rgba(255,255,255,0.3)'}}>Status</span> <b style={{color:'#2ee59d'}}>{campProp?.status}</b></div>
+    </div></Card>
+    <div style={{display:'flex',gap:3}}>{tabs.map(t=>(<button key={t.key} onClick={()=>{SFX.toggle();setTab(t.key);}} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:3,padding:'7px 0',borderRadius:10,border:'none',background:tab===t.key?theme.primary+'15':'rgba(255,255,255,0.025)',color:tab===t.key?theme.primary:'rgba(255,255,255,0.3)',fontWeight:600,fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><t.icon size={12}/>{t.label}</button>))}</div>
+
+    {tab==='orders'&&<>
+      <Input icon={Search} placeholder="Buscar por nome, email ou pedido..." value={searchOrd} onChange={e=>setSearchOrd(e.target.value)}/>
+      {loading?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:filteredOrders.length===0?<EmptyState icon={Package} title="Nenhum pedido" sub={searchOrd?'Tente outro filtro':''}/>:filteredOrders.map(o=>{
+        const isExp=expandedOrd===o.id;
+        return(<Card key={o.id} style={{padding:0,marginBottom:4,cursor:'pointer'}} onClick={()=>setExpandedOrd(isExp?null:o.id)}>
+        <div style={{padding:'10px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div>
+            <div style={{fontSize:13,fontWeight:700}}>{o.profiles?.name||o.profiles?.email||'—'}</div>
+            <div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{o.profiles?.email} | {new Date(o.created_at).toLocaleDateString('pt-BR')}</div>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:4}}>
+            <Tag color={o.status==='DRAFT'?'#c9a96e':o.status==='CONFIRMED'?'#2ee59d':'#4a90d9'} style={{fontSize:9}}>{o.status}</Tag>
+            <ChevronRight size={12} style={{color:'rgba(255,255,255,0.15)',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
+          </div>
+        </div>
+        {isExp&&<div style={{padding:'0 14px 12px',borderTop:'1px solid rgba(255,255,255,0.04)'}}>
+          <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginTop:8}}>{o.qty_paid||0} pagas | {o.qty_bonus||0} bônus</div>
+          {o.order_batches?.map(b=>{const sid=String(b.id).slice(0,8).toUpperCase();const isPending=b.status==='DRAFT';return(
+            <div key={b.id} style={{padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div><span style={{fontSize:12,fontWeight:700,fontFamily:'monospace'}}>#{sid}</span> <span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>{b.payment_method} | {b.qty_in_batch} cartas</span></div>
+                <div style={{display:'flex',alignItems:'center',gap:6}}>
+                  <span style={{fontSize:12,fontWeight:700}}>R$ {Number(b.total_locked).toFixed(2)}</span>
+                  <Tag color={isPending?'#c9a96e':'#2ee59d'} style={{fontSize:9}}>{isPending?'Pendente':'Pago'}</Tag>
+                </div>
+              </div>
+              {isPending&&<div style={{display:'flex',gap:4,marginTop:6}}>
+                <Btn variant="success" onClick={(e)=>{e.stopPropagation();confirmBatch(b.id);}} style={{flex:2,padding:'6px 10px',fontSize:10}} sfx=""><Check size={11}/> Confirmar</Btn>
+                <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();await sbPatch('order_batches',`id=eq.${b.id}`,{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}} style={{flex:1,padding:'6px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar</Btn>
+              </div>}
+              {b.status==='CONFIRMED'&&<Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(confirm('Cancelar pedido pago? Reembolso deve ser feito no Mercado Pago.')){await sbPatch('order_batches',`id=eq.${b.id}`,{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}}} style={{marginTop:6,padding:'5px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar (pago)</Btn>}
+            </div>
+          );})}
+          {o.profiles?.whatsapp&&<a href={'https://wa.me/55'+o.profiles.whatsapp} target="_blank" rel="noopener noreferrer" style={{display:'inline-flex',alignItems:'center',gap:4,marginTop:6,fontSize:11,color:'#25d366',textDecoration:'none'}}><MessageCircle size={12}/> WhatsApp</a>}
+        </div>}
+      </Card>);})}
+    </>}
+
+    {tab==='tiers'&&<>
+      <Card style={{padding:16}}>
+        <SectionTitle sub="Edite os preços USD e labels de cada tier">Tiers</SectionTitle>
+        {editTiers.map((t,i)=>(<div key={i} style={{padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+          <div style={{display:'flex',gap:6,alignItems:'center',marginBottom:4}}>
+            <input value={t.label} onChange={e=>{const v=[...editTiers];v[i]={...v[i],label:e.target.value};setEditTiers(v);}} style={{flex:2,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",outline:'none'}}/>
+            <div style={{display:'flex',alignItems:'center',gap:2}}><span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>US$</span><input type="number" step="0.01" value={t.usd} onChange={e=>{const v=[...editTiers];v[i]={...v[i],usd:parseFloat(e.target.value)||0};setEditTiers(v);}} style={{width:55,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/></div>
+            <div style={{display:'flex',alignItems:'center',gap:2}}><span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>R$</span><input type="number" step="1" value={calcBrlPrice(t.usd,editPricing)} onChange={e=>{const brl=parseFloat(e.target.value)||0;const usd=calcUsdFromBrl(brl,editPricing);const v=[...editTiers];v[i]={...v[i],usd};setEditTiers(v);}} style={{width:55,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:theme.primary,fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/></div>
+          </div>
+          <div style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>{t.min}-{t.max>999999?'∞':t.max} cartas</div>
+        </div>))}
+        <Btn full variant="success" onClick={saveTiers} disabled={saving} style={{marginTop:10}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar tiers</>}</Btn>
+      </Card>
+    </>}
+
+    {tab==='pricing'&&<>
+      <Card style={{padding:16}}>
+        <SectionTitle sub="Ajuste câmbio, taxas e markup">Taxas e Câmbio</SectionTitle>
+        {liveUsd&&<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 12px',borderRadius:10,background:'rgba(46,229,157,0.06)',border:'1px solid rgba(46,229,157,0.12)',marginBottom:10}}>
+          <span style={{fontSize:12,color:'rgba(255,255,255,0.5)'}}>Cotação ao vivo</span>
+          <div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:14,fontWeight:800,color:'#2ee59d'}}>R$ {liveUsd.toFixed(4)}</span>
+            <button onClick={()=>setEditPricing(p=>({...p,usd_brl_rate:liveUsd}))} style={{background:'rgba(46,229,157,0.15)',border:'1px solid rgba(46,229,157,0.2)',borderRadius:8,padding:'3px 8px',color:'#2ee59d',fontSize:10,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Usar</button>
+          </div>
+        </div>}
+        {[{k:'usd_brl_rate',l:'Câmbio USD/BRL'},{k:'card_fee_percent',l:'Taxa carta (%)'},{k:'tax_percent',l:'Imposto (%)'},{k:'markup_percent',l:'Markup (%)'},{k:'profit_fixed_brl',l:'Lucro fixo (R$)'}].map(({k,l})=>(<div key={k} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+          <span style={{fontSize:12,color:'rgba(255,255,255,0.5)'}}>{l}</span>
+          <input type="number" step="0.01" value={editPricing[k]||0} onChange={e=>setEditPricing(p=>({...p,[k]:parseFloat(e.target.value)||0}))} style={{width:80,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:13,fontWeight:700,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/>
+        </div>))}
+        <Btn full variant="success" onClick={savePricing} disabled={saving} style={{marginTop:10}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar taxas</>}</Btn>
+      </Card>
+    </>}
+
+    {tab==='list'&&<Card style={{padding:16}}>
+      <SectionTitle sub="Todas as cartas confirmadas + bônus para enviar ao fornecedor">Lista Final</SectionTitle>
+      {(()=>{
+        const allItems={};
+        orders.forEach(o=>{
+          o.order_batches?.filter(b=>b.status==='CONFIRMED'||b.status==='DRAFT').forEach(b=>{
+            // We'd need items, but for now aggregate from batch qty
+          });
+        });
+        // Show aggregate from all confirmed orders
+        const confirmed=orders.filter(o=>o.status==='CONFIRMED'||o.order_batches?.some(b=>b.status==='CONFIRMED'));
+        const totalCards=confirmed.reduce((s,o)=>(s+(o.qty_paid||0)+(o.qty_bonus||0)),0);
+        return(<div>
+          <div style={{fontSize:14,fontWeight:800,color:theme.primary,marginBottom:10}}>{totalCards} cartas no total</div>
+          <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:8}}>{confirmed.length} pedidos confirmados</div>
+          {confirmed.map(o=>(<div key={o.id} style={{padding:'6px 0',borderBottom:'1px solid rgba(255,255,255,0.03)',fontSize:12}}>
+            <span style={{fontWeight:600}}>{o.profiles?.name||'—'}</span>
+            <span style={{color:'rgba(255,255,255,0.3)',marginLeft:8}}>{o.qty_paid||0} pagas + {o.qty_bonus||0} bônus</span>
+          </div>))}
+          {confirmed.length===0&&<div style={{fontSize:12,color:'rgba(255,255,255,0.2)',textAlign:'center',padding:20}}>Nenhum pedido confirmado ainda</div>}
+        </div>);
+      })()}
+    </Card>}
+
+    {tab==='campaign'&&<>
+      <Card style={{padding:16}}>
+        <SectionTitle sub="Configure a campanha atual">Campanha</SectionTitle>
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Nome</label><input value={editCamp.name||''} onChange={e=>setEditCamp(c=>({...c,name:e.target.value}))} style={{width:'100%',padding:'10px 12px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/></div>
+          <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Status</label><div style={{display:'flex',flexWrap:'wrap',gap:4}}>{CAMPAIGN_STATUSES.map(s=>(<button key={s} onClick={()=>setEditCamp(c=>({...c,status:s}))} style={{padding:'5px 10px',borderRadius:8,border:'1px solid '+(editCamp.status===s?theme.primary+'30':'rgba(255,255,255,0.06)'),background:editCamp.status===s?theme.primary+'15':'rgba(255,255,255,0.02)',color:editCamp.status===s?theme.primary:'rgba(255,255,255,0.3)',fontSize:10,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{s}</button>))}</div></div>
+          <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Data de fechamento</label><input type="date" value={editCamp.close_at?editCamp.close_at.slice(0,10):''} onChange={e=>setEditCamp(c=>({...c,close_at:e.target.value}))} style={{width:'100%',padding:'10px 12px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/></div>
+          <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Máximo de cartas</label><input type="number" value={editCamp.max_cards||0} onChange={e=>setEditCamp(c=>({...c,max_cards:parseInt(e.target.value)||0}))} style={{width:'100%',padding:'10px 12px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/></div>
+        </div>
+        <Btn full variant="success" onClick={saveCampaign} disabled={saving} style={{marginTop:12}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar campanha</>}</Btn>
+      </Card>
+    </>}
+  </div>);
+}
+
+// ══════════════════════════════════════════════════════
+// MAIN — Supabase state management
+// ══════════════════════════════════════════════════════
+
+export default function MagicPortal(){
+  // Auth state — persist in localStorage
+  const [session,setSession]=useState(()=>{try{const s=localStorage.getItem('cpj_session');return s?JSON.parse(s):null;}catch(e){return null;}});
+  const [profile,setProfile]=useState(null);
+  const [isNew,setIsNew]=useState(false);
+
+  // Persist session
+  useEffect(()=>{if(session)localStorage.setItem('cpj_session',JSON.stringify(session));else localStorage.removeItem('cpj_session');},[session]);
+
+  // Auto-load on mount if session exists
+  const didAutoLoad=useRef(false);
+  useEffect(()=>{if(session&&!profile&&!didAutoLoad.current){didAutoLoad.current=true;loadAppData(session.access_token,session.user.id).catch(()=>{setSession(null);});}},[session,profile]);
+
+  // Data state
+  const [campaign,setCampaign]=useState(null);
+  const [tiers,setTiers]=useState([]);
+  const [pricing,setPricing]=useState(null);
+  const [orderId,setOrderId]=useState(null);
+  const [wants,setWants]=useState([]); // order_items with card info
+  const [cartIds,setCartIds]=useState([]);
+  const [bonusGrants,setBonusGrants]=useState([]);
+  const [lastOrder,setLastOrder]=useState(null);
+  const [myOrders,setMyOrders]=useState([]);
+
+  // UI state
+  const [page,setPage]=useState('home');
+  const [showTutorial,setShowTutorial]=useState(false);
+  const [tutStep,setTutStep]=useState(0);
+  const [isFirstTimeTut,setIsFirstTimeTut]=useState(false);
+  const [soundOn,setSoundOn]=useState(true);
+  const [appLoading,setAppLoading]=useState(false);
+  const [toastMsg,setToastMsg]=useState(null);
+  const [recoveryToken,setRecoveryToken]=useState(null);
+
+  // Detect password recovery token in URL hash
+  useEffect(()=>{
+    const hash=window.location.hash;
+    if(hash&&hash.includes('type=recovery')){
+      const params=new URLSearchParams(hash.replace('#',''));
+      const at=params.get('access_token');
+      if(at){
+        setRecoveryToken(at);
+        window.history.replaceState(null,'',window.location.pathname);
+      }
+    }
+  },[]);
+
+  const token = session?.access_token;
+  const guild = profile?.guild || 'Izzet';
+  const theme = GT[guild] || GT.Izzet;
+  const isAdmin = profile?.is_admin || false;
+  const nav = useCallback(p=>{SFX.nav();setPage(p);},[]);
+
+  function toast(msg,type='info'){setToastMsg({msg,type});setTimeout(()=>setToastMsg(null),4000);}
+
+  // Compute tiers with BRL prices
+  const computedTiers = useMemo(()=>{
+    return tiers.map(t=>({
+      ...t,
+      min: t.min_qty,
+      max: t.max_qty || 9999999,
+      usd: Number(t.usd_per_card),
+      brl: calcBrlPrice(Number(t.usd_per_card), pricing),
+      quest: t.quest_text || '',
+    }));
+  },[tiers,pricing]);
+
+  const pool = campaign?.pool_qty_confirmed || 0;
+  const tier = computedTiers.length>0 ? getTier(pool, computedTiers) : null;
+  const priceBRL = tier?.brl || 0;
+  const bonusAvail = bonusGrants.filter(b=>b.status==='AVAILABLE').reduce((s,b)=>s+b.bonus_qty,0);
+
+  // ─── Load data after login ─────────────────────────
+  async function loadAppData(tkn, userId) {
+    setAppLoading(true);
+    try {
+      // Profile
+      const [prof] = await sbGet('profiles', `id=eq.${userId}`, tkn);
+      setProfile(prof);
+
+      // Campaign
+      const camps = await sbGet('campaigns', `status=neq.CANCELLED&status=neq.DONE&limit=1&order=created_at.desc`, tkn);
+      const camp = camps[0] || null;
+      setCampaign(camp);
+
+      // Tiers
+      if (camp) {
+        const t = await sbGet('tiers', `campaign_id=eq.${camp.id}&order=rank`, tkn);
+        setTiers(t);
+      }
+
+      // Pricing
+      const [pc] = await sbGet('pricing_config', `is_active=eq.true&limit=1`, tkn);
+      setPricing(pc);
+
+      // Order (get or create DRAFT)
+      if (camp) {
+        let ords = await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}&status=eq.DRAFT`, tkn);
+        let ord = ords[0];
+        if (!ord) {
+          const [newOrd] = await sbPost('orders', { campaign_id: camp.id, user_id: userId, status: 'DRAFT' }, tkn);
+          ord = newOrd;
+        }
+        setOrderId(ord.id);
+
+        // Wants (order_items without batch_id)
+        const items = await sbGet('order_items', `order_id=eq.${ord.id}&batch_id=is.null&is_bonus=eq.false&select=id,card_id,quantity,cards(name,type)`, tkn);
+        setWants(items.map(i=>({...i,card_name:i.cards?.name||'?',card_type:i.cards?.type||'Normal'})));
+
+        // Bonus grants
+        const bg = await sbGet('bonus_grants', `user_id=eq.${userId}&campaign_id=eq.${camp.id}`, tkn);
+        setBonusGrants(bg);
+
+        // Order history (batches with items)
+        const batches = await sbGet('order_batches', `order_id=eq.${ord.id}&select=id,status,total_locked,payment_method,created_at,qty_in_batch,mp_link`, tkn);
+        setMyOrders(batches);
+      }
+    } catch(e) {
+      console.error('loadAppData', e);
+      if (e.message && (e.message.includes('JWT') || e.message.includes('401') || e.message.includes('token'))) {
+        toast('Sessão expirada. Faça login novamente.', 'error');
+        handleLogout();
+        return;
+      }
+      toast('Erro ao carregar dados: '+e.message, 'error');
+    }
+    setAppLoading(false);
+  }
+
+  // ─── Auth handler ──────────────────────────────────
+  async function handleLogin(res, type) {
+    setSession(res);
+    if (type === 'signup') {
+      setIsNew(true);
+      setPage('onboarding');
+      await loadAppData(res.access_token, res.user.id);
+    } else {
+      await loadAppData(res.access_token, res.user.id);
+      setPage('home');
+    }
+  }
+
+  function handleLogout(){
+    localStorage.removeItem('cpj_session');
+    setSession(null);setProfile(null);setCampaign(null);setTiers([]);setPricing(null);
+    setOrderId(null);setWants([]);setCartIds([]);setBonusGrants([]);setMyOrders([]);
+    setPage('home');setIsNew(false);didAutoLoad.current=false;
+  }
+
+  // ─── Onboarding complete ──────────────────────────
+  async function handleOnboardingComplete(colors, guild, showTut) {
+    if (token && profile) {
+      await sbPatch('profiles', `id=eq.${profile.id}`, { mana_color_1: colors[0], mana_color_2: colors[1], guild: guild || '' }, token);
+      setProfile(p => ({ ...p, mana_color_1: colors[0], mana_color_2: colors[1], guild }));
+    }
+    setIsNew(false);
+    if (showTut) { setIsFirstTimeTut(true); setShowTutorial(true); }
+    setPage('home');
+  }
+
+  // ─── Save profile ─────────────────────────────────
+  async function handleSaveProfile(data) {
+    if (!token || !profile) return;
+    await sbPatch('profiles', `id=eq.${profile.id}`, data, token);
+    setProfile(p => ({ ...p, ...data }));
+    SFX.success();
+    toast('Perfil salvo!', 'success');
+  }
+
+  // ─── Add want ─────────────────────────────────────
+  async function handleAddWant(card, qty) {
+    if (!token || !orderId) { toast('Faça login primeiro','error'); return; }
+    try {
+      const existing = wants.find(w => w.card_id === card.id);
+      if (existing) {
+        const newQty = existing.quantity + qty;
+        await sbPatch('order_items', `id=eq.${existing.id}`, { quantity: newQty }, token);
+        setWants(prev => prev.map(w => w.id === existing.id ? { ...w, quantity: newQty } : w));
+      } else {
+        const [item] = await sbPost('order_items', { order_id: orderId, card_id: card.id, quantity: qty, is_bonus: false, unit_price_brl: 0 }, token);
+        setWants(prev => [{ ...item, card_name: card.name, card_type: card.type }, ...prev]);
+      }
+      toast(qty+'x '+card.name+' adicionada!','success');
+    } catch(e) {
+      console.error('addWant',e);
+      toast('Erro ao adicionar: '+e.message,'error');
+    }
+  }
+
+  // ─── Remove want ──────────────────────────────────
+  async function handleRemoveWant(itemId) {
+    if (!token) return;
+    await sbDelete('order_items', `id=eq.${itemId}`, token);
+    setWants(prev => prev.filter(w => w.id !== itemId));
+    setCartIds(prev => prev.filter(x => x !== itemId));
+    SFX.click();
+  }
+
+  // ─── Update want qty ─────────────────────────────
+  async function handleUpdateWantQty(itemId, newQty) {
+    if (!token) return;
+    if (newQty <= 0) { handleRemoveWant(itemId); return; }
+    await sbPatch('order_items', `id=eq.${itemId}`, { quantity: newQty }, token);
+    setWants(prev => prev.map(w => w.id === itemId ? { ...w, quantity: newQty } : w));
+  }
+
+  // ─── Order done ───────────────────────────────────
+  async function handleOrderDone(order) {
+    setLastOrder(order);
+    setWants(prev => prev.filter(w => !cartIds.includes(w.id)));
+    setCartIds([]);
+    setMyOrders(prev => [{ id: order.batchId, status: 'DRAFT', total_locked: order.isFullBonus ? 0 : order.totalPaid * order.priceBRL, payment_method: order.method === 'bonus' ? 'BONUS' : 'MERCADO_PAGO', qty_in_batch: order.totalPaid + order.totalBonus, created_at: new Date().toISOString(), cards: order.cards }, ...prev]);
+    toast('Pedido registrado!', 'success');
+  }
+
+  // Sound toggle
+  const origSfx = useRef(null);
+  useEffect(() => {
+    if (!origSfx.current) origSfx.current = { ...SFX };
+    if (!soundOn) { Object.keys(origSfx.current).forEach(k => { SFX[k] = () => {}; }); }
+    else { Object.keys(origSfx.current).forEach(k => { SFX[k] = origSfx.current[k]; }); }
+  }, [soundOn]);
+
+  // Tutorial
+  useEffect(() => { if (showTutorial) setTutStep(0); }, [showTutorial]);
+  function tutNext() { if (tutStep < TUTORIAL_STEPS.length - 1) setTutStep(s => s + 1); else { setShowTutorial(false); setTutStep(0); setIsFirstTimeTut(false); setPage('catalog'); } }
+  function tutSkip() { setShowTutorial(false); setTutStep(0); setIsFirstTimeTut(false); }
+
+  const wantsCount = wants.reduce((s, w) => s + w.quantity, 0);
+  const cartCount = wants.filter(w => cartIds.includes(w.id)).reduce((s, w) => s + w.quantity, 0);
+  const bottomTabs = [{ key: 'home', icon: Home, label: 'Início' }, { key: 'catalog', icon: BookOpen, label: 'Catálogo' }, { key: 'wants', icon: ScrollText, label: 'Wants' }, { key: 'checkout', icon: ShoppingCart, label: 'Carrinho' }, { key: 'profile', icon: User, label: 'Perfil' }];
+
+  return (<div style={{ '--gp': theme.primary, '--gs': theme.secondary, '--gg': theme.glow, minHeight: '100vh', background: `radial-gradient(ellipse at 50% -20%,${theme.primary}12 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,${theme.secondary}08 0%,transparent 40%),#08080f`, color: '#e9edf7', fontFamily: "'Outfit',sans-serif", maxWidth: 480, margin: '0 auto', position: 'relative', paddingBottom: 78 }}>
+    <FloatingMana theme={theme}/>
+    <style>{"@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');*{box-sizing:border-box;margin:0;padding:0}body{background:#08080f;margin:0}input:focus{border-color:var(--gp)!important;outline:none}button:active:not(:disabled){transform:scale(.97)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.07);border-radius:3px}@keyframes spin{to{transform:rotate(360deg)}}@keyframes tutPulse{0%,100%{opacity:1;box-shadow:0 0 0 9999px rgba(0,0,0,0.78),0 0 30px var(--gg)}50%{opacity:.85;box-shadow:0 0 0 9999px rgba(0,0,0,0.78),0 0 50px var(--gg)}}@keyframes manaFloat{0%{transform:translateY(0) translateX(0) rotate(0deg);opacity:0}10%{opacity:0.06}90%{opacity:0.03}100%{transform:translateY(-110vh) translateX(var(--drift,20px)) rotate(360deg);opacity:0}}@keyframes flyToWants{0%{transform:translate(-50%,-50%) scale(1);opacity:1}50%{transform:translate(calc(-50vw + 160px),-60vh) scale(0.6);opacity:0.8}100%{transform:translate(calc(-50vw + 160px),-80vh) scale(0.2);opacity:0}}"}</style>
+
+    {toastMsg && <Toast msg={toastMsg.msg} type={toastMsg.type} onClose={() => setToastMsg(null)} />}
+    {showTutorial && <TutorialOverlay step={tutStep} steps={TUTORIAL_STEPS} onNext={tutNext} onSkip={tutSkip} theme={theme} onNavTo={p => setPage(p)} isFirstTime={isFirstTimeTut} />}
+
+    {/* Password recovery mode */}
+    {recoveryToken && <div style={{ padding: '14px 20px' }}>
+      <RecoveryPage token={recoveryToken} onDone={()=>{setRecoveryToken(null);toast('Senha alterada! Faça login.','success');}} theme={theme}/>
+    </div>}
+
+    {/* Not logged in */}
+    {!session && !recoveryToken && <div style={{ padding: '14px 20px' }}><AuthPage onLogin={handleLogin} theme={theme} /></div>}
+
+    {/* Session exists but still loading */}
+    {session && !recoveryToken && !profile && !appLoading && <div style={{ padding: '60px 20px', textAlign: 'center' }}><Spin size={32} /><div style={{ marginTop: 12, fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>Carregando perfil...</div></div>}
+
+    {/* Logged in */}
+    {session && !recoveryToken && <>
+      {/* Loading overlay */}
+      {appLoading && <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(8,8,15,0.92)', display: 'grid', placeItems: 'center' }}>
+        <div style={{ textAlign: 'center' }}><Spin size={36} /><div style={{ marginTop: 12, fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>Carregando dados...</div></div>
+      </div>}
+
+      {/* Header */}
+      {page !== 'onboarding' && <div style={{ padding: '13px 20px 11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.035)', position: 'sticky', top: 0, zIndex: 10, background: 'rgba(8,8,15,0.88)', backdropFilter: 'blur(20px)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {(page === 'success' || page === 'admin') && <button onClick={() => nav(page === 'admin' ? 'profile' : 'home')} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 2 }}><ChevronLeft size={20} /></button>}
+          <span style={{ fontFamily: "'Cinzel',serif", fontSize: 15, fontWeight: 700, letterSpacing: .3 }}>{({ home: 'Cartas para Jogar', catalog: 'Catálogo', wants: 'Wants', checkout: 'Checkout', success: '', profile: 'Perfil', admin: 'Admin', onboarding: '' })[page] || ''}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button onClick={() => setSoundOn(s => !s)} style={{ background: 'none', border: 'none', color: soundOn ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)', cursor: 'pointer', padding: 2 }}>{soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}</button>
+        </div>
+      </div>}
+
+      {/* Bottom tabs */}
+      {page !== 'onboarding' && page !== 'success' && page !== 'admin' && <div id="tut-bottom-tabs" style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: 'rgba(8,8,15,0.94)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.04)', display: 'flex', justifyContent: 'space-around', padding: '5px 0 10px', zIndex: 20 }}>
+        {bottomTabs.map((t, ti) => {
+          const active = page === t.key; const badge = t.key === 'checkout' && cartCount > 0;
+          return (<button key={t.key} id={'tut-tab-' + ti} onClick={() => nav(t.key)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '4px 10px', borderRadius: 10, position: 'relative', color: active ? theme.primary : 'rgba(255,255,255,0.22)', transition: 'all .2s' }}>
+            <t.icon size={20} />{badge && <div style={{ position: 'absolute', top: 0, right: 3, width: 15, height: 15, borderRadius: 8, background: theme.primary, fontSize: 9, fontWeight: 800, color: '#fff', display: 'grid', placeItems: 'center' }}>{cartCount}</div>}
+            <span style={{ fontSize: 9, fontWeight: active ? 700 : 400 }}>{t.label}</span>{active && <div style={{ width: 4, height: 4, borderRadius: 2, background: theme.primary }} />}
+          </button>);
+        })}
+      </div>}
+
+      {/* Pages */}
+      <div style={{ padding: page === 'onboarding' ? '0 20px' : '14px 20px' }}>
+        {page === 'home' && (computedTiers.length > 0 ? <HomePage pool={pool} tiers={computedTiers} priceBRL={priceBRL} closeDate={campaign?.close_at} theme={theme} nav={nav} wantsCount={wantsCount} cartCount={cartCount} bonusAvail={bonusAvail} credit={0} campaign_status={campaign?.status} /> : !appLoading && <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <div style={{textAlign:'center',padding:'6px 0 0'}}>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.28)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>
+            <h1 style={{margin:'5px 0 0',fontSize:26,fontFamily:"'Cinzel',serif",background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Cartas para Jogar</h1>
+          </div>
+          <Card style={{padding:20,textAlign:'center'}}><Spin size={24}/><div style={{marginTop:8,fontSize:13,color:'rgba(255,255,255,0.35)'}}>Carregando campanha...</div></Card>
+          <Btn full variant="secondary" onClick={()=>{loadAppData(token,session?.user?.id);}} sfx="click"><RefreshCw size={16}/> Recarregar</Btn>
+        </div>)}
+        {page === 'catalog' && <CatalogPage token={token} wants={wants} onAddWant={handleAddWant} priceBRL={priceBRL} theme={theme} />}
+        {page === 'wants' && <WantsPage wants={wants} cartIds={cartIds} setCartIds={setCartIds} onRemoveWant={handleRemoveWant} onUpdateWantQty={handleUpdateWantQty} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} />}
+        {page === 'checkout' && <CheckoutPage wants={wants} cartIds={cartIds} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} />}
+        {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
+        {page === 'profile' && <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} />}
+        {page === 'admin' && <AdminPage pool={pool} tiers={computedTiers} priceBRL={priceBRL} pricing={pricing} campaign={campaign} theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} />}
+        {page === 'onboarding' && <OnboardingPage onComplete={handleOnboardingComplete} theme={theme} />}
+      </div>
+    </>}
+  </div>);
+}
