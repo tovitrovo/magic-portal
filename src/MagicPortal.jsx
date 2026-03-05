@@ -568,7 +568,7 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
         const opts=d.opcoes.map(o=>({carrier:o.nome,price:o.preco,deadline_days:o.prazo}));
         setFreteOptions(opts);setSelectedFrete(opts[0]);SFX.success();
       } else {
-        toast('Sem opções de frete. Verifique o CEP.','error');
+        toast('O MandaBem não retornou opções para este CEP. Tente outro ou entre em contato.','error');
         console.warn('Frete data:',d);
       }
     }catch(e){console.warn('frete',e);toast('Erro ao conectar com frete','error');}
