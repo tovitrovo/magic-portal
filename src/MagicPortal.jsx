@@ -640,18 +640,14 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
   </div>);
 }
 
-async function pagarAgoraPedido(p) {
+async function pagarAgoraPedido(p, toastFn) {
+  const t = typeof toastFn === 'function' ? toastFn : (msg)=>{ try{ console.log(msg); } catch {} };
   try {
-    toast('Gerando link de pagamento...','info');
+    t('Gerando link de pagamento...','info');
 
-    // 1) Se já existe link salvo no pedido, usa ele
     const link = p?.mp_link || p?.mpLink || p?.payment_link || p?.payment_url || p?.mp_init_point;
-    if (link) {
-      window.location.href = link;
-      return;
-    }
+    if (link) { window.location.href = link; return true; }
 
-    // 2) Monta orderId e total a partir do próprio registro (tenta vários campos comuns)
     const orderId = String(
       p?.batch_id ?? p?.batch?.id ?? p?.batchId ?? p?.id ?? p?.order_id ?? p?.orderId ?? ''
     ).trim();
@@ -661,40 +657,37 @@ async function pagarAgoraPedido(p) {
     );
 
     if (!orderId || !Number.isFinite(total) || total <= 0) {
-      toast('Pedido sem ID/valor para pagamento', 'error');
+      t('Pedido sem ID/valor para pagamento', 'error');
       console.log('Pedido inválido para pagar:', p);
-      return;
+      return false;
     }
 
     const mpRes = await fetch('/api/mp-create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        orderId,
-        total: Number(total.toFixed(2)),
-        descricao: `Pedido #${orderId}`
-      })
+      body: JSON.stringify({ orderId, total: Number(total.toFixed(2)), descricao: `Pedido #${orderId}` })
     });
 
-    const mpData = await mpRes.json().catch(() => ({}));
+    const mpText = await mpRes.text();
+    const mpData = (()=>{ try { return JSON.parse(mpText); } catch { return { raw: mpText }; } })();
 
     if (!mpRes.ok) {
-      toast(`Erro MP: ${mpData?.error || 'falha ao gerar link'}`, 'error');
-      console.log('mp-create erro:', mpData);
-      return;
+      const msg = mpData?.error || mpData?.message || `HTTP ${mpRes.status}`;
+      t(`Erro Mercado Pago: ${msg}`, 'error');
+      console.log('mp-create fail', mpRes.status, mpData);
+      return false;
     }
 
     const mpLink = mpData?.mpLink || mpData?.init_point || mpData?.sandbox_init_point;
-    if (mpLink) {
-      window.location.href = mpLink;
-      return;
-    }
+    if (mpLink) { window.location.href = mpLink; return true; }
 
-    toast('MP não retornou link de pagamento', 'error');
-    console.log('mp-create resposta:', mpData);
+    t('mp-create não retornou link (mpLink/init_point)', 'error');
+    console.log('mp-create ok sem link', mpData);
+    return false;
   } catch (e) {
-    toast(`Falha ao pagar: ${String(e?.message || e)}`, 'error');
+    t(`Falha ao pagar: ${String(e?.message || e)}`, 'error');
     console.error(e);
+    return false;
   }
 }
 
@@ -783,7 +776,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
             <span style={{fontWeight:700}}>x{c.qty}</span>
           </div>))}</div>:<div style={{fontSize:11,color:'rgba(255,255,255,0.2)',marginTop:8}}>Detalhes não disponíveis</div>}
           {isPending&&<div style={{display:'flex',gap:6,marginTop:10}}>
-              <Btn variant="warn" onClick={(e)=>{e.stopPropagation();pagarAgoraPedido(o);}} style={{flex:2,fontSize:12}} sfx="nav"><CreditCard size={14}/> Pagar agora</Btn>
+              <Btn variant="warn" onClick={(e)=>{e.stopPropagation();pagarAgoraPedido(o, toastFn);}} style={{flex:2,fontSize:12}} sfx="nav"><CreditCard size={14}/> Pagar agora</Btn>
               <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(!confirm('Cancelar este pedido?')) return;try{const res=await fetch('/api/cancel-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batchId:String(o.id),orderId:String(o.order_id||'')})});const j=await res.json().catch(()=>({}));if(!res.ok||!j.ok) throw new Error(j.error||'Falha ao cancelar');SFX.click();toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{flex:1,fontSize:12}} sfx=""><X size={14}/> Cancelar</Btn>
             </div>}
             {!isPending&&o.status!=='CANCELLED'&&<div style={{fontSize:10,color:'rgba(255,255,255,0.2)',marginTop:6}}>Para cancelar pedido pago, entre em contato.</div>}
