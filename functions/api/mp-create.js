@@ -7,7 +7,7 @@ export async function onRequest(context) {
   if (context.request.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   try {
-    const { MP_ACCESS_TOKEN } = context.env;
+    const { MP_ACCESS_TOKEN, SB_URL, SB_SERVICE_ROLE_KEY } = context.env;
     if (!MP_ACCESS_TOKEN) {
       return new Response(JSON.stringify({ error: "MP_ACCESS_TOKEN não configurado" }), {
         status: 500, headers: { ...CORS, "Content-Type": "application/json" }
@@ -15,7 +15,7 @@ export async function onRequest(context) {
     }
 
     const body = await context.request.json().catch(() => ({}));
-    const orderId = String(body.orderId || "").trim();
+    const orderId = String(body.orderId || "").trim(); // aqui é o batch.id
     const total = Number(body.total || 0);
     const descricao = String(body.descricao || "Pedido");
 
@@ -51,8 +51,38 @@ export async function onRequest(context) {
       });
     }
 
-    // Retorna tudo, mas normalmente o portal usa data.init_point
-    return new Response(JSON.stringify(data), {
+    const mpLink = data?.init_point || data?.sandbox_init_point || null;
+
+    // Tenta salvar o link no Supabase (pra página Perfil -> "Pagar agora" funcionar)
+    let saved = false;
+    if (SB_URL && SB_SERVICE_ROLE_KEY && mpLink) {
+      try {
+        await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(orderId)}`, {
+          method: "PATCH",
+          headers: {
+            apikey: SB_SERVICE_ROLE_KEY,
+            Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({
+            mp_link: mpLink,
+            mp_preference_id: data?.id || null,
+            payment_method: "MERCADO_PAGO",
+            status: "PENDING_PAYMENT"
+          }),
+        });
+        saved = true;
+      } catch {
+        // não bloqueia o retorno do link
+      }
+    }
+
+    return new Response(JSON.stringify({
+      mpLink,
+      preferenceId: data?.id || null,
+      saved
+    }), {
       status: 200,
       headers: { ...CORS, "Content-Type": "application/json" }
     });
