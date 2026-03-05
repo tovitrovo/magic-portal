@@ -205,6 +205,24 @@ function FlyingCard({show,onDone}){
   </div>;
 }
 
+function SwipeableCard({children,onSwipeLeft,onSwipeRight,leftLabel='Excluir',rightLabel='Carrinho',leftColor='#ff6b7a',rightColor}){
+  const ref=useRef(null);const startX=useRef(0);const [dx,setDx]=useState(0);const [swiping,setSwiping]=useState(false);
+  const threshold=80;
+  function onTouchStart(e){startX.current=e.touches[0].clientX;setSwiping(true);}
+  function onTouchMove(e){if(!swiping)return;const d=e.touches[0].clientX-startX.current;setDx(Math.max(-150,Math.min(150,d)));}
+  function onTouchEnd(){
+    if(dx<-threshold&&onSwipeLeft)onSwipeLeft();
+    else if(dx>threshold&&onSwipeRight)onSwipeRight();
+    setDx(0);setSwiping(false);
+  }
+  const bgColor=dx<-30?leftColor+'20':dx>30?(rightColor||'var(--gp)')+'20':'transparent';
+  return(<div style={{position:'relative',overflow:'hidden',borderRadius:16,background:bgColor,transition:swiping?'none':'background .3s'}}>
+    {dx<-20&&<div style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',color:leftColor,fontSize:11,fontWeight:700,display:'flex',alignItems:'center',gap:4}}><Trash2 size={14}/>{leftLabel}</div>}
+    {dx>20&&<div style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',color:rightColor||'var(--gp)',fontSize:11,fontWeight:700,display:'flex',alignItems:'center',gap:4}}><ShoppingCart size={14}/>{rightLabel}</div>}
+    <div ref={ref} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} style={{transform:`translateX(${dx}px)`,transition:swiping?'none':'transform .3s',position:'relative',zIndex:1}}>{children}</div>
+  </div>);
+}
+
 function VirtualKeyboard({onKey,onBackspace,onDone,maxLen=6,currentLen=0}){
   const rows=[['1','2','3'],['4','5','6'],['7','8','9'],['⌫','0','OK']];
   return(<div style={{background:'rgba(0,0,0,0.6)',backdropFilter:'blur(10px)',borderRadius:16,padding:10,border:'1px solid rgba(255,255,255,0.06)',maxWidth:220,margin:'0 auto'}}>
@@ -250,23 +268,22 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
 }
 
 const TUTORIAL_STEPS=[
-  {title:'Catálogo',body:'Aqui ficam todas as cartas disponíveis. Use busca e filtros para encontrar o que precisa.',navTo:'catalog',tabIndex:1,spotlightId:null},
-  {title:'Busca e filtros',body:'Digite o nome da carta na busca. Use os botões Normal, Holo e Foil para filtrar por tipo.',navTo:'catalog',tabIndex:1,spotlightId:'tut-search-area',scrollTo:true},
-  {title:'Adicionar à lista',body:'Escolha a quantidade e clique na seta → para enviar a carta para seus Wants.',navTo:'catalog',tabIndex:1,spotlightId:'tut-add-btn',scrollTo:true},
-  {title:'Sua lista de Wants',body:'Todas as cartas adicionadas ficam aqui organizadas.',navTo:'wants',tabIndex:2,spotlightId:null},
-  {title:'Selecionar para o carrinho',body:'Toque no ○ círculo ao lado da carta para selecioná-la (fica ✓). As cartas selecionadas vão para o checkout.',navTo:'wants',tabIndex:2,spotlightId:'tut-cart-toggle',scrollTo:true},
-  {title:'Bônus grátis',body:'Se o grupo cresceu e o preço caiu, as primeiras cartas selecionadas saem de graça! O contador de bônus aparece aqui no topo em destaque.',navTo:'wants',tabIndex:2,spotlightId:'tut-wants-tags',scrollTo:true},
-  {title:'Checkout',body:'Revise seu pedido. Cartas bônus (grátis) aparecem separadas das pagas.',navTo:'checkout',tabIndex:3,spotlightId:'tut-checkout-summary'},
-  {title:'Endereço e frete',body:'Preencha o CEP e o endereço será preenchido automaticamente.',navTo:'checkout',tabIndex:3,spotlightId:'tut-address'},
-  {title:'Pagamento',body:'Finalize o pedido e pague com segurança via Mercado Pago. Cartão, boleto ou saldo.',navTo:'checkout',tabIndex:3,spotlightId:'tut-payment'},
-  {title:'Perfil',body:'Veja pedidos, edite endereço, mude suas cores de mana e reabra este tutorial a qualquer momento.',navTo:'profile',tabIndex:4,spotlightId:null},
+  {title:'Catálogo',body:'Aqui ficam todas as cartas. Busque pelo nome e filtre por tipo.',navTo:'catalog',tabIndex:1,spotlightId:null},
+  {title:'Busca e filtros',body:'Use a barra de busca e os botões Normal, Holo e Foil.',navTo:'catalog',tabIndex:1,spotlightId:'tut-search-area',scrollTo:true},
+  {title:'Adicionar à lista',body:'Clique no + para adicionar a carta na sua lista de wants.',navTo:'catalog',tabIndex:1,spotlightId:'tut-add-btn',scrollTo:true},
+  {title:'Lista de Wants',body:'Suas cartas ficam aqui. Arraste para a direita para mover pro carrinho, ou para a esquerda para excluir.',navTo:'wants',tabIndex:2,spotlightId:null},
+  {title:'Carrinho',body:'As cartas do carrinho são as que você vai comprar. Use o botão "Tudo pro carrinho" para selecionar todas de uma vez.',navTo:'wants',tabIndex:2,spotlightId:'tut-wants-tags',scrollTo:true},
+  {title:'Bônus',body:'Se o grupo crescer e o preço cair, você ganha cartas extras de graça! Elas aparecem em destaque no carrinho.',navTo:'wants',tabIndex:2,spotlightId:'tut-bonus-card',scrollTo:true},
+  {title:'Checkout',body:'Revise o pedido, preencha o endereço e calcule o frete.',navTo:'checkout',tabIndex:3,spotlightId:'tut-checkout-summary'},
+  {title:'Pagamento',body:'Pague com segurança via Mercado Pago — cartão, boleto ou saldo.',navTo:'checkout',tabIndex:3,spotlightId:'tut-payment'},
+  {title:'Perfil',body:'Veja seus pedidos, altere endereço, mude a senha e reabra este tutorial.',navTo:'profile',tabIndex:4,spotlightId:null},
 ];
 
 // ══════════════════════════════════════════════════════
 // HOME
 // ══════════════════════════════════════════════════════
 
-function HomePage({pool,tiers,priceBRL,closeDate,theme,nav,wantsCount,cartCount,bonusAvail,credit}){
+function HomePage({pool,tiers,priceBRL,closeDate,theme,nav,wantsCount,cartCount,bonusAvail,credit,campaign_status}){
   const tier=getTier(pool,tiers);const next=getNextTier(pool,tiers);
   const progress=next?Math.min(100,((pool-tier.min)/(next.min-tier.min))*100):100;
   const daysLeft=closeDate?Math.max(0,Math.ceil((new Date(closeDate)-new Date())/864e5)):null;
@@ -275,6 +292,9 @@ function HomePage({pool,tiers,priceBRL,closeDate,theme,nav,wantsCount,cartCount,
       <div style={{fontSize:11,color:'rgba(255,255,255,0.28)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>
       <h1 style={{margin:'5px 0 0',fontSize:26,fontFamily:"'Cinzel',serif",background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Cartas para Jogar</h1>
     </div>
+    {campaign_status&&campaign_status!=='ACTIVE'&&<Card style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:8,background:'rgba(217,68,82,0.06)',borderColor:'rgba(217,68,82,0.15)'}}>
+      <AlertTriangle size={16} style={{color:'#d94452'}}/><div><div style={{fontSize:13,fontWeight:700,color:'#ff6b7a'}}>Campanha {campaign_status}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>Compras disponíveis apenas quando ativa</div></div>
+    </Card>}
     {daysLeft!==null&&<Card style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:8,background:daysLeft<=3?'rgba(217,68,82,0.06)':undefined,borderColor:daysLeft<=3?'rgba(217,68,82,0.15)':undefined}}>
       <Calendar size={16} style={{color:daysLeft<=3?'#d94452':theme.primary}}/><div><div style={{fontSize:13,fontWeight:700,color:daysLeft<=3?'#ff6b7a':'#fff'}}>{daysLeft===0?'Último dia!':daysLeft+' dia'+(daysLeft>1?'s':'')}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>Fecha em {new Date(closeDate).toLocaleDateString('pt-BR')}</div></div>
     </Card>}
@@ -337,7 +357,7 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme}){
 
   return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
     <FlyingCard show={flyAnim} onDone={()=>setFlyAnim(false)}/>
-    <div style={{display:'flex',gap:6}}><Tag color={theme.primary}><BookOpen size={11}/> {total}</Tag><Tag><ScrollText size={11}/> {wantsCount} wants</Tag></div>
+    <div style={{display:'flex',gap:6}}><Tag><ScrollText size={11}/> {wantsCount} na lista</Tag></div>
     <div id="tut-search-area" style={{display:'flex',flexDirection:'column',gap:8}}>
       <Input icon={Search} placeholder="Buscar carta..." value={search} onChange={e=>setSearch(e.target.value)}/>
       <div style={{display:'flex',gap:5}}>
@@ -354,15 +374,10 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme}){
                 <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</div>
                 <div style={{display:'flex',gap:6,alignItems:'center',marginTop:2}}>
                   <span style={{fontSize:10,color:TC[c.type],fontWeight:700}}>{c.type}</span>
-                  {existsInWants&&<Tag color="#2ee59d" style={{fontSize:9,padding:'1px 6px'}}>✓ {existsInWants.quantity}</Tag>}
+                  {existsInWants&&<Tag color="#2ee59d" style={{fontSize:9,padding:'1px 6px'}}>na lista</Tag>}
                 </div>
               </div>
-              <div style={{display:'flex',alignItems:'center',background:'rgba(0,0,0,0.3)',borderRadius:10,border:'1px solid rgba(255,255,255,0.05)'}}>
-                <button onClick={()=>setQ(c.id,getQ(c.id)-1)} style={{background:'none',border:'none',color:'#fff',padding:'6px 8px',cursor:'pointer'}}><Minus size={12}/></button>
-                <span style={{minWidth:18,textAlign:'center',fontSize:13,fontWeight:700}}>{getQ(c.id)}</span>
-                <button onClick={()=>setQ(c.id,getQ(c.id)+1)} style={{background:'none',border:'none',color:'#fff',padding:'6px 8px',cursor:'pointer'}}><Plus size={12}/></button>
-              </div>
-              <button id={i===0?'tut-add-btn':undefined} onClick={()=>add(c,getQ(c.id))} style={{background:'var(--gp)',border:'none',borderRadius:10,padding:'8px 12px',cursor:'pointer',color:'#fff',display:'grid',placeItems:'center'}}><ArrowRight size={16}/></button>
+              <button id={i===0?'tut-add-btn':undefined} onClick={()=>add(c,1)} style={{background:existsInWants?'rgba(46,229,157,0.15)':'var(--gp)',border:'none',borderRadius:10,padding:'8px 14px',cursor:'pointer',color:existsInWants?'#2ee59d':'#fff',display:'flex',alignItems:'center',gap:4,fontSize:12,fontWeight:600,fontFamily:"'Outfit',sans-serif"}}><Plus size={14}/></button>
             </div>
           </Card>);
         })}
@@ -383,69 +398,89 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme}){
 
 function WantsPage({wants,cartIds,setCartIds,onRemoveWant,onUpdateWantQty,priceBRL,bonusAvail,theme,nav}){
   const [searchW,setSearchW]=useState('');
-  const cQty=wants.filter(w=>cartIds.includes(w.id)).reduce((s,w)=>s+w.quantity,0);
+  const notInCart=wants.filter(w=>!cartIds.includes(w.id));
+  const inCart=wants.filter(w=>cartIds.includes(w.id));
   const bonus=bonusAvail||0;
-  function toggleCart(itemId){setCartIds(prev=>prev.includes(itemId)?prev.filter(x=>x!==itemId):[...prev,itemId]);SFX.toggle();}
-  const fW=searchW?wants.filter(w=>w.card_name.toLowerCase().includes(searchW.toLowerCase())):wants;
+  function moveToCart(id){SFX.addCard();setCartIds(prev=>[...prev,id]);}
+  function removeFromCart(id){SFX.toggle();setCartIds(prev=>prev.filter(x=>x!==id));}
+  const fW=searchW?notInCart.filter(w=>w.card_name.toLowerCase().includes(searchW.toLowerCase())):notInCart;
 
-  // Build cart breakdown
-  const cartItems=wants.filter(w=>cartIds.includes(w.id));
   let bLeft=bonus;
-  const cartBD=cartItems.map(c=>{const bq=Math.min(c.quantity,bLeft);bLeft-=bq;return{...c,bonusQty:bq,paidQty:c.quantity-bq};});
+  const cartBD=inCart.map(c=>{const bq=Math.min(c.quantity,bLeft);bLeft-=bq;return{...c,bonusQty:bq,paidQty:c.quantity-bq};});
   const totalB=cartBD.reduce((s,c)=>s+c.bonusQty,0);const totalP=cartBD.reduce((s,c)=>s+c.paidQty,0);
 
   return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
     <div id="tut-wants-tags" style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
-      <Tag color={theme.primary}><ScrollText size={11}/> {wants.reduce((s,w)=>s+w.quantity,0)} wants</Tag>
-      <Tag color="#c9a96e"><ShoppingCart size={11}/> {cQty} selecionadas</Tag>
+      <Tag color={theme.primary}><ScrollText size={11}/> {notInCart.length} wants</Tag>
+      <Tag color="#c9a96e"><ShoppingCart size={11}/> {inCart.length} no carrinho</Tag>
       {bonus>0&&<Tag color="#2ee59d"><Gift size={11}/> {bonus} bônus</Tag>}
-      {wants.length>0&&cartIds.length<wants.length&&<button onClick={()=>{SFX.confirm();setCartIds(wants.map(w=>w.id));}} style={{background:theme.primary+'15',border:'1px solid '+theme.primary+'30',borderRadius:99,padding:'4px 10px',color:theme.primary,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif",display:'flex',alignItems:'center',gap:4}}><CheckCircle size={11}/> Selecionar tudo</button>}
-      {cartIds.length>0&&<button onClick={()=>{SFX.click();setCartIds([]);}} style={{background:'rgba(255,70,70,0.08)',border:'1px solid rgba(255,70,70,0.15)',borderRadius:99,padding:'4px 10px',color:'#ff6b7a',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif",display:'flex',alignItems:'center',gap:4}}><X size={11}/> Limpar</button>}
+      {notInCart.length>0&&<button onClick={()=>{SFX.confirm();setCartIds(wants.map(w=>w.id));}} style={{background:theme.primary+'15',border:'1px solid '+theme.primary+'30',borderRadius:99,padding:'4px 10px',color:theme.primary,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif",display:'flex',alignItems:'center',gap:4}}><CheckCircle size={11}/> Tudo pro carrinho</button>}
     </div>
     {bonus>0&&<Card id="tut-bonus-card" glow="rgba(46,229,157,0.12)" style={{padding:12,background:'rgba(46,229,157,0.03)'}}>
-      <div style={{display:'flex',alignItems:'center',gap:8}}><Gift size={16} style={{color:'#2ee59d'}}/><div style={{fontSize:13}}><span style={{fontWeight:700,color:'#2ee59d'}}>{bonus} carta(s) bônus</span><div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginTop:2}}>Primeiras {bonus} selecionadas saem grátis. Use ou perca!</div></div></div>
+      <div style={{display:'flex',alignItems:'center',gap:8}}><Gift size={16} style={{color:'#2ee59d'}}/><div style={{fontSize:13}}><span style={{fontWeight:700,color:'#2ee59d'}}>{bonus} carta(s) bônus</span><div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginTop:2}}>Primeiras do carrinho saem grátis!</div></div></div>
     </Card>}
-    {wants.length>3&&<Input icon={Search} placeholder="Buscar nos wants..." value={searchW} onChange={e=>setSearchW(e.target.value)}/>}
-    {fW.length===0?<EmptyState icon={ScrollText} title="Lista vazia" sub="Adicione cartas pelo catálogo"/>:(
-      <div style={{display:'flex',flexDirection:'column',gap:5}}>
-        {fW.map((w,i)=>{
-          const inC=cartIds.includes(w.id);
-          const cb=inC?cartBD.find(c=>c.id===w.id):null;
-          return(<Card key={w.id} style={{padding:'10px 12px',borderColor:inC?(cb&&cb.bonusQty>0?'rgba(46,229,157,0.15)':theme.primary+'22'):undefined}}>
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <button id={i===0?'tut-cart-toggle':undefined} onClick={()=>toggleCart(w.id)} style={{background:'none',border:'none',cursor:'pointer',padding:2,flexShrink:0,color:inC?theme.primary:'rgba(255,255,255,0.12)'}}>{inC?<CheckCircle size={20}/>:<Circle size={20}/>}</button>
+
+    {/* WANTS LIST */}
+    {notInCart.length>0&&<>
+      <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.3)',textTransform:'uppercase',letterSpacing:1}}>Lista de Wants</div>
+      <div style={{fontSize:10,color:'rgba(255,255,255,0.2)',marginTop:-8,fontStyle:'italic'}}>Arraste → carrinho | ← excluir</div>
+      {notInCart.length>3&&<Input icon={Search} placeholder="Buscar..." value={searchW} onChange={e=>setSearchW(e.target.value)}/>}
+      {fW.map((w,i)=>(<SwipeableCard key={w.id} onSwipeRight={()=>moveToCart(w.id)} onSwipeLeft={()=>onRemoveWant(w.id)} rightColor={theme.primary}>
+        <Card style={{padding:'10px 12px'}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{w.card_name}</div>
+              <div style={{display:'flex',gap:6,alignItems:'center',marginTop:1}}>
+                <span style={{fontSize:10,color:TC[w.card_type],fontWeight:700}}>{w.card_type}</span>
+                <span style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>x{w.quantity}</span>
+              </div>
+            </div>
+            <div style={{display:'flex',alignItems:'center',background:'rgba(0,0,0,0.3)',borderRadius:10,border:'1px solid rgba(255,255,255,0.05)'}}>
+              <button onClick={()=>onUpdateWantQty(w.id,w.quantity-1)} style={{background:'none',border:'none',color:'#fff',padding:'6px 9px',cursor:'pointer'}}><Minus size={12}/></button>
+              <span style={{minWidth:20,textAlign:'center',fontSize:13,fontWeight:700}}>{w.quantity}</span>
+              <button onClick={()=>onUpdateWantQty(w.id,w.quantity+1)} style={{background:'none',border:'none',color:'#fff',padding:'6px 9px',cursor:'pointer'}}><Plus size={12}/></button>
+            </div>
+          </div>
+        </Card>
+      </SwipeableCard>))}
+    </>}
+
+    {/* CART */}
+    {inCart.length>0&&<>
+      <div style={{fontSize:11,fontWeight:700,color:'#c9a96e',textTransform:'uppercase',letterSpacing:1,marginTop:4}}><ShoppingCart size={11}/> Carrinho ({inCart.length})</div>
+      {cartBD.map((w,i)=>{
+        return(<SwipeableCard key={w.id} onSwipeLeft={()=>removeFromCart(w.id)} leftLabel="Voltar" leftColor="#c9a96e" rightColor={null}>
+          <Card style={{padding:'10px 12px',borderColor:w.bonusQty>0?'rgba(46,229,157,0.15)':theme.primary+'22'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{w.card_name}</div>
                 <div style={{display:'flex',gap:6,alignItems:'center',marginTop:1}}>
                   <span style={{fontSize:10,color:TC[w.card_type],fontWeight:700}}>{w.card_type}</span>
-                  {inC&&cb&&cb.bonusQty>0&&<Tag color="#2ee59d" style={{fontSize:9,padding:'1px 6px'}}>🎁 {cb.bonusQty}</Tag>}
-                  {inC&&cb&&cb.paidQty>0&&<span style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>R$ {(cb.paidQty*priceBRL).toFixed(2)}</span>}
-                  {!inC&&<span style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>R$ {(w.quantity*priceBRL).toFixed(2)}</span>}
+                  <span style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>x{w.quantity}</span>
+                  {w.bonusQty>0&&<Tag color="#2ee59d" style={{fontSize:9,padding:'1px 6px'}}>🎁 {w.bonusQty}</Tag>}
+                  {w.paidQty>0&&<span style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>R$ {(w.paidQty*priceBRL).toFixed(2)}</span>}
                 </div>
               </div>
-              <div style={{display:'flex',alignItems:'center',background:'rgba(0,0,0,0.3)',borderRadius:10,border:'1px solid rgba(255,255,255,0.05)'}}>
-                <button onClick={()=>onUpdateWantQty(w.id,w.quantity-1)} style={{background:'none',border:'none',color:'#fff',padding:'6px 9px',cursor:'pointer'}}><Minus size={12}/></button>
-                <span style={{minWidth:20,textAlign:'center',fontSize:13,fontWeight:700}}>{w.quantity}</span>
-                <button onClick={()=>onUpdateWantQty(w.id,w.quantity+1)} style={{background:'none',border:'none',color:'#fff',padding:'6px 9px',cursor:'pointer'}}><Plus size={12}/></button>
-              </div>
-              <button onClick={()=>onRemoveWant(w.id)} style={{background:'none',border:'none',color:'rgba(255,70,70,0.35)',padding:3,cursor:'pointer'}}><Trash2 size={14}/></button>
             </div>
-          </Card>);
-        })}
-      </div>
-    )}
-    {cQty>0&&<Card id="tut-cart-summary" style={{padding:14}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <div>
-          {totalB>0&&<div style={{fontSize:12,color:'#2ee59d',fontWeight:600}}>🎁 {totalB} bônus (grátis)</div>}
-          {totalP>0&&<div style={{fontSize:12,color:'rgba(255,255,255,0.5)'}}>💳 {totalP} pagas = R$ {(totalP*priceBRL).toFixed(2)}</div>}
-          {totalP===0&&totalB>0&&<div style={{fontSize:12,color:'#2ee59d',fontWeight:700}}>Pedido 100% bônus!</div>}
+          </Card>
+        </SwipeableCard>);
+      })}
+      <Card id="tut-cart-summary" style={{padding:14}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div>
+            {totalB>0&&<div style={{fontSize:12,color:'#2ee59d',fontWeight:600}}>🎁 {totalB} bônus (grátis)</div>}
+            {totalP>0&&<div style={{fontSize:12,color:'rgba(255,255,255,0.5)'}}>💳 {totalP} pagas = R$ {(totalP*priceBRL).toFixed(2)}</div>}
+            {totalP===0&&totalB>0&&<div style={{fontSize:12,color:'#2ee59d',fontWeight:700}}>Pedido 100% bônus!</div>}
+          </div>
+          <Btn onClick={()=>nav('checkout')} style={{padding:'10px 16px',fontSize:13}} sfx="nav"><ShoppingCart size={15}/> Checkout</Btn>
         </div>
-        <Btn onClick={()=>nav('checkout')} style={{padding:'10px 16px',fontSize:13}} sfx="nav"><ShoppingCart size={15}/> Checkout</Btn>
-      </div>
-    </Card>}
+      </Card>
+    </>}
+
+    {notInCart.length===0&&inCart.length===0&&<EmptyState icon={ScrollText} title="Lista vazia" sub="Adicione cartas pelo catálogo"/>}
   </div>);
 }
+
 
 // ══════════════════════════════════════════════════════
 // ADDRESS FORM
@@ -542,6 +577,7 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
 
   async function finalize(){
     if(!isFullBonus&&!selectedFrete){toast('Calcule o frete primeiro','error');return;}
+    // Campaign must be active (but we don't block the whole flow — admin can override)
     setSubmitting(true);
     try {
       const batchData = {order_id:orderId,status:'DRAFT',brl_unit_price_locked:priceBRL,qty_in_batch:totalQty,subtotal_locked:sub,shipping_locked:fV,total_locked:isFullBonus?0:total,payment_method:'MERCADO_PAGO'};
@@ -623,11 +659,12 @@ function SuccessPage({lastOrder,theme,nav}){
 // PROFILE
 // ══════════════════════════════════════════════════════
 
-function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProfile,onLogout,myOrders=[]}){
+function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProfile,onLogout,myOrders=[],onReloadOrders,toast:toastFn}){
   const [colors,setColors]=useState(profile?.mana_color_1&&profile?.mana_color_2?[profile.mana_color_1,profile.mana_color_2]:['U','R']);
   const [editAddr,setEditAddr]=useState(false);
   const [addr,setAddr]=useState({cep:profile?.cep||'',rua:profile?.rua||'',numero:profile?.numero||'',complemento:profile?.complemento||'',bairro:profile?.bairro||'',cidade:profile?.cidade||'',uf:profile?.uf||''});
-  const [saving,setSaving]=useState(false);
+  const [saving,setSaving]=useState(false);const [liveUsd,setLiveUsd]=useState(null);
+  useEffect(()=>{fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL').then(r=>r.json()).then(d=>{if(d.USDBRL)setLiveUsd(parseFloat(d.USDBRL.bid));}).catch(()=>{});},[]);
   const [expandedOrder,setExpandedOrder]=useState(null);
   const [showChangePw,setShowChangePw]=useState(false);
   const [newPw,setNewPw]=useState('');const [newPw2,setNewPw2]=useState('');
@@ -686,7 +723,11 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
             <span style={{color:'rgba(255,255,255,0.5)'}}>{c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
             <span style={{fontWeight:700}}>x{c.qty}</span>
           </div>))}</div>:<div style={{fontSize:11,color:'rgba(255,255,255,0.2)',marginTop:8}}>Detalhes não disponíveis</div>}
-          {isPending&&<Btn full variant="warn" onClick={(e)=>{e.stopPropagation();nav('checkout');}} style={{marginTop:10,fontSize:13}} sfx="nav"><CreditCard size={15}/> Pagar agora</Btn>}
+          {isPending&&<div style={{display:'flex',gap:6,marginTop:10}}>
+              <Btn variant="warn" onClick={(e)=>{e.stopPropagation();if(o.mp_link){window.location.href=o.mp_link;}else{nav('checkout');}}} style={{flex:2,fontSize:12}} sfx="nav"><CreditCard size={14}/> Pagar agora</Btn>
+              <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(confirm('Cancelar este pedido?')){try{await sbPatch('order_batches',`id=eq.${o.id}`,{status:'CANCELLED'},token);SFX.click();toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+err.message,'error');}}}} style={{flex:1,fontSize:12}} sfx=""><X size={14}/> Cancelar</Btn>
+            </div>}
+            {!isPending&&o.status!=='CANCELLED'&&<div style={{fontSize:10,color:'rgba(255,255,255,0.2)',marginTop:6}}>Para cancelar pedido pago, entre em contato.</div>}
         </div>}
       </Card>);})}
     </Card>
@@ -920,7 +961,8 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   const [editTiers,setEditTiers]=useState(tiersProp.map(t=>({...t})));
   const [editPricing,setEditPricing]=useState(pricingProp?{...pricingProp}:{});
   const [editCamp,setEditCamp]=useState(campProp?{...campProp}:{});
-  const [saving,setSaving]=useState(false);
+  const [saving,setSaving]=useState(false);const [liveUsd,setLiveUsd]=useState(null);
+  useEffect(()=>{fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL').then(r=>r.json()).then(d=>{if(d.USDBRL)setLiveUsd(parseFloat(d.USDBRL.bid));}).catch(()=>{});},[]);
   const tier=tiersProp.length>0?getTier(pool,tiersProp):null;
 
   useEffect(()=>{
@@ -977,7 +1019,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
     return (o.profiles?.name||'').toLowerCase().includes(q)||(o.profiles?.email||'').toLowerCase().includes(q)||String(o.id).toLowerCase().includes(q)||o.order_batches?.some(b=>String(b.id).slice(0,8).toUpperCase().includes(q.toUpperCase()));
   }):orders;
 
-  const tabs=[{key:'orders',icon:Package,label:'Pedidos'},{key:'tiers',icon:DollarSign,label:'Tiers'},{key:'pricing',icon:Settings,label:'Taxas'},{key:'campaign',icon:Calendar,label:'Campanha'}];
+  const tabs=[{key:'orders',icon:Package,label:'Pedidos'},{key:'list',icon:ScrollText,label:'Lista Final'},{key:'tiers',icon:DollarSign,label:'Tiers'},{key:'pricing',icon:Settings,label:'Taxas'},{key:'campaign',icon:Calendar,label:'Campanha'}];
   return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
       <div style={{display:'flex',alignItems:'center',gap:8}}><Shield size={18} style={{color:theme.primary}}/><span style={{fontFamily:"'Cinzel',serif",fontSize:18,fontWeight:700}}>Admin</span></div>
@@ -1016,7 +1058,11 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
                   <Tag color={isPending?'#c9a96e':'#2ee59d'} style={{fontSize:9}}>{isPending?'Pendente':'Pago'}</Tag>
                 </div>
               </div>
-              {isPending&&<Btn variant="success" onClick={(e)=>{e.stopPropagation();confirmBatch(b.id);}} style={{marginTop:6,padding:'6px 12px',fontSize:11}} sfx=""><Check size={12}/> Confirmar pagamento</Btn>}
+              {isPending&&<div style={{display:'flex',gap:4,marginTop:6}}>
+                <Btn variant="success" onClick={(e)=>{e.stopPropagation();confirmBatch(b.id);}} style={{flex:2,padding:'6px 10px',fontSize:10}} sfx=""><Check size={11}/> Confirmar</Btn>
+                <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();await sbPatch('order_batches',`id=eq.${b.id}`,{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}} style={{flex:1,padding:'6px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar</Btn>
+              </div>}
+              {b.status==='CONFIRMED'&&<Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(confirm('Cancelar pedido pago? Reembolso deve ser feito no Mercado Pago.')){await sbPatch('order_batches',`id=eq.${b.id}`,{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}}} style={{marginTop:6,padding:'5px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar (pago)</Btn>}
             </div>
           );})}
           {o.profiles?.whatsapp&&<a href={'https://wa.me/55'+o.profiles.whatsapp} target="_blank" rel="noopener noreferrer" style={{display:'inline-flex',alignItems:'center',gap:4,marginTop:6,fontSize:11,color:'#25d366',textDecoration:'none'}}><MessageCircle size={12}/> WhatsApp</a>}
@@ -1042,6 +1088,12 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
     {tab==='pricing'&&<>
       <Card style={{padding:16}}>
         <SectionTitle sub="Ajuste câmbio, taxas e markup">Taxas e Câmbio</SectionTitle>
+        {liveUsd&&<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 12px',borderRadius:10,background:'rgba(46,229,157,0.06)',border:'1px solid rgba(46,229,157,0.12)',marginBottom:10}}>
+          <span style={{fontSize:12,color:'rgba(255,255,255,0.5)'}}>Cotação ao vivo</span>
+          <div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:14,fontWeight:800,color:'#2ee59d'}}>R$ {liveUsd.toFixed(4)}</span>
+            <button onClick={()=>setEditPricing(p=>({...p,usd_brl_rate:liveUsd}))} style={{background:'rgba(46,229,157,0.15)',border:'1px solid rgba(46,229,157,0.2)',borderRadius:8,padding:'3px 8px',color:'#2ee59d',fontSize:10,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Usar</button>
+          </div>
+        </div>}
         {[{k:'usd_brl_rate',l:'Câmbio USD/BRL'},{k:'card_fee_percent',l:'Taxa carta (%)'},{k:'tax_percent',l:'Imposto (%)'},{k:'markup_percent',l:'Markup (%)'},{k:'profit_fixed_brl',l:'Lucro fixo (R$)'}].map(({k,l})=>(<div key={k} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
           <span style={{fontSize:12,color:'rgba(255,255,255,0.5)'}}>{l}</span>
           <input type="number" step="0.01" value={editPricing[k]||0} onChange={e=>setEditPricing(p=>({...p,[k]:parseFloat(e.target.value)||0}))} style={{width:80,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:13,fontWeight:700,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/>
@@ -1049,6 +1101,30 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
         <Btn full variant="success" onClick={savePricing} disabled={saving} style={{marginTop:10}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar taxas</>}</Btn>
       </Card>
     </>}
+
+    {tab==='list'&&<Card style={{padding:16}}>
+      <SectionTitle sub="Todas as cartas confirmadas + bônus para enviar ao fornecedor">Lista Final</SectionTitle>
+      {(()=>{
+        const allItems={};
+        orders.forEach(o=>{
+          o.order_batches?.filter(b=>b.status==='CONFIRMED'||b.status==='DRAFT').forEach(b=>{
+            // We'd need items, but for now aggregate from batch qty
+          });
+        });
+        // Show aggregate from all confirmed orders
+        const confirmed=orders.filter(o=>o.status==='CONFIRMED'||o.order_batches?.some(b=>b.status==='CONFIRMED'));
+        const totalCards=confirmed.reduce((s,o)=>(s+(o.qty_paid||0)+(o.qty_bonus||0)),0);
+        return(<div>
+          <div style={{fontSize:14,fontWeight:800,color:theme.primary,marginBottom:10}}>{totalCards} cartas no total</div>
+          <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:8}}>{confirmed.length} pedidos confirmados</div>
+          {confirmed.map(o=>(<div key={o.id} style={{padding:'6px 0',borderBottom:'1px solid rgba(255,255,255,0.03)',fontSize:12}}>
+            <span style={{fontWeight:600}}>{o.profiles?.name||'—'}</span>
+            <span style={{color:'rgba(255,255,255,0.3)',marginLeft:8}}>{o.qty_paid||0} pagas + {o.qty_bonus||0} bônus</span>
+          </div>))}
+          {confirmed.length===0&&<div style={{fontSize:12,color:'rgba(255,255,255,0.2)',textAlign:'center',padding:20}}>Nenhum pedido confirmado ainda</div>}
+        </div>);
+      })()}
+    </Card>}
 
     {tab==='campaign'&&<>
       <Card style={{padding:16}}>
@@ -1183,7 +1259,7 @@ export default function MagicPortal(){
         setBonusGrants(bg);
 
         // Order history (batches with items)
-        const batches = await sbGet('order_batches', `order_id=eq.${ord.id}&select=id,status,total_locked,payment_method,created_at,qty_in_batch`, tkn);
+        const batches = await sbGet('order_batches', `order_id=eq.${ord.id}&select=id,status,total_locked,payment_method,created_at,qty_in_batch,mp_link`, tkn);
         setMyOrders(batches);
       }
     } catch(e) {
@@ -1299,7 +1375,7 @@ export default function MagicPortal(){
 
   const wantsCount = wants.reduce((s, w) => s + w.quantity, 0);
   const cartCount = wants.filter(w => cartIds.includes(w.id)).reduce((s, w) => s + w.quantity, 0);
-  const bottomTabs = [{ key: 'home', icon: Home, label: 'Início' }, { key: 'catalog', icon: BookOpen, label: 'Catálogo' }, { key: 'wants', icon: ScrollText, label: 'Wants' }, { key: 'checkout', icon: ShoppingCart, label: 'Checkout' }, { key: 'profile', icon: User, label: 'Perfil' }];
+  const bottomTabs = [{ key: 'home', icon: Home, label: 'Início' }, { key: 'catalog', icon: BookOpen, label: 'Catálogo' }, { key: 'wants', icon: ScrollText, label: 'Wants' }, { key: 'checkout', icon: ShoppingCart, label: 'Carrinho' }, { key: 'profile', icon: User, label: 'Perfil' }];
 
   return (<div style={{ '--gp': theme.primary, '--gs': theme.secondary, '--gg': theme.glow, minHeight: '100vh', background: `radial-gradient(ellipse at 50% -20%,${theme.primary}12 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,${theme.secondary}08 0%,transparent 40%),#08080f`, color: '#e9edf7', fontFamily: "'Outfit',sans-serif", maxWidth: 480, margin: '0 auto', position: 'relative', paddingBottom: 78 }}>
     <FloatingMana theme={theme}/>
@@ -1350,7 +1426,7 @@ export default function MagicPortal(){
 
       {/* Pages */}
       <div style={{ padding: page === 'onboarding' ? '0 20px' : '14px 20px' }}>
-        {page === 'home' && (computedTiers.length > 0 ? <HomePage pool={pool} tiers={computedTiers} priceBRL={priceBRL} closeDate={campaign?.close_at} theme={theme} nav={nav} wantsCount={wantsCount} cartCount={cartCount} bonusAvail={bonusAvail} credit={0} /> : !appLoading && <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        {page === 'home' && (computedTiers.length > 0 ? <HomePage pool={pool} tiers={computedTiers} priceBRL={priceBRL} closeDate={campaign?.close_at} theme={theme} nav={nav} wantsCount={wantsCount} cartCount={cartCount} bonusAvail={bonusAvail} credit={0} campaign_status={campaign?.status} /> : !appLoading && <div style={{display:'flex',flexDirection:'column',gap:14}}>
           <div style={{textAlign:'center',padding:'6px 0 0'}}>
             <div style={{fontSize:11,color:'rgba(255,255,255,0.28)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>
             <h1 style={{margin:'5px 0 0',fontSize:26,fontFamily:"'Cinzel',serif",background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Cartas para Jogar</h1>
@@ -1362,7 +1438,7 @@ export default function MagicPortal(){
         {page === 'wants' && <WantsPage wants={wants} cartIds={cartIds} setCartIds={setCartIds} onRemoveWant={handleRemoveWant} onUpdateWantQty={handleUpdateWantQty} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} />}
         {page === 'checkout' && <CheckoutPage wants={wants} cartIds={cartIds} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} />}
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
-        {page === 'profile' && <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} />}
+        {page === 'profile' && <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} />}
         {page === 'admin' && <AdminPage pool={pool} tiers={computedTiers} priceBRL={priceBRL} pricing={pricing} campaign={campaign} theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} />}
         {page === 'onboarding' && <OnboardingPage onComplete={handleOnboardingComplete} theme={theme} />}
       </div>
