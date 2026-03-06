@@ -1249,6 +1249,7 @@ export default function MagicPortal(){
   const [bonusGrants,setBonusGrants]=useState([]);
   const [lastOrder,setLastOrder]=useState(null);
   const [myOrders,setMyOrders]=useState([]);
+  const [statusOverrides,setStatusOverrides]=useState({});
 
   // UI state
   const [page,setPage]=useState('home');
