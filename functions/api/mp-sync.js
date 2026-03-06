@@ -127,9 +127,7 @@ export async function onRequest(context) {
         mp_payment_id: paymentId || null,
         payment_status: status,
         payment_status_detail: statusDetail,
-        payment_amount: amount,
-        mp_payload: payment,
-      }),
+        payment_amount: amount,      }),
     });
 
     if (!pRes.ok) {
