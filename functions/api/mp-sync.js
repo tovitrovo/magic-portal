@@ -99,21 +99,25 @@ export async function onRequest(context) {
       Prefer: "return=minimal",
     };
 
-    await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(batchId)}`, {
-      method:"PATCH",
-      headers,
-      body: JSON.stringify({
-        status: batchStatus,
-        confirmed_at: batchStatus === "PAID" ? new Date().toISOString() : null,
-        mp_payment_id: paymentId || null,
-        payment_status: status,
-        payment_status_detail: statusDetail,
-        payment_amount: amount,
-        mp_payload: payment,
-      })
-    }).catch(()=>{});
-
-    
+    const pRes = await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(batchId)}`, {
+  method:"PATCH",
+  headers,
+  body: JSON.stringify({
+    status: batchStatus,
+    confirmed_at: batchStatus === "PAID" ? new Date().toISOString() : null,
+    mp_payment_id: paymentId || null,
+    payment_status: status,
+    payment_status_detail: statusDetail,
+    payment_amount: amount,
+    mp_payload: payment,
+  })
+});
+if(!pRes.ok){
+  const errTxt = await pRes.text().catch(()=> '');
+  throw new Error(`Supabase PATCH falhou: ${pRes.status} ${errTxt.slice(0,200)}`);
+}
+  updated = Array.isArray(arr) && arr.length ? arr[0] : null;
+} catch {}
 // fetch updated batch row (useful for UI)
 let updated = null;
 try {
