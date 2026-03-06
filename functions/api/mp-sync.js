@@ -27,17 +27,48 @@ export async function onRequest(context) {
       });
     }
 
-    const searchUrl = `https://api.mercadopago.com/v1/payments/search?external_reference=${encodeURIComponent(batchId)}&sort=date_created&criteria=desc&limit=1`;
-    const mpRes = await fetch(searchUrl, { headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` } });
-    const mpData = await mpRes.json().catch(()=> ({}));
+    const sbHeaders = {
+      apikey: SB_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}`,
+      "Content-Type": "application/json",
+    };
 
-    if (!mpRes.ok) {
-      return new Response(JSON.stringify({ ok:false, error:"Mercado Pago search falhou", details: mpData }), {
-        status: 502, headers: { ...CORS, "Content-Type":"application/json" }
-      });
-    }
+    // fetch batch info
+    const bRes = await fetch(`${SB_URL}/rest/v1/order_batches?select=id,mp_preference_id,mp_payment_id,status,payment_status&limit=1&id=eq.${encodeURIComponent(batchId)}`, { headers: sbHeaders });
+    const bArr = await bRes.json().catch(()=> ([]));
+    const batch = Array.isArray(bArr) && bArr.length ? bArr[0] : null;
 
-    const payment = Array.isArray(mpData?.results) && mpData.results.length ? mpData.results[0] : null;
+    const fetchPayment = async () => {
+      // 1) payment_id direct
+      const pid = batch?.mp_payment_id;
+      if (pid) {
+        const r = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(pid)}`, {
+          headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` }
+        });
+        const j = await r.json().catch(()=> ({}));
+        if (r.ok) return j;
+      }
+      // 2) search by preference_id (if supported)
+      const pref = batch?.mp_preference_id;
+      if (pref) {
+        const url = `https://api.mercadopago.com/v1/payments/search?preference_id=${encodeURIComponent(pref)}&sort=date_created&criteria=desc&limit=1`;
+        const r = await fetch(url, { headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` } });
+        const j = await r.json().catch(()=> ({}));
+        if (r.ok) {
+          const p = Array.isArray(j?.results) && j.results.length ? j.results[0] : null;
+          if (p) return p;
+        }
+      }
+      // 3) fallback external_reference
+      const url = `https://api.mercadopago.com/v1/payments/search?external_reference=${encodeURIComponent(batchId)}&sort=date_created&criteria=desc&limit=1`;
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` } });
+      const j = await r.json().catch(()=> ({}));
+      if (!r.ok) throw new Error("Mercado Pago search falhou");
+      const p = Array.isArray(j?.results) && j.results.length ? j.results[0] : null;
+      return p;
+    };
+
+    const payment = await fetchPayment().catch(()=> null);
     if (!payment) {
       return new Response(JSON.stringify({ ok:true, status:"not_found", batchStatus:"PENDING_PAYMENT" }), {
         status: 200, headers: { ...CORS, "Content-Type":"application/json" }
