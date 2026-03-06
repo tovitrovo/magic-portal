@@ -8,6 +8,21 @@ import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, Chev
 const SB_URL = 'https://kjyqnlpiohoewmqmsuxp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqeXFubHBpb2hvZXdtcW1zdXhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyNTA5NDAsImV4cCI6MjA4NzgyNjk0MH0.1BjTAFgv7yfJ00uY6WNlwUOYd4c4YOqFTV78CLvLBk0';
 
+// Sync Mercado Pago status for a batch (server-side)
+async function mpSync(batchId){
+  const r = await fetch('/api/mp-sync', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ batchId: String(batchId) })
+  });
+  const txt = await r.text();
+  let j = {};
+  try{ j = JSON.parse(txt); } catch { j = { raw: txt }; }
+  if(!r.ok || !j.ok) throw new Error(j.error || j.message || `HTTP ${r.status}`);
+  return j;
+}
+
+
 function sbH(token) {
   return { 'apikey': SB_KEY, 'Authorization': `Bearer ${token || SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
 }
@@ -777,6 +792,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
           </div>))}</div>:<div style={{fontSize:11,color:'rgba(255,255,255,0.2)',marginTop:8}}>Detalhes não disponíveis</div>}
           {isPending&&<div style={{display:'flex',gap:6,marginTop:10}}>
               <Btn variant="warn" onClick={(e)=>{e.stopPropagation();pagarAgoraPedido(o, toastFn);}} style={{flex:2,fontSize:12}} sfx="nav"><CreditCard size={14}/> Pagar agora</Btn>
+              <Btn variant="ghost" onClick={async(e)=>{e.stopPropagation();try{await mpSync(o.id);toastFn('Status atualizado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{flex:1,fontSize:12}} sfx=""><RefreshCw size={14}/> Atualizar</Btn>
               <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(!confirm('Cancelar este pedido?')) return;try{const res=await fetch('/api/cancel-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batchId:String(o.id),orderId:String(o.order_id||'')})});const j=await res.json().catch(()=>({}));if(!res.ok||!j.ok) throw new Error(j.error||'Falha ao cancelar');SFX.click();toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{flex:1,fontSize:12}} sfx=""><X size={14}/> Cancelar</Btn>
             </div>}
             {!isPending&&o.status!=='CANCELLED'&&<div style={{fontSize:10,color:'rgba(255,255,255,0.2)',marginTop:6}}>Para cancelar pedido pago, entre em contato.</div>}
@@ -1101,7 +1117,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
         </div>
         {isExp&&<div style={{padding:'0 14px 12px',borderTop:'1px solid rgba(255,255,255,0.04)'}}>
           <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginTop:8}}>{o.qty_paid||0} pagas | {o.qty_bonus||0} bônus</div>
-          {o.order_batches?.map(b=>{const sid=String(b.id).slice(0,8).toUpperCase();const isPending=b.status==='DRAFT';return(
+          {o.order_batches?.map(b=>{const sid=String(b.id).slice(0,8).toUpperCase();const isPending=b.status==='DRAFT'||b.status==='PENDING_PAYMENT';return(
             <div key={b.id} style={{padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                 <div><span style={{fontSize:12,fontWeight:700,fontFamily:'monospace'}}>#{sid}</span> <span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>{b.payment_method} | {b.qty_in_batch} cartas</span></div>
@@ -1112,6 +1128,8 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
               </div>
               {isPending&&<div style={{display:'flex',gap:4,marginTop:6}}>
                 <Btn variant="success" onClick={(e)=>{e.stopPropagation();confirmBatch(b.id);}} style={{flex:2,padding:'6px 10px',fontSize:10}} sfx=""><Check size={11}/> Confirmar</Btn>
+                <Btn variant="ghost" onClick={async(e)=>{e.stopPropagation();try{await mpSync(b.id);if(onReload)onReload();SFX.click();}catch(err){alert(err.message||String(err));}}} style={{flex:1,padding:'6px 10px',fontSize:10}} sfx=""><RefreshCw size={11}/> Atualizar MP</Btn>
+                <Btn variant="warn" onClick={async(e)=>{e.stopPropagation();await sbPatch('order_batches','id=eq.'+(b.id),{status:'PAID',confirmed_at:new Date().toISOString()},token);if(onReload)onReload();SFX.click();}} style={{flex:1,padding:'6px 10px',fontSize:10}} sfx=""><Check size={11}/> Marcar pago</Btn>
                 <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();await sbPatch('order_batches','id=eq.'+(b.id),{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}} style={{flex:1,padding:'6px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar</Btn>
               </div>}
               {b.status==='CONFIRMED'&&<Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(confirm('Cancelar pedido pago? Reembolso deve ser feito no Mercado Pago.')){await sbPatch('order_batches','id=eq.'+(b.id),{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}}} style={{marginTop:6,padding:'5px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar (pago)</Btn>}
