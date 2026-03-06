@@ -4,27 +4,35 @@ export async function onRequest(context) {
     "Access-Control-Allow-Headers": "content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
-  if (context.request.method === "OPTIONS") return new Response("ok", { headers: CORS });
+
+  if (context.request.method === "OPTIONS") {
+    return new Response("ok", { headers: CORS });
+  }
 
   try {
     const { MP_ACCESS_TOKEN, SB_URL, SB_SERVICE_ROLE_KEY } = context.env;
 
     if (!MP_ACCESS_TOKEN) {
-      return new Response(JSON.stringify({ ok:false, error:"MP_ACCESS_TOKEN não configurado" }), {
-        status: 500, headers: { ...CORS, "Content-Type":"application/json" }
+      return new Response(JSON.stringify({ ok: false, error: "MP_ACCESS_TOKEN não configurado" }), {
+        status: 500,
+        headers: { ...CORS, "Content-Type": "application/json" },
       });
     }
+
     if (!SB_URL || !SB_SERVICE_ROLE_KEY) {
-      return new Response(JSON.stringify({ ok:false, error:"SB_URL/SB_SERVICE_ROLE_KEY não configurado" }), {
-        status: 500, headers: { ...CORS, "Content-Type":"application/json" }
+      return new Response(JSON.stringify({ ok: false, error: "SB_URL/SB_SERVICE_ROLE_KEY não configurado" }), {
+        status: 500,
+        headers: { ...CORS, "Content-Type": "application/json" },
       });
     }
 
     const body = await context.request.json().catch(() => ({}));
     const batchId = String(body.batchId || body.id || "").trim();
+
     if (!batchId) {
-      return new Response(JSON.stringify({ ok:false, error:"batchId ausente" }), {
-        status: 400, headers: { ...CORS, "Content-Type":"application/json" }
+      return new Response(JSON.stringify({ ok: false, error: "batchId ausente" }), {
+        status: 400,
+        headers: { ...CORS, "Content-Type": "application/json" },
       });
     }
 
@@ -39,6 +47,7 @@ export async function onRequest(context) {
       `${SB_URL}/rest/v1/order_batches?select=id,mp_preference_id,mp_payment_id,status,payment_status&limit=1&id=eq.${encodeURIComponent(batchId)}`,
       { headers: sbHeaders }
     );
+
     const bArr = await bRes.json().catch(() => []);
     const batch = Array.isArray(bArr) && bArr.length ? bArr[0] : null;
 
@@ -47,7 +56,7 @@ export async function onRequest(context) {
       const pid = batch?.mp_payment_id;
       if (pid) {
         const r = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(pid)}`, {
-          headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` }
+          headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
         });
         const j = await r.json().catch(() => ({}));
         if (r.ok) return j;
@@ -75,9 +84,11 @@ export async function onRequest(context) {
     }
 
     const payment = await fetchPayment().catch(() => null);
+
     if (!payment) {
-      return new Response(JSON.stringify({ ok:true, status:"not_found", batchStatus:"PENDING_PAYMENT", updated: null }), {
-        status: 200, headers: { ...CORS, "Content-Type":"application/json" }
+      return new Response(JSON.stringify({ ok: true, status: "not_found", batchStatus: "PENDING_PAYMENT", updated: null }), {
+        status: 200,
+        headers: { ...CORS, "Content-Type": "application/json" },
       });
     }
 
@@ -96,6 +107,7 @@ export async function onRequest(context) {
       refunded: "REFUNDED",
       charged_back: "CHARGEDBACK",
     };
+
     const batchStatus = statusMap[status] || "PENDING_PAYMENT";
 
     const patchHeaders = {
@@ -105,7 +117,7 @@ export async function onRequest(context) {
       Prefer: "return=minimal",
     };
 
-    // 2) Atualizar batch (estrito: se falhar, retorna erro)
+    // 2) Atualizar batch (estrito)
     const pRes = await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(batchId)}`, {
       method: "PATCH",
       headers: patchHeaders,
@@ -122,12 +134,13 @@ export async function onRequest(context) {
 
     if (!pRes.ok) {
       const errTxt = await pRes.text().catch(() => "");
-      return new Response(JSON.stringify({ ok:false, error:`Supabase PATCH falhou: ${pRes.status} ${errTxt.slice(0,200)}` }), {
-        status: 502, headers: { ...CORS, "Content-Type":"application/json" }
+      return new Response(JSON.stringify({ ok: false, error: `Supabase PATCH falhou: ${pRes.status} ${errTxt.slice(0, 200)}` }), {
+        status: 502,
+        headers: { ...CORS, "Content-Type": "application/json" },
       });
     }
 
-    // 3) Buscar batch atualizado (pra UI)
+    // 3) Buscar batch atualizado
     let updated = null;
     try {
       const uRes = await fetch(
@@ -138,12 +151,14 @@ export async function onRequest(context) {
       updated = Array.isArray(arr) && arr.length ? arr[0] : null;
     } catch {}
 
-    return new Response(JSON.stringify({ ok:true, status, batchStatus, paymentId, updated }), {
-      status: 200, headers: { ...CORS, "Content-Type":"application/json" }
+    return new Response(JSON.stringify({ ok: true, status, batchStatus, paymentId, updated }), {
+      status: 200,
+      headers: { ...CORS, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ ok:false, error:String(e?.message || e) }), {
-      status: 500, headers: { "Content-Type":"application/json" }
+    return new Response(JSON.stringify({ ok: false, error: String(e?.message || e) }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
     });
   }
 }
