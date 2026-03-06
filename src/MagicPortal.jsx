@@ -273,7 +273,7 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
         <div style={{fontSize:13,lineHeight:1.6,color:'rgba(255,255,255,0.6)',marginBottom:14}}>{s.body}</div>
         <div style={{display:'flex',gap:5,justifyContent:'center',marginBottom:12}}>{steps.map((_,i)=><div key={i} style={{width:i===step?18:6,height:5,borderRadius:3,background:i===step?theme.primary:'rgba(255,255,255,0.08)',transition:'all .3s'}}/>)}</div>
         <div style={{display:'flex',gap:8}}>
-          {!isFirstTime&&<Btn variant="ghost" onClick={onSkip} style={{width:'100%',fontSize:12,whiteSpace:'nowrap',justifyContent:'center'}} sfx="nav">Pular</Btn>}
+          {!isFirstTime&&<Btn variant="ghost" onClick={onSkip} style={{width:'100%',fontSize:11,whiteSpace:'nowrap',justifyContent:'center'}} sfx="nav">Pular</Btn>}
           {isLast?<Btn onClick={onNext} style={{flex:2,fontSize:13}} sfx="confirm"><BookOpen size={15}/> Ver cartas!</Btn>:
           <Btn onClick={onNext} style={{flex:isFirstTime?1:2,fontSize:13}} sfx="click">Entendi <ArrowRight size={14}/></Btn>}
         </div>
@@ -794,9 +794,9 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
             <span style={{fontWeight:700}}>x{c.qty}</span>
           </div>))}</div>:<div style={{fontSize:11,color:'rgba(255,255,255,0.2)',marginTop:8}}>Detalhes não disponíveis</div>}
           {isPending&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginTop:10}}>
-              <Btn variant="warn" onClick={(e)=>{e.stopPropagation();pagarAgoraPedido(o, toastFn);}} style={{width:'100%',fontSize:12,whiteSpace:'nowrap',justifyContent:'center'}} sfx="nav"><CreditCard size={14}/> Pagar agora</Btn>
-              <Btn variant="ghost" onClick={async(e)=>{e.stopPropagation();try{await mpSync(o.id);toastFn(`Status: ${String((await mpSync(o.id)).batchStatus||'ok')}`,'success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:12,whiteSpace:'nowrap',justifyContent:'center'}} sfx=""><RefreshCw size={14}/> Atualizar</Btn>
-              <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(!confirm('Cancelar este pedido?')) return;try{const res=await fetch('/api/cancel-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batchId:String(o.id),orderId:String(o.order_id||'')})});const j=await res.json().catch(()=>({}));if(!res.ok||!j.ok) throw new Error(j.error||'Falha ao cancelar');toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:12,whiteSpace:'nowrap',justifyContent:'center'}} sfx=""><X size={14}/> Cancelar</Btn>
+              <Btn variant="warn" onClick={(e)=>{e.stopPropagation();pagarAgoraPedido(o, toastFn);}} style={{width:'100%',fontSize:11,whiteSpace:'nowrap',justifyContent:'center'}} sfx="nav"><CreditCard size={14}/> Pagar agora</Btn>
+              <Btn variant="ghost" onClick={async(e)=>{e.stopPropagation();try{await mpSync(o.id);toastFn(`Status: ${String((await mpSync(o.id)).batchStatus||'ok')}`,'success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:11,whiteSpace:'nowrap',justifyContent:'center'}} sfx=""><RefreshCw size={16}/></Btn>
+              <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(!confirm('Cancelar este pedido?')) return;try{const res=await fetch('/api/cancel-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batchId:String(o.id),orderId:String(o.order_id||'')})});const j=await res.json().catch(()=>({}));if(!res.ok||!j.ok) throw new Error(j.error||'Falha ao cancelar');toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:11,whiteSpace:'nowrap',justifyContent:'center'}} sfx=""><X size={14}/> Cancelar</Btn>
             </div>}
             {!isPending&&o.status!=='CANCELLED'&&<div style={{fontSize:10,color:'rgba(255,255,255,0.2)',marginTop:6}}>Para cancelar pedido pago, entre em contato.</div>}
         </div>}
