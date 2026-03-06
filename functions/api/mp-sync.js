@@ -4,35 +4,27 @@ export async function onRequest(context) {
     "Access-Control-Allow-Headers": "content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
-
-  if (context.request.method === "OPTIONS") {
-    return new Response("ok", { headers: CORS });
-  }
+  if (context.request.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   try {
     const { MP_ACCESS_TOKEN, SB_URL, SB_SERVICE_ROLE_KEY } = context.env;
 
     if (!MP_ACCESS_TOKEN) {
-      return new Response(JSON.stringify({ ok: false, error: "MP_ACCESS_TOKEN não configurado" }), {
-        status: 500,
-        headers: { ...CORS, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ ok:false, error:"MP_ACCESS_TOKEN não configurado" }), {
+        status: 500, headers: { ...CORS, "Content-Type":"application/json" }
       });
     }
-
     if (!SB_URL || !SB_SERVICE_ROLE_KEY) {
-      return new Response(JSON.stringify({ ok: false, error: "SB_URL/SB_SERVICE_ROLE_KEY não configurado" }), {
-        status: 500,
-        headers: { ...CORS, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ ok:false, error:"SB_URL/SB_SERVICE_ROLE_KEY não configurado" }), {
+        status: 500, headers: { ...CORS, "Content-Type":"application/json" }
       });
     }
 
     const body = await context.request.json().catch(() => ({}));
     const batchId = String(body.batchId || body.id || "").trim();
-
     if (!batchId) {
-      return new Response(JSON.stringify({ ok: false, error: "batchId ausente" }), {
-        status: 400,
-        headers: { ...CORS, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ ok:false, error:"batchId ausente" }), {
+        status: 400, headers: { ...CORS, "Content-Type":"application/json" }
       });
     }
 
@@ -42,27 +34,23 @@ export async function onRequest(context) {
       "Content-Type": "application/json",
     };
 
-    // 1) Buscar batch no Supabase (pra pegar mp_preference_id / mp_payment_id)
     const bRes = await fetch(
-      `${SB_URL}/rest/v1/order_batches?select=id,mp_preference_id,mp_payment_id,status,payment_status&limit=1&id=eq.${encodeURIComponent(batchId)}`,
+      `${SB_URL}/rest/v1/order_batches?select=id,mp_preference_id,mp_payment_id,status,payment_status,mp_link&limit=1&id=eq.${encodeURIComponent(batchId)}`,
       { headers: sbHeaders }
     );
-
     const bArr = await bRes.json().catch(() => []);
     const batch = Array.isArray(bArr) && bArr.length ? bArr[0] : null;
 
     async function fetchPayment() {
-      // (a) pelo payment id
       const pid = batch?.mp_payment_id;
       if (pid) {
         const r = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(pid)}`, {
-          headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
+          headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` }
         });
         const j = await r.json().catch(() => ({}));
         if (r.ok) return j;
       }
 
-      // (b) pelo preference id
       const pref = batch?.mp_preference_id;
       if (pref) {
         const url = `https://api.mercadopago.com/v1/payments/search?preference_id=${encodeURIComponent(pref)}&sort=date_created&criteria=desc&limit=1`;
@@ -74,7 +62,6 @@ export async function onRequest(context) {
         }
       }
 
-      // (c) fallback external_reference
       const url = `https://api.mercadopago.com/v1/payments/search?external_reference=${encodeURIComponent(batchId)}&sort=date_created&criteria=desc&limit=1`;
       const r = await fetch(url, { headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` } });
       const j = await r.json().catch(() => ({}));
@@ -84,16 +71,14 @@ export async function onRequest(context) {
     }
 
     const payment = await fetchPayment().catch(() => null);
-
     if (!payment) {
-      return new Response(JSON.stringify({ ok: true, status: "not_found", batchStatus: "PENDING_PAYMENT", updated: null }), {
-        status: 200,
-        headers: { ...CORS, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ ok:true, status:"not_found", batchStatus:"PENDING_PAYMENT", updated:null }), {
+        status: 200, headers: { ...CORS, "Content-Type":"application/json" }
       });
     }
 
-    const status = String(payment.status || "");
-    const statusDetail = String(payment.status_detail || "");
+    const mpStatus = String(payment.status || "");
+    const mpStatusDetail = String(payment.status_detail || "");
     const paymentId = String(payment.id || "");
     const amount = payment.transaction_amount ?? null;
 
@@ -107,8 +92,7 @@ export async function onRequest(context) {
       refunded: "REFUNDED",
       charged_back: "CHARGEDBACK",
     };
-
-    const batchStatus = statusMap[status] || "PENDING_PAYMENT";
+    const batchStatus = statusMap[mpStatus] || "PENDING_PAYMENT";
 
     const patchHeaders = {
       apikey: SB_SERVICE_ROLE_KEY,
@@ -117,46 +101,45 @@ export async function onRequest(context) {
       Prefer: "return=minimal",
     };
 
-    // 2) Atualizar batch (estrito)
+    const patchBody = {
+      status: batchStatus,
+      confirmed_at: batchStatus === "PAID" ? new Date().toISOString() : null,
+      mp_payment_id: paymentId || batch?.mp_payment_id || null,
+      payment_status: mpStatus,
+      payment_status_detail: mpStatusDetail,
+      payment_amount: amount,
+      mp_payload: payment,
+    };
+
     const pRes = await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(batchId)}`, {
       method: "PATCH",
       headers: patchHeaders,
-      body: JSON.stringify({
-        status: batchStatus,
-        confirmed_at: batchStatus === "PAID" ? new Date().toISOString() : null,
-        mp_payment_id: paymentId || null,
-        payment_status: status,
-        payment_status_detail: statusDetail,
-        payment_amount: amount,      }),
+      body: JSON.stringify(patchBody),
     });
 
     if (!pRes.ok) {
       const errTxt = await pRes.text().catch(() => "");
-      return new Response(JSON.stringify({ ok: false, error: `Supabase PATCH falhou: ${pRes.status} ${errTxt.slice(0, 200)}` }), {
-        status: 502,
-        headers: { ...CORS, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ ok:false, error:`Supabase PATCH falhou: ${pRes.status} ${errTxt.slice(0,300)}` }), {
+        status: 502, headers: { ...CORS, "Content-Type":"application/json" }
       });
     }
 
-    // 3) Buscar batch atualizado
     let updated = null;
     try {
       const uRes = await fetch(
-        `${SB_URL}/rest/v1/order_batches?select=id,status,payment_status,payment_status_detail,mp_payment_id,mp_preference_id,confirmed_at&limit=1&id=eq.${encodeURIComponent(batchId)}`,
+        `${SB_URL}/rest/v1/order_batches?select=id,status,confirmed_at,payment_status,payment_status_detail,payment_amount,mp_payment_id,mp_preference_id,mp_link&limit=1&id=eq.${encodeURIComponent(batchId)}`,
         { headers: { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}` } }
       );
       const arr = await uRes.json().catch(() => []);
       updated = Array.isArray(arr) && arr.length ? arr[0] : null;
     } catch {}
 
-    return new Response(JSON.stringify({ ok: true, status, batchStatus, paymentId, updated }), {
-      status: 200,
-      headers: { ...CORS, "Content-Type": "application/json" },
+    return new Response(JSON.stringify({ ok:true, status: mpStatus, batchStatus, paymentId, updated }), {
+      status: 200, headers: { ...CORS, "Content-Type":"application/json" }
     });
   } catch (e) {
-    return new Response(JSON.stringify({ ok: false, error: String(e?.message || e) }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
+    return new Response(JSON.stringify({ ok:false, error:String(e?.message || e) }), {
+      status: 500, headers: { "Content-Type":"application/json" }
     });
   }
 }
