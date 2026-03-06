@@ -771,7 +771,10 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
     <Card style={{padding:16}}>
       <SectionTitle sub="Histórico de pedidos">Meus Pedidos</SectionTitle>
       {myOrders.length===0?<div style={{fontSize:13,color:'rgba(255,255,255,0.25)',textAlign:'center',padding:12}}>Nenhum pedido ainda</div>:
-      myOrders.map((o,i)=>{const isExp=expandedOrder===i;const isPending=o.status==='DRAFT';return(<Card key={o.id||i} style={{padding:0,marginBottom:6,borderColor:isPending?'rgba(201,169,110,0.15)':undefined,cursor:'pointer'}} onClick={()=>setExpandedOrder(isExp?null:i)}>
+      myOrders.map((o,i)=>{const isExp=expandedOrder===i;const st = String(o.status||'').toUpperCase();
+            const paySt = String(o.payment_status||'').toLowerCase();
+            const isPaid = (st==='PAID' || st==='CONFIRMED' || st==='APPROVED') || paySt==='approved';
+            const isPending = !isPaid && (st==='' || st==='DRAFT' || st==='PENDING' || st==='PENDING_PAYMENT' || st==='IN_PROCESS' || paySt==='pending' || paySt==='in_process');return(<Card key={o.id||i} style={{padding:0,marginBottom:6,borderColor:isPending?'rgba(201,169,110,0.15)':undefined,cursor:'pointer'}} onClick={()=>setExpandedOrder(isExp?null:i)}>
         <div style={{padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
             <Tag style={{fontSize:9,padding:'2px 6px'}}>{o.payment_method==='MERCADO_PAGO'?'MP':'Bônus'}</Tag>
@@ -781,7 +784,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
             </div>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:6}}>
-            <Tag color={isPending?'#c9a96e':o.status==='CONFIRMED'?'#2ee59d':'#4a90d9'} style={{fontSize:10}}>{isPending?'Pendente':o.status==='CONFIRMED'?'Pago':o.status}</Tag>
+            <Tag color={isPending?'#c9a96e':isPaid?'#2ee59d':'#4a90d9'} style={{fontSize:10}}>{isPending?'Pendente':isPaid?'Pago':o.status}</Tag>
             <ChevronRight size={14} style={{color:'rgba(255,255,255,0.2)',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
           </div>
         </div>
@@ -790,10 +793,10 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
             <span style={{color:'rgba(255,255,255,0.5)'}}>{c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
             <span style={{fontWeight:700}}>x{c.qty}</span>
           </div>))}</div>:<div style={{fontSize:11,color:'rgba(255,255,255,0.2)',marginTop:8}}>Detalhes não disponíveis</div>}
-          {isPending&&<div style={{display:'flex',gap:6,marginTop:10}}>
-              <Btn variant="warn" onClick={(e)=>{e.stopPropagation();pagarAgoraPedido(o, toastFn);}} style={{flex:2,fontSize:12}} sfx="nav"><CreditCard size={14}/> Pagar agora</Btn>
-              <Btn variant="ghost" onClick={async(e)=>{e.stopPropagation();try{await mpSync(o.id);toastFn('Status atualizado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{flex:1,fontSize:12}} sfx=""><RefreshCw size={14}/> Atualizar</Btn>
-              <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(!confirm('Cancelar este pedido?')) return;try{const res=await fetch('/api/cancel-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batchId:String(o.id),orderId:String(o.order_id||'')})});const j=await res.json().catch(()=>({}));if(!res.ok||!j.ok) throw new Error(j.error||'Falha ao cancelar');SFX.click();toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{flex:1,fontSize:12}} sfx=""><X size={14}/> Cancelar</Btn>
+          {isPending&&<div style={{display:'flex',gap:8,marginTop:10,alignItems:'stretch'}}>
+              <Btn variant="warn" onClick={(e)=>{e.stopPropagation();pagarAgoraPedido(o, toastFn);}} style={{flex:1,fontSize:12,whiteSpace:'nowrap',justifyContent:'center'}} sfx="nav"><CreditCard size={14}/> Pagar agora</Btn>
+              <Btn variant="ghost" onClick={async(e)=>{e.stopPropagation();try{await mpSync(o.id);toastFn('Status atualizado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{flex:1,fontSize:12,whiteSpace:'nowrap',justifyContent:'center'}} sfx=""><RefreshCw size={14}/> Atualizar</Btn>
+              <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(!confirm('Cancelar este pedido?')) return;try{const res=await fetch('/api/cancel-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batchId:String(o.id),orderId:String(o.order_id||'')})});const j=await res.json().catch(()=>({}));if(!res.ok||!j.ok) throw new Error(j.error||'Falha ao cancelar');SFX.click();toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{flex:1,fontSize:12,whiteSpace:'nowrap',justifyContent:'center'}} sfx=""><X size={14}/> Cancelar</Btn>
             </div>}
             {!isPending&&o.status!=='CANCELLED'&&<div style={{fontSize:10,color:'rgba(255,255,255,0.2)',marginTop:6}}>Para cancelar pedido pago, entre em contato.</div>}
         </div>}
@@ -1111,7 +1114,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
             <div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{o.profiles?.email} | {new Date(o.created_at).toLocaleDateString('pt-BR')}</div>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:4}}>
-            <Tag color={o.status==='DRAFT'?'#c9a96e':o.status==='CONFIRMED'?'#2ee59d':'#4a90d9'} style={{fontSize:9}}>{o.status}</Tag>
+            <Tag color={o.status==='DRAFT'?'#c9a96e':(['CONFIRMED','PAID','APPROVED'].includes(String(o.status||'').toUpperCase()))?'#2ee59d':'#4a90d9'} style={{fontSize:9}}>{o.status}</Tag>
             <ChevronRight size={12} style={{color:'rgba(255,255,255,0.15)',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
           </div>
         </div>
@@ -1182,7 +1185,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
           });
         });
         // Show aggregate from all confirmed orders
-        const confirmed=orders.filter(o=>o.status==='CONFIRMED'||o.order_batches?.some(b=>b.status==='CONFIRMED'));
+        const confirmed=orders.filter(o=>(['CONFIRMED','PAID','APPROVED'].includes(String(o.status||'').toUpperCase()))||o.order_batches?.some(b=>b.status==='CONFIRMED'));
         const totalCards=confirmed.reduce((s,o)=>(s+(o.qty_paid||0)+(o.qty_bonus||0)),0);
         return(<div>
           <div style={{fontSize:14,fontWeight:800,color:theme.primary,marginBottom:10}}>{totalCards} cartas no total</div>
