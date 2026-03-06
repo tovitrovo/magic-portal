@@ -113,7 +113,17 @@ export async function onRequest(context) {
       })
     }).catch(()=>{});
 
-    return new Response(JSON.stringify({ ok:true, status, batchStatus, paymentId }), {
+    
+// fetch updated batch row (useful for UI)
+let updated = null;
+try {
+  const uRes = await fetch(`${SB_URL}/rest/v1/order_batches?select=id,status,payment_status,payment_status_detail,mp_payment_id,mp_preference_id,confirmed_at&limit=1&id=eq.${encodeURIComponent(batchId)}`, {
+    headers: { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}` }
+  });
+  const arr = await uRes.json().catch(()=> ([]));
+  updated = Array.isArray(arr) && arr.length ? arr[0] : null;
+} catch {}
+return new Response(JSON.stringify({ ok:true, status, batchStatus, paymentId, updated }), {
       status: 200, headers: { ...CORS, "Content-Type":"application/json" }
     });
   } catch (e) {
