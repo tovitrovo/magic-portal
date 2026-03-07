@@ -34,20 +34,37 @@ async function sbGet(table, query = '', token) {
 }
 
 
-async function loadOrderCards(batchId, token){
-  const id = String(batchId||'').trim();
-  if(!id) return [];
-  try{
-    const rows = await sbGet('order_items', `select=id,quantity,card_name,card_type&batch_id=eq.${id}`, token);
-    return Array.isArray(rows) ? rows.map(r=>({
-      name: r.card_name || 'Carta',
-      type: r.card_type || '',
-      qty: Number(r.quantity||1)
-    })) : [];
-  }catch(e){
-    console.error('loadOrderCards', e);
-    return [];
+async function loadOrderCards(orderLike, token){
+  const candidates = [
+    orderLike?.batch_id,
+    orderLike?.order_batch_id,
+    orderLike?.batch?.id,
+    orderLike?.order_batches?.id,
+    orderLike?.id,
+  ].map(v => String(v || '').trim()).filter(Boolean);
+
+  for (const id of candidates) {
+    try {
+      const rows = await sbGet(
+        'order_items',
+        `select=id,quantity,card_name,card_type&batch_id=eq.${id}`,
+        token
+      );
+
+      if (Array.isArray(rows) && rows.length > 0) {
+        return rows.map(r => ({
+          name: r.card_name || 'Carta',
+          type: r.card_type || '',
+          qty: Number(r.quantity || 1),
+        }));
+      }
+    } catch (e) {
+      console.error('loadOrderCards by batch_id', id, e);
+    }
   }
+
+  return [];
+}
 }
 
 async function sbPost(table, data, token) {
@@ -792,7 +809,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
       myOrders.map((o,i)=>{const isExp=expandedOrder===i;const st = String(o.status||'').toUpperCase();
         const paySt = String(o.payment_status||'').toLowerCase();
         const isPaid = (st==='PAID' || st==='CONFIRMED' || st==='APPROVED') || paySt==='approved';
-        const isPending = !isPaid && (st==='' || st==='DRAFT' || st==='PENDING' || st==='PENDING_PAYMENT' || st==='IN_PROCESS' || paySt==='pending' || paySt==='in_process');return(<Card key={o.id||i} style={{padding:0,marginBottom:6,borderColor:isPending?'rgba(201,169,110,0.15)':undefined,cursor:'pointer'}} onClick={async()=>{const next=isExp?null:i;setExpandedOrder(next);if(next!==null && !o.cards && !orderCardsCache[String(o.id)]){const cards=await loadOrderCards(o.id, token);setOrderCardsCache(prev=>({...prev,[String(o.id)]:cards}));}}}>
+        const isPending = !isPaid && (st==='' || st==='DRAFT' || st==='PENDING' || st==='PENDING_PAYMENT' || st==='IN_PROCESS' || paySt==='pending' || paySt==='in_process');return(<Card key={o.id||i} style={{padding:0,marginBottom:6,borderColor:isPending?'rgba(201,169,110,0.15)':undefined,cursor:'pointer'}} onClick={async()=>{const next=isExp?null:i;setExpandedOrder(next);if(next!==null && !o.cards && !orderCardsCache[String(o.id)]){const cards=await loadOrderCards(o, token);setOrderCardsCache(prev=>({...prev,[String(o.id)]:cards}));}}}>
         <div style={{padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
             <Tag style={{fontSize:9,padding:'2px 6px'}}>{o.payment_method==='MERCADO_PAGO'?'MP':'Bônus'}</Tag>
