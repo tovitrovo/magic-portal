@@ -47,14 +47,14 @@ async function loadOrderCards(orderLike, token){
     try {
       const rows = await sbGet(
         'order_items',
-        `select=id,quantity,card_name,card_type&batch_id=eq.${id}`,
+        `batch_id=eq.${id}&select=id,quantity,cards(name,type)`,
         token
       );
 
       if (Array.isArray(rows) && rows.length > 0) {
         return rows.map(r => ({
-          name: r.card_name || 'Carta',
-          type: r.card_type || '',
+          name: r.cards?.name || 'Carta',
+          type: r.cards?.type || '',
           qty: Number(r.quantity || 1),
         }));
       }
@@ -1375,8 +1375,8 @@ export default function MagicPortal(){
         setBonusGrants(bg);
 
         // Order history (batches with items)
-        const batches = await sbGet('order_batches', `order_id=eq.${ord.id}&select=id,status,total_locked,payment_method,created_at,qty_in_batch,mp_link`, tkn);
-        setMyOrders(batches);
+        const batches = await sbGet('order_batches', `order_id=eq.${ord.id}&select=id,status,total_locked,payment_method,created_at,qty_in_batch,mp_link,order_items(quantity,cards(name,type))`, tkn);
+        setMyOrders((batches||[]).map(b=>({ ...b, cards: Array.isArray(b.order_items) ? b.order_items.map(i=>({ name:i.cards?.name||'Carta', type:i.cards?.type||'', qty:Number(i.quantity||1) })) : undefined })) );
       }
     } catch(e) {
       console.error('loadAppData', e);
