@@ -8,6 +8,26 @@ import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, Chev
 const SB_URL = 'https://kjyqnlpiohoewmqmsuxp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqeXFubHBpb2hvZXdtcW1zdXhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyNTA5NDAsImV4cCI6MjA4NzgyNjk0MH0.1BjTAFgv7yfJ00uY6WNlwUOYd4c4YOqFTV78CLvLBk0';
 
+
+const CAMPAIGN_LABELS = {
+  ACTIVE: 'Encomenda ativa',
+  LOCKED: 'Encomenda trancada',
+  ORDERING: 'Negociação com o vendedor',
+  ORDERED: 'Pedido feito',
+  RECEIVED: 'Pedido recebido no Brasil',
+  PACKING: 'Empacotando',
+  SHIPPING: 'Enviando',
+  DONE: 'Encomenda finalizada',
+};
+
+function campaignLabel(status){
+  return CAMPAIGN_LABELS[String(status || 'ACTIVE').toUpperCase()] || 'Encomenda ativa';
+}
+
+function campaignCanOrder(status){
+  return String(status || 'ACTIVE').toUpperCase() === 'ACTIVE';
+}
+
 // Sync Mercado Pago status for a batch (server-side)
 async function mpSync(batchId){
   const r = await fetch('/api/mp-sync', {
@@ -404,6 +424,7 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme}){
   function add(card,qty){SFX.addCard();setFlyAnim(true);onAddWant(card,qty);setQ(card.id,1);}
 
   return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
+    {!campaignOpen&&<Card style={{padding:14,borderColor:'rgba(201,169,110,0.25)',background:'rgba(201,169,110,0.08)'}}><div style={{fontSize:13,fontWeight:700,color:'#c9a96e'}}>Encomenda fechada no momento</div><div style={{fontSize:12,color:'rgba(255,255,255,0.55)',marginTop:4}}>{campaignStatusText}</div></Card>}
     <FlyingCard show={flyAnim} onDone={()=>setFlyAnim(false)}/>
     <div style={{display:'flex',gap:6}}><Tag><ScrollText size={11}/> {wantsCount} na lista</Tag></div>
     <div id="tut-search-area" style={{display:'flex',flexDirection:'column',gap:8}}>
@@ -585,7 +606,7 @@ function AddressDisplay({address,onEdit}){
 // CHECKOUT
 // ══════════════════════════════════════════════════════
 
-function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token,orderId,campaignId,onOrderDone,toast}){
+function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token,orderId,campaignId,campaignStatus,onOrderDone,toast}){
   const [freteOptions,setFreteOptions]=useState([]);const [selectedFrete,setSelectedFrete]=useState(null);
   const [lF,setLF]=useState(false);const [submitting,setSubmitting]=useState(false);
   const [addr,setAddr]=useState({cep:profile?.cep||'',rua:profile?.rua||'',numero:profile?.numero||'',complemento:profile?.complemento||'',bairro:profile?.bairro||'',cidade:profile?.cidade||'',uf:profile?.uf||''});
@@ -595,6 +616,8 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
   let bL=bonus;
   const bd=cart.map(c=>{const bq=Math.min(c.quantity,bL);bL-=bq;return{...c,bonusQty:bq,paidQty:c.quantity-bq};});
   const totalBonus=bd.reduce((s,c)=>s+c.bonusQty,0);const totalPaid=bd.reduce((s,c)=>s+c.paidQty,0);
+  const campaignOpen = campaignCanOrder(campaignStatus);
+  const campaignStatusText = campaignLabel(campaignStatus);
   const isFullBonus=totalPaid===0&&totalBonus>0;
   const sub=totalPaid*priceBRL;const fV=selectedFrete?selectedFrete.price:0;const total=sub+fV;
   const cepClean=(addr.cep||'').replace(/\D/g,'');
@@ -624,6 +647,7 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
   }
 
   async function finalize(){
+    if(!campaignOpen){toast('Encomenda fechada no momento','error');return;}
     if(!isFullBonus&&!selectedFrete){toast('Calcule o frete primeiro','error');return;}
     // Campaign must be active (but we don't block the whole flow — admin can override)
     setSubmitting(true);
@@ -681,7 +705,7 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
     </Card>}
 
     <Card id="tut-payment" style={{padding:16}}>
-      {isFullBonus?<Btn full variant="success" onClick={finalize} disabled={submitting} sfx="">{submitting?<Spin size={16}/>:<><Gift size={18}/> Finalizar pedido bônus</>}</Btn>:
+      {isFullBonus?<Btn full variant="success" onClick={finalize} disabled={submitting || !campaignOpen} sfx="">{submitting?<Spin size={16}/>:<><Gift size={18}/> Finalizar pedido bônus</>}</Btn>:
       <><SectionTitle sub="Pagamento seguro via Mercado Pago">Pagamento</SectionTitle>
       <Btn full onClick={finalize} disabled={submitting||(!isFullBonus&&!selectedFrete)} sfx="">{submitting?<Spin size={16}/>:<><CreditCard size={18}/> Pagar R$ {total.toFixed(2)}</>}</Btn></>}
     </Card>
@@ -759,7 +783,7 @@ function SuccessPage({lastOrder,theme,nav}){
 // PROFILE
 // ══════════════════════════════════════════════════════
 
-function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProfile,onLogout,myOrders=[],onReloadOrders,toast:toastFn}){
+function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProfile,onLogout,myOrders=[],onReloadOrders,toast:toastFn,campaign}){
   const [colors,setColors]=useState(profile?.mana_color_1&&profile?.mana_color_2?[profile.mana_color_1,profile.mana_color_2]:['U','R']);
   const [editAddr,setEditAddr]=useState(false);
   const [addr,setAddr]=useState({cep:profile?.cep||'',rua:profile?.rua||'',numero:profile?.numero||'',complemento:profile?.complemento||'',bairro:profile?.bairro||'',cidade:profile?.cidade||'',uf:profile?.uf||''});
@@ -800,7 +824,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
   }
 
   return(<div style={{display:'flex',flexDirection:'column',gap:14}}>
-    <Card style={{padding:18,textAlign:'center'}}><div style={{fontSize:28,marginBottom:4}}>⚔️</div><div style={{fontWeight:700,fontSize:16}}>{profile?.name||profile?.email||'—'}</div>{profile?.whatsapp&&<div style={{fontSize:12,color:'rgba(255,255,255,0.3)',marginTop:2,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Phone size={11}/>{profile.whatsapp}</div>}</Card>
+    <Card style={{padding:18,textAlign:'center'}}><div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:6}}>Status da encomenda</div><div style={{fontWeight:800,fontSize:20,marginBottom:8}}>{campaignLabel(campaign?.status)}</div><Tag color={campaignCanOrder(campaign?.status)?'#2ee59d':'#c9a96e'} style={{fontSize:10,padding:'3px 8px'}}>{String(campaign?.status||'ACTIVE').toUpperCase()}</Tag></Card>
 
     <Card style={{padding:16}}>
       <SectionTitle sub="Histórico de pedidos">Meus Pedidos</SectionTitle>
@@ -1552,7 +1576,7 @@ export default function MagicPortal(){
         </div>)}
         {page === 'catalog' && <CatalogPage token={token} wants={wants} onAddWant={handleAddWant} priceBRL={priceBRL} theme={theme} />}
         {page === 'wants' && <WantsPage wants={wants} cartIds={cartIds} setCartIds={setCartIds} onRemoveWant={handleRemoveWant} onUpdateWantQty={handleUpdateWantQty} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} />}
-        {page === 'checkout' && <CheckoutPage wants={wants} cartIds={cartIds} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} />}
+        {page === 'checkout' && <CheckoutPage wants={wants} cartIds={cartIds} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} campaignStatus={campaign?.status} onOrderDone={handleOrderDone} toast={toast} />}
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
         {page === 'profile' && <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} />}
         {page === 'admin' && <AdminPage pool={pool} tiers={computedTiers} priceBRL={priceBRL} pricing={pricing} campaign={campaign} theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} />}
