@@ -26,6 +26,43 @@ async function mpSync(batchId){
 function sbH(token) {
   return { 'apikey': SB_KEY, 'Authorization': `Bearer ${token || SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
 }
+// --- ADMIN (server-side via Cloudflare Pages Functions, bypass RLS)
+async function adminLoadOrders(campaignId) {
+  const r = await fetch('/api/admin-orders', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ campaignId: String(campaignId||'') })
+  });
+  const txt = await r.text();
+  let j; try{ j = JSON.parse(txt); } catch { j = { error: txt }; }
+  if(!r.ok) throw new Error(j?.error || `HTTP ${r.status}`);
+  return j;
+}
+
+async function adminMarkPaid(batchId) {
+  const r = await fetch('/api/admin-mark-paid', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ batchId: String(batchId) })
+  });
+  const txt = await r.text();
+  let j; try{ j = JSON.parse(txt); } catch { j = { error: txt }; }
+  if(!r.ok || !j.ok) throw new Error(j?.error || `HTTP ${r.status}`);
+  return j;
+}
+
+async function adminSync(batchId) {
+  const r = await fetch('/api/mp-sync', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ batchId: String(batchId) })
+  });
+  const txt = await r.text();
+  let j; try{ j = JSON.parse(txt); } catch { j = { error: txt }; }
+  if(!r.ok || !j.ok) throw new Error(j?.error || `HTTP ${r.status}`);
+  return j;
+}
+
 
 async function sbGet(table, query = '', token) {
   const r = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, { headers: sbH(token) });
