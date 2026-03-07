@@ -26,43 +26,6 @@ async function mpSync(batchId){
 function sbH(token) {
   return { 'apikey': SB_KEY, 'Authorization': `Bearer ${token || SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
 }
-// --- ADMIN (server-side via Cloudflare Pages Functions, bypass RLS)
-async function adminLoadOrders(campaignId) {
-  const r = await fetch('/api/admin-orders', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ campaignId: String(campaignId||'') })
-  });
-  const txt = await r.text();
-  let j; try{ j = JSON.parse(txt); } catch { j = { error: txt }; }
-  if(!r.ok) throw new Error(j?.error || `HTTP ${r.status}`);
-  return j;
-}
-
-async function adminMarkPaid(batchId) {
-  const r = await fetch('/api/admin-mark-paid', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ batchId: String(batchId) })
-  });
-  const txt = await r.text();
-  let j; try{ j = JSON.parse(txt); } catch { j = { error: txt }; }
-  if(!r.ok || !j.ok) throw new Error(j?.error || `HTTP ${r.status}`);
-  return j;
-}
-
-async function adminSync(batchId) {
-  const r = await fetch('/api/mp-sync', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ batchId: String(batchId) })
-  });
-  const txt = await r.text();
-  let j; try{ j = JSON.parse(txt); } catch { j = { error: txt }; }
-  if(!r.ok || !j.ok) throw new Error(j?.error || `HTTP ${r.status}`);
-  return j;
-}
-
 
 async function sbGet(table, query = '', token) {
   const r = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, { headers: sbH(token) });
@@ -1286,7 +1249,7 @@ export default function MagicPortal(){
   const [bonusGrants,setBonusGrants]=useState([]);
   const [lastOrder,setLastOrder]=useState(null);
   const [myOrders,setMyOrders]=useState([]);
-const [statusOverrides,setStatusOverrides]=useState({});
+  const [statusOverrides,setStatusOverrides]=useState({});
 
   // UI state
   const [page,setPage]=useState('home');
@@ -1562,76 +1525,5 @@ const [statusOverrides,setStatusOverrides]=useState({});
         {page === 'onboarding' && <OnboardingPage onComplete={handleOnboardingComplete} theme={theme} />}
       </div>
     </>}
-  {adminLoading && <div style={{marginBottom:12,opacity:0.8}}>Carregando…</div>}
-
-            <pre style={{whiteSpace:'pre-wrap',fontSize:12,background:'rgba(255,255,255,0.04)',padding:12,borderRadius:12,border:'1px solid rgba(255,255,255,0.08)'}}>
-{JSON.stringify(adminOrders, null, 2)}
-            </pre>
-          </div>
-        </div>
-      )}
-      {adminLoading && <div style={{marginBottom:12,opacity:0.8}}>Carregando…</div>}
-
-      <div style={{display:'grid',gap:10}}>
-        {adminOrders.map((o)=> {
-          const batches = Array.isArray(o.order_batches) ? o.order_batches : (o.order_batches ? [o.order_batches] : []);
-          const b = batches[0] || {};
-          const st = String(b.status||o.status||'').toUpperCase();
-          const paid = (st==='PAID' || st==='CONFIRMED' || String(b.payment_status||'').toLowerCase()==='approved');
-          return (
-            <div key={o.id} style={{border:'1px solid rgba(255,255,255,0.08)',borderRadius:14,padding:12,background:'rgba(255,255,255,0.03)'}}>
-              <div style={{display:'flex',justifyContent:'space-between',gap:10,alignItems:'center'}}>
-                <div>
-                  <div style={{fontWeight:700}}>Pedido {o.id}</div>
-                  <div style={{fontSize:12,opacity:0.8}}>Cliente: {o?.profiles?.name || o.user_id || '-'}</div>
-                </div>
-                <Tag color={paid?'#2ee59d':'#c9a96e'} style={{fontSize:11}}>{paid?'Pago':'Pendente'}</Tag>
-              </div>
-
-              <div style={{marginTop:8,fontSize:12,opacity:0.9}}>
-                Batch: {b.id||'-'} • Status: {b.status||o.status||'-'} • MP: {b.payment_status||'-'} • Total: {b.total_locked||'-'}
-              </div>
-
-              <div style={{display:'flex',gap:8,marginTop:10,flexWrap:'wrap'}}>
-                <Btn variant="ghost" onClick={async()=>{try{await adminSync(b.id||o.id);const data=await adminLoadOrders('');setAdminOrders(Array.isArray(data)?data:(data?.orders||[]));}catch(e){setAdminErr(String(e?.message||e));}}} style={{fontSize:12}}><RefreshCw size={14}/> Sync MP</Btn>
-                <Btn variant="warn" onClick={async()=>{try{await adminMarkPaid(b.id||o.id);const data=await adminLoadOrders('');setAdminOrders(Array.isArray(data)?data:(data?.orders||[]));}catch(e){setAdminErr(String(e?.message||e));}}} style={{fontSize:12}}>Marcar pago</Btn>
-                {b.mp_link && <Btn variant="ghost" onClick={()=>{window.open(b.mp_link,'_blank');}} style={{fontSize:12}}>Abrir MP</Btn>}
-              </div>
-            </div>
-          );
-        })}
-        {!adminLoading && !adminErr && adminOrders.length===0 && (
-          <div style={{opacity:0.75}}>Nenhum pedido encontrado.</div>
-        )}
-      </div>
-    </div>
-  </div>
-)}
-    </div>
-                  </div>
-                </div>
-                <Tag color={paid?'#2ee59d':'#c9a96e'} style={{fontSize:11}}>{paid?'Pago':'Pendente'}</Tag>
-              </div>
-
-              <div style={{marginTop:8,fontSize:12,opacity:0.9}}>
-                Batch: {b.id||'-'} • Status: {b.status||o.status||'-'} • MP: {b.payment_status||'-'} • Total: {b.total_locked||'-'}
-              </div>
-
-              <div style={{display:'flex',gap:8,marginTop:10,flexWrap:'wrap'}}>
-                <Btn variant="ghost" onClick={async()=>{try{await adminSync(b.id||o.id);const data=await adminLoadOrders('');setAdminOrders(Array.isArray(data)?data:(data?.orders||[]));}catch(e){setAdminErr(String(e?.message||e));}}} style={{fontSize:12}}><RefreshCw size={14}/> Sync MP</Btn>
-                <Btn variant="warn" onClick={async()=>{try{await adminMarkPaid(b.id||o.id);const data=await adminLoadOrders('');setAdminOrders(Array.isArray(data)?data:(data?.orders||[]));}catch(e){setAdminErr(String(e?.message||e));}}} style={{fontSize:12}}>Marcar pago</Btn>
-                {b.mp_link && <Btn variant="ghost" onClick={()=>{window.open(b.mp_link,'_blank');}} style={{fontSize:12}}>Abrir MP</Btn>}
-              </div>
-            </div>
-          );
-        })}
-        {!adminLoading && !adminErr && adminOrders.length===0 && (
-          <div style={{opacity:0.75}}>Nenhum pedido encontrado. (O endpoint /api/admin-orders traz os últimos 200 pedidos.)</div>
-        )}
-      </div>
-    </div>
-  </div>
-)}
-
-);
+  </div>);
 }
