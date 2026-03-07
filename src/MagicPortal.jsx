@@ -1582,7 +1582,7 @@ useEffect(()=>{
         {page === 'onboarding' && <OnboardingPage onComplete={handleOnboardingComplete} theme={theme} />}
       </div>
     </>}
-  </div>{isAdminOverlay && (
+  {isAdminOverlay && (
   <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
     <div style={{width:'min(1000px,100%)',maxHeight:'85vh',overflow:'auto',background:'#0f1115',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:16}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,marginBottom:12}}>
@@ -1612,6 +1612,7 @@ useEffect(()=>{
                   <div style={{fontWeight:700}}>Pedido {o.id}</div>
                   <div style={{fontSize:12,opacity:0.8}}>
                     Cliente: {o?.profiles?.name || o.user_id || '-'} • Criado: {String(o.created_at||'').slice(0,19).replace('T',' ')}
+    </div>
                   </div>
                 </div>
                 <Tag color={paid?'#2ee59d':'#c9a96e'} style={{fontSize:11}}>{paid?'Pago':'Pendente'}</Tag>
