@@ -8,7 +8,6 @@ export async function onRequest(context) {
 
   try {
     const { MP_ACCESS_TOKEN, SB_URL, SB_SERVICE_ROLE_KEY } = context.env;
-
     if (!MP_ACCESS_TOKEN) {
       return new Response(JSON.stringify({ ok:false, error:"MP_ACCESS_TOKEN não configurado" }), {
         status: 500, headers: { ...CORS, "Content-Type":"application/json" }
@@ -34,51 +33,50 @@ export async function onRequest(context) {
       "Content-Type": "application/json",
     };
 
-    const bRes = await fetch(
-      `${SB_URL}/rest/v1/order_batches?select=id,mp_preference_id,mp_payment_id,status,payment_status,mp_link&limit=1&id=eq.${encodeURIComponent(batchId)}`,
-      { headers: sbHeaders }
-    );
-    const bArr = await bRes.json().catch(() => []);
+    // fetch batch info
+    const bRes = await fetch(`${SB_URL}/rest/v1/order_batches?select=id,mp_preference_id,mp_payment_id,status,payment_status&limit=1&id=eq.${encodeURIComponent(batchId)}`, { headers: sbHeaders });
+    const bArr = await bRes.json().catch(()=> ([]));
     const batch = Array.isArray(bArr) && bArr.length ? bArr[0] : null;
 
-    async function fetchPayment() {
+    const fetchPayment = async () => {
+      // 1) payment_id direct
       const pid = batch?.mp_payment_id;
       if (pid) {
         const r = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(pid)}`, {
           headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` }
         });
-        const j = await r.json().catch(() => ({}));
+        const j = await r.json().catch(()=> ({}));
         if (r.ok) return j;
       }
-
+      // 2) search by preference_id (if supported)
       const pref = batch?.mp_preference_id;
       if (pref) {
         const url = `https://api.mercadopago.com/v1/payments/search?preference_id=${encodeURIComponent(pref)}&sort=date_created&criteria=desc&limit=1`;
         const r = await fetch(url, { headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` } });
-        const j = await r.json().catch(() => ({}));
+        const j = await r.json().catch(()=> ({}));
         if (r.ok) {
           const p = Array.isArray(j?.results) && j.results.length ? j.results[0] : null;
           if (p) return p;
         }
       }
-
+      // 3) fallback external_reference
       const url = `https://api.mercadopago.com/v1/payments/search?external_reference=${encodeURIComponent(batchId)}&sort=date_created&criteria=desc&limit=1`;
       const r = await fetch(url, { headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` } });
-      const j = await r.json().catch(() => ({}));
+      const j = await r.json().catch(()=> ({}));
       if (!r.ok) throw new Error("Mercado Pago search falhou");
       const p = Array.isArray(j?.results) && j.results.length ? j.results[0] : null;
       return p;
-    }
+    };
 
-    const payment = await fetchPayment().catch(() => null);
+    const payment = await fetchPayment().catch(()=> null);
     if (!payment) {
-      return new Response(JSON.stringify({ ok:true, status:"not_found", batchStatus:"PENDING_PAYMENT", updated:null }), {
+      return new Response(JSON.stringify({ ok:true, status:"not_found", batchStatus:"PENDING_PAYMENT" }), {
         status: 200, headers: { ...CORS, "Content-Type":"application/json" }
       });
     }
 
-    const mpStatus = String(payment.status || "");
-    const mpStatusDetail = String(payment.status_detail || "");
+    const status = String(payment.status || "");
+    const statusDetail = String(payment.status_detail || "");
     const paymentId = String(payment.id || "");
     const amount = payment.transaction_amount ?? null;
 
@@ -92,53 +90,48 @@ export async function onRequest(context) {
       refunded: "REFUNDED",
       charged_back: "CHARGEDBACK",
     };
-    const batchStatus = statusMap[mpStatus] || "PENDING_PAYMENT";
+    const batchStatus = statusMap[status] || "PENDING_PAYMENT";
 
-    const patchHeaders = {
+    const headers = {
       apikey: SB_SERVICE_ROLE_KEY,
       Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}`,
       "Content-Type": "application/json",
       Prefer: "return=minimal",
     };
 
-    const patchBody = {
-      status: batchStatus,
-      confirmed_at: batchStatus === "PAID" ? new Date().toISOString() : null,
-      mp_payment_id: paymentId || batch?.mp_payment_id || null,
-      payment_status: mpStatus,
-      payment_status_detail: mpStatusDetail,
-      payment_amount: amount,
-      mp_payload: payment,
-    };
-
     const pRes = await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(batchId)}`, {
-      method: "PATCH",
-      headers: patchHeaders,
-      body: JSON.stringify(patchBody),
-    });
-
-    if (!pRes.ok) {
-      const errTxt = await pRes.text().catch(() => "");
-      return new Response(JSON.stringify({ ok:false, error:`Supabase PATCH falhou: ${pRes.status} ${errTxt.slice(0,300)}` }), {
-        status: 502, headers: { ...CORS, "Content-Type":"application/json" }
-      });
-    }
-
-    let updated = null;
-    try {
-      const uRes = await fetch(
-        `${SB_URL}/rest/v1/order_batches?select=id,status,confirmed_at,payment_status,payment_status_detail,payment_amount,mp_payment_id,mp_preference_id,mp_link&limit=1&id=eq.${encodeURIComponent(batchId)}`,
-        { headers: { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}` } }
-      );
-      const arr = await uRes.json().catch(() => []);
-      updated = Array.isArray(arr) && arr.length ? arr[0] : null;
-    } catch {}
-
-    return new Response(JSON.stringify({ ok:true, status: mpStatus, batchStatus, paymentId, updated }), {
+  method:"PATCH",
+  headers,
+  body: JSON.stringify({
+    status: batchStatus,
+    confirmed_at: batchStatus === "PAID" ? new Date().toISOString() : null,
+    mp_payment_id: paymentId || null,
+    payment_status: status,
+    payment_status_detail: statusDetail,
+    payment_amount: amount,
+    mp_payload: payment,
+  })
+});
+if(!pRes.ok){
+  const errTxt = await pRes.text().catch(()=> '');
+  throw new Error(`Supabase PATCH falhou: ${pRes.status} ${errTxt.slice(0,200)}`);
+}
+  updated = Array.isArray(arr) && arr.length ? arr[0] : null;
+} catch {}
+// fetch updated batch row (useful for UI)
+let updated = null;
+try {
+  const uRes = await fetch(`${SB_URL}/rest/v1/order_batches?select=id,status,payment_status,payment_status_detail,mp_payment_id,mp_preference_id,confirmed_at&limit=1&id=eq.${encodeURIComponent(batchId)}`, {
+    headers: { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}` }
+  });
+  const arr = await uRes.json().catch(()=> ([]));
+  updated = Array.isArray(arr) && arr.length ? arr[0] : null;
+} catch {}
+return new Response(JSON.stringify({ ok:true, status, batchStatus, paymentId, updated }), {
       status: 200, headers: { ...CORS, "Content-Type":"application/json" }
     });
   } catch (e) {
-    return new Response(JSON.stringify({ ok:false, error:String(e?.message || e) }), {
+    return new Response(JSON.stringify({ ok:false, error:String(e?.message||e) }), {
       status: 500, headers: { "Content-Type":"application/json" }
     });
   }

@@ -29,14 +29,25 @@ export async function onRequest(context) {
       Prefer: "return=minimal",
     };
 
-    await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(batchId)}`, {
-      method:"PATCH",
+    const r = await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(batchId)}`, {
+      method: "PATCH",
       headers,
       body: JSON.stringify({ status:"PAID", confirmed_at: new Date().toISOString() })
     });
 
-    return new Response(JSON.stringify({ ok:true }), { status:200, headers:{ ...CORS, "Content-Type":"application/json" }});
+    if (!r.ok) {
+      const t = await r.text().catch(()=> "");
+      return new Response(JSON.stringify({ ok:false, error:`Supabase PATCH falhou: ${r.status} ${t.slice(0,200)}` }), {
+        status: 502, headers: { ...CORS, "Content-Type":"application/json" }
+      });
+    }
+
+    return new Response(JSON.stringify({ ok:true }), {
+      status: 200, headers: { ...CORS, "Content-Type":"application/json" }
+    });
   } catch (e) {
-    return new Response(JSON.stringify({ ok:false, error:String(e?.message||e) }), { status:500, headers:{ "Content-Type":"application/json" }});
+    return new Response(JSON.stringify({ ok:false, error:String(e?.message||e) }), {
+      status: 500, headers: { "Content-Type":"application/json" }
+    });
   }
 }

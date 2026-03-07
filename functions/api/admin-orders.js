@@ -16,23 +16,18 @@ export async function onRequest(context) {
 
     const body = await context.request.json().catch(() => ({}));
     const campaignId = String(body.campaignId || "").trim();
-    if (!campaignId) {
-      return new Response(JSON.stringify({ error: "campaignId ausente" }), {
-        status: 400, headers: { ...CORS, "Content-Type":"application/json" }
-      });
-    }
 
-    const select = "id,user_id,status,qty_paid,qty_bonus,created_at,profiles(name,whatsapp,email),order_batches(id,status,total_locked,payment_method,confirmed_at,qty_in_batch,mp_link,mp_preference_id,mp_payment_id,payment_status)";
-    const url = `${SB_URL}/rest/v1/orders?select=${encodeURIComponent(select)}&campaign_id=eq.${encodeURIComponent(campaignId)}&order=created_at.desc`;
+    const headers = {
+      apikey: SB_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}`,
+    };
 
-    const r = await fetch(url, {
-      headers: {
-        apikey: SB_SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}`,
-      }
-    });
+    const select = "id,created_at,user_id,qty_paid,qty_bonus,status,profiles(name,email,whatsapp),order_batches(id,status,total_locked,qty_in_batch,mp_link,mp_preference_id,mp_payment_id,payment_status,payment_status_detail,confirmed_at)";
+    let url = `${SB_URL}/rest/v1/orders?select=${encodeURIComponent(select)}&order=created_at.desc&limit=200`;
+    if (campaignId) url += `&campaign_id=eq.${encodeURIComponent(campaignId)}`;
 
-    const data = await r.json().catch(()=> ([]));
+    const r = await fetch(url, { headers });
+    const data = await r.json().catch(() => []);
     if (!r.ok) {
       return new Response(JSON.stringify({ error: "Falha ao buscar pedidos", details: data }), {
         status: 502, headers: { ...CORS, "Content-Type":"application/json" }
