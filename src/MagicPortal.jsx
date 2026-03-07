@@ -65,7 +65,6 @@ async function loadOrderCards(orderLike, token){
 
   return [];
 }
-}
 
 async function sbPost(table, data, token) {
   const r = await fetch(`${SB_URL}/rest/v1/${table}`, { method: 'POST', headers: sbH(token), body: JSON.stringify(data) });
