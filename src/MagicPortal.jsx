@@ -1583,22 +1583,30 @@ useEffect(()=>{
       </div>
     </>}
   {isAdminOverlay && (
-  <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
-    <div style={{width:'min(1000px,100%)',maxHeight:'85vh',overflow:'auto',background:'#0f1115',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:16}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,marginBottom:12}}>
-        <div>
-          <div style={{fontSize:16,fontWeight:700}}>Admin – Pedidos</div>
-          <div style={{opacity:0.8,fontSize:12}}>Total: {adminOrders.length}</div>
-        </div>
-        <div style={{display:'flex',gap:8}}>
-          <Btn variant="ghost" onClick={async()=>{try{setAdminLoading(true);setAdminErr('');const data=await adminLoadOrders('');setAdminOrders(Array.isArray(data)?data:(data?.orders||[]));}catch(e){setAdminErr(String(e?.message||e));}finally{setAdminLoading(false);}}} style={{fontSize:12}}><RefreshCw size={14}/> Recarregar</Btn>
-          <Btn variant="danger" onClick={()=>{const u=new URL(window.location.href);u.searchParams.delete('admin');window.location.href=u.toString();}} style={{fontSize:12}}><X size={14}/> Fechar</Btn>
-        </div>
-      </div>
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+          <div style={{width:'min(1000px,100%)',maxHeight:'85vh',overflow:'auto',background:'#0f1115',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:16}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,marginBottom:12}}>
+              <div>
+                <div style={{fontSize:16,fontWeight:700}}>Admin – Pedidos</div>
+                <div style={{opacity:0.8,fontSize:12}}>Use ?admin=1 • Total: {adminOrders.length}</div>
+              </div>
+              <div style={{display:'flex',gap:8}}>
+                <Btn variant="ghost" onClick={async()=>{try{setAdminLoading(true);setAdminErr('');const data=await adminLoadOrders('');setAdminOrders(Array.isArray(data)?data:(data?.orders||[]));}catch(e){setAdminErr(String(e?.message||e));}finally{setAdminLoading(false);}}} style={{fontSize:12}}><RefreshCw size={14}/> Recarregar</Btn>
+                <Btn variant="danger" onClick={()=>{const u=new URL(window.location.href);u.searchParams.delete('admin');window.location.href=u.toString();}} style={{fontSize:12}}><X size={14}/> Fechar</Btn>
+              </div>
+            </div>
 
-      {adminErr && (
-        <div style={{marginBottom:12,padding:10,borderRadius:10,background:'rgba(255,0,0,0.12)',border:'1px solid rgba(255,0,0,0.25)'}}>
-          <b>Erro:</b> {adminErr}
+            {adminErr && (
+              <div style={{marginBottom:12,padding:10,borderRadius:10,background:'rgba(255,0,0,0.12)',border:'1px solid rgba(255,0,0,0.25)'}}>
+                <b>Erro:</b> {adminErr}
+              </div>
+            )}
+            {adminLoading && <div style={{marginBottom:12,opacity:0.8}}>Carregando…</div>}
+
+            <pre style={{whiteSpace:'pre-wrap',fontSize:12,background:'rgba(255,255,255,0.04)',padding:12,borderRadius:12,border:'1px solid rgba(255,255,255,0.08)'}}>
+{JSON.stringify(adminOrders, null, 2)}
+            </pre>
+          </div>
         </div>
       )}
       {adminLoading && <div style={{marginBottom:12,opacity:0.8}}>Carregando…</div>}
