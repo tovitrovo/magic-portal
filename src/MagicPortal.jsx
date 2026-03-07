@@ -1286,6 +1286,26 @@ export default function MagicPortal(){
   const [bonusGrants,setBonusGrants]=useState([]);
   const [lastOrder,setLastOrder]=useState(null);
   const [myOrders,setMyOrders]=useState([]);
+// --- ADMIN overlay (use ?admin=1 na URL)
+const isAdminOverlay = (()=>{ try{ return new URLSearchParams(window.location.search).get('admin')==='1'; }catch{ return false; }})();
+const [adminOrders,setAdminOrders]=useState([]);
+const [adminLoading,setAdminLoading]=useState(false);
+const [adminErr,setAdminErr]=useState('');
+
+useEffect(()=>{
+  if(!isAdminOverlay) return;
+  (async()=>{
+    try{
+      setAdminLoading(true); setAdminErr('');
+      const data = await adminLoadOrders(''); // sem campaignId = traz últimos pedidos
+      setAdminOrders(Array.isArray(data)?data:(data?.orders||[]));
+    }catch(e){
+      setAdminErr(String(e?.message||e));
+    }finally{
+      setAdminLoading(false);
+    }
+  })();
+},[isAdminOverlay]);
   const [statusOverrides,setStatusOverrides]=useState({});
 
   // UI state
@@ -1562,5 +1582,60 @@ export default function MagicPortal(){
         {page === 'onboarding' && <OnboardingPage onComplete={handleOnboardingComplete} theme={theme} />}
       </div>
     </>}
-  </div>);
+  </div>{isAdminOverlay && (
+  <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+    <div style={{width:'min(1000px,100%)',maxHeight:'85vh',overflow:'auto',background:'#0f1115',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16,padding:16}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,marginBottom:12}}>
+        <div>
+          <div style={{fontSize:16,fontWeight:700}}>Admin – Pedidos</div>
+          <div style={{opacity:0.8,fontSize:12}}>Abra com <code>?admin=1</code> para ver este painel. Total: {adminOrders.length}</div>
+        </div>
+        <div style={{display:'flex',gap:8}}>
+          <Btn variant="ghost" onClick={async()=>{try{setAdminLoading(true);setAdminErr('');const data=await adminLoadOrders('');setAdminOrders(Array.isArray(data)?data:(data?.orders||[]));}catch(e){setAdminErr(String(e?.message||e));}finally{setAdminLoading(false);}}} style={{fontSize:12}}><RefreshCw size={14}/> Recarregar</Btn>
+          <Btn variant="danger" onClick={()=>{const u=new URL(window.location.href);u.searchParams.delete('admin');window.location.href=u.toString();}} style={{fontSize:12}}><X size={14}/> Fechar</Btn>
+        </div>
+      </div>
+
+      {adminErr && <div style={{marginBottom:12,padding:10,borderRadius:10,background:'rgba(255,0,0,0.12)',border:'1px solid rgba(255,0,0,0.25)'}}><b>Erro:</b> {adminErr}</div>}
+      {adminLoading && <div style={{marginBottom:12,opacity:0.8}}>Carregando…</div>}
+
+      <div style={{display:'grid',gap:10}}>
+        {adminOrders.map((o)=> {
+          const batches = Array.isArray(o.order_batches) ? o.order_batches : (o.order_batches ? [o.order_batches] : []);
+          const b = batches[0] || {};
+          const st = String(b.status||o.status||'').toUpperCase();
+          const paid = st==='PAID' || st==='CONFIRMED' || String(b.payment_status||'').toLowerCase()==='approved';
+          return (
+            <div key={o.id} style={{border:'1px solid rgba(255,255,255,0.08)',borderRadius:14,padding:12,background:'rgba(255,255,255,0.03)'}}>
+              <div style={{display:'flex',justifyContent:'space-between',gap:10,alignItems:'center'}}>
+                <div>
+                  <div style={{fontWeight:700}}>Pedido {o.id}</div>
+                  <div style={{fontSize:12,opacity:0.8}}>
+                    Cliente: {o?.profiles?.name || o.user_id || '-'} • Criado: {String(o.created_at||'').slice(0,19).replace('T',' ')}
+                  </div>
+                </div>
+                <Tag color={paid?'#2ee59d':'#c9a96e'} style={{fontSize:11}}>{paid?'Pago':'Pendente'}</Tag>
+              </div>
+
+              <div style={{marginTop:8,fontSize:12,opacity:0.9}}>
+                Batch: {b.id||'-'} • Status: {b.status||o.status||'-'} • MP: {b.payment_status||'-'} • Total: {b.total_locked||'-'}
+              </div>
+
+              <div style={{display:'flex',gap:8,marginTop:10,flexWrap:'wrap'}}>
+                <Btn variant="ghost" onClick={async()=>{try{await adminSync(b.id||o.id);const data=await adminLoadOrders('');setAdminOrders(Array.isArray(data)?data:(data?.orders||[]));}catch(e){setAdminErr(String(e?.message||e));}}} style={{fontSize:12}}><RefreshCw size={14}/> Sync MP</Btn>
+                <Btn variant="warn" onClick={async()=>{try{await adminMarkPaid(b.id||o.id);const data=await adminLoadOrders('');setAdminOrders(Array.isArray(data)?data:(data?.orders||[]));}catch(e){setAdminErr(String(e?.message||e));}}} style={{fontSize:12}}>Marcar pago</Btn>
+                {b.mp_link && <Btn variant="ghost" onClick={()=>{window.open(b.mp_link,'_blank');}} style={{fontSize:12}}>Abrir MP</Btn>}
+              </div>
+            </div>
+          );
+        })}
+        {!adminLoading && !adminErr && adminOrders.length===0 && (
+          <div style={{opacity:0.75}}>Nenhum pedido encontrado. (O endpoint /api/admin-orders traz os últimos 200 pedidos.)</div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
+
+);
 }
