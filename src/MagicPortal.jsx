@@ -33,6 +33,23 @@ async function sbGet(table, query = '', token) {
   return r.json();
 }
 
+
+async function loadOrderCards(batchId, token){
+  const id = String(batchId||'').trim();
+  if(!id) return [];
+  try{
+    const rows = await sbGet('order_items', `select=id,quantity,card_name,card_type&batch_id=eq.${id}`, token);
+    return Array.isArray(rows) ? rows.map(r=>({
+      name: r.card_name || 'Carta',
+      type: r.card_type || '',
+      qty: Number(r.quantity||1)
+    })) : [];
+  }catch(e){
+    console.error('loadOrderCards', e);
+    return [];
+  }
+}
+
 async function sbPost(table, data, token) {
   const r = await fetch(`${SB_URL}/rest/v1/${table}`, { method: 'POST', headers: sbH(token), body: JSON.stringify(data) });
   if (!r.ok) { const t = await r.text(); throw new Error(`POST ${table}: ${t}`); }
@@ -733,6 +750,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
   const [saving,setSaving]=useState(false);const [liveUsd,setLiveUsd]=useState(null);
   useEffect(()=>{fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL').then(r=>r.json()).then(d=>{if(d.USDBRL)setLiveUsd(parseFloat(d.USDBRL.bid));}).catch(()=>{});},[]);
   const [expandedOrder,setExpandedOrder]=useState(null);
+  const [orderCardsCache,setOrderCardsCache]=useState({});
   const [showChangePw,setShowChangePw]=useState(false);
   const [newPw,setNewPw]=useState('');const [newPw2,setNewPw2]=useState('');
   const [pwVK,setPwVK]=useState(false);const [pwVKTarget,setPwVKTarget]=useState('pw1');
@@ -774,7 +792,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
       myOrders.map((o,i)=>{const isExp=expandedOrder===i;const st = String(o.status||'').toUpperCase();
         const paySt = String(o.payment_status||'').toLowerCase();
         const isPaid = (st==='PAID' || st==='CONFIRMED' || st==='APPROVED') || paySt==='approved';
-        const isPending = !isPaid && (st==='' || st==='DRAFT' || st==='PENDING' || st==='PENDING_PAYMENT' || st==='IN_PROCESS' || paySt==='pending' || paySt==='in_process');return(<Card key={o.id||i} style={{padding:0,marginBottom:6,borderColor:isPending?'rgba(201,169,110,0.15)':undefined,cursor:'pointer'}} onClick={()=>setExpandedOrder(isExp?null:i)}>
+        const isPending = !isPaid && (st==='' || st==='DRAFT' || st==='PENDING' || st==='PENDING_PAYMENT' || st==='IN_PROCESS' || paySt==='pending' || paySt==='in_process');return(<Card key={o.id||i} style={{padding:0,marginBottom:6,borderColor:isPending?'rgba(201,169,110,0.15)':undefined,cursor:'pointer'}} onClick={async()=>{const next=isExp?null:i;setExpandedOrder(next);if(next!==null && !o.cards && !orderCardsCache[String(o.id)]){const cards=await loadOrderCards(o.id, token);setOrderCardsCache(prev=>({...prev,[String(o.id)]:cards}));}}}>
         <div style={{padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
             <Tag style={{fontSize:9,padding:'2px 6px'}}>{o.payment_method==='MERCADO_PAGO'?'MP':'Bônus'}</Tag>
@@ -789,7 +807,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
           </div>
         </div>
         {isExp&&<div style={{padding:'0 14px 14px',borderTop:'1px solid rgba(255,255,255,0.04)'}}>
-          {o.cards&&o.cards.length>0?<div style={{marginTop:10}}>{o.cards.map((c,ci)=>(<div key={ci} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:12,borderBottom:ci<o.cards.length-1?'1px solid rgba(255,255,255,0.03)':'none'}}>
+          {((o.cards&&o.cards.length>0)?o.cards:(orderCardsCache[String(o.id)]||[])).length>0?<div style={{marginTop:10}}>{((o.cards&&o.cards.length>0)?o.cards:(orderCardsCache[String(o.id)]||[])).map((c,ci,arr)=>(<div key={ci} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:12,borderBottom:ci<arr.length-1?'1px solid rgba(255,255,255,0.03)':'none'}}>
             <span style={{color:'rgba(255,255,255,0.5)'}}>{c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
             <span style={{fontWeight:700}}>x{c.qty}</span>
           </div>))}</div>:<div style={{fontSize:11,color:'rgba(255,255,255,0.2)',marginTop:8}}>Detalhes não disponíveis</div>}
