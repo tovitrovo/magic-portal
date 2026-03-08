@@ -1077,7 +1077,7 @@ const CAMPAIGN_STATUSES=['DRAFT','ACTIVE','LOCKED','ORDERING','ORDERED','RECEIVE
 function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:campProp,theme,token,nav,onReload}){
   const [campaigns,setCampaigns]=useState([]);
   const [selectedCampaign,setSelectedCampaign]=useState(campProp||null);
-  const [tab,setTab]=useState('clients');
+  const [tab,setTab]=useState('orders');
   const [orders,setOrders]=useState([]);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
@@ -1092,6 +1092,10 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   const [expandedBatch,setExpandedBatch]=useState(null);
   const [batchCards,setBatchCards]=useState({});
   const [searchOrd,setSearchOrd]=useState('');
+  const [ordStatusFilter,setOrdStatusFilter]=useState('ALL');
+  const [ordSort,setOrdSort]=useState('date_desc');
+  const [expandedOrdBatch,setExpandedOrdBatch]=useState(null);
+  const [searchOrders,setSearchOrders]=useState('');
 
   const [finalList,setFinalList]=useState([]);
   const [listLoading,setListLoading]=useState(false);
@@ -1157,6 +1161,56 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
     }catch(e){console.error(e);}
   }
 
+  async function markBatchPaid(batchId){
+    if(!confirm('Marcar este pedido como PAGO manualmente?'))return;
+    try{
+      await sbPatch('order_batches','id=eq.'+batchId,{status:'PAID',confirmed_at:new Date().toISOString()},token);
+      SFX.success();loadOrders();if(onReload)onReload();
+    }catch(e){console.error(e);}
+  }
+
+  async function syncBatchMP(batchId){
+    try{
+      await mpSync(batchId);
+      SFX.success();loadOrders();
+    }catch(e){console.error('Sync error:',e);}
+  }
+
+  // Flat batch list for Orders tab
+  const allBatches=useMemo(()=>{
+    const list=[];
+    orders.forEach(o=>{(o.order_batches||[]).forEach(b=>{
+      list.push({...b,orderId:o.id,userId:o.user_id,clientName:o.profiles?.name||o.profiles?.email||'—',clientEmail:o.profiles?.email||'',clientWhatsapp:o.profiles?.whatsapp||'',qtyPaid:o.qty_paid||0,qtyBonus:o.qty_bonus||0,orderCreatedAt:o.created_at,shippingPriceLocked:o.shipping_price_brl_locked});
+    });});
+    return list;
+  },[orders]);
+
+  const ordStats=useMemo(()=>{
+    const paid=allBatches.filter(b=>b.status==='PAID'||b.status==='CONFIRMED');
+    const pending=allBatches.filter(b=>b.status==='DRAFT'||b.status==='PENDING');
+    const cancelled=allBatches.filter(b=>b.status==='CANCELLED');
+    const totalRevenue=paid.reduce((s,b)=>s+Number(b.total_locked||0),0);
+    const totalCards=paid.reduce((s,b)=>s+(b.qty_in_batch||0),0);
+    const pendingRevenue=pending.reduce((s,b)=>s+Number(b.total_locked||0),0);
+    return {total:allBatches.length,paidCount:paid.length,pendingCount:pending.length,cancelledCount:cancelled.length,totalRevenue,totalCards,pendingRevenue};
+  },[allBatches]);
+
+  const filteredBatches=useMemo(()=>{
+    let list=allBatches;
+    if(ordStatusFilter==='PAID')list=list.filter(b=>b.status==='PAID'||b.status==='CONFIRMED');
+    else if(ordStatusFilter==='PENDING')list=list.filter(b=>b.status==='DRAFT'||b.status==='PENDING');
+    else if(ordStatusFilter==='CANCELLED')list=list.filter(b=>b.status==='CANCELLED');
+    if(searchOrders){
+      const q=searchOrders.toLowerCase();
+      list=list.filter(b=>b.clientName.toLowerCase().includes(q)||b.clientEmail.toLowerCase().includes(q)||String(b.id).slice(0,8).toUpperCase().includes(q.toUpperCase())||String(b.mp_payment_id||'').includes(q));
+    }
+    if(ordSort==='date_desc')list=[...list].sort((a,b)=>new Date(b.confirmed_at||b.created_at||b.orderCreatedAt)-new Date(a.confirmed_at||a.created_at||a.orderCreatedAt));
+    else if(ordSort==='date_asc')list=[...list].sort((a,b)=>new Date(a.confirmed_at||a.created_at||a.orderCreatedAt)-new Date(b.confirmed_at||b.created_at||b.orderCreatedAt));
+    else if(ordSort==='value_desc')list=[...list].sort((a,b)=>Number(b.total_locked||0)-Number(a.total_locked||0));
+    else if(ordSort==='value_asc')list=[...list].sort((a,b)=>Number(a.total_locked||0)-Number(b.total_locked||0));
+    return list;
+  },[allBatches,ordStatusFilter,searchOrders,ordSort]);
+
   async function loadFinalList(){
     setListLoading(true);
     try{
@@ -1220,7 +1274,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   const isFinalized=selectedCampaign?.status==='DONE'||selectedCampaign?.status==='CANCELLED';
   const activeCampaigns=campaigns.filter(c=>c.status!=='DONE'&&c.status!=='CANCELLED');
   const finalizedCampaigns=campaigns.filter(c=>c.status==='DONE'||c.status==='CANCELLED');
-  const adminTabs=[{key:'clients',icon:User,label:'Clientes'},{key:'list',icon:ScrollText,label:'Lista Final'},{key:'config',icon:Settings,label:'Configurações'}];
+  const adminTabs=[{key:'orders',icon:Package,label:'Pedidos'},{key:'clients',icon:User,label:'Clientes'},{key:'list',icon:ScrollText,label:'Lista Final'},{key:'config',icon:Settings,label:'Configurações'}];
 
   if(!selectedCampaign)return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
@@ -1262,6 +1316,119 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
     </div></Card>
 
     <div style={{display:'flex',gap:3}}>{adminTabs.map(t=>(<button key={t.key} onClick={()=>{SFX.toggle();setTab(t.key);}} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:3,padding:'7px 0',borderRadius:10,border:'none',background:tab===t.key?theme.primary+'15':'rgba(255,255,255,0.025)',color:tab===t.key?theme.primary:'rgba(255,255,255,0.3)',fontWeight:600,fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><t.icon size={13}/>{t.label}</button>))}</div>
+
+    {tab==='orders'&&<>
+      {/* Stats Dashboard */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+        <Card style={{padding:'10px 14px'}}><div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>Pedidos Pagos</div><div style={{fontSize:20,fontWeight:800,color:'#2ee59d'}}>{ordStats.paidCount}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>{ordStats.totalCards} cartas</div></Card>
+        <Card style={{padding:'10px 14px'}}><div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>Receita</div><div style={{fontSize:20,fontWeight:800,color:theme.primary}}>R$ {ordStats.totalRevenue.toFixed(0)}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>confirmado</div></Card>
+        <Card style={{padding:'10px 14px'}}><div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>Pendentes</div><div style={{fontSize:20,fontWeight:800,color:'#c9a96e'}}>{ordStats.pendingCount}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>R$ {ordStats.pendingRevenue.toFixed(0)}</div></Card>
+        <Card style={{padding:'10px 14px'}}><div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>Total / Cancelados</div><div style={{fontSize:20,fontWeight:800,color:'rgba(255,255,255,0.5)'}}>{ordStats.total}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>{ordStats.cancelledCount} cancelados</div></Card>
+      </div>
+
+      {/* Status Filter Pills */}
+      <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+        {[{key:'ALL',label:'Todos',color:'rgba(255,255,255,0.4)',count:ordStats.total},{key:'PAID',label:'Pagos',color:'#2ee59d',count:ordStats.paidCount},{key:'PENDING',label:'Pendentes',color:'#c9a96e',count:ordStats.pendingCount},{key:'CANCELLED',label:'Cancelados',color:'#ff6b7a',count:ordStats.cancelledCount}].map(f=>(
+          <button key={f.key} onClick={()=>{SFX.toggle();setOrdStatusFilter(f.key);}} style={{display:'flex',alignItems:'center',gap:4,padding:'5px 10px',borderRadius:99,border:'1px solid '+(ordStatusFilter===f.key?f.color+'40':'rgba(255,255,255,0.06)'),background:ordStatusFilter===f.key?f.color+'15':'rgba(255,255,255,0.02)',color:ordStatusFilter===f.key?f.color:'rgba(255,255,255,0.3)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{f.label} <span style={{fontSize:9,opacity:.7}}>({f.count})</span></button>
+        ))}
+      </div>
+
+      {/* Search & Sort */}
+      <div style={{display:'flex',gap:6,alignItems:'center'}}>
+        <div style={{flex:1}}><Input icon={Search} placeholder="Buscar pedido, cliente, código MP..." value={searchOrders} onChange={e=>setSearchOrders(e.target.value)}/></div>
+        <select value={ordSort} onChange={e=>{setOrdSort(e.target.value);}} style={{padding:'10px 8px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:11,fontFamily:"'Outfit',sans-serif",outline:'none',cursor:'pointer'}}>
+          <option value="date_desc">Mais recente</option>
+          <option value="date_asc">Mais antigo</option>
+          <option value="value_desc">Maior valor</option>
+          <option value="value_asc">Menor valor</option>
+        </select>
+      </div>
+
+      {/* Orders List */}
+      {loading?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:
+      filteredBatches.length===0?<EmptyState icon={Package} title="Nenhum pedido" sub={searchOrders||ordStatusFilter!=='ALL'?'Tente outro filtro':'Nenhum pedido nesta campanha'}/>:
+      filteredBatches.map(b=>{
+        const isExp=expandedOrdBatch===b.id;
+        const isPaid=b.status==='PAID'||b.status==='CONFIRMED';
+        const isCancelled=b.status==='CANCELLED';
+        const isDraft=b.status==='DRAFT'||b.status==='PENDING';
+        const sid=String(b.id).slice(0,8).toUpperCase();
+        const ship=Number(b.shipping_locked||0);
+        const valNoShip=b.subtotal_locked?Number(b.subtotal_locked):Number(b.total_locked||0)-ship;
+        const total=Number(b.total_locked||0);
+        const batchDate=b.confirmed_at||b.created_at||b.orderCreatedAt;
+        const statusColor=isPaid?'#2ee59d':isCancelled?'#ff6b7a':'#c9a96e';
+        const statusLabel=isPaid?'Pago':isCancelled?'Cancelado':'Pendente';
+        const mpCode=b.mp_payment_id||b.mp_preference_id||'';
+
+        return(<Card key={b.id} style={{padding:0,marginBottom:4,borderLeft:'3px solid '+statusColor+'40'}}>
+          <div onClick={async()=>{const next=isExp?null:b.id;setExpandedOrdBatch(next);if(next)await loadBatchCards(b.id);}} style={{padding:'10px 14px',cursor:'pointer'}}>
+            {/* Row 1: ID + Client + Status */}
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+              <div style={{display:'flex',alignItems:'center',gap:6}}>
+                <span style={{fontSize:12,fontWeight:800,fontFamily:'monospace',color:'rgba(255,255,255,0.6)'}}>#{sid}</span>
+                <span style={{fontSize:13,fontWeight:700}}>{b.clientName}</span>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:4}}>
+                <Tag color={statusColor} style={{fontSize:9,padding:'3px 8px'}}>{statusLabel}</Tag>
+                <ChevronRight size={12} style={{color:'rgba(255,255,255,0.15)',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
+              </div>
+            </div>
+            {/* Row 2: Details */}
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,fontSize:11,color:'rgba(255,255,255,0.3)'}}>
+                <span>{b.qty_in_batch} cartas</span>
+                <span>•</span>
+                <span>{new Date(batchDate).toLocaleDateString('pt-BR')}</span>
+                {b.payment_method&&<><span>•</span><span>{b.payment_method==='MERCADO_PAGO'?'MP':'Outro'}</span></>}
+              </div>
+              <span style={{fontSize:13,fontWeight:800,color:isPaid?'#2ee59d':'rgba(255,255,255,0.6)'}}>R$ {total.toFixed(2)}</span>
+            </div>
+          </div>
+
+          {/* Expanded Detail */}
+          {isExp&&<div style={{borderTop:'1px solid rgba(255,255,255,0.04)',padding:'12px 14px'}}>
+            {/* Payment Info */}
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+              <div style={{padding:'8px 10px',borderRadius:10,background:'rgba(0,0,0,0.2)'}}><div style={{fontSize:9,color:'rgba(255,255,255,0.25)',marginBottom:2}}>Subtotal</div><div style={{fontSize:13,fontWeight:700}}>R$ {valNoShip.toFixed(2)}</div></div>
+              <div style={{padding:'8px 10px',borderRadius:10,background:'rgba(0,0,0,0.2)'}}><div style={{fontSize:9,color:'rgba(255,255,255,0.25)',marginBottom:2}}>Frete</div><div style={{fontSize:13,fontWeight:700}}>R$ {ship.toFixed(2)}</div></div>
+              <div style={{padding:'8px 10px',borderRadius:10,background:'rgba(0,0,0,0.2)'}}><div style={{fontSize:9,color:'rgba(255,255,255,0.25)',marginBottom:2}}>Total</div><div style={{fontSize:13,fontWeight:800,color:theme.primary}}>R$ {total.toFixed(2)}</div></div>
+              <div style={{padding:'8px 10px',borderRadius:10,background:'rgba(0,0,0,0.2)'}}><div style={{fontSize:9,color:'rgba(255,255,255,0.25)',marginBottom:2}}>Método</div><div style={{fontSize:13,fontWeight:700}}>{b.payment_method==='MERCADO_PAGO'?'Mercado Pago':b.payment_method||'—'}</div></div>
+            </div>
+
+            {/* MP Code */}
+            {mpCode&&<div style={{padding:'6px 10px',borderRadius:8,background:'rgba(0,0,0,0.15)',marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div><div style={{fontSize:9,color:'rgba(255,255,255,0.25)'}}>Código MP</div><div style={{fontSize:11,fontFamily:'monospace',color:'rgba(255,255,255,0.5)'}}>{mpCode}</div></div>
+              <button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(mpCode);SFX.success();}} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,padding:'3px 6px',color:'rgba(255,255,255,0.4)',fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><Copy size={10}/></button>
+            </div>}
+
+            {/* Client Contact */}
+            <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10,flexWrap:'wrap'}}>
+              {b.clientEmail&&<span style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'flex',alignItems:'center',gap:3}}><Mail size={10}/>{b.clientEmail}</span>}
+              {b.clientWhatsapp&&<a href={'https://wa.me/55'+b.clientWhatsapp} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:'#25d366',textDecoration:'none',display:'flex',alignItems:'center',gap:3}}><MessageCircle size={10}/> WhatsApp</a>}
+            </div>
+
+            {/* Card Items */}
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.3)',marginBottom:4}}>Itens do pedido</div>
+              {(batchCards[b.id]||[]).length>0?batchCards[b.id].map((c,ci)=>(
+                <div key={ci} style={{display:'flex',justifyContent:'space-between',padding:'3px 0',fontSize:12,borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
+                  <span style={{color:'rgba(255,255,255,0.5)'}}>{c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
+                  <span style={{fontWeight:700}}>x{c.qty}</span>
+                </div>
+              )):<div style={{fontSize:11,color:'rgba(255,255,255,0.2)'}}>Carregando itens...</div>}
+            </div>
+
+            {/* Actions */}
+            <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+              {isDraft&&<Btn variant="success" onClick={e=>{e.stopPropagation();markBatchPaid(b.id);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><CheckCircle size={12}/> Marcar Pago</Btn>}
+              {b.payment_method==='MERCADO_PAGO'&&!isCancelled&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();syncBatchMP(b.id);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><RefreshCw size={12}/> Sync MP</Btn>}
+              {!isCancelled&&<Btn variant="danger" onClick={e=>{e.stopPropagation();cancelBatch(b.id,isPaid);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><X size={12}/> {isPaid?'Cancelar (reembolso manual)':'Cancelar'}</Btn>}
+            </div>
+          </div>}
+        </Card>);
+      })}
+    </>}
 
     {tab==='clients'&&<>
       <Input icon={Search} placeholder="Buscar por nome, email ou pedido..." value={searchOrd} onChange={e=>setSearchOrd(e.target.value)}/>
