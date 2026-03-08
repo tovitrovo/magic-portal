@@ -56,7 +56,7 @@ export async function onRequest(context) {
     }
 
     // Query completa com todos os campos necessários
-    const select = "id,created_at,user_id,qty_paid,qty_bonus,status,campaign_id,shipping_price_brl_locked,profiles(name,email),order_batches(id,status,qty_in_batch,payment_status,confirmed_at,total_locked,payment_method,mp_link,mp_preference_id,payment_amount,mp_payload)";
+    const select = "id,created_at,user_id,qty_paid,qty_bonus,status,campaign_id,shipping_price_brl_locked,profiles(name,whatsapp,email),order_batches(id,status,qty_in_batch,payment_status,confirmed_at,total_locked,subtotal_locked,shipping_locked,payment_method,mp_link,mp_payment_id,mp_preference_id,payment_amount,mp_payload,created_at)";
     const url = `${SB_URL}/rest/v1/orders?select=${encodeURIComponent(select)}&campaign_id=eq.${encodeURIComponent(campaignId)}&order=created_at.desc&limit=100`;
 
     console.log('🔍 Query URL:', url);
@@ -75,16 +75,9 @@ export async function onRequest(context) {
     const data = await res.json().catch(() => []);
     console.log('✅ Data fetched:', data.length, 'orders');
 
-    // Filtrar apenas pedidos com batches pagos no lado servidor para eficiência
-    const paidOrders = data.filter(order => 
-      order.order_batches && order.order_batches.some(batch => batch.status === 'PAID' || batch.status === 'CONFIRMED')
-    );
-
-    console.log('✅ Paid orders:', paidOrders.length);
-
     return new Response(JSON.stringify({
-      orders: paidOrders,
-      total: paidOrders.length,
+      orders: data,
+      total: data.length,
       campaignId
     }), {
       status: 200, headers: { ...CORS, "Content-Type":"application/json" }
