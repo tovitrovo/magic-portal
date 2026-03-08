@@ -47,9 +47,6 @@ export async function onRequest(context) {
     const r = await fetch(url, { headers });
     const data = await r.json().catch(() => []);
     console.log('🔍 Supabase response status:', r.status, 'data length:', data.length);
-
-    const r = await fetch(url, { headers });
-    const data = await r.json().catch(() => []);
     if (!r.ok) {
       return new Response(JSON.stringify({ error: "Falha ao buscar pedidos", details: data }), {
         status: 502, headers: { ...CORS, "Content-Type":"application/json" }
