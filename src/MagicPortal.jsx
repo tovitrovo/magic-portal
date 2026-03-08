@@ -1158,7 +1158,9 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
     const msg=isPaid?'Cancelar pedido pago? O reembolso deve ser feito manualmente no Mercado Pago.':'Cancelar este pedido pendente?';
     if(!confirm(msg))return;
     try{
-      await sbPatch('order_batches','id=eq.'+batchId,{status:'CANCELLED'},token);
+      const r=await fetch('/api/admin-cancel-batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batchId})});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
       SFX.success();loadOrders();if(onReload)onReload();
     }catch(e){console.error(e);}
   }
@@ -1166,7 +1168,9 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   async function markBatchPaid(batchId){
     if(!confirm('Marcar este pedido como PAGO manualmente?'))return;
     try{
-      await sbPatch('order_batches','id=eq.'+batchId,{status:'PAID',confirmed_at:new Date().toISOString()},token);
+      const r=await fetch('/api/admin-mark-paid',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batchId})});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
       SFX.success();loadOrders();if(onReload)onReload();
     }catch(e){console.error(e);}
   }
@@ -1189,7 +1193,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
 
   const ordStats=useMemo(()=>{
     const paid=allBatches.filter(b=>b.status==='PAID'||b.status==='CONFIRMED');
-    const pending=allBatches.filter(b=>b.status==='DRAFT'||b.status==='PENDING');
+    const pending=allBatches.filter(b=>b.status==='DRAFT'||b.status==='PENDING'||b.status==='PENDING_PAYMENT');
     const cancelled=allBatches.filter(b=>b.status==='CANCELLED');
     const totalRevenue=paid.reduce((s,b)=>s+Number(b.total_locked||0),0);
     const totalCards=paid.reduce((s,b)=>s+(b.qty_in_batch||0),0);
@@ -1200,7 +1204,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   const filteredBatches=useMemo(()=>{
     let list=allBatches;
     if(ordStatusFilter==='PAID')list=list.filter(b=>b.status==='PAID'||b.status==='CONFIRMED');
-    else if(ordStatusFilter==='PENDING')list=list.filter(b=>b.status==='DRAFT'||b.status==='PENDING');
+    else if(ordStatusFilter==='PENDING')list=list.filter(b=>b.status==='DRAFT'||b.status==='PENDING'||b.status==='PENDING_PAYMENT');
     else if(ordStatusFilter==='CANCELLED')list=list.filter(b=>b.status==='CANCELLED');
     if(searchOrders){
       const q=searchOrders.toLowerCase();
@@ -1353,7 +1357,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
         const isExp=expandedOrdBatch===b.id;
         const isPaid=b.status==='PAID'||b.status==='CONFIRMED';
         const isCancelled=b.status==='CANCELLED';
-        const isDraft=b.status==='DRAFT'||b.status==='PENDING';
+        const isDraft=b.status==='DRAFT'||b.status==='PENDING'||b.status==='PENDING_PAYMENT';
         const sid=String(b.id).slice(0,8).toUpperCase();
         const ship=Number(b.shipping_locked||0);
         const valNoShip=b.subtotal_locked?Number(b.subtotal_locked):Number(b.total_locked||0)-ship;
