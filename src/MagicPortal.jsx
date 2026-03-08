@@ -1087,8 +1087,9 @@ function OnboardingPage({onComplete,theme}){
 const CAMPAIGN_STATUSES=['DRAFT','ACTIVE','LOCKED','ORDERING','ORDERED','RECEIVED','PACKING','SHIPPING','DONE','CANCELLED'];
 
 function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:campProp,theme,token,nav,onReload}){
-  const [tab,setTab]=useState('orders');const [orders,setOrders]=useState([]);const [loading,setLoading]=useState(true);
+  const [tab,setTab]=useState('paid-orders');const [orders,setOrders]=useState([]);const [loading,setLoading]=useState(true);
   const [searchOrd,setSearchOrd]=useState('');const [expandedOrd,setExpandedOrd]=useState(null);
+  const [filterStatus,setFilterStatus]=useState('PAID'); // Pendente, Pago, Todos
   // Editable copies
   const [editTiers,setEditTiers]=useState(tiersProp.map(t=>({...t})));
   const [editPricing,setEditPricing]=useState(pricingProp?{...pricingProp}:{});
@@ -1114,6 +1115,61 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
       setLoading(false);
     })();
   },[token,campProp?.id]);
+
+  // Função para marcar pedido como pago manualmente
+  async function markAsPaid(batchId){
+    try{
+      const r = await fetch('/api/admin-mark-paid', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ batchId: String(batchId) })
+      });
+      const txt = await r.text();
+      let data = {};
+      try{ data = JSON.parse(txt); }catch{ data = {}; }
+      if(!r.ok || !data.ok) throw new Error(data?.error||`HTTP ${r.status}`);
+      
+      // Atualizar estado local
+      setOrders(prev=>prev.map(o=>({
+        ...o,
+        order_batches:o.order_batches?.map(b=>b.id===batchId?{...b,status:'PAID',confirmed_at:new Date().toISOString()}:b)
+      })));
+      
+      // Recalcular pool após marcar como pago
+      await updatePoolFromPaidOrders();
+      
+      SFX.success();
+    }catch(e){console.error(e); alert('Erro ao marcar como pago: '+e.message);}
+  }
+
+  // Função para recalcular pool baseado nos pedidos pagos
+  async function updatePoolFromPaidOrders(){
+    try {
+      // Buscar todos os pedidos pagos/confirmados
+      const paidOrders = orders.filter(o => 
+        o.order_batches?.some(b => b.status === 'PAID' || b.status === 'CONFIRMED')
+      );
+      
+      // Calcular total de cartas dos pedidos pagos
+      const totalPaidCards = paidOrders.reduce((total, order) => {
+        const paidBatches = order.order_batches?.filter(b => b.status === 'PAID' || b.status === 'CONFIRMED') || [];
+        const batchTotal = paidBatches.reduce((sum, batch) => sum + (batch.qty_in_batch || 0), 0);
+        return total + batchTotal;
+      }, 0);
+      
+      // Atualizar pool na campanha
+      await sbPatch('campaigns', 'id=eq.' + campProp.id, { 
+        pool_qty_confirmed: totalPaidCards,
+        updated_at: new Date().toISOString()
+      }, token);
+      
+      // Recarregar dados para refletir mudanças
+      if(onReload) onReload();
+      
+    } catch(e) {
+      console.error('Erro ao atualizar pool:', e);
+    }
+  }
 
   async function confirmBatch(batchId){
     try{
@@ -1159,7 +1215,21 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
     return (o.profiles?.name||'').toLowerCase().includes(q)||(o.profiles?.email||'').toLowerCase().includes(q)||String(o.id).toLowerCase().includes(q)||o.order_batches?.some(b=>String(b.id).slice(0,8).toUpperCase().includes(q.toUpperCase()));
   }):orders;
 
-  const tabs=[{key:'orders',icon:Package,label:'Pedidos'},{key:'list',icon:ScrollText,label:'Lista Final'},{key:'tiers',icon:DollarSign,label:'Tiers'},{key:'pricing',icon:Settings,label:'Taxas'},{key:'campaign',icon:Calendar,label:'Campanha'}];
+  // Filtrar por status baseado na tab selecionada
+  const statusFilteredOrders = 
+    tab === 'paid-orders' ? filteredOrders.filter(o => o.order_batches?.some(b => b.status === 'PAID' || b.status === 'CONFIRMED')) :
+    tab === 'pending-orders' ? filteredOrders.filter(o => o.order_batches?.some(b => b.status === 'DRAFT' || b.status === 'PENDING_PAYMENT')) :
+    filteredOrders;
+
+  const tabs=[
+    {key:'paid-orders',icon:CheckCircle,label:'Pagos'},
+    {key:'pending-orders',icon:Package,label:'Pendentes'},
+    {key:'all-orders',icon:Package,label:'Todos'},
+    {key:'list',icon:ScrollText,label:'Lista Final'},
+    {key:'tiers',icon:DollarSign,label:'Tiers'},
+    {key:'pricing',icon:Settings,label:'Taxas'},
+    {key:'campaign',icon:Calendar,label:'Campanha'}
+  ];
   return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
       <div style={{display:'flex',alignItems:'center',gap:8}}><Shield size={18} style={{color:theme.primary}}/><span style={{fontFamily:"'Cinzel',serif",fontSize:18,fontWeight:700}}>Admin</span></div>
@@ -1174,7 +1244,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
 
     {tab==='orders'&&<>
       <Input icon={Search} placeholder="Buscar por nome, email ou pedido..." value={searchOrd} onChange={e=>setSearchOrd(e.target.value)}/>
-      {loading?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:filteredOrders.length===0?<EmptyState icon={Package} title="Nenhum pedido" sub={searchOrd?'Tente outro filtro':''}/>:filteredOrders.map(o=>{
+      {loading?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:statusFilteredOrders.length===0?<EmptyState icon={Package} title="Nenhum pedido" sub={searchOrd?'Tente outro filtro':''}/>:statusFilteredOrders.map(o=>{
         const isExp=expandedOrd===o.id;
         return(<Card key={o.id} style={{padding:0,marginBottom:4,cursor:'pointer'}} onClick={()=>setExpandedOrd(isExp?null:o.id)}>
         <div style={{padding:'10px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
@@ -1201,7 +1271,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
               {isPending&&<div style={{display:'flex',gap:4,marginTop:6}}>
                 <Btn variant="success" onClick={(e)=>{e.stopPropagation();confirmBatch(b.id);}} style={{flex:2,padding:'6px 10px',fontSize:10}} sfx=""><Check size={11}/> Confirmar</Btn>
                 <Btn variant="ghost" onClick={async(e)=>{e.stopPropagation();try{await mpSync(b.id);if(onReload)onReload();SFX.click();}catch(err){alert(err.message||String(err));}}} style={{flex:1,padding:'6px 10px',fontSize:10}} sfx=""><RefreshCw size={11}/> Atualizar MP</Btn>
-                <Btn variant="warn" onClick={async(e)=>{e.stopPropagation();await sbPatch('order_batches','id=eq.'+(b.id),{status:'PAID',confirmed_at:new Date().toISOString()},token);if(onReload)onReload();SFX.click();}} style={{flex:1,padding:'6px 10px',fontSize:10}} sfx=""><Check size={11}/> Marcar pago</Btn>
+                <Btn variant="warn" onClick={(e)=>{e.stopPropagation();markAsPaid(b.id);}} style={{flex:1,padding:'6px 10px',fontSize:10}} sfx=""><Check size={11}/> Marcar pago</Btn>
                 <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();await sbPatch('order_batches','id=eq.'+(b.id),{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}} style={{flex:1,padding:'6px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar</Btn>
               </div>}
               {b.status==='CONFIRMED'&&<Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(confirm('Cancelar pedido pago? Reembolso deve ser feito no Mercado Pago.')){await sbPatch('order_batches','id=eq.'+(b.id),{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}}} style={{marginTop:6,padding:'5px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar (pago)</Btn>}
@@ -1245,7 +1315,11 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
     </>}
 
     {tab==='list'&&<Card style={{padding:16}}>
-      <SectionTitle sub="Todas as cartas confirmadas + bônus para enviar ao fornecedor">Lista Final</SectionTitle>
+      <SectionTitle sub="Todas as cartas dos pedidos pagos para enviar ao fornecedor">Lista Final</SectionTitle>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+        <div style={{fontSize:12,color:'rgba(255,255,255,0.4)'}}>Pool atualizado automaticamente</div>
+        <Btn variant="ghost" onClick={updatePoolFromPaidOrders} style={{padding:'4px 8px',fontSize:10}} sfx=""><RefreshCw size={12}/> Atualizar Pool</Btn>
+      </div>
       {(()=>{
         const allItems={};
         orders.forEach(o=>{
@@ -1253,17 +1327,24 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
             // We'd need items, but for now aggregate from batch qty
           });
         });
-        // Show aggregate from all confirmed orders
-        const confirmed=orders.filter(o=>o.status==='CONFIRMED'||o.order_batches?.some(b=>b.status==='CONFIRMED'));
-        const totalCards=confirmed.reduce((s,o)=>(s+(o.qty_paid||0)+(o.qty_bonus||0)),0);
+        // Show aggregate from all paid orders
+        const paidOrders=orders.filter(o=>o.order_batches?.some(b=>b.status==='PAID'||b.status==='CONFIRMED'));
+        const totalCards=paidOrders.reduce((s,o)=>{
+          const paidBatches = o.order_batches?.filter(b=>b.status==='PAID'||b.status==='CONFIRMED') || [];
+          return s + paidBatches.reduce((sum, b) => sum + (b.qty_in_batch || 0), 0);
+        },0);
         return(<div>
-          <div style={{fontSize:14,fontWeight:800,color:theme.primary,marginBottom:10}}>{totalCards} cartas no total</div>
-          <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:8}}>{confirmed.length} pedidos confirmados</div>
-          {confirmed.map(o=>(<div key={o.id} style={{padding:'6px 0',borderBottom:'1px solid rgba(255,255,255,0.03)',fontSize:12}}>
-            <span style={{fontWeight:600}}>{o.profiles?.name||'—'}</span>
-            <span style={{color:'rgba(255,255,255,0.3)',marginLeft:8}}>{o.qty_paid||0} pagas + {o.qty_bonus||0} bônus</span>
-          </div>))}
-          {confirmed.length===0&&<div style={{fontSize:12,color:'rgba(255,255,255,0.2)',textAlign:'center',padding:20}}>Nenhum pedido confirmado ainda</div>}
+          <div style={{fontSize:14,fontWeight:800,color:theme.primary,marginBottom:10}}>{totalCards} cartas no total (pool)</div>
+          <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:8}}>{paidOrders.length} pedidos pagos</div>
+          {paidOrders.map(o=>{
+            const paidBatches = o.order_batches?.filter(b=>b.status==='PAID'||b.status==='CONFIRMED') || [];
+            const totalPaidCards = paidBatches.reduce((sum, b) => sum + (b.qty_in_batch || 0), 0);
+            return (<div key={o.id} style={{padding:'6px 0',borderBottom:'1px solid rgba(255,255,255,0.03)',fontSize:12}}>
+              <span style={{fontWeight:600}}>{o.profiles?.name||'—'}</span>
+              <span style={{color:'rgba(255,255,255,0.3)',marginLeft:8}}>{totalPaidCards} cartas pagas</span>
+            </div>);
+          })}
+          {paidOrders.length===0&&<div style={{fontSize:12,color:'rgba(255,255,255,0.2)',textAlign:'center',padding:20}}>Nenhum pedido pago ainda</div>}
         </div>);
       })()}
     </Card>}
