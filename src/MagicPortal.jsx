@@ -1080,6 +1080,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   const [tab,setTab]=useState('orders');
   const [orders,setOrders]=useState([]);
   const [loading,setLoading]=useState(true);
+  const [ordersLoading,setOrdersLoading]=useState(false);
   const [saving,setSaving]=useState(false);
 
   const [editTiers,setEditTiers]=useState((tiersProp||[]).map(t=>({...t})));
@@ -1113,19 +1114,19 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   useEffect(()=>{if(campProp&&!selectedCampaign)setSelectedCampaign(campProp);},[campProp]);
 
   useEffect(()=>{
-    if(selectedCampaign){loadOrders();setEditCamp({...selectedCampaign});}else{setOrders([]);setLoading(false);}
+    if(selectedCampaign){loadOrders();setEditCamp({...selectedCampaign});}else{setOrders([]);setOrdersLoading(false);}
   },[selectedCampaign?.id]);
 
   async function loadOrders(){
     if(!selectedCampaign)return;
-    setLoading(true);
+    setOrdersLoading(true);
     try{
       const r=await fetch('/api/admin-orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({campaignId:selectedCampaign.id})});
       const json=await r.json().catch(()=>({}));
       if(!r.ok)throw new Error(json.error||`HTTP ${r.status}`);
       setOrders(json.orders||[]);
-    }catch(e){console.error(e);}
-    setLoading(false);
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao carregar pedidos: '+(e.message||String(e)),'error');}
+    setOrdersLoading(false);
   }
 
   const clientGroups=useMemo(()=>{
@@ -1366,7 +1367,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
       </div>
 
       {/* Orders List */}
-      {loading?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:
+      {ordersLoading?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:
       filteredBatches.length===0?<EmptyState icon={Package} title="Nenhum pedido" sub={searchOrders||ordStatusFilter!=='ALL'?'Tente outro filtro':'Nenhum pedido nesta campanha'}/>:
       filteredBatches.map(b=>{
         const isExp=expandedOrdBatch===b.id;
@@ -1453,7 +1454,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
 
     {tab==='clients'&&<>
       <Input icon={Search} placeholder="Buscar por nome, email ou pedido..." value={searchOrd} onChange={e=>setSearchOrd(e.target.value)}/>
-      {loading?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:
+      {ordersLoading?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:
       filteredClients.length===0?<EmptyState icon={User} title="Nenhum cliente" sub={searchOrd?'Tente outro filtro':''}/>:
       filteredClients.map(client=>{const isClientExp=expandedClient===client.userId;return(
         <Card key={client.userId} style={{padding:0,marginBottom:4}}>

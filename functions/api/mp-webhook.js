@@ -49,21 +49,41 @@ export async function onRequest(context) {
       };
 
       // Atualiza o batch (principal)
+      const patchBody = {
+        status: batchStatus,
+        mp_payment_id: String(paymentId),
+        payment_status: status,
+        payment_status_detail: statusDetail,
+        payment_amount: amount,
+        mp_payload: payment,
+      };
+      if (batchStatus === "PAID") {
+        patchBody.confirmed_at = new Date().toISOString();
+      }
+
       await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(orderId)}`, {
         method: "PATCH",
         headers,
-        body: JSON.stringify({
-          status: batchStatus,
-          mp_payment_id: String(paymentId),
-          payment_status: status,
-          payment_status_detail: statusDetail,
-          payment_amount: amount,
-          mp_payload: payment,
-        }),
+        body: JSON.stringify(patchBody),
       }).catch(() => {});
 
-      // (Opcional) também atualiza orders via order_id se existir no payload do batch no seu schema
-      // Aqui a gente tenta sem saber a coluna exata: não quebra se falhar.
+      // Atualiza o status do pedido pai (orders) quando batch é pago
+      if (batchStatus === "PAID") {
+        try {
+          const batchRes = await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(orderId)}&select=order_id`, {
+            headers: { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}` },
+          });
+          const batchArr = await batchRes.json().catch(() => []);
+          const parentOrderId = Array.isArray(batchArr) && batchArr.length ? batchArr[0].order_id : null;
+          if (parentOrderId) {
+            await fetch(`${SB_URL}/rest/v1/orders?id=eq.${encodeURIComponent(parentOrderId)}`, {
+              method: "PATCH",
+              headers,
+              body: JSON.stringify({ status: "PAID" }),
+            });
+          }
+        } catch (e) { console.error('Webhook: erro ao atualizar order pai:', e); } // não bloqueia o retorno do webhook
+      }
     }
 
     return new Response("ok", { status: 200 });
