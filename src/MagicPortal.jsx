@@ -1066,72 +1066,237 @@ function OnboardingPage({onComplete,theme}){
 const CAMPAIGN_STATUSES=['DRAFT','ACTIVE','LOCKED','ORDERING','ORDERED','RECEIVED','PACKING','SHIPPING','DONE','CANCELLED'];
 
 function AdminPage({theme,token,nav,onReload}){
-  const [campaigns, setCampaigns] = useState([]);
-  const [selectedCampaign, setSelectedCampaign] = useState(null);
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [campaigns,setCampaigns]=useState([]);
+  const [campLoading,setCampLoading]=useState(true);
+  const [selectedCampaign,setSelectedCampaign]=useState(null);
 
-  // Buscar campanhas
-  useEffect(() => {
-    (async () => {
+  const [tab,setTab]=useState('orders');
+  const [orders,setOrders]=useState([]);
+  const [loading,setLoading]=useState(false);
+  const [searchOrd,setSearchOrd]=useState('');
+  const [expandedOrd,setExpandedOrd]=useState(null);
+
+  const [adminTiers,setAdminTiers]=useState([]);
+  const [editTiers,setEditTiers]=useState([]);
+  const [adminPricing,setAdminPricing]=useState(null);
+  const [editPricing,setEditPricing]=useState({});
+  const [editCamp,setEditCamp]=useState({});
+  const [saving,setSaving]=useState(false);
+  const [liveUsd,setLiveUsd]=useState(null);
+
+  // Fetch live USD
+  useEffect(()=>{fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL').then(r=>r.json()).then(d=>{if(d.USDBRL)setLiveUsd(parseFloat(d.USDBRL.bid));}).catch(()=>{});},[]);
+
+  // Fetch all campaigns on mount
+  useEffect(()=>{
+    (async()=>{
+      setCampLoading(true);
+      try{
+        const data=await sbGet('campaigns','select=*&order=created_at.desc',token);
+        setCampaigns(Array.isArray(data)?data:[]);
+      }catch(e){console.error('Erro ao buscar campanhas:',e);}
+      setCampLoading(false);
+    })();
+  },[token]);
+
+  // Fetch orders, tiers, pricing when campaign is selected
+  useEffect(()=>{
+    if(!selectedCampaign){setOrders([]);setAdminTiers([]);setEditTiers([]);setAdminPricing(null);setEditPricing({});setEditCamp({});return;}
+    setEditCamp({...selectedCampaign});
+    (async()=>{
       setLoading(true);
-      try {
-        const r = await fetch('/api/campaigns', { method: 'GET' });
-        const data = await r.json();
-        setCampaigns(Array.isArray(data) ? data : []);
-      } catch (e) {
-        console.error('Erro ao buscar campanhas:', e);
-      }
+      try{
+        const [ords,t,pc]=await Promise.all([
+          sbGet('orders',`select=id,user_id,status,qty_paid,qty_bonus,created_at,profiles(name,whatsapp,email),order_batches(id,status,total_locked,payment_method,confirmed_at,qty_in_batch)&campaign_id=eq.${selectedCampaign.id}&order=created_at.desc`,token),
+          sbGet('tiers',`select=*&order=min_qty.asc&campaign_id=eq.${selectedCampaign.id}`,token),
+          sbGet('pricing_config','select=*&is_active=eq.true&limit=1',token),
+        ]);
+        setOrders(Array.isArray(ords)?ords:[]);
+        const mappedTiers=(Array.isArray(t)?t:[]).map(tier=>({...tier,min:tier.min_qty,max:tier.max_qty||9999999,usd:Number(tier.usd_per_card),quest:tier.quest_text||''}));
+        setAdminTiers(mappedTiers);
+        setEditTiers(mappedTiers.map(tier=>({...tier})));
+        const pricing=pc[0]||null;
+        setAdminPricing(pricing);
+        setEditPricing(pricing?{...pricing}:{});
+      }catch(e){console.error(e);}
       setLoading(false);
     })();
-  }, []);
+  },[token,selectedCampaign]);
 
-  // Buscar pedidos da campanha selecionada
-  useEffect(() => {
-    if (!selectedCampaign) { setOrders([]); return; }
-    (async () => {
-      setLoading(true);
-      try {
-        const r = await fetch(`/api/orders?campaign_id=eq.${selectedCampaign.id}`, { method: 'GET' });
-        const data = await r.json();
-        setOrders(Array.isArray(data) ? data : []);
-      } catch (e) {
-        console.error('Erro ao buscar pedidos:', e);
+  const pool=selectedCampaign?.pool_qty_confirmed||0;
+  const tier=adminTiers.length>0?getTier(pool,adminTiers):null;
+  const priceBRL=tier?calcBrlPrice(tier.usd,adminPricing):0;
+
+  async function confirmBatch(batchId){
+    try{
+      await sbPatch('order_batches','id=eq.'+(batchId),{status:'CONFIRMED',confirmed_at:new Date().toISOString()},token);
+      setOrders(prev=>prev.map(o=>({...o,order_batches:o.order_batches?.map(b=>b.id===batchId?{...b,status:'CONFIRMED'}:b)})));
+      SFX.success();
+    }catch(e){console.error(e);}
+  }
+
+  async function saveTiers(){
+    setSaving(true);
+    try{
+      for(const t of editTiers){
+        await sbPatch('tiers','id=eq.'+(t.id),{usd_per_card:t.usd,label:t.label,min_qty:t.min,max_qty:t.max>999999?null:t.max,quest_text:t.quest},token);
       }
-      setLoading(false);
-    })();
-  }, [selectedCampaign]);
+      SFX.success();if(onReload)onReload();
+    }catch(e){console.error(e);}
+    setSaving(false);
+  }
 
-  return (
-    <div style={{padding:24}}>
-      <SectionTitle>Administração de Campanhas</SectionTitle>
-      <div style={{marginBottom:18}}>
-        <label style={{fontSize:13,color:'#fff',marginBottom:6}}>Selecione uma campanha:</label>
-        <select value={selectedCampaign?.id||''} onChange={e=>{
-          const camp = campaigns.find(c=>c.id===e.target.value);
-          setSelectedCampaign(camp||null);
-        }} style={{padding:'8px 12px',borderRadius:8,fontSize:14}}>
-          <option value="">-- Escolha --</option>
-          {campaigns.map(c=>(<option key={c.id} value={c.id}>{c.name} ({c.status})</option>))}
-        </select>
-      </div>
-      {loading && <Spin size={24}/>} 
-      {selectedCampaign && <div>
-        <SectionTitle sub={`Pedidos vinculados à campanha: ${selectedCampaign.name}`}>Pedidos</SectionTitle>
-        {orders.length === 0 ? <EmptyState icon={ShoppingCart} title="Nenhum pedido" sub="" /> : (
-          <div style={{display:'flex',flexDirection:'column',gap:8}}>
-            {orders.map(o => (
-              <Card key={o.id} style={{padding:'12px 16px'}}>
-                <div style={{fontWeight:700,fontSize:14}}>{o.id.slice(0,8)} - {o.status}</div>
-                <div style={{fontSize:12,color:'rgba(255,255,255,0.4)'}}>Usuário: {o.user_id} | Quantidade: {o.qty_paid} pagas, {o.qty_bonus} bônus</div>
-                <div style={{fontSize:12,color:'rgba(255,255,255,0.3)'}}>Criado em: {new Date(o.created_at).toLocaleDateString('pt-BR')}</div>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>}
+  async function savePricing(){
+    setSaving(true);
+    try{
+      const {id,...rest}=editPricing;
+      delete rest.is_active;delete rest.created_at;delete rest.updated_at;
+      await sbPatch('pricing_config','id=eq.'+(id),rest,token);
+      SFX.success();if(onReload)onReload();
+    }catch(e){console.error(e);}
+    setSaving(false);
+  }
+
+  async function saveCampaign(){
+    setSaving(true);
+    try{
+      await sbPatch('campaigns','id=eq.'+(editCamp.id),{name:editCamp.name,status:editCamp.status,close_at:editCamp.close_at,max_cards:editCamp.max_cards},token);
+      SFX.success();if(onReload)onReload();
+    }catch(e){console.error(e);}
+    setSaving(false);
+  }
+
+  const filteredOrders=searchOrd?orders.filter(o=>{
+    const q=searchOrd.toLowerCase();
+    return (o.profiles?.name||'').toLowerCase().includes(q)||(o.profiles?.email||'').toLowerCase().includes(q)||String(o.id).toLowerCase().includes(q)||o.order_batches?.some(b=>String(b.id).slice(0,8).toUpperCase().includes(q.toUpperCase()));
+  }):orders;
+
+  const tabs=[{key:'orders',icon:Package,label:'Pedidos'},{key:'list',icon:ScrollText,label:'Lista Final'},{key:'tiers',icon:DollarSign,label:'Tiers'},{key:'pricing',icon:Settings,label:'Taxas'},{key:'campaign',icon:Calendar,label:'Campanha'}];
+
+  return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+      <div style={{display:'flex',alignItems:'center',gap:8}}><Shield size={18} style={{color:theme.primary}}/><span style={{fontFamily:"'Cinzel',serif",fontSize:18,fontWeight:700}}>Admin</span></div>
+      <Btn variant="ghost" onClick={()=>nav('profile')} style={{padding:'6px 10px',fontSize:12}} sfx="nav"><ChevronLeft size={14}/></Btn>
     </div>
-  );
+
+    {/* Campaign selector */}
+    <Card style={{padding:14}}>
+      <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:6}}>Campanha</div>
+      {campLoading?<Spin size={16}/>:<select value={selectedCampaign?.id||''} onChange={e=>{const c=campaigns.find(x=>x.id===e.target.value);setSelectedCampaign(c||null);setTab('orders');}} style={{width:'100%',padding:'8px 12px',borderRadius:10,border:'1px solid rgba(255,255,255,0.1)',background:'rgba(0,0,0,0.4)',color:'#fff',fontSize:13,fontFamily:"'Outfit',sans-serif",outline:'none'}}>
+        <option value="">-- Escolha uma campanha --</option>
+        {campaigns.map(c=>(<option key={c.id} value={c.id}>{c.name} ({c.status})</option>))}
+      </select>}
+    </Card>
+
+    {selectedCampaign&&<>
+      <Card style={{padding:12}}><div style={{display:'flex',justifyContent:'space-between',fontSize:12}}>
+        <div><span style={{color:'rgba(255,255,255,0.3)'}}>Pool</span> <b style={{color:theme.primary}}>{pool}</b></div>
+        <div><span style={{color:'rgba(255,255,255,0.3)'}}>Tier</span> <b style={{color:theme.primary}}>{tier?.label} R${priceBRL.toFixed(2)}</b></div>
+        <div><span style={{color:'rgba(255,255,255,0.3)'}}>Status</span> <b style={{color:'#2ee59d'}}>{selectedCampaign?.status}</b></div>
+      </div></Card>
+      <div style={{display:'flex',gap:3}}>{tabs.map(t=>(<button key={t.key} onClick={()=>{SFX.toggle();setTab(t.key);}} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:3,padding:'7px 0',borderRadius:10,border:'none',background:tab===t.key?theme.primary+'15':'rgba(255,255,255,0.025)',color:tab===t.key?theme.primary:'rgba(255,255,255,0.3)',fontWeight:600,fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><t.icon size={12}/>{t.label}</button>))}</div>
+
+      {tab==='orders'&&<>
+        <Input icon={Search} placeholder="Buscar por nome, email ou pedido..." value={searchOrd} onChange={e=>setSearchOrd(e.target.value)}/>
+        {loading?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:filteredOrders.length===0?<EmptyState icon={Package} title="Nenhum pedido" sub={searchOrd?'Tente outro filtro':''}/>:filteredOrders.map(o=>{
+          const isExp=expandedOrd===o.id;
+          return(<Card key={o.id} style={{padding:0,marginBottom:4,cursor:'pointer'}} onClick={()=>setExpandedOrd(isExp?null:o.id)}>
+          <div style={{padding:'10px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:700}}>{o.profiles?.name||o.profiles?.email||'—'}</div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{o.profiles?.email} | {new Date(o.created_at).toLocaleDateString('pt-BR')}</div>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:4}}>
+              <Tag color={o.status==='DRAFT'?'#c9a96e':o.status==='CONFIRMED'?'#2ee59d':'#4a90d9'} style={{fontSize:9}}>{o.status}</Tag>
+              <ChevronRight size={12} style={{color:'rgba(255,255,255,0.15)',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
+            </div>
+          </div>
+          {isExp&&<div style={{padding:'0 14px 12px',borderTop:'1px solid rgba(255,255,255,0.04)'}}>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginTop:8}}>{o.qty_paid||0} pagas | {o.qty_bonus||0} bônus</div>
+            {o.order_batches?.map(b=>{const sid=String(b.id).slice(0,8).toUpperCase();const isPending=b.status==='DRAFT';return(
+              <div key={b.id} style={{padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <div><span style={{fontSize:12,fontWeight:700,fontFamily:'monospace'}}>#{sid}</span> <span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>{b.payment_method} | {b.qty_in_batch} cartas</span></div>
+                  <div style={{display:'flex',alignItems:'center',gap:6}}>
+                    <span style={{fontSize:12,fontWeight:700}}>R$ {Number(b.total_locked).toFixed(2)}</span>
+                    <Tag color={isPending?'#c9a96e':'#2ee59d'} style={{fontSize:9}}>{isPending?'Pendente':'Pago'}</Tag>
+                  </div>
+                </div>
+                {isPending&&<div style={{display:'flex',gap:4,marginTop:6}}>
+                  <Btn variant="success" onClick={(e)=>{e.stopPropagation();confirmBatch(b.id);}} style={{flex:2,padding:'6px 10px',fontSize:10}} sfx=""><Check size={11}/> Confirmar</Btn>
+                  <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();await sbPatch('order_batches','id=eq.'+(b.id),{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}} style={{flex:1,padding:'6px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar</Btn>
+                </div>}
+                {b.status==='CONFIRMED'&&<Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(confirm('Cancelar pedido pago? Reembolso deve ser feito no Mercado Pago.')){await sbPatch('order_batches','id=eq.'+(b.id),{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}}} style={{marginTop:6,padding:'5px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar (pago)</Btn>}
+              </div>
+            );})}
+            {o.profiles?.whatsapp&&<a href={'https://wa.me/55'+o.profiles.whatsapp} target="_blank" rel="noopener noreferrer" style={{display:'inline-flex',alignItems:'center',gap:4,marginTop:6,fontSize:11,color:'#25d366',textDecoration:'none'}}><MessageCircle size={12}/> WhatsApp</a>}
+          </div>}
+        </Card>);})}
+      </>}
+
+      {tab==='tiers'&&<>
+        <Card style={{padding:16}}>
+          <SectionTitle sub="Edite os preços USD e labels de cada tier">Tiers</SectionTitle>
+          {editTiers.map((t,i)=>(<div key={i} style={{padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+            <div style={{display:'flex',gap:6,alignItems:'center',marginBottom:4}}>
+              <input value={t.label} onChange={e=>{const v=[...editTiers];v[i]={...v[i],label:e.target.value};setEditTiers(v);}} style={{flex:2,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",outline:'none'}}/>
+              <div style={{display:'flex',alignItems:'center',gap:2}}><span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>US$</span><input type="number" step="0.01" value={t.usd} onChange={e=>{const v=[...editTiers];v[i]={...v[i],usd:parseFloat(e.target.value)||0};setEditTiers(v);}} style={{width:55,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/></div>
+              <div style={{display:'flex',alignItems:'center',gap:2}}><span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>R$</span><input type="number" step="1" value={calcBrlPrice(t.usd,editPricing)} onChange={e=>{const brl=parseFloat(e.target.value)||0;const usd=calcUsdFromBrl(brl,editPricing);const v=[...editTiers];v[i]={...v[i],usd};setEditTiers(v);}} style={{width:55,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:theme.primary,fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/></div>
+            </div>
+            <div style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>{t.min}-{t.max>999999?'∞':t.max} cartas</div>
+          </div>))}
+          <Btn full variant="success" onClick={saveTiers} disabled={saving} style={{marginTop:10}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar tiers</>}</Btn>
+        </Card>
+      </>}
+
+      {tab==='pricing'&&<>
+        <Card style={{padding:16}}>
+          <SectionTitle sub="Ajuste câmbio, taxas e markup">Taxas e Câmbio</SectionTitle>
+          {liveUsd&&<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 12px',borderRadius:10,background:'rgba(46,229,157,0.06)',border:'1px solid rgba(46,229,157,0.12)',marginBottom:10}}>
+            <span style={{fontSize:12,color:'rgba(255,255,255,0.5)'}}>Cotação ao vivo</span>
+            <div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:14,fontWeight:800,color:'#2ee59d'}}>R$ {liveUsd.toFixed(4)}</span>
+              <button onClick={()=>setEditPricing(p=>({...p,usd_brl_rate:liveUsd}))} style={{background:'rgba(46,229,157,0.15)',border:'1px solid rgba(46,229,157,0.2)',borderRadius:8,padding:'3px 8px',color:'#2ee59d',fontSize:10,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Usar</button>
+            </div>
+          </div>}
+          {[{k:'usd_brl_rate',l:'Câmbio USD/BRL'},{k:'card_fee_percent',l:'Taxa carta (%)'},{k:'tax_percent',l:'Imposto (%)'},{k:'markup_percent',l:'Markup (%)'},{k:'profit_fixed_brl',l:'Lucro fixo (R$)'}].map(({k,l})=>(<div key={k} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+            <span style={{fontSize:12,color:'rgba(255,255,255,0.5)'}}>{l}</span>
+            <input type="number" step="0.01" value={editPricing[k]||0} onChange={e=>setEditPricing(p=>({...p,[k]:parseFloat(e.target.value)||0}))} style={{width:80,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:13,fontWeight:700,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/>
+          </div>))}
+          <Btn full variant="success" onClick={savePricing} disabled={saving} style={{marginTop:10}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar taxas</>}</Btn>
+        </Card>
+      </>}
+
+      {tab==='list'&&<Card style={{padding:16}}>
+        <SectionTitle sub="Todas as cartas confirmadas + bônus para enviar ao fornecedor">Lista Final</SectionTitle>
+        {(()=>{
+          const confirmed=orders.filter(o=>o.status==='CONFIRMED'||o.order_batches?.some(b=>b.status==='CONFIRMED'));
+          const totalCards=confirmed.reduce((s,o)=>(s+(o.qty_paid||0)+(o.qty_bonus||0)),0);
+          return(<div>
+            <div style={{fontSize:14,fontWeight:800,color:theme.primary,marginBottom:10}}>{totalCards} cartas no total</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:8}}>{confirmed.length} pedidos confirmados</div>
+            {confirmed.map(o=>(<div key={o.id} style={{padding:'6px 0',borderBottom:'1px solid rgba(255,255,255,0.03)',fontSize:12}}>
+              <span style={{fontWeight:600}}>{o.profiles?.name||'—'}</span>
+              <span style={{color:'rgba(255,255,255,0.3)',marginLeft:8}}>{o.qty_paid||0} pagas + {o.qty_bonus||0} bônus</span>
+            </div>))}
+            {confirmed.length===0&&<div style={{fontSize:12,color:'rgba(255,255,255,0.2)',textAlign:'center',padding:20}}>Nenhum pedido confirmado ainda</div>}
+          </div>);
+        })()}
+      </Card>}
+
+      {tab==='campaign'&&<>
+        <Card style={{padding:16}}>
+          <SectionTitle sub="Configure a campanha atual">Campanha</SectionTitle>
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Nome</label><input value={editCamp.name||''} onChange={e=>setEditCamp(c=>({...c,name:e.target.value}))} style={{width:'100%',padding:'10px 12px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/></div>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Status</label><div style={{display:'flex',flexWrap:'wrap',gap:4}}>{CAMPAIGN_STATUSES.map(s=>(<button key={s} onClick={()=>setEditCamp(c=>({...c,status:s}))} style={{padding:'5px 10px',borderRadius:8,border:'1px solid '+(editCamp.status===s?theme.primary+'30':'rgba(255,255,255,0.06)'),background:editCamp.status===s?theme.primary+'15':'rgba(255,255,255,0.02)',color:editCamp.status===s?theme.primary:'rgba(255,255,255,0.3)',fontSize:10,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{s}</button>))}</div></div>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Data de fechamento</label><input type="date" value={editCamp.close_at?editCamp.close_at.slice(0,10):''} onChange={e=>setEditCamp(c=>({...c,close_at:e.target.value}))} style={{width:'100%',padding:'10px 12px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/></div>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Máximo de cartas</label><input type="number" value={editCamp.max_cards||0} onChange={e=>setEditCamp(c=>({...c,max_cards:parseInt(e.target.value)||0}))} style={{width:'100%',padding:'10px 12px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/></div>
+          </div>
+          <Btn full variant="success" onClick={saveCampaign} disabled={saving} style={{marginTop:12}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar campanha</>}</Btn>
+        </Card>
+      </>}
+    </>}
+  </div>);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1433,7 +1598,7 @@ export default function MagicPortal(){
         {page === 'checkout' && <CheckoutPage wants={wants} cartIds={cartIds} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} campaignStatus={campaign?.status} onOrderDone={handleOrderDone} toast={toast} />}
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
         {page === 'profile' && <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} />}
-        {page === 'admin' && <AdminPage pool={pool} tiers={computedTiers} priceBRL={priceBRL} pricing={pricing} campaign={campaign} theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} />}
+        {page === 'admin' && <AdminPage theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} />}
         {page === 'onboarding' && <OnboardingPage onComplete={handleOnboardingComplete} theme={theme} />}
       </div>
     </>}
