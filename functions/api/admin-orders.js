@@ -15,7 +15,23 @@ export async function onRequest(context) {
     }
 
     const body = await context.request.json().catch(() => ({}));
-    const campaignId = String(body.campaignId || "").trim();
+    let campaignId = String(body.campaignId || "").trim();
+
+    console.log('🔍 Admin orders request:', { campaignId });
+
+    // Se campaignId estiver vazio, buscar a campanha ativa
+    if (!campaignId) {
+      console.log('🔍 Buscando campanha ativa...');
+      const campUrl = `${SB_URL}/rest/v1/campaigns?select=id&status=eq.ACTIVE&limit=1`;
+      const campR = await fetch(campUrl, { headers });
+      const campData = await campR.json().catch(() => []);
+      if (campR.ok && campData.length > 0) {
+        campaignId = String(campData[0].id);
+        console.log('🔍 Campanha ativa encontrada:', campaignId);
+      } else {
+        console.log('❌ Nenhuma campanha ativa encontrada');
+      }
+    }
 
     const headers = {
       apikey: SB_SERVICE_ROLE_KEY,
@@ -24,8 +40,13 @@ export async function onRequest(context) {
 
     const select = "id,created_at,user_id,qty_paid,qty_bonus,status,campaign_id,profiles(name,email,whatsapp),order_batches(id,status,total_locked,qty_in_batch,mp_link,mp_preference_id,mp_payment_id,payment_status,payment_status_detail,confirmed_at,campaign_id)";
     let url = `${SB_URL}/rest/v1/orders?select=${encodeURIComponent(select)}&order=created_at.desc&limit=500`;
-    // Temporariamente removendo filtro de campanha para debug
-    // if (campaignId) url += `&campaign_id=eq.${encodeURIComponent(campaignId)}`;
+    if (campaignId) url += `&campaign_id=eq.${encodeURIComponent(campaignId)}`;
+
+    console.log('🔍 Supabase URL:', url);
+
+    const r = await fetch(url, { headers });
+    const data = await r.json().catch(() => []);
+    console.log('🔍 Supabase response status:', r.status, 'data length:', data.length);
 
     const r = await fetch(url, { headers });
     const data = await r.json().catch(() => []);
@@ -56,8 +77,7 @@ export async function onRequest(context) {
     }), {
       status: 200, headers: { ...CORS, "Content-Type":"application/json" }
     });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: String(e?.message||e) }), {
+  } catch (e) {    console.error('❌ Admin orders error:', e);    return new Response(JSON.stringify({ error: String(e?.message||e) }), {
       status: 500, headers: { "Content-Type":"application/json" }
     });
   }
