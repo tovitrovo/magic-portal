@@ -871,7 +871,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
         <Btn variant="success" onClick={saveAddr} disabled={saving} style={{flex:1}} sfx="success">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar</>}</Btn>
         <Btn variant="ghost" onClick={()=>setEditAddr(false)} style={{flex:1}} sfx="click">Cancelar</Btn>
       </div>
-    </Card>:<AddressDisplay address={addr} onEdit={()=>setEditAddr(true)} />
+    </Card>:<AddressDisplay address={addr} onEdit={()=>setEditAddr(true)} />}
 
     <Card style={{padding:16}}>
       <SectionTitle sub="2 cores = guilda">Mana</SectionTitle>
