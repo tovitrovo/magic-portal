@@ -1103,7 +1103,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   },[]);
 
   async function loadCampaigns(){
-    try{const r=await fetch('/api/campaigns',{method:'GET'});const data=await r.json();setCampaigns(Array.isArray(data)?data:[]);}catch(e){console.error(e);}
+    try{const r=await fetch('/api/campaigns',{method:'GET'});const data=await r.json();setCampaigns(Array.isArray(data)?data:[]);}catch(e){console.error(e);}finally{setLoading(false);}
   }
 
   useEffect(()=>{if(campProp&&!selectedCampaign)setSelectedCampaign(campProp);},[campProp]);
