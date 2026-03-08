@@ -1108,9 +1108,26 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
         });
         const txt = await r.text();
         let data = [];
-        try{ data = JSON.parse(txt); }catch{ data = []; }
+        try{ data = JSON.parse(txt); }catch{ data = {}; }
         if(!r.ok) throw new Error(data?.error||`HTTP ${r.status}`);
-        setOrders(Array.isArray(data)?data:(data?.orders||[]));
+        
+        // A API agora retorna um objeto com debug info e orders
+        const ordersData = Array.isArray(data) ? data : (data?.orders || []);
+        setOrders(ordersData);
+        
+        // Log debug info para ajudar na resolução de problemas
+        console.log('🔍 Admin orders debug:', {
+          campaignId: campProp?.id,
+          totalOrders: data.totalOrders || ordersData.length,
+          ordersWithBatches: data.ordersWithBatches,
+          paidOrders: data.paidOrders,
+          batchStatuses: data.batchStatuses,
+          sampleOrders: ordersData.slice(0, 3).map(o => ({
+            id: o.id,
+            status: o.status,
+            batches: o.order_batches?.map(b => ({ id: b.id.slice(-8), status: b.status, qty: b.qty_in_batch }))
+          }))
+        });
       } catch(e) { console.error(e); }
       setLoading(false);
     })();
@@ -1217,8 +1234,20 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
 
   // Filtrar por status baseado na tab selecionada
   const statusFilteredOrders = 
-    tab === 'paid-orders' ? filteredOrders.filter(o => o.order_batches?.some(b => b.status === 'PAID' || b.status === 'CONFIRMED')) :
-    tab === 'pending-orders' ? filteredOrders.filter(o => o.order_batches?.some(b => b.status === 'DRAFT' || b.status === 'PENDING_PAYMENT')) :
+    tab === 'paid-orders' ? filteredOrders.filter(o => {
+      const hasPaidBatch = o.order_batches?.some(b => b.status === 'PAID' || b.status === 'CONFIRMED');
+      if (hasPaidBatch) {
+        console.log(`✅ Pedido #${o.id} incluído como pago:`, o.order_batches?.map(b => `${b.id.slice(-8)}:${b.status}`));
+      }
+      return hasPaidBatch;
+    }) :
+    tab === 'pending-orders' ? filteredOrders.filter(o => {
+      const hasPendingBatch = o.order_batches?.some(b => b.status === 'DRAFT' || b.status === 'PENDING_PAYMENT');
+      if (hasPendingBatch) {
+        console.log(`⏳ Pedido #${o.id} incluído como pendente:`, o.order_batches?.map(b => `${b.id.slice(-8)}:${b.status}`));
+      }
+      return hasPendingBatch;
+    }) :
     filteredOrders;
 
   const tabs=[
