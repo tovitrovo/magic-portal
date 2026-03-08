@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS public.tiers (
 CREATE TABLE IF NOT EXISTS public.pricing_config (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   is_active         boolean DEFAULT true,
-  usd_brl_rate      numeric(10,4) NOT NULL DEFAULT 5.0,
+  usd_brl_rate      numeric(10,4) NOT NULL DEFAULT 5.0, -- valor inicial; atualize via painel admin (aba Taxas)
   card_fee_percent  numeric(6,4) DEFAULT 0,
   tax_percent       numeric(6,4) DEFAULT 0,
   markup_percent    numeric(6,4) DEFAULT 0,
