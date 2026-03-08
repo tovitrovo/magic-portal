@@ -82,7 +82,7 @@ export async function onRequest(context) {
               body: JSON.stringify({ status: "PAID" }),
             });
           }
-        } catch {} // não bloqueia o retorno do webhook
+        } catch (e) { console.error('Webhook: erro ao atualizar order pai:', e); } // não bloqueia o retorno do webhook
       }
     }
 
