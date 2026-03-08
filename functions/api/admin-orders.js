@@ -55,17 +55,30 @@ export async function onRequest(context) {
       console.log('✅ Active campaign:', campaignId);
     }
 
-    // Query completa com todos os campos necessários
-    const select = "id,created_at,user_id,qty_paid,qty_bonus,status,campaign_id,shipping_price_brl_locked,profiles(name,whatsapp,email),order_batches(id,status,qty_in_batch,payment_status,confirmed_at,total_locked,subtotal_locked,shipping_locked,payment_method,mp_link,mp_payment_id,mp_preference_id,payment_amount,mp_payload,created_at)";
-    const url = `${SB_URL}/rest/v1/orders?select=${encodeURIComponent(select)}&campaign_id=eq.${encodeURIComponent(campaignId)}&order=created_at.desc&limit=100`;
+    // Query completa com todos os campos necessários para o admin
+    const fullSelect = "id,created_at,user_id,qty_paid,qty_bonus,status,campaign_id,shipping_price_brl_locked,profiles(name,whatsapp,email),order_batches(id,status,qty_in_batch,payment_status,confirmed_at,total_locked,subtotal_locked,shipping_locked,payment_method,mp_link,mp_payment_id,mp_preference_id,payment_amount,mp_payload,created_at)";
+    // Query mínima de fallback (colunas essenciais que sempre existem)
+    const safeSelect = "id,created_at,user_id,qty_paid,qty_bonus,status,profiles(name,email),order_batches(id,status,qty_in_batch,payment_status,confirmed_at,total_locked)";
 
+    const baseParams = `&campaign_id=eq.${encodeURIComponent(campaignId)}&order=created_at.desc&limit=100`;
+
+    let url = `${SB_URL}/rest/v1/orders?select=${encodeURIComponent(fullSelect)}${baseParams}`;
     console.log('🔍 Query URL:', url);
 
-    const res = await fetch(url, { headers });
+    let res = await fetch(url, { headers });
     console.log('🔍 Response status:', res.status);
 
+    // Se a query completa falhar com 400/406 (coluna ou relação inexistente), tentar query mínima
+    if (res.status === 400 || res.status === 406) {
+      const errorText = await res.text().catch(() => '');
+      console.warn(`⚠️ Full query failed (${res.status}), retrying with safe select. Error:`, errorText);
+      url = `${SB_URL}/rest/v1/orders?select=${encodeURIComponent(safeSelect)}${baseParams}`;
+      res = await fetch(url, { headers }); // res is reassigned to a new response
+      console.log('🔍 Fallback response status:', res.status);
+    }
+
     if (!res.ok) {
-      const errorText = await res.text();
+      const errorText = await res.text().catch(() => '');
       console.error('❌ Supabase error:', res.status, errorText);
       return new Response(JSON.stringify({ error: `Erro do banco: ${res.status}`, details: errorText }), {
         status: 502, headers: { ...CORS, "Content-Type":"application/json" }
