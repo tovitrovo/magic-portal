@@ -18,7 +18,14 @@ export async function onRequest(context) {
     const body = await context.request.json().catch(() => ({}));
     let campaignId = String(body.campaignId || "").trim();
 
-    console.log('🔍 Request:', { campaignId });
+    console.log('🔍 Request body:', JSON.stringify(body));
+    console.log('🔍 Campaign ID:', campaignId);
+
+    if (!campaignId || campaignId.length !== 36) { // UUID length
+      return new Response(JSON.stringify({ error: "ID da campanha inválido" }), {
+        status: 400, headers: { ...CORS, "Content-Type":"application/json" }
+      });
+    }
 
     const headers = {
       apikey: SB_SERVICE_ROLE_KEY,
