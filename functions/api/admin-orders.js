@@ -42,12 +42,23 @@ export async function onRequest(context) {
     let url = `${SB_URL}/rest/v1/orders?select=${encodeURIComponent(select)}&order=created_at.desc&limit=500`;
     if (campaignId) url += `&campaign_id=eq.${encodeURIComponent(campaignId)}`;
 
-    console.log('🔍 Supabase URL:', url);
+    console.log('🔍 Final Supabase URL:', url);
 
-    const r = await fetch(url, { headers });
-    const data = await r.json().catch(() => []);
-    console.log('🔍 Supabase response status:', r.status, 'data length:', data.length);
+    let r, data;
+    try {
+      r = await fetch(url, { headers });
+      console.log('🔍 Fetch response status:', r.status);
+      data = await r.json().catch(() => []);
+      console.log('🔍 Data length:', data.length);
+    } catch (fetchError) {
+      console.error('❌ Fetch error:', fetchError);
+      return new Response(JSON.stringify({ error: "Erro na requisição ao banco de dados", details: String(fetchError) }), {
+        status: 500, headers: { ...CORS, "Content-Type":"application/json" }
+      });
+    }
+
     if (!r.ok) {
+      console.error('❌ Supabase error:', r.status, data);
       return new Response(JSON.stringify({ error: "Falha ao buscar pedidos", details: data }), {
         status: 502, headers: { ...CORS, "Content-Type":"application/json" }
       });
