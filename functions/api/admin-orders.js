@@ -23,9 +23,9 @@ export async function onRequest(context) {
     if (!campaignId) {
       console.log('🔍 Buscando campanha ativa...');
       const campUrl = `${SB_URL}/rest/v1/campaigns?select=id&status=eq.ACTIVE&limit=1`;
-      const campR = await fetch(campUrl, { headers });
-      const campData = await campR.json().catch(() => []);
-      if (campR.ok && campData.length > 0) {
+      const campResponse = await fetch(campUrl, { headers });
+      const campData = await campResponse.json().catch(() => []);
+      if (campResponse.ok && campData.length > 0) {
         campaignId = String(campData[0].id);
         console.log('🔍 Campanha ativa encontrada:', campaignId);
       } else {
