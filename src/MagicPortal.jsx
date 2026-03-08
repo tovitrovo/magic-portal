@@ -1125,12 +1125,12 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   const clientGroups=useMemo(()=>{
     const groups={};
     orders.forEach(o=>{
-      const activeBatches=(o.order_batches||[]).filter(b=>b.status==='PAID'||b.status==='CONFIRMED'||b.status==='DRAFT'||b.status==='PENDING_PAYMENT');
-      if(activeBatches.length===0)return;
+      const allBatches=(o.order_batches||[]);
+      if(allBatches.length===0)return;
       const key=o.user_id;
       if(!groups[key]){groups[key]={userId:o.user_id,name:o.profiles?.name||o.profiles?.email||'—',email:o.profiles?.email||'',whatsapp:o.profiles?.whatsapp||'',orders:[],totalCards:0};}
-      groups[key].orders.push({...o,order_batches:activeBatches});
-      groups[key].totalCards+=activeBatches.reduce((s,b)=>s+(b.qty_in_batch||0),0);
+      groups[key].orders.push({...o,order_batches:allBatches});
+      groups[key].totalCards+=allBatches.reduce((s,b)=>s+(b.qty_in_batch||0),0);
     });
     return Object.values(groups);
   },[orders]);
