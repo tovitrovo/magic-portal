@@ -1281,8 +1281,8 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
               const batchExp=expandedBatch===b.id;const isPaid=b.status==='PAID'||b.status==='CONFIRMED';
               const sid=String(b.id).slice(0,8).toUpperCase();
               const mpCode=b.mp_payment_id||b.mp_preference_id||'—';
-              const sub=Number(b.subtotal_locked||b.total_locked||0);const ship=Number(b.shipping_locked||0);
-              const valNoShip=sub>ship?sub-ship:sub;
+              const ship=Number(b.shipping_locked||0);
+              const valNoShip=b.subtotal_locked?Number(b.subtotal_locked):Number(b.total_locked||0)-ship;
               return(<div key={b.id} style={{padding:'8px 14px',borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
                 <div onClick={async()=>{const next=batchExp?null:b.id;setExpandedBatch(next);if(next)await loadBatchCards(b.id);}} style={{display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer'}}>
                   <div><span style={{fontSize:12,fontWeight:700,fontFamily:'monospace'}}>#{sid}</span><span style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginLeft:6}}>{b.qty_in_batch} cartas | {new Date(b.confirmed_at||b.created_at||o.created_at).toLocaleDateString('pt-BR')}</span></div>
