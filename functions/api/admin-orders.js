@@ -48,8 +48,8 @@ export async function onRequest(context) {
       console.log('✅ Active campaign:', campaignId);
     }
 
-    // Query simplificada e eficiente
-    const select = "id,created_at,user_id,qty_paid,qty_bonus,status,profiles(name,email),order_batches(id,status,qty_in_batch,payment_status,confirmed_at)";
+    // Query completa com todos os campos necessários
+    const select = "id,created_at,user_id,qty_paid,qty_bonus,status,campaign_id,shipping_price_brl_locked,profiles(name,email),order_batches(id,status,qty_in_batch,payment_status,confirmed_at,total_locked,payment_method,mp_link,mp_preference_id,payment_amount,mp_payload)";
     const url = `${SB_URL}/rest/v1/orders?select=${encodeURIComponent(select)}&campaign_id=eq.${encodeURIComponent(campaignId)}&order=created_at.desc&limit=100`;
 
     console.log('🔍 Query URL:', url);
