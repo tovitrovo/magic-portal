@@ -1109,7 +1109,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
         const txt = await r.text();
         let data = [];
         try{ data = JSON.parse(txt); }catch{ data = {}; }
-        if(!r.ok) throw new Error(data?.error||`HTTP ${r.status}`);
+        if(!r.ok) throw new Error(data?.error||`HTTP ${r.status}: ${txt}`);
         
         // A API agora retorna um objeto com debug info e orders
         const ordersData = Array.isArray(data) ? data : (data?.orders || []);
@@ -1128,7 +1128,11 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
             batches: o.order_batches?.map(b => ({ id: b.id.slice(-8), status: b.status, qty: b.qty_in_batch }))
           }))
         });
-      } catch(e) { console.error(e); }
+      } catch(e) { 
+        console.error('❌ Admin orders fetch error:', e);
+        // Mostrar erro mais detalhado ao usuário
+        alert(`Erro ao carregar pedidos: ${e.message}`);
+      }
       setLoading(false);
     })();
   },[token,campProp?.id]);
