@@ -46,9 +46,9 @@ Quer que eu ajude com algum passo específico ou há alguma funcionalidade que g
 
 ### 🔧 Configuração Inicial
 - [ ] Instalar Node.js LTS (versão 18+)
-- [ ] Executar 
-pm install para instalar dependências
+- [ ] Executar `npm install` para instalar dependências
 - [ ] Configurar variáveis de ambiente do Supabase (.env)
+- [ ] Executar `supabase/schema.sql` no SQL Editor do Supabase (ver seção abaixo)
 
 ### 🧪 Testes e Validação
 - [ ] Executar 
@@ -72,3 +72,42 @@ pm run dev e testar catálogo localmente
 - [ ] Adicionar cache para imagens das cartas
 - [ ] Melhorar UX/UI do catálogo
 - [ ] Implementar paginação infinita
+
+## 🗄️ Setup do Banco de Dados (Supabase)
+
+O arquivo `supabase/schema.sql` contém **todo** o schema necessário para o funcionamento do app e do painel admin. Execute-o no **SQL Editor** do Supabase antes de usar o sistema.
+
+### Tabelas criadas:
+
+| Tabela | Descrição |
+|--------|-----------|
+| `profiles` | Perfis de usuário (estende `auth.users`) |
+| `campaigns` | Campanhas de encomenda |
+| `tiers` | Faixas de preço por campanha |
+| `pricing_config` | Configuração global de preço (câmbio, taxas) |
+| `cards` | Catálogo de cartas MTG |
+| `orders` | Pedidos (1 por usuário por campanha) |
+| `order_batches` | Lotes de pagamento dentro de um pedido |
+| `order_items` | Itens (cartas) dentro de um batch |
+| `bonus_grants` | Bônus concedidos por campanha |
+
+### Foreign keys (obrigatórias para o painel admin):
+
+As foreign keys são **essenciais** para as queries com nested select do PostgREST:
+
+- `orders.user_id → profiles.id` — permite `orders?select=...,profiles(name,email)`
+- `orders.campaign_id → campaigns.id`
+- `order_batches.order_id → orders.id` — permite `orders?select=...,order_batches(...)`
+- `order_items.batch_id → order_batches.id` — permite `order_batches?select=...,order_items(...)`
+- `order_items.card_id → cards.id` — permite `order_items?select=...,cards(name,type)`
+
+**Sem essas FKs, o endpoint `/api/admin-orders` retorna erro ou dados incompletos.**
+
+### Como executar:
+
+1. Abra o [Supabase Dashboard](https://supabase.com/dashboard)
+2. Acesse seu projeto → **SQL Editor**
+3. Cole o conteúdo de `supabase/schema.sql`
+4. Clique **Run**
+
+O script é idempotente — pode ser executado múltiplas vezes com segurança.
