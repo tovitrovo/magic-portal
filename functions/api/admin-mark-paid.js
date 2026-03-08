@@ -42,6 +42,23 @@ export async function onRequest(context) {
       });
     }
 
+    // Atualizar o status do pedido pai (orders) para PAID
+    try {
+      const batchRes = await fetch(
+        `${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(batchId)}&select=order_id`,
+        { headers: { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}` } }
+      );
+      const batchArr = await batchRes.json().catch((e) => { console.error("admin-mark-paid: erro ao parsear resposta do batch:", e); return []; });
+      const parentOrderId = batchArr[0]?.order_id ?? null;
+      if (parentOrderId) {
+        await fetch(`${SB_URL}/rest/v1/orders?id=eq.${encodeURIComponent(parentOrderId)}`, {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify({ status: "PAID" }),
+        });
+      }
+    } catch (e) { console.error("admin-mark-paid: erro ao atualizar order pai:", e); }
+
     return new Response(JSON.stringify({ ok:true }), {
       status: 200, headers: { ...CORS, "Content-Type":"application/json" }
     });
