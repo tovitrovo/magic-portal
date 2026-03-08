@@ -1120,8 +1120,10 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
     if(!selectedCampaign)return;
     setLoading(true);
     try{
-      const data=await sbGet('orders',`select=id,user_id,status,qty_paid,qty_bonus,created_at,shipping_price_brl_locked,profiles(name,whatsapp,email),order_batches(id,status,total_locked,subtotal_locked,shipping_locked,payment_method,confirmed_at,qty_in_batch,mp_payment_id,mp_preference_id,payment_status,payment_amount,created_at)&campaign_id=eq.${selectedCampaign.id}&order=created_at.desc`,token);
-      setOrders(data||[]);
+      const r=await fetch('/api/admin-orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({campaignId:selectedCampaign.id})});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      setOrders(json.orders||[]);
     }catch(e){console.error(e);}
     setLoading(false);
   }
