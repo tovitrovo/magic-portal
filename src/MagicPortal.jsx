@@ -683,7 +683,7 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
     <Card id="tut-checkout-summary" style={{padding:18}}>
       <SectionTitle sub={totalQty+' cartas ('+totalBonus+' bônus + '+totalPaid+' pagas)'}>Resumo</SectionTitle>
       {totalBonus>0&&<><div style={{fontSize:11,fontWeight:700,color:'#2ee59d',marginBottom:6,display:'flex',alignItems:'center',gap:5}}><Gift size={12}/> Bônus (grátis)</div>
-        {bd.filter(c=>c.bonusQty>0).map((c,i)=>(<div key={'b'+i} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(46,229,157,0.08)'}}><span style={{color:'rgba(255,255,255,0.6)'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.bonusQty}</span><span style={{fontWeight:700,color:'#2ee59d'}}>R$ 0,00</span></div>))}</>}
+        {bd.filter(c=>c.bonusQty>0).map((c,i)=>(<div key={'b'+i} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(46,229,157,0.08)'}}><span style={{color:'rgba(255,255,255,0.6)'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span></span><span style={{fontWeight:700,color:'#2ee59d'}}>R$ 0,00</span></div>))}</>}
       {totalPaid>0&&<><div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.4)',marginTop:totalBonus>0?12:0,marginBottom:6,display:'flex',alignItems:'center',gap:5}}><CreditCard size={12}/> Pagas</div>
         {bd.filter(c=>c.paidQty>0).map((c,i)=>(<div key={'p'+i} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(255,255,255,0.03)'}}><span style={{color:'rgba(255,255,255,0.6)'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.paidQty}</span><span style={{fontWeight:700}}>R$ {(c.paidQty*priceBRL).toFixed(2)}</span></div>))}</>}
       <div style={{marginTop:14,display:'flex',flexDirection:'column',gap:5}}>
@@ -849,7 +849,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
             <ChevronRight size={14} style={{color:'rgba(255,255,255,0.2)',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
           </div>
         </div>
-        {isExp&&<div style={{padding:'0 14px 14px',borderTop:'1px solid rgba(255,255,255,0.04)'}}>
+        {isExp&&<div style={{padding:'0 14px 12px',borderTop:'1px solid rgba(255,255,255,0.04)'}}>
           {((o.cards&&o.cards.length>0)?o.cards:(orderCardsCache[String(o.id)]||[])).length>0?<div style={{marginTop:10}}>{((o.cards&&o.cards.length>0)?o.cards:(orderCardsCache[String(o.id)]||[])).map((c,ci,arr)=>(<div key={ci} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:12,borderBottom:ci<arr.length-1?'1px solid rgba(255,255,255,0.03)':'none'}}>
             <span style={{color:'rgba(255,255,255,0.5)'}}>{c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
             <span style={{fontWeight:700}}>x{c.qty}</span>
@@ -871,7 +871,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
         <Btn variant="success" onClick={saveAddr} disabled={saving} style={{flex:1}} sfx="success">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar</>}</Btn>
         <Btn variant="ghost" onClick={()=>setEditAddr(false)} style={{flex:1}} sfx="click">Cancelar</Btn>
       </div>
-    </Card>:<AddressDisplay address={addr} onEdit={()=>setEditAddr(true)}/>}
+    </Card>:<AddressDisplay address={addr} onEdit={()=>setEditAddr(true) />}
 
     <Card style={{padding:16}}>
       <SectionTitle sub="2 cores = guilda">Mana</SectionTitle>
@@ -879,25 +879,6 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
       {guild&&<div style={{textAlign:'center',marginBottom:10,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}><GuildBadge guild={guild} size={18}/><span style={{fontWeight:700,fontSize:15,color:gT?gT.primary:'#fff'}}>{guild}</span></div>}
       {changed&&guild&&<Btn full variant="success" onClick={saveGuild} disabled={saving} sfx="success">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar guilda</>}</Btn>}
     </Card>
-
-    <Btn full variant="secondary" onClick={()=>{SFX.toggle();setShowChangePw(!showChangePw);setPwMsg(null);setNewPw('');setNewPw2('');setPwVK(false);}} sfx=""><Lock size={16}/> {showChangePw?'Cancelar':'Alterar senha'}</Btn>
-    {showChangePw&&<Card style={{padding:16}}>
-      <SectionTitle sub="Apenas números, 6 dígitos">Nova Senha</SectionTitle>
-      <div style={{display:'flex',flexDirection:'column',gap:8}}>
-        <div onClick={()=>{setPwVKTarget('pw1');setPwVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(pwVK&&pwVKTarget==='pw1'?'var(--gp)':'rgba(255,255,255,0.08)'),background:'rgba(0,0,0,0.3)',color:newPw?'#e9edf7':'rgba(255,255,255,0.3)',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
-          <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,0.22)'}}/>
-          {newPw?<span style={{letterSpacing:6}}>{'●'.repeat(newPw.length)}<span style={{color:'rgba(255,255,255,0.15)',letterSpacing:4}}>{'○'.repeat(6-newPw.length)}</span></span>:'Nova senha'}
-        </div>
-        <div onClick={()=>{setPwVKTarget('pw2');setPwVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(pwVK&&pwVKTarget==='pw2'?'var(--gp)':'rgba(255,255,255,0.08)'),background:'rgba(0,0,0,0.3)',color:newPw2?'#e9edf7':'rgba(255,255,255,0.3)',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
-          <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,0.22)'}}/>
-          {newPw2?<span style={{letterSpacing:6}}>{'●'.repeat(newPw2.length)}<span style={{color:'rgba(255,255,255,0.15)',letterSpacing:4}}>{'○'.repeat(6-newPw2.length)}</span></span>:'Confirmar nova senha'}
-        </div>
-        {newPw2.length===6&&newPw!==newPw2&&<div style={{fontSize:11,color:'#ff6b7a',textAlign:'center'}}>As senhas não coincidem</div>}
-        {pwVK&&<VirtualKeyboard onKey={pwVKKey} onBackspace={pwVKBack} onDone={()=>setPwVK(false)} maxLen={6} currentLen={pwVKTarget==='pw1'?newPw.length:newPw2.length}/>}
-        {pwMsg&&<div style={{fontSize:12,color:pwMsg.t==='error'?'#ff6b7a':'#2ee59d',textAlign:'center'}}>{pwMsg.m}</div>}
-        <Btn full variant="success" onClick={changePassword} disabled={newPw.length<6||newPw!==newPw2||pwLoading} sfx="">{pwLoading?<Spin size={14}/>:<><Check size={14}/> Salvar nova senha</>}</Btn>
-      </div>
-    </Card>}
 
     <Btn full variant="secondary" onClick={()=>{SFX.nav();setShowTutorial(true);}} sfx=""><HelpCircle size={16}/> Ver tutorial</Btn>
     {isAdmin&&<Btn full variant="warn" onClick={()=>nav('admin')} sfx="nav"><Shield size={16}/> Painel Admin</Btn>}
@@ -1035,10 +1016,10 @@ function RecoveryPage({token,onDone,theme}){
       <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,0.22)'}}/>
       {pw2?<span style={{letterSpacing:6}}>{'●'.repeat(pw2.length)}<span style={{color:'rgba(255,255,255,0.15)',letterSpacing:4}}>{'○'.repeat(6-pw2.length)}</span></span>:'Confirmar senha'}
     </div>
-    {pw2.length===6&&pw!==pw2&&<div style={{fontSize:11,color:'#ff6b7a',textAlign:'center'}}>As senhas não coincidem</div>}
-    {showVK&&<VirtualKeyboard onKey={vkKey} onBackspace={vkBack} onDone={()=>setShowVK(false)} maxLen={6} currentLen={vkTarget==='pw'?pw.length:pw2.length}/>}
+    {pw2.length===6&&pw!==pw2&&<div style={{fontSize:11,color:'#ff6b7a',marginTop:4,textAlign:'center'}}>As senhas não coincidem</div>}
+    {showVK&&<div style={{marginTop:4}}><VirtualKeyboard onKey={vkKey} onBackspace={vkBack} onDone={()=>setShowVK(false)} maxLen={6} currentLen={currentVKLen}/></div>}
     {err&&<div style={{fontSize:12,color:'#ff6b7a',textAlign:'center'}}><AlertTriangle size={12}/> {err}</div>}
-    <Btn full onClick={save} disabled={pw.length<6||pw!==pw2||loading} sfx="">{loading?<Spin size={16}/>:<><Check size={16}/> Salvar nova senha</>}</Btn>
+    <Btn full onClick={save} disabled={pw.length<6||pw!==pw2||loading} sfx="">{loading?<Spin size={14}/>:<><Check size={16}/> Salvar nova senha</>}</Btn>
   </div>);
 }
 
@@ -1082,319 +1063,75 @@ function OnboardingPage({onComplete,theme}){
 
 // ══════════════════════════════════════════════════════
 // ADMIN — full management panel
-// ══════════════════════════════════════════════════════
-
 const CAMPAIGN_STATUSES=['DRAFT','ACTIVE','LOCKED','ORDERING','ORDERED','RECEIVED','PACKING','SHIPPING','DONE','CANCELLED'];
 
-function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:campProp,theme,token,nav,onReload}){
-  const [tab,setTab]=useState('paid-orders');const [orders,setOrders]=useState([]);const [loading,setLoading]=useState(true);
-  const [searchOrd,setSearchOrd]=useState('');const [expandedOrd,setExpandedOrd]=useState(null);
-  const [filterStatus,setFilterStatus]=useState('PAID'); // Pendente, Pago, Todos
-  // Editable copies
-  const [editTiers,setEditTiers]=useState(tiersProp.map(t=>({...t})));
-  const [editPricing,setEditPricing]=useState(pricingProp?{...pricingProp}:{});
-  const [editCamp,setEditCamp]=useState(campProp?{...campProp}:{});
-  const [saving,setSaving]=useState(false);const [liveUsd,setLiveUsd]=useState(null);
-  useEffect(()=>{fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL').then(r=>r.json()).then(d=>{if(d.USDBRL)setLiveUsd(parseFloat(d.USDBRL.bid));}).catch(()=>{});},[]);
-  const tier=tiersProp.length>0?getTier(pool,tiersProp):null;
+function AdminPage({theme,token,nav,onReload}){
+  const [campaigns, setCampaigns] = useState([]);
+  const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(()=>{
-    (async()=>{
+  // Buscar campanhas
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
       try {
-        const r = await fetch('/api/admin-orders', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ campaignId: String(campProp?.id||'') })
-        });
-        const txt = await r.text();
-        let data = [];
-        try{ data = JSON.parse(txt); }catch{ data = {}; }
-        if(!r.ok) throw new Error(data?.error||`HTTP ${r.status}: ${txt}`);
-        
-        // A API agora retorna um objeto com debug info e orders
-        const ordersData = Array.isArray(data) ? data : (data?.orders || []);
-        setOrders(ordersData);
-        
-        // Log debug info para ajudar na resolução de problemas
-        console.log('🔍 Admin orders debug:', {
-          campaignId: campProp?.id,
-          totalOrders: data.totalOrders || ordersData.length,
-          ordersWithBatches: data.ordersWithBatches,
-          paidOrders: data.paidOrders,
-          batchStatuses: data.batchStatuses,
-          sampleOrders: ordersData.slice(0, 3).map(o => ({
-            id: o.id,
-            status: o.status,
-            batches: o.order_batches?.map(b => ({ id: b.id.slice(-8), status: b.status, qty: b.qty_in_batch }))
-          }))
-        });
-      } catch(e) { 
-        console.error('❌ Admin orders fetch error:', e);
-        // Mostrar erro mais detalhado ao usuário
-        alert(`Erro ao carregar pedidos: ${e.message}`);
+        const r = await fetch('/api/campaigns', { method: 'GET' });
+        const data = await r.json();
+        setCampaigns(Array.isArray(data) ? data : []);
+      } catch (e) {
+        console.error('Erro ao buscar campanhas:', e);
       }
       setLoading(false);
     })();
-  },[token,campProp?.id]);
+  }, []);
 
-  // Função para marcar pedido como pago manualmente
-  async function markAsPaid(batchId){
-    try{
-      const r = await fetch('/api/admin-mark-paid', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ batchId: String(batchId) })
-      });
-      const txt = await r.text();
-      let data = {};
-      try{ data = JSON.parse(txt); }catch{ data = {}; }
-      if(!r.ok || !data.ok) throw new Error(data?.error||`HTTP ${r.status}`);
-      
-      // Atualizar estado local
-      setOrders(prev=>prev.map(o=>({
-        ...o,
-        order_batches:o.order_batches?.map(b=>b.id===batchId?{...b,status:'PAID',confirmed_at:new Date().toISOString()}:b)
-      })));
-      
-      // Recalcular pool após marcar como pago
-      await updatePoolFromPaidOrders();
-      
-      SFX.success();
-    }catch(e){console.error(e); alert('Erro ao marcar como pago: '+e.message);}
-  }
-
-  // Função para recalcular pool baseado nos pedidos pagos
-  async function updatePoolFromPaidOrders(){
-    try {
-      // Buscar todos os pedidos pagos/confirmados
-      const paidOrders = orders.filter(o => 
-        o.order_batches?.some(b => b.status === 'PAID' || b.status === 'CONFIRMED')
-      );
-      
-      // Calcular total de cartas dos pedidos pagos
-      const totalPaidCards = paidOrders.reduce((total, order) => {
-        const paidBatches = order.order_batches?.filter(b => b.status === 'PAID' || b.status === 'CONFIRMED') || [];
-        const batchTotal = paidBatches.reduce((sum, batch) => sum + (batch.qty_in_batch || 0), 0);
-        return total + batchTotal;
-      }, 0);
-      
-      // Atualizar pool na campanha
-      await sbPatch('campaigns', 'id=eq.' + campProp.id, { 
-        pool_qty_confirmed: totalPaidCards,
-        updated_at: new Date().toISOString()
-      }, token);
-      
-      // Recarregar dados para refletir mudanças
-      if(onReload) onReload();
-      
-    } catch(e) {
-      console.error('Erro ao atualizar pool:', e);
-    }
-  }
-
-  async function confirmBatch(batchId){
-    try{
-      await sbPatch('order_batches','id=eq.'+(batchId),{status:'CONFIRMED',confirmed_at:new Date().toISOString()},token);
-      setOrders(prev=>prev.map(o=>({...o,order_batches:o.order_batches?.map(b=>b.id===batchId?{...b,status:'CONFIRMED'}:b)})));
-      SFX.success();
-    }catch(e){console.error(e);}
-  }
-
-  async function saveTiers(){
-    setSaving(true);
-    try{
-      for(const t of editTiers){
-        await sbPatch('tiers','id=eq.'+(t.id),{usd_per_card:t.usd,label:t.label,min_qty:t.min,max_qty:t.max>999999?null:t.max,quest_text:t.quest},token);
+  // Buscar pedidos da campanha selecionada
+  useEffect(() => {
+    if (!selectedCampaign) { setOrders([]); return; }
+    (async () => {
+      setLoading(true);
+      try {
+        const r = await fetch(`/api/orders?campaign_id=eq.${selectedCampaign.id}`, { method: 'GET' });
+        const data = await r.json();
+        setOrders(Array.isArray(data) ? data : []);
+      } catch (e) {
+        console.error('Erro ao buscar pedidos:', e);
       }
-      SFX.success();if(onReload)onReload();
-    }catch(e){console.error(e);}
-    setSaving(false);
-  }
+      setLoading(false);
+    })();
+  }, [selectedCampaign]);
 
-  async function savePricing(){
-    setSaving(true);
-    try{
-      const {id,...rest}=editPricing;
-      delete rest.is_active;delete rest.created_at;delete rest.updated_at;
-      await sbPatch('pricing_config','id=eq.'+(id),rest,token);
-      SFX.success();if(onReload)onReload();
-    }catch(e){console.error(e);}
-    setSaving(false);
-  }
-
-  async function saveCampaign(){
-    setSaving(true);
-    try{
-      await sbPatch('campaigns','id=eq.'+(editCamp.id),{name:editCamp.name,status:editCamp.status,close_at:editCamp.close_at,max_cards:editCamp.max_cards},token);
-      SFX.success();if(onReload)onReload();
-    }catch(e){console.error(e);}
-    setSaving(false);
-  }
-
-  const filteredOrders=searchOrd?orders.filter(o=>{
-    const q=searchOrd.toLowerCase();
-    return (o.profiles?.name||'').toLowerCase().includes(q)||(o.profiles?.email||'').toLowerCase().includes(q)||String(o.id).toLowerCase().includes(q)||o.order_batches?.some(b=>String(b.id).slice(0,8).toUpperCase().includes(q.toUpperCase()));
-  }):orders;
-
-  // Filtrar por status baseado na tab selecionada
-  const statusFilteredOrders = 
-    tab === 'paid-orders' ? filteredOrders.filter(o => {
-      const hasPaidBatch = o.order_batches?.some(b => b.status === 'PAID' || b.status === 'CONFIRMED');
-      if (hasPaidBatch) {
-        console.log(`✅ Pedido #${o.id} incluído como pago:`, o.order_batches?.map(b => `${b.id.slice(-8)}:${b.status}`));
-      }
-      return hasPaidBatch;
-    }) :
-    tab === 'pending-orders' ? filteredOrders.filter(o => {
-      const hasPendingBatch = o.order_batches?.some(b => b.status === 'DRAFT' || b.status === 'PENDING_PAYMENT');
-      if (hasPendingBatch) {
-        console.log(`⏳ Pedido #${o.id} incluído como pendente:`, o.order_batches?.map(b => `${b.id.slice(-8)}:${b.status}`));
-      }
-      return hasPendingBatch;
-    }) :
-    filteredOrders;
-
-  const tabs=[
-    {key:'paid-orders',icon:CheckCircle,label:'Pagos'},
-    {key:'pending-orders',icon:Package,label:'Pendentes'},
-    {key:'all-orders',icon:Package,label:'Todos'},
-    {key:'list',icon:ScrollText,label:'Lista Final'},
-    {key:'tiers',icon:DollarSign,label:'Tiers'},
-    {key:'pricing',icon:Settings,label:'Taxas'},
-    {key:'campaign',icon:Calendar,label:'Campanha'}
-  ];
-  return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
-    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-      <div style={{display:'flex',alignItems:'center',gap:8}}><Shield size={18} style={{color:theme.primary}}/><span style={{fontFamily:"'Cinzel',serif",fontSize:18,fontWeight:700}}>Admin</span></div>
-      <Btn variant="ghost" onClick={()=>nav('profile')} style={{padding:'6px 10px',fontSize:12}} sfx="nav"><ChevronLeft size={14}/></Btn>
-    </div>
-    <Card style={{padding:12}}><div style={{display:'flex',justifyContent:'space-between',fontSize:12}}>
-      <div><span style={{color:'rgba(255,255,255,0.3)'}}>Pool</span> <b style={{color:theme.primary}}>{pool}</b></div>
-      <div><span style={{color:'rgba(255,255,255,0.3)'}}>Tier</span> <b style={{color:theme.primary}}>{tier?.label} R${priceBRL.toFixed(2)}</b></div>
-      <div><span style={{color:'rgba(255,255,255,0.3)'}}>Status</span> <b style={{color:'#2ee59d'}}>{campProp?.status}</b></div>
-    </div></Card>
-    <div style={{display:'flex',gap:3}}>{tabs.map(t=>(<button key={t.key} onClick={()=>{SFX.toggle();setTab(t.key);}} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:3,padding:'7px 0',borderRadius:10,border:'none',background:tab===t.key?theme.primary+'15':'rgba(255,255,255,0.025)',color:tab===t.key?theme.primary:'rgba(255,255,255,0.3)',fontWeight:600,fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><t.icon size={12}/>{t.label}</button>))}</div>
-
-    {tab==='orders'&&<>
-      <Input icon={Search} placeholder="Buscar por nome, email ou pedido..." value={searchOrd} onChange={e=>setSearchOrd(e.target.value)}/>
-      {loading?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:statusFilteredOrders.length===0?<EmptyState icon={Package} title="Nenhum pedido" sub={searchOrd?'Tente outro filtro':''}/>:statusFilteredOrders.map(o=>{
-        const isExp=expandedOrd===o.id;
-        return(<Card key={o.id} style={{padding:0,marginBottom:4,cursor:'pointer'}} onClick={()=>setExpandedOrd(isExp?null:o.id)}>
-        <div style={{padding:'10px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div>
-            <div style={{fontSize:13,fontWeight:700}}>{o.profiles?.name||o.profiles?.email||'—'}</div>
-            <div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{o.profiles?.email} | {new Date(o.created_at).toLocaleDateString('pt-BR')}</div>
-          </div>
-          <div style={{display:'flex',alignItems:'center',gap:4}}>
-            <Tag color={o.status==='DRAFT'?'#c9a96e':o.status==='CONFIRMED'?'#2ee59d':'#4a90d9'} style={{fontSize:9}}>{o.status}</Tag>
-            <ChevronRight size={12} style={{color:'rgba(255,255,255,0.15)',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
-          </div>
-        </div>
-        {isExp&&<div style={{padding:'0 14px 12px',borderTop:'1px solid rgba(255,255,255,0.04)'}}>
-          <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginTop:8}}>{o.qty_paid||0} pagas | {o.qty_bonus||0} bônus</div>
-          {o.order_batches?.map(b=>{const sid=String(b.id).slice(0,8).toUpperCase();const isPending=b.status==='DRAFT'||b.status==='PENDING_PAYMENT';return(
-            <div key={b.id} style={{padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <div><span style={{fontSize:12,fontWeight:700,fontFamily:'monospace'}}>#{sid}</span> <span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>{b.payment_method} | {b.qty_in_batch} cartas</span></div>
-                <div style={{display:'flex',alignItems:'center',gap:6}}>
-                  <span style={{fontSize:12,fontWeight:700}}>R$ {Number(b.total_locked).toFixed(2)}</span>
-                  <Tag color={isPending?'#c9a96e':'#2ee59d'} style={{fontSize:9}}>{isPending?'Pendente':'Pago'}</Tag>
-                </div>
-              </div>
-              {isPending&&<div style={{display:'flex',gap:4,marginTop:6}}>
-                <Btn variant="success" onClick={(e)=>{e.stopPropagation();confirmBatch(b.id);}} style={{flex:2,padding:'6px 10px',fontSize:10}} sfx=""><Check size={11}/> Confirmar</Btn>
-                <Btn variant="ghost" onClick={async(e)=>{e.stopPropagation();try{await mpSync(b.id);if(onReload)onReload();SFX.click();}catch(err){alert(err.message||String(err));}}} style={{flex:1,padding:'6px 10px',fontSize:10}} sfx=""><RefreshCw size={11}/> Atualizar MP</Btn>
-                <Btn variant="warn" onClick={(e)=>{e.stopPropagation();markAsPaid(b.id);}} style={{flex:1,padding:'6px 10px',fontSize:10}} sfx=""><Check size={11}/> Marcar pago</Btn>
-                <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();await sbPatch('order_batches','id=eq.'+(b.id),{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}} style={{flex:1,padding:'6px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar</Btn>
-              </div>}
-              {b.status==='CONFIRMED'&&<Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(confirm('Cancelar pedido pago? Reembolso deve ser feito no Mercado Pago.')){await sbPatch('order_batches','id=eq.'+(b.id),{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}}} style={{marginTop:6,padding:'5px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar (pago)</Btn>}
-            </div>
-          );})}
-          {o.profiles?.whatsapp&&<a href={'https://wa.me/55'+o.profiles.whatsapp} target="_blank" rel="noopener noreferrer" style={{display:'inline-flex',alignItems:'center',gap:4,marginTop:6,fontSize:11,color:'#25d366',textDecoration:'none'}}><MessageCircle size={12}/> WhatsApp</a>}
-        </div>}
-      </Card>);})}
-    </>}
-
-    {tab==='tiers'&&<>
-      <Card style={{padding:16}}>
-        <SectionTitle sub="Edite os preços USD e labels de cada tier">Tiers</SectionTitle>
-        {editTiers.map((t,i)=>(<div key={i} style={{padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
-          <div style={{display:'flex',gap:6,alignItems:'center',marginBottom:4}}>
-            <input value={t.label} onChange={e=>{const v=[...editTiers];v[i]={...v[i],label:e.target.value};setEditTiers(v);}} style={{flex:2,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",outline:'none'}}/>
-            <div style={{display:'flex',alignItems:'center',gap:2}}><span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>US$</span><input type="number" step="0.01" value={t.usd} onChange={e=>{const v=[...editTiers];v[i]={...v[i],usd:parseFloat(e.target.value)||0};setEditTiers(v);}} style={{width:55,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/></div>
-            <div style={{display:'flex',alignItems:'center',gap:2}}><span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>R$</span><input type="number" step="1" value={calcBrlPrice(t.usd,editPricing)} onChange={e=>{const brl=parseFloat(e.target.value)||0;const usd=calcUsdFromBrl(brl,editPricing);const v=[...editTiers];v[i]={...v[i],usd};setEditTiers(v);}} style={{width:55,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:theme.primary,fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/></div>
-          </div>
-          <div style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>{t.min}-{t.max>999999?'∞':t.max} cartas</div>
-        </div>))}
-        <Btn full variant="success" onClick={saveTiers} disabled={saving} style={{marginTop:10}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar tiers</>}</Btn>
-      </Card>
-    </>}
-
-    {tab==='pricing'&&<>
-      <Card style={{padding:16}}>
-        <SectionTitle sub="Ajuste câmbio, taxas e markup">Taxas e Câmbio</SectionTitle>
-        {liveUsd&&<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 12px',borderRadius:10,background:'rgba(46,229,157,0.06)',border:'1px solid rgba(46,229,157,0.12)',marginBottom:10}}>
-          <span style={{fontSize:12,color:'rgba(255,255,255,0.5)'}}>Cotação ao vivo</span>
-          <div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:14,fontWeight:800,color:'#2ee59d'}}>R$ {liveUsd.toFixed(4)}</span>
-            <button onClick={()=>setEditPricing(p=>({...p,usd_brl_rate:liveUsd}))} style={{background:'rgba(46,229,157,0.15)',border:'1px solid rgba(46,229,157,0.2)',borderRadius:8,padding:'3px 8px',color:'#2ee59d',fontSize:10,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Usar</button>
-          </div>
-        </div>}
-        {[{k:'usd_brl_rate',l:'Câmbio USD/BRL'},{k:'card_fee_percent',l:'Taxa carta (%)'},{k:'tax_percent',l:'Imposto (%)'},{k:'markup_percent',l:'Markup (%)'},{k:'profit_fixed_brl',l:'Lucro fixo (R$)'}].map(({k,l})=>(<div key={k} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
-          <span style={{fontSize:12,color:'rgba(255,255,255,0.5)'}}>{l}</span>
-          <input type="number" step="0.01" value={editPricing[k]||0} onChange={e=>setEditPricing(p=>({...p,[k]:parseFloat(e.target.value)||0}))} style={{width:80,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:13,fontWeight:700,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/>
-        </div>))}
-        <Btn full variant="success" onClick={savePricing} disabled={saving} style={{marginTop:10}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar taxas</>}</Btn>
-      </Card>
-    </>}
-
-    {tab==='list'&&<Card style={{padding:16}}>
-      <SectionTitle sub="Todas as cartas dos pedidos pagos para enviar ao fornecedor">Lista Final</SectionTitle>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-        <div style={{fontSize:12,color:'rgba(255,255,255,0.4)'}}>Pool atualizado automaticamente</div>
-        <Btn variant="ghost" onClick={updatePoolFromPaidOrders} style={{padding:'4px 8px',fontSize:10}} sfx=""><RefreshCw size={12}/> Atualizar Pool</Btn>
+  return (
+    <div style={{padding:24}}>
+      <SectionTitle>Administração de Campanhas</SectionTitle>
+      <div style={{marginBottom:18}}>
+        <label style={{fontSize:13,color:'#fff',marginBottom:6}}>Selecione uma campanha:</label>
+        <select value={selectedCampaign?.id||''} onChange={e=>{
+          const camp = campaigns.find(c=>c.id===e.target.value);
+          setSelectedCampaign(camp||null);
+        }} style={{padding:'8px 12px',borderRadius:8,fontSize:14}}>
+          <option value="">-- Escolha --</option>
+          {campaigns.map(c=>(<option key={c.id} value={c.id}>{c.name} ({c.status})</option>))}
+        </select>
       </div>
-      {(()=>{
-        const allItems={};
-        orders.forEach(o=>{
-          o.order_batches?.filter(b=>b.status==='CONFIRMED'||b.status==='DRAFT').forEach(b=>{
-            // We'd need items, but for now aggregate from batch qty
-          });
-        });
-        // Show aggregate from all paid orders
-        const paidOrders=orders.filter(o=>o.order_batches?.some(b=>b.status==='PAID'||b.status==='CONFIRMED'));
-        const totalCards=paidOrders.reduce((s,o)=>{
-          const paidBatches = o.order_batches?.filter(b=>b.status==='PAID'||b.status==='CONFIRMED') || [];
-          return s + paidBatches.reduce((sum, b) => sum + (b.qty_in_batch || 0), 0);
-        },0);
-        return(<div>
-          <div style={{fontSize:14,fontWeight:800,color:theme.primary,marginBottom:10}}>{totalCards} cartas no total (pool)</div>
-          <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:8}}>{paidOrders.length} pedidos pagos</div>
-          {paidOrders.map(o=>{
-            const paidBatches = o.order_batches?.filter(b=>b.status==='PAID'||b.status==='CONFIRMED') || [];
-            const totalPaidCards = paidBatches.reduce((sum, b) => sum + (b.qty_in_batch || 0), 0);
-            return (<div key={o.id} style={{padding:'6px 0',borderBottom:'1px solid rgba(255,255,255,0.03)',fontSize:12}}>
-              <span style={{fontWeight:600}}>{o.profiles?.name||'—'}</span>
-              <span style={{color:'rgba(255,255,255,0.3)',marginLeft:8}}>{totalPaidCards} cartas pagas</span>
-            </div>);
-          })}
-          {paidOrders.length===0&&<div style={{fontSize:12,color:'rgba(255,255,255,0.2)',textAlign:'center',padding:20}}>Nenhum pedido pago ainda</div>}
-        </div>);
-      })()}
-    </Card>}
-
-    {tab==='campaign'&&<>
-      <Card style={{padding:16}}>
-        <SectionTitle sub="Configure a campanha atual">Campanha</SectionTitle>
-        <div style={{display:'flex',flexDirection:'column',gap:10}}>
-          <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Nome</label><input value={editCamp.name||''} onChange={e=>setEditCamp(c=>({...c,name:e.target.value}))} style={{width:'100%',padding:'10px 12px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/></div>
-          <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Status</label><div style={{display:'flex',flexWrap:'wrap',gap:4}}>{CAMPAIGN_STATUSES.map(s=>(<button key={s} onClick={()=>setEditCamp(c=>({...c,status:s}))} style={{padding:'5px 10px',borderRadius:8,border:'1px solid '+(editCamp.status===s?theme.primary+'30':'rgba(255,255,255,0.06)'),background:editCamp.status===s?theme.primary+'15':'rgba(255,255,255,0.02)',color:editCamp.status===s?theme.primary:'rgba(255,255,255,0.3)',fontSize:10,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{s}</button>))}</div></div>
-          <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Data de fechamento</label><input type="date" value={editCamp.close_at?editCamp.close_at.slice(0,10):''} onChange={e=>setEditCamp(c=>({...c,close_at:e.target.value}))} style={{width:'100%',padding:'10px 12px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/></div>
-          <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Máximo de cartas</label><input type="number" value={editCamp.max_cards||0} onChange={e=>setEditCamp(c=>({...c,max_cards:parseInt(e.target.value)||0}))} style={{width:'100%',padding:'10px 12px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/></div>
-        </div>
-        <Btn full variant="success" onClick={saveCampaign} disabled={saving} style={{marginTop:12}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar campanha</>}</Btn>
-      </Card>
-    </>}
-  </div>);
+      {loading && <Spin size={24}/>} 
+      {selectedCampaign && <div>
+        <SectionTitle sub={`Pedidos vinculados à campanha: ${selectedCampaign.name}`}>Pedidos</SectionTitle>
+        {orders.length === 0 ? <EmptyState icon={ShoppingCart} title="Nenhum pedido" sub="" /> : (
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {orders.map(o => (
+              <Card key={o.id} style={{padding:'12px 16px'}}>
+                <div style={{fontWeight:700,fontSize:14}}>{o.id.slice(0,8)} - {o.status}</div>
+                <div style={{fontSize:12,color:'rgba(255,255,255,0.4)'}}>Usuário: {o.user_id} | Quantidade: {o.qty_paid} pagas, {o.qty_bonus} bônus</div>
+                <div style={{fontSize:12,color:'rgba(255,255,255,0.3)'}}>Criado em: {new Date(o.created_at).toLocaleDateString('pt-BR')}</div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>}
+    </div>
+  );
 }
 
 // ══════════════════════════════════════════════════════
