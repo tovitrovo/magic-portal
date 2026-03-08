@@ -28,6 +28,18 @@ pm run dev
 
 O sistema já está **pronto para uso**! 🎉
 
+### ✅ Funcionalidades Implementadas
+- ✅ Catálogo de cartas MTG do Supabase
+- ✅ Busca e filtros funcionais  
+- ✅ Adicionar cartas aos wants
+- ✅ Persistência no banco de dados
+- ✅ Interface responsiva
+- ✅ **Painel Admin Completo:**
+  - Visualizar todos os pedidos pagos
+  - Marcar pedidos como pagos manualmente
+  - Lista final atualizada automaticamente
+  - Pool recalculado baseado em pedidos pagos
+
 Quer que eu ajude com algum passo específico ou há alguma funcionalidade que gostaria de ajustar?
 
 ## 📝 TODO List - Próximas Tarefas
@@ -52,7 +64,7 @@ pm run dev e testar catálogo localmente
 - [ ] Integração com Mercado Pago para pagamentos
 - [ ] Cálculo de frete com Manda Bem
 - [ ] Sistema de notificações por email
-- [ ] Dashboard administrativo para gerenciar campanhas
+- [x] Dashboard administrativo para gerenciar campanhas
 
 ### 📊 Melhorias Técnicas
 - [ ] Implementar testes automatizados
