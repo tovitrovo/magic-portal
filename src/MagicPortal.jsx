@@ -1074,7 +1074,7 @@ function OnboardingPage({onComplete,theme}){
 // ADMIN — full management panel
 const CAMPAIGN_STATUSES=['DRAFT','ACTIVE','LOCKED','ORDERING','ORDERED','RECEIVED','PACKING','SHIPPING','DONE','CANCELLED'];
 
-function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:campProp,theme,token,nav,onReload}){
+function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:campProp,theme,token,nav,onReload,toast:toastFn}){
   const [campaigns,setCampaigns]=useState([]);
   const [selectedCampaign,setSelectedCampaign]=useState(campProp||null);
   const [tab,setTab]=useState('orders');
@@ -1149,9 +1149,11 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   async function loadBatchCards(batchId){
     if(batchCards[batchId])return;
     try{
-      const items=await sbGet('order_items',`batch_id=eq.${batchId}&select=id,quantity,cards(name,type)`,token);
-      setBatchCards(prev=>({...prev,[batchId]:items.map(i=>({name:i.cards?.name||'Carta',type:i.cards?.type||'',qty:Number(i.quantity||1)}))}));
-    }catch(e){console.error(e);}
+      const r=await fetch('/api/admin-batch-items',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchIds:[batchId]})});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      setBatchCards(prev=>({...prev,[batchId]:(json.items||[]).map(i=>({name:i.cards?.name||'Carta',type:i.cards?.type||'',qty:Number(i.quantity||1)}))}));
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao carregar itens: '+(e.message||String(e)),'error');}
   }
 
   async function cancelBatch(batchId,isPaid){
@@ -1225,11 +1227,13 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
         if(b.status==='PAID'||b.status==='CONFIRMED'){paidBatchIds.push(b.id);batchMeta[b.id]={userName:o.profiles?.name||'—',date:b.confirmed_at||b.created_at||o.created_at};}
       });});
       if(paidBatchIds.length===0){setFinalList([]);setListLoading(false);return;}
-      const items=await sbGet('order_items',`batch_id=in.(${paidBatchIds.join(',')})&select=id,quantity,batch_id,cards(name,type)&order=created_at.asc`,token);
-      const list=(items||[]).map(i=>{const m=batchMeta[i.batch_id]||{};return{name:i.cards?.name||'Carta',type:i.cards?.type||'',qty:Number(i.quantity||1),userName:m.userName||'—',date:m.date||''};});
+      const r=await fetch('/api/admin-batch-items',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchIds:paidBatchIds})});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      const list=(json.items||[]).map(i=>{const m=batchMeta[i.batch_id]||{};return{name:i.cards?.name||'Carta',type:i.cards?.type||'',qty:Number(i.quantity||1),userName:m.userName||'—',date:m.date||''};});
       list.sort((a,b)=>new Date(a.date)-new Date(b.date));
       setFinalList(list);
-    }catch(e){console.error(e);}
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao gerar lista: '+(e.message||String(e)),'error');}
     setListLoading(false);
   }
 
@@ -1241,29 +1245,40 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   async function saveTiers(){
     setSaving(true);
     try{
-      for(const t of editTiers){
+      const payload=editTiers.map(t=>{
         const add=tierAdditional[t.id]||0;
         const finalBrl=calcBrlPrice(t.usd,editPricing)+add;
         const newUsd=add?calcUsdFromBrl(finalBrl,editPricing):t.usd;
-        await sbPatch('tiers','id=eq.'+t.id,{usd_per_card:newUsd,label:t.label,min_qty:t.min,max_qty:t.max>999999?null:t.max,quest_text:t.quest},token);
-      }
+        return{id:t.id,usd_per_card:newUsd,label:t.label,min_qty:t.min,max_qty:t.max>999999?null:t.max,quest_text:t.quest};
+      });
+      const r=await fetch('/api/admin-save-tiers',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({tiers:payload})});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
       setTierAdditional({});SFX.success();if(onReload)onReload();
-    }catch(e){console.error(e);}
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao salvar tiers: '+(e.message||String(e)),'error');}
     setSaving(false);
   }
 
   async function savePricing(){
     setSaving(true);
-    try{const{id,...rest}=editPricing;delete rest.is_active;delete rest.created_at;delete rest.updated_at;await sbPatch('pricing_config','id=eq.'+id,rest,token);SFX.success();if(onReload)onReload();}catch(e){console.error(e);}
+    try{
+      const{id,...rest}=editPricing;delete rest.is_active;delete rest.created_at;delete rest.updated_at;
+      const r=await fetch('/api/admin-save-pricing',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({id,...rest})});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      SFX.success();if(onReload)onReload();
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao salvar taxas: '+(e.message||String(e)),'error');}
     setSaving(false);
   }
 
   async function saveCampaign(){
     setSaving(true);
     try{
-      await sbPatch('campaigns','id=eq.'+editCamp.id,{name:editCamp.name,status:editCamp.status,close_at:editCamp.close_at,max_cards:editCamp.max_cards},token);
+      const r=await fetch('/api/campaigns',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:editCamp.id,name:editCamp.name,status:editCamp.status,close_at:editCamp.close_at,max_cards:editCamp.max_cards})});
+      const data=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(data.error||`HTTP ${r.status}`);
       SFX.success();setSelectedCampaign(prev=>({...prev,...editCamp}));if(onReload)onReload();loadCampaigns();
-    }catch(e){console.error(e);}
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao salvar campanha: '+(e.message||String(e)),'error');}
     setSaving(false);
   }
 
@@ -1851,7 +1866,7 @@ export default function MagicPortal(){
         {page === 'checkout' && <CheckoutPage wants={wants} cartIds={cartIds} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} campaignStatus={campaign?.status} onOrderDone={handleOrderDone} toast={toast} />}
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
         {page === 'profile' && <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} campaign={campaign} />}
-        {page === 'admin' && <AdminPage pool={pool} tiers={computedTiers} priceBRL={priceBRL} pricing={pricing} campaign={campaign} theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} />}
+        {page === 'admin' && <AdminPage pool={pool} tiers={computedTiers} priceBRL={priceBRL} pricing={pricing} campaign={campaign} theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} toast={toast} />}
         {page === 'onboarding' && <OnboardingPage onComplete={handleOnboardingComplete} theme={theme} />}
       </div>
     </>}
