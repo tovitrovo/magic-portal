@@ -40,7 +40,7 @@ async function debugOrders() {
         qty_bonus,
         status,
         campaign_id,
-        profiles(name, email, whatsapp),
+        profiles(name, whatsapp),
         order_batches(
           id,
           status,
@@ -80,7 +80,7 @@ async function debugOrders() {
       }
 
       console.log(`Pedido #${order.id}:`);
-      console.log(`  Cliente: ${order.profiles?.name || order.profiles?.email || 'N/A'}`);
+      console.log(`  Cliente: ${order.profiles?.name || 'N/A'}`);
       console.log(`  Status: ${order.status}`);
       console.log(`  Batches: ${batches.length}`);
       batches.forEach(batch => {

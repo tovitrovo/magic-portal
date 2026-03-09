@@ -1135,7 +1135,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
       const allBatches=(o.order_batches||[]);
       if(allBatches.length===0)return;
       const key=o.user_id;
-      if(!groups[key]){groups[key]={userId:o.user_id,name:o.profiles?.name||o.profiles?.email||'—',email:o.profiles?.email||'',whatsapp:o.profiles?.whatsapp||'',orders:[],totalCards:0};}
+      if(!groups[key]){groups[key]={userId:o.user_id,name:o.profiles?.name||'—',whatsapp:o.profiles?.whatsapp||'',orders:[],totalCards:0};}
       groups[key].orders.push({...o,order_batches:allBatches});
       groups[key].totalCards+=allBatches.reduce((s,b)=>s+(b.qty_in_batch||0),0);
     });
@@ -1144,7 +1144,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
 
   const filteredClients=searchOrd?clientGroups.filter(c=>{
     const q=searchOrd.toLowerCase();
-    return c.name.toLowerCase().includes(q)||c.email.toLowerCase().includes(q)||c.orders.some(o=>String(o.id).toLowerCase().includes(q)||o.order_batches?.some(b=>String(b.id).slice(0,8).toUpperCase().includes(q.toUpperCase())));
+    return c.name.toLowerCase().includes(q)||c.whatsapp.toLowerCase().includes(q)||c.orders.some(o=>String(o.id).toLowerCase().includes(q)||o.order_batches?.some(b=>String(b.id).slice(0,8).toUpperCase().includes(q.toUpperCase())));
   }):clientGroups;
 
   async function loadBatchCards(batchId){
@@ -1189,7 +1189,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   const allBatches=useMemo(()=>{
     const list=[];
     orders.forEach(o=>{(o.order_batches||[]).forEach(b=>{
-      list.push({...b,orderId:o.id,userId:o.user_id,clientName:o.profiles?.name||o.profiles?.email||'—',clientEmail:o.profiles?.email||'',clientWhatsapp:o.profiles?.whatsapp||'',qtyPaid:o.qty_paid||0,qtyBonus:o.qty_bonus||0,orderCreatedAt:o.created_at,shippingPriceLocked:o.shipping_price_brl_locked});
+      list.push({...b,orderId:o.id,userId:o.user_id,clientName:o.profiles?.name||'—',clientWhatsapp:o.profiles?.whatsapp||'',qtyPaid:o.qty_paid||0,qtyBonus:o.qty_bonus||0,orderCreatedAt:o.created_at,shippingPriceLocked:o.shipping_price_brl_locked});
     });});
     return list;
   },[orders]);
@@ -1459,7 +1459,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
       filteredClients.map(client=>{const isClientExp=expandedClient===client.userId;return(
         <Card key={client.userId} style={{padding:0,marginBottom:4}}>
           <div onClick={()=>setExpandedClient(isClientExp?null:client.userId)} style={{padding:'10px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer'}}>
-            <div><div style={{fontSize:13,fontWeight:700}}>{client.name}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{client.email}</div></div>
+            <div><div style={{fontSize:13,fontWeight:700}}>{client.name}</div>{client.whatsapp&&<div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{client.whatsapp}</div>}</div>
             <div style={{display:'flex',alignItems:'center',gap:4}}>
               <Tag style={{fontSize:9}}>{client.totalCards} cartas</Tag>
               <ChevronRight size={12} style={{color:'rgba(255,255,255,0.15)',transform:isClientExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
@@ -1649,8 +1649,10 @@ export default function MagicPortal(){
   async function loadAppData(tkn, userId) {
     setAppLoading(true);
     try {
-      // Profile
-      const [prof] = await sbGet('profiles', 'id=eq.'+(userId), tkn);
+      // Profile — seleciona apenas colunas existentes (email fica em auth.users, não em profiles)
+      const [prof] = await sbGet('profiles', 'id=eq.'+(userId)+'&select=id,name,is_admin,guild,whatsapp,cep,rua,numero,complemento,bairro,cidade,uf,mana_color_1,mana_color_2', tkn);
+      console.log('[loadAppData] profile:', prof);
+      console.log('[loadAppData] is_admin:', prof?.is_admin);
       setProfile(prof);
 
       // Campaign

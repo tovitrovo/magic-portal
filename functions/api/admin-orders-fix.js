@@ -42,7 +42,8 @@ export async function onRequest(context) {
     }
 
     // Query corrigida: Supabase exige o filtro campaign_id no formato correto
-    const select = "id,created_at,user_id,qty_paid,qty_bonus,status,profiles(name,email),order_batches(id,status,qty_in_batch,payment_status,confirmed_at)";
+    // NOTA: profiles não tem coluna email — o email fica em auth.users
+    const select = "id,created_at,user_id,qty_paid,qty_bonus,status,profiles(name,whatsapp),order_batches(id,status,qty_in_batch,payment_status,confirmed_at)";
     const url = `${SB_URL}/rest/v1/orders?select=${encodeURIComponent(select)}&campaign_id=eq.${encodeURIComponent(campaignId)}&order=created_at.desc&limit=100`;
 
     // Supabase pode exigir o filtro como um parâmetro separado, não concatenado
