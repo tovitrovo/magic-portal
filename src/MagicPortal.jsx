@@ -312,18 +312,34 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
   const s=steps[step];const isLast=step===steps.length-1;const [rect,setRect]=useState(null);
   useEffect(()=>{if(s.navTo&&onNavTo)onNavTo(s.navTo);},[step]);
   useEffect(()=>{const findEl=()=>{if(!s.spotlightId){setRect(null);return;}const el=document.getElementById(s.spotlightId);if(el){if(s.scrollTo)el.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>{const r=el.getBoundingClientRect();setRect({top:r.top-6,left:r.left-6,width:r.width+12,height:r.height+12});},s.scrollTo?300:0);}else{setRect(null);}};const t=setTimeout(findEl,200);return()=>clearTimeout(t);},[step,s.spotlightId]);
-  const msgTop=rect?(rect.top>window.innerHeight/2?Math.max(60,rect.top-180):rect.top+rect.height+16):null;
+  const cardAbove=rect&&rect.top>window.innerHeight/2;
+  const msgTop=rect?(cardAbove?Math.max(60,rect.top-220):rect.top+rect.height+20):null;
   return(<div style={{position:'fixed',inset:0,zIndex:100,pointerEvents:'auto'}}>
     <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.78)'}} onClick={isFirstTime?undefined:onSkip}/>
     {rect&&<div style={{position:'absolute',top:rect.top,left:rect.left,width:rect.width,height:rect.height,borderRadius:14,border:'2.5px solid '+theme.primary,boxShadow:'0 0 0 9999px rgba(0,0,0,0.78), 0 0 30px '+theme.glow+', inset 0 0 20px '+theme.glow,background:'transparent',zIndex:101,pointerEvents:'none',animation:'tutPulse 1.5s ease-in-out infinite'}}/>}
     <div style={{position:rect?'absolute':'fixed',top:msgTop||'50%',left:'50%',transform:rect?'translateX(-50%)':'translate(-50%,-50%)',width:'calc(100% - 40px)',maxWidth:420,zIndex:102}}>
+      {rect&&!cardAbove&&<div style={{display:'flex',justifyContent:'center',marginBottom:-1,pointerEvents:'none'}}>
+        <div style={{width:0,height:0,borderLeft:'10px solid transparent',borderRight:'10px solid transparent',borderBottom:'12px solid '+theme.primary+'60',animation:'tutArrowBounce 1.2s ease-in-out infinite',filter:'drop-shadow(0 0 6px '+theme.glow+')'}}/>
+      </div>}
       <Card glow={theme.glow} style={{padding:18,background:'rgba(12,12,20,0.97)',border:'1px solid '+theme.primary+'30'}}>
         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
-          <div style={{width:32,height:32,borderRadius:10,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.06)',display:'grid',placeItems:'center',fontSize:16}}>🧙</div>
-          <div><div style={{fontWeight:800,fontSize:12}}>Goblin Guia</div><div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>Passo {step+1} de {steps.length}</div></div>
+          <div style={{width:38,height:38,borderRadius:12,background:theme.primary+'14',border:'1px solid '+theme.primary+'25',display:'grid',placeItems:'center',fontSize:20}}>{s.icon||'🧙'}</div>
+          <div style={{flex:1}}><div style={{fontWeight:800,fontSize:13}}>Goblin Guia</div><div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>Passo {step+1} de {steps.length}</div></div>
         </div>
-        <div style={{fontSize:14,fontWeight:700,color:theme.primary,marginBottom:4}}>{s.title}</div>
-        <div style={{fontSize:13,lineHeight:1.6,color:'rgba(255,255,255,0.6)',marginBottom:14}}>{s.body}</div>
+        <div style={{fontSize:15,fontWeight:700,color:theme.primary,marginBottom:6}}>{s.title}</div>
+        <div style={{fontSize:13,lineHeight:1.7,color:'rgba(255,255,255,0.6)',marginBottom:8}}>{s.body}</div>
+        {s.gesture==='swipe'&&<div style={{display:'flex',justifyContent:'center',gap:20,padding:'10px 0',marginBottom:6}}>
+          <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:10,background:'rgba(217,68,82,0.08)',border:'1px solid rgba(217,68,82,0.15)'}}>
+            <span style={{fontSize:14}}>👈</span><span style={{fontSize:11,color:'#ff6b7a',fontWeight:600}}>Excluir</span>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:10,background:'rgba(46,229,157,0.08)',border:'1px solid rgba(46,229,157,0.15)'}}>
+            <span style={{fontSize:11,color:'#2ee59d',fontWeight:600}}>Carrinho</span><span style={{fontSize:14}}>👉</span>
+          </div>
+        </div>}
+        {s.tip&&<div style={{display:'flex',alignItems:'center',gap:6,padding:'7px 10px',borderRadius:10,background:theme.primary+'0a',border:'1px solid '+theme.primary+'15',marginBottom:10}}>
+          <HelpCircle size={13} style={{color:theme.primary,flexShrink:0}}/>
+          <span style={{fontSize:11,color:theme.primary,fontWeight:600}}>{s.tip}</span>
+        </div>}
         <div style={{display:'flex',gap:5,justifyContent:'center',marginBottom:12}}>{steps.map((_,i)=><div key={i} style={{width:i===step?18:6,height:5,borderRadius:3,background:i===step?theme.primary:'rgba(255,255,255,0.08)',transition:'all .3s'}}/>)}</div>
         <div style={{display:'flex',gap:8}}>
           {!isFirstTime&&<Btn variant="ghost" onClick={onSkip} style={{width:'100%',fontSize:11,whiteSpace:'nowrap',justifyContent:'center'}} sfx="nav">Pular</Btn>}
@@ -331,20 +347,23 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
           <Btn onClick={onNext} style={{flex:isFirstTime?1:2,fontSize:13}} sfx="click">Entendi <ArrowRight size={14}/></Btn>}
         </div>
       </Card>
+      {rect&&cardAbove&&<div style={{display:'flex',justifyContent:'center',marginTop:-1,pointerEvents:'none'}}>
+        <div style={{width:0,height:0,borderLeft:'10px solid transparent',borderRight:'10px solid transparent',borderTop:'12px solid '+theme.primary+'60',animation:'tutArrowBounce 1.2s ease-in-out infinite',filter:'drop-shadow(0 0 6px '+theme.glow+')'}}/>
+      </div>}
     </div>
   </div>);
 }
 
 const TUTORIAL_STEPS=[
-  {title:'Catálogo',body:'Aqui ficam todas as cartas. Busque pelo nome e filtre por tipo.',navTo:'catalog',tabIndex:1,spotlightId:null},
-  {title:'Busca e filtros',body:'Use a barra de busca e os botões Normal, Holo e Foil.',navTo:'catalog',tabIndex:1,spotlightId:'tut-search-area',scrollTo:true},
-  {title:'Adicionar à lista',body:'Clique no + para adicionar a carta na sua lista de wants.',navTo:'catalog',tabIndex:1,spotlightId:'tut-add-btn',scrollTo:true},
-  {title:'Lista de Wants',body:'Suas cartas ficam aqui. Arraste para a direita para mover pro carrinho, ou para a esquerda para excluir.',navTo:'wants',tabIndex:2,spotlightId:null},
-  {title:'Carrinho',body:'As cartas do carrinho são as que você vai comprar. Use o botão "Tudo pro carrinho" para selecionar todas de uma vez.',navTo:'wants',tabIndex:2,spotlightId:'tut-wants-tags',scrollTo:true},
-  {title:'Bônus',body:'Se o grupo crescer e o preço cair, você ganha cartas extras de graça! Elas aparecem em destaque no carrinho.',navTo:'wants',tabIndex:2,spotlightId:'tut-bonus-card',scrollTo:true},
-  {title:'Checkout',body:'Revise o pedido, preencha o endereço e calcule o frete.',navTo:'checkout',tabIndex:3,spotlightId:'tut-checkout-summary'},
-  {title:'Pagamento',body:'Pague com segurança via Mercado Pago — cartão, boleto ou saldo.',navTo:'checkout',tabIndex:3,spotlightId:'tut-payment'},
-  {title:'Perfil',body:'Veja seus pedidos, altere endereço, mude a senha e reabra este tutorial.',navTo:'profile',tabIndex:4,spotlightId:null},
+  {title:'Catálogo',body:'Aqui ficam todas as cartas. Busque pelo nome e filtre por tipo.',navTo:'catalog',tabIndex:1,spotlightId:null,icon:'📖',tip:'Este é seu grimório de cartas'},
+  {title:'Busca e filtros',body:'Use a barra de busca e os botões Normal, Holo e Foil para encontrar cartas específicas.',navTo:'catalog',tabIndex:1,spotlightId:'tut-search-area',scrollTo:true,icon:'🔍',tip:'👆 Veja a área destacada acima'},
+  {title:'Adicionar à lista',body:'Clique no + para adicionar a carta na sua lista de wants.',navTo:'catalog',tabIndex:1,spotlightId:'tut-add-btn',scrollTo:true,icon:'➕',tip:'👆 Toque no botão destacado'},
+  {title:'Lista de Wants',body:'Suas cartas escolhidas ficam aqui. Arraste para a direita para mover pro carrinho, ou para a esquerda para excluir.',navTo:'wants',tabIndex:2,spotlightId:null,icon:'📋',tip:'👉 Deslize as cartas para organizar',gesture:'swipe'},
+  {title:'Carrinho',body:'As cartas do carrinho são as que você vai comprar. Use o botão "Tudo pro carrinho" para selecionar todas de uma vez.',navTo:'wants',tabIndex:2,spotlightId:'tut-wants-tags',scrollTo:true,icon:'🛒',tip:'👆 Veja os filtros destacados'},
+  {title:'Bônus',body:'Se o grupo crescer e o preço cair, você ganha cartas extras de graça! Elas aparecem em destaque no carrinho.',navTo:'wants',tabIndex:2,spotlightId:'tut-bonus-card',scrollTo:true,icon:'🎁',tip:'Cartas bônus são grátis!'},
+  {title:'Checkout',body:'Revise o pedido, preencha o endereço e calcule o frete antes de finalizar.',navTo:'checkout',tabIndex:3,spotlightId:'tut-checkout-summary',icon:'📦',tip:'👆 Resumo do seu pedido'},
+  {title:'Pagamento',body:'Pague com segurança via Mercado Pago — cartão, boleto ou saldo.',navTo:'checkout',tabIndex:3,spotlightId:'tut-payment',icon:'💳',tip:'Pagamento 100% seguro'},
+  {title:'Perfil',body:'Veja seus pedidos, altere endereço, mude a senha e reabra este tutorial quando quiser.',navTo:'profile',tabIndex:4,spotlightId:null,icon:'👤',tip:'Você pode rever o tutorial a qualquer momento'},
 ];
 
 // ══════════════════════════════════════════════════════
@@ -1041,8 +1060,29 @@ function OnboardingPage({onComplete,theme}){
   function toggleC(k){setColors(p=>{if(p.includes(k))return p.filter(c=>c!==k);if(p.length>=2)return[p[1],k];return[...p,k];});}
   const guild=colors.length===2?getGuild(colors[0],colors[1]):null;const gT=guild?GT[guild]:theme;
   const steps=[
-    {mood:'🧙',title:'A Convocação',body:'"Sozinho você paga caro. Quando a guilda se une, o mana flui e os preços caem."'},
-    {mood:'⚡',title:'O Encantamento do Bônus',body:'"Se o preço do tier cair depois, a diferença vira cartas extras. Mas se não escolher antes do fechamento, o encantamento se dissipa."'},
+    {mood:'🧙',title:'A Convocação',body:'"Sozinho você paga caro. Quando a guilda se une, o mana flui e os preços caem."',
+      illus:()=><div style={{display:'flex',gap:16,justifyContent:'center',alignItems:'center',marginTop:16,marginBottom:8}}>
+        <div style={{textAlign:'center',padding:'12px 14px',borderRadius:14,background:'rgba(255,70,70,0.06)',border:'1px solid rgba(255,70,70,0.12)'}}>
+          <div style={{fontSize:28,marginBottom:4}}>🧙</div><div style={{fontSize:11,color:'rgba(255,255,255,0.35)'}}>Sozinho</div><div style={{fontSize:15,fontWeight:700,color:'#ff6b7a',marginTop:2}}>💰💰💰</div>
+        </div>
+        <div style={{fontSize:22,color:'rgba(255,255,255,0.2)'}}>→</div>
+        <div style={{textAlign:'center',padding:'12px 14px',borderRadius:14,background:'rgba(46,229,157,0.06)',border:'1px solid rgba(46,229,157,0.12)'}}>
+          <div style={{fontSize:28,marginBottom:4}}>🧙🧙🧙</div><div style={{fontSize:11,color:'rgba(255,255,255,0.35)'}}>Em grupo</div><div style={{fontSize:15,fontWeight:700,color:'#2ee59d',marginTop:2}}>💰</div>
+        </div>
+      </div>},
+    {mood:'⚡',title:'O Encantamento do Bônus',body:'"Se o preço do tier cair depois, a diferença vira cartas extras. Mas se não escolher antes do fechamento, o encantamento se dissipa."',
+      illus:()=><div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'center',marginTop:16,marginBottom:8}}>
+        <div style={{display:'flex',gap:12,alignItems:'center'}}>
+          <div style={{textAlign:'center',padding:'10px 16px',borderRadius:12,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.06)'}}>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:2}}>Preço caiu?</div><div style={{fontSize:20}}>📉</div>
+          </div>
+          <div style={{fontSize:18,color:'rgba(255,255,255,0.2)'}}>→</div>
+          <div style={{textAlign:'center',padding:'10px 16px',borderRadius:12,background:'rgba(201,169,110,0.08)',border:'1px solid rgba(201,169,110,0.15)'}}>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:2}}>Bônus!</div><div style={{fontSize:20}}>🎁✨</div>
+          </div>
+        </div>
+        <div style={{fontSize:11,color:'rgba(255,255,255,0.25)',fontStyle:'italic',textAlign:'center',maxWidth:240}}>A diferença vira cartas extras gratuitas</div>
+      </div>},
     {mood:'🔮',title:'Escolha sua Guilda',body:'"Duas cores de mana definem sua essência. Cada combinação invoca uma guilda diferente."',hasColors:true},
   ];
   const s=steps[step];
@@ -1061,6 +1101,7 @@ function OnboardingPage({onComplete,theme}){
       <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:18}}><div style={{width:44,height:44,borderRadius:12,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.06)',display:'grid',placeItems:'center',fontSize:22}}>{s.mood}</div><div><div style={{fontWeight:800,fontSize:14}}>Goblin Guia</div><div style={{fontSize:11,color:'rgba(255,255,255,0.28)'}}>Guardião do Portal</div></div></div>
       <h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:23}}>{s.title}</h1>
       <p style={{fontSize:14,lineHeight:1.7,color:'rgba(255,255,255,0.55)',marginTop:10,fontStyle:'italic'}}>{s.body}</p>
+      {s.illus&&s.illus()}
       {s.hasColors&&<div style={{marginTop:18}}><div style={{display:'flex',justifyContent:'center',gap:14,marginBottom:14}}>{MANA_COLORS.map(m=><ManaOrb key={m.key} mana={m.key} selected={colors.includes(m.key)} onClick={()=>toggleC(m.key)} size={50}/>)}</div>{guild&&<div style={{textAlign:'center'}}><GuildBadge guild={guild} size={24}/><span style={{fontFamily:"'Cinzel',serif",fontSize:18,fontWeight:700,color:gT.primary,marginLeft:8}}>{guild}</span></div>}</div>}
     </div>
     <div>
@@ -1809,7 +1850,7 @@ export default function MagicPortal(){
 
   return (<div style={{ '--gp': theme.primary, '--gs': theme.secondary, '--gg': theme.glow, minHeight: '100vh', background: `radial-gradient(ellipse at 50% -20%,${theme.primary}12 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,${theme.secondary}08 0%,transparent 40%),#08080f`, color: '#e9edf7', fontFamily: "'Outfit',sans-serif", maxWidth: 480, margin: '0 auto', position: 'relative', paddingBottom: 78 }}>
     <FloatingMana theme={theme}/>
-    <style>{"@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');*{box-sizing:border-box;margin:0;padding:0}body{background:#08080f;margin:0}input:focus{border-color:var(--gp)!important;outline:none}button:active:not(:disabled){transform:scale(.97)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.07);border-radius:3px}@keyframes spin{to{transform:rotate(360deg)}}@keyframes tutPulse{0%,100%{opacity:1;box-shadow:0 0 0 9999px rgba(0,0,0,0.78),0 0 30px var(--gg)}50%{opacity:.85;box-shadow:0 0 0 9999px rgba(0,0,0,0.78),0 0 50px var(--gg)}}@keyframes manaFloat{0%{transform:translateY(0) translateX(0) rotate(0deg);opacity:0}10%{opacity:0.06}90%{opacity:0.03}100%{transform:translateY(-110vh) translateX(var(--drift,20px)) rotate(360deg);opacity:0}}@keyframes flyToWants{0%{transform:translate(-50%,-50%) scale(1);opacity:1}50%{transform:translate(calc(-50vw + 160px),-60vh) scale(0.6);opacity:0.8}100%{transform:translate(calc(-50vw + 160px),-80vh) scale(0.2);opacity:0}}"}</style>
+    <style>{"@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');*{box-sizing:border-box;margin:0;padding:0}body{background:#08080f;margin:0}input:focus{border-color:var(--gp)!important;outline:none}button:active:not(:disabled){transform:scale(.97)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.07);border-radius:3px}@keyframes spin{to{transform:rotate(360deg)}}@keyframes tutPulse{0%,100%{opacity:1;box-shadow:0 0 0 9999px rgba(0,0,0,0.78),0 0 30px var(--gg)}50%{opacity:.85;box-shadow:0 0 0 9999px rgba(0,0,0,0.78),0 0 50px var(--gg)}}@keyframes tutArrowBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}@keyframes manaFloat{0%{transform:translateY(0) translateX(0) rotate(0deg);opacity:0}10%{opacity:0.06}90%{opacity:0.03}100%{transform:translateY(-110vh) translateX(var(--drift,20px)) rotate(360deg);opacity:0}}@keyframes flyToWants{0%{transform:translate(-50%,-50%) scale(1);opacity:1}50%{transform:translate(calc(-50vw + 160px),-60vh) scale(0.6);opacity:0.8}100%{transform:translate(calc(-50vw + 160px),-80vh) scale(0.2);opacity:0}}"}</style>
 
     {toastMsg && <Toast msg={toastMsg.msg} type={toastMsg.type} onClose={() => setToastMsg(null)} />}
     {showTutorial && <TutorialOverlay step={tutStep} steps={TUTORIAL_STEPS} onNext={tutNext} onSkip={tutSkip} theme={theme} onNavTo={p => setPage(p)} isFirstTime={isFirstTimeTut} />}
