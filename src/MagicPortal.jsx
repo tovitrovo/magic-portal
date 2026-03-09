@@ -356,12 +356,12 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
 
 const TUTORIAL_STEPS=[
   {title:'Catálogo',body:'Aqui ficam todas as cartas. Busque pelo nome e filtre por tipo.',navTo:'catalog',tabIndex:1,spotlightId:null,icon:'📖',tip:'Este é seu grimório de cartas'},
-  {title:'Busca e filtros',body:'Use a barra de busca e os botões Normal, Holo e Foil para encontrar cartas específicas.',navTo:'catalog',tabIndex:1,spotlightId:'tut-search-area',scrollTo:true,icon:'🔍',tip:'👆 Veja a área destacada acima'},
-  {title:'Adicionar à lista',body:'Clique no + para adicionar a carta na sua lista de wants.',navTo:'catalog',tabIndex:1,spotlightId:'tut-add-btn',scrollTo:true,icon:'➕',tip:'👆 Toque no botão destacado'},
-  {title:'Lista de Wants',body:'Suas cartas escolhidas ficam aqui. Arraste para a direita para mover pro carrinho, ou para a esquerda para excluir.',navTo:'wants',tabIndex:2,spotlightId:null,icon:'📋',tip:'👉 Deslize as cartas para organizar',gesture:'swipe'},
-  {title:'Carrinho',body:'As cartas do carrinho são as que você vai comprar. Use o botão "Tudo pro carrinho" para selecionar todas de uma vez.',navTo:'wants',tabIndex:2,spotlightId:'tut-wants-tags',scrollTo:true,icon:'🛒',tip:'👆 Veja os filtros destacados'},
+  {title:'Busca e filtros',body:'Use a barra de busca e os botões Normal, Holo e Foil para encontrar cartas específicas.',navTo:'catalog',tabIndex:1,spotlightId:'tut-search-area',scrollTo:true,icon:'🔍',tip:'Veja a área destacada na tela'},
+  {title:'Adicionar à lista',body:'Clique no + para adicionar a carta na sua lista de wants.',navTo:'catalog',tabIndex:1,spotlightId:'tut-add-btn',scrollTo:true,icon:'➕',tip:'Toque no botão destacado'},
+  {title:'Lista de Wants',body:'Suas cartas escolhidas ficam aqui. Arraste para a direita para mover pro carrinho, ou para a esquerda para excluir.',navTo:'wants',tabIndex:2,spotlightId:null,icon:'📋',tip:'Deslize as cartas para organizar',gesture:'swipe'},
+  {title:'Carrinho',body:'As cartas do carrinho são as que você vai comprar. Use o botão "Tudo pro carrinho" para selecionar todas de uma vez.',navTo:'wants',tabIndex:2,spotlightId:'tut-wants-tags',scrollTo:true,icon:'🛒',tip:'Veja os filtros destacados'},
   {title:'Bônus',body:'Se o grupo crescer e o preço cair, você ganha cartas extras de graça! Elas aparecem em destaque no carrinho.',navTo:'wants',tabIndex:2,spotlightId:'tut-bonus-card',scrollTo:true,icon:'🎁',tip:'Cartas bônus são grátis!'},
-  {title:'Checkout',body:'Revise o pedido, preencha o endereço e calcule o frete antes de finalizar.',navTo:'checkout',tabIndex:3,spotlightId:'tut-checkout-summary',icon:'📦',tip:'👆 Resumo do seu pedido'},
+  {title:'Checkout',body:'Revise o pedido, preencha o endereço e calcule o frete antes de finalizar.',navTo:'checkout',tabIndex:3,spotlightId:'tut-checkout-summary',icon:'📦',tip:'Resumo do seu pedido'},
   {title:'Pagamento',body:'Pague com segurança via Mercado Pago — cartão, boleto ou saldo.',navTo:'checkout',tabIndex:3,spotlightId:'tut-payment',icon:'💳',tip:'Pagamento 100% seguro'},
   {title:'Perfil',body:'Veja seus pedidos, altere endereço, mude a senha e reabra este tutorial quando quiser.',navTo:'profile',tabIndex:4,spotlightId:null,icon:'👤',tip:'Você pode rever o tutorial a qualquer momento'},
 ];
