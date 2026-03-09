@@ -1027,7 +1027,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   useEffect(()=>{
     (async()=>{
       try {
-        const data = await sbGet('orders', `select=id,user_id,status,qty_paid,qty_bonus,created_at,profiles(name,whatsapp,email),order_batches(id,status,total_locked,payment_method,confirmed_at,qty_in_batch)&campaign_id=eq.${campProp?.id}&order=created_at.desc`, token);
+        const data = await sbGet('orders', `select=id,user_id,status,qty_paid,qty_bonus,created_at,profiles(name,whatsapp),order_batches(id,status,total_locked,payment_method,confirmed_at,qty_in_batch)&campaign_id=eq.${campProp?.id}&order=created_at.desc`, token);
         setOrders(data);
       } catch(e) { console.error(e); }
       setLoading(false);
@@ -1075,7 +1075,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
 
   const filteredOrders=searchOrd?orders.filter(o=>{
     const q=searchOrd.toLowerCase();
-    return (o.profiles?.name||'').toLowerCase().includes(q)||(o.profiles?.email||'').toLowerCase().includes(q)||String(o.id).toLowerCase().includes(q)||o.order_batches?.some(b=>String(b.id).slice(0,8).toUpperCase().includes(q.toUpperCase()));
+    return (o.profiles?.name||'').toLowerCase().includes(q)||String(o.id).toLowerCase().includes(q)||o.order_batches?.some(b=>String(b.id).slice(0,8).toUpperCase().includes(q.toUpperCase()));
   }):orders;
 
   const tabs=[{key:'orders',icon:Package,label:'Pedidos'},{key:'list',icon:ScrollText,label:'Lista Final'},{key:'tiers',icon:DollarSign,label:'Tiers'},{key:'pricing',icon:Settings,label:'Taxas'},{key:'campaign',icon:Calendar,label:'Campanha'}];
@@ -1098,8 +1098,8 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
         return(<Card key={o.id} style={{padding:0,marginBottom:4,cursor:'pointer'}} onClick={()=>setExpandedOrd(isExp?null:o.id)}>
         <div style={{padding:'10px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <div>
-            <div style={{fontSize:13,fontWeight:700}}>{o.profiles?.name||o.profiles?.email||'—'}</div>
-            <div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{o.profiles?.email} | {new Date(o.created_at).toLocaleDateString('pt-BR')}</div>
+            <div style={{fontSize:13,fontWeight:700}}>{o.profiles?.name||'—'}</div>
+            <div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{new Date(o.created_at).toLocaleDateString('pt-BR')}</div>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:4}}>
             <Tag color={o.status==='DRAFT'?'#c9a96e':o.status==='CONFIRMED'?'#2ee59d':'#4a90d9'} style={{fontSize:9}}>{o.status}</Tag>

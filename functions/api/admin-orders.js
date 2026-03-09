@@ -56,9 +56,10 @@ export async function onRequest(context) {
     }
 
     // Query completa com todos os campos necessários para o admin
-    const fullSelect = "id,created_at,user_id,qty_paid,qty_bonus,status,campaign_id,shipping_price_brl_locked,profiles(name,whatsapp,email),order_batches(id,status,qty_in_batch,payment_status,confirmed_at,total_locked,subtotal_locked,shipping_locked,payment_method,mp_link,mp_payment_id,mp_preference_id,payment_amount,mp_payload,created_at)";
+    // NOTA: profiles não tem coluna email — o email fica em auth.users
+    const fullSelect = "id,created_at,user_id,qty_paid,qty_bonus,status,campaign_id,shipping_price_brl_locked,profiles(name,whatsapp),order_batches(id,status,qty_in_batch,payment_status,confirmed_at,total_locked,subtotal_locked,shipping_locked,payment_method,mp_link,mp_payment_id,mp_preference_id,payment_amount,mp_payload,created_at)";
     // Query mínima de fallback (colunas essenciais que sempre existem)
-    const safeSelect = "id,created_at,user_id,qty_paid,qty_bonus,status,profiles(name,email),order_batches(id,status,qty_in_batch,payment_status,confirmed_at,total_locked)";
+    const safeSelect = "id,created_at,user_id,qty_paid,qty_bonus,status,profiles(name,whatsapp),order_batches(id,status,qty_in_batch,payment_status,confirmed_at,total_locked)";
 
     const baseParams = `&campaign_id=eq.${encodeURIComponent(campaignId)}&order=created_at.desc&limit=100`;
 

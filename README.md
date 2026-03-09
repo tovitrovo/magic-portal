@@ -95,7 +95,7 @@ O arquivo `supabase/schema.sql` contém **todo** o schema necessário para o fun
 
 As foreign keys são **essenciais** para as queries com nested select do PostgREST:
 
-- `orders.user_id → profiles.id` — permite `orders?select=...,profiles(name,email)`
+- `orders.user_id → profiles.id` — permite `orders?select=...,profiles(name,whatsapp)`
 - `orders.campaign_id → campaigns.id`
 - `order_batches.order_id → orders.id` — permite `orders?select=...,order_batches(...)`
 - `order_items.batch_id → order_batches.id` — permite `order_batches?select=...,order_items(...)`

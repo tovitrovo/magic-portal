@@ -38,7 +38,8 @@ export async function onRequest(context) {
       Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}`,
     };
 
-    const select = "id,created_at,user_id,qty_paid,qty_bonus,status,campaign_id,profiles(name,email,whatsapp),order_batches(id,status,total_locked,qty_in_batch,mp_link,mp_preference_id,mp_payment_id,payment_status,payment_status_detail,confirmed_at,campaign_id)";
+    // NOTA: profiles não tem coluna email — o email fica em auth.users
+    const select = "id,created_at,user_id,qty_paid,qty_bonus,status,campaign_id,profiles(name,whatsapp),order_batches(id,status,total_locked,qty_in_batch,mp_link,mp_preference_id,mp_payment_id,payment_status,payment_status_detail,confirmed_at,campaign_id)";
     let url = `${SB_URL}/rest/v1/orders?select=${encodeURIComponent(select)}&order=created_at.desc&limit=500`;
     if (campaignId) url += `&campaign_id=eq.${encodeURIComponent(campaignId)}`;
 
