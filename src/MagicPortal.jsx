@@ -1672,7 +1672,7 @@ export default function MagicPortal(){
 
       // Order (get or create DRAFT)
       if (camp) {
-        let ords = await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}&status=eq.DRAFT`, tkn);
+        let ords = await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}`, tkn);
         let ord = ords[0];
         if (!ord) {
           const [newOrd] = await sbPost('orders', { campaign_id: camp.id, user_id: userId, status: 'DRAFT' }, tkn);
