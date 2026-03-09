@@ -1,3 +1,5 @@
+import { incrementPoolOnPaid } from './_pool-helper.js';
+
 export async function onRequest(context) {
   // Webhook server-to-server: responder 200 rápido sempre.
   try {
@@ -47,6 +49,11 @@ export async function onRequest(context) {
         "Content-Type": "application/json",
         Prefer: "return=minimal",
       };
+
+      // Incrementa pool ANTES de marcar como PAID (para detectar a transição)
+      if (batchStatus === "PAID") {
+        await incrementPoolOnPaid(SB_URL, SB_SERVICE_ROLE_KEY, orderId);
+      }
 
       // Atualiza o batch (principal)
       const patchBody = {

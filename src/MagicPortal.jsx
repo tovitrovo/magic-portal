@@ -391,11 +391,18 @@ function HomePage({pool,tiers,priceBRL,closeDate,theme,nav,wantsCount,cartCount,
     <Card style={{padding:18}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',marginBottom:14}}>
         <div><div style={{fontSize:11,color:'rgba(255,255,255,0.3)',textTransform:'uppercase',letterSpacing:1,marginBottom:3,fontWeight:600}}>Quest ativa</div><div style={{fontSize:20,fontWeight:800,fontFamily:"'Cinzel',serif",color:theme.primary}}>{tier.label}</div></div>
-        <div style={{textAlign:'right'}}><div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:3}}>Preco atual por carta</div><div style={{fontSize:26,fontWeight:800,color:'#fff',lineHeight:1}}>R$ {priceBRL.toFixed(2)}</div></div>
+        <div style={{textAlign:'right'}}><div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:3}}>Preço atual por carta</div><div style={{fontSize:26,fontWeight:800,color:'#fff',lineHeight:1}}>R$ {priceBRL.toFixed(2)}</div></div>
       </div>
       <div style={{fontSize:11,color:'rgba(255,255,255,0.25)',marginBottom:8,fontStyle:'italic'}}>{tier.quest||''}</div>
       <div style={{background:'rgba(0,0,0,0.35)',borderRadius:99,height:6,overflow:'hidden',marginBottom:8}}><div style={{width:progress+'%',height:'100%',borderRadius:99,background:'linear-gradient(90deg,'+theme.primary+','+theme.secondary+')',transition:'width .5s',boxShadow:'0 0 10px '+theme.glow}}/></div>
-      <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'rgba(255,255,255,0.3)'}}><span>Pool atual: {pool} cartas</span>{next?<span>Próximo tier: {next.label} | Valor no próximo tier: R$ {next.brl.toFixed(2)} | Faltam {nextDelta}</span>:<span>Tier máximo atingido</span>}</div>
+      <div style={{display:'flex',flexDirection:'column',gap:4,fontSize:11,color:'rgba(255,255,255,0.3)'}}>
+        <div>Pool atual: <b style={{color:'rgba(255,255,255,0.5)'}}>{pool} cartas</b></div>
+        {next?<>
+          <div>Próximo tier: <b style={{color:theme.primary}}>{next.label}</b></div>
+          <div>Valor no próximo tier: <b style={{color:theme.primary}}>R$ {next.brl.toFixed(2)}</b></div>
+          <div>Faltam <b style={{color:theme.secondary}}>{nextDelta} carta{nextDelta!==1?'s':''}</b> para o próximo tier</div>
+        </>:<div style={{color:theme.primary,fontWeight:600}}>Tier máximo atingido! 🎉</div>}
+      </div>
     </Card>
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
       {[{icon:ScrollText,val:wantsCount,lbl:'Wants',c:theme.primary},{icon:ShoppingCart,val:cartCount,lbl:'Carrinho',c:'#c9a96e'},{icon:Gift,val:bonusAvail,lbl:'Bônus',c:'#2ee59d'}].map(s=>(<Card key={s.lbl} style={{textAlign:'center',padding:12}}><s.icon size={16} style={{color:s.c,marginBottom:3}}/><div style={{fontSize:18,fontWeight:800}}>{s.val}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>{s.lbl}</div></Card>))}

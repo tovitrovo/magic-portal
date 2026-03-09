@@ -1,3 +1,5 @@
+import { incrementPoolOnPaid } from './_pool-helper.js';
+
 export async function onRequest(context) {
   const CORS = {
     "Access-Control-Allow-Origin": "*",
@@ -104,6 +106,11 @@ export async function onRequest(context) {
     };
 
     const batchStatus = statusMap[status] || "PENDING_PAYMENT";
+
+    // Incrementa pool ANTES de marcar como PAID (para detectar a transição)
+    if (batchStatus === "PAID") {
+      await incrementPoolOnPaid(SB_URL, SB_SERVICE_ROLE_KEY, batchId);
+    }
 
     const patchHeaders = {
       apikey: SB_SERVICE_ROLE_KEY,
