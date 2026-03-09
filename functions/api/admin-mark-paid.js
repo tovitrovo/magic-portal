@@ -1,3 +1,5 @@
+import { incrementPoolOnPaid } from './_pool-helper.js';
+
 export async function onRequest(context) {
   const CORS = {
     "Access-Control-Allow-Origin": "*",
@@ -28,6 +30,9 @@ export async function onRequest(context) {
       "Content-Type": "application/json",
       Prefer: "return=minimal",
     };
+
+    // Incrementa pool ANTES de marcar como PAID (para detectar a transição)
+    await incrementPoolOnPaid(SB_URL, SB_SERVICE_ROLE_KEY, batchId);
 
     const r = await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(batchId)}`, {
       method: "PATCH",

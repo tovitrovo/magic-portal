@@ -1,3 +1,5 @@
+import { decrementPoolOnCancel } from './_pool-helper.js';
+
 export async function onRequest(context) {
   const CORS = {
     "Access-Control-Allow-Origin": "*",
@@ -35,10 +37,24 @@ export async function onRequest(context) {
     };
 
     if (batchId) {
+      // Decrementa pool se batch estava PAID antes de deletar
+      try { await decrementPoolOnCancel(SB_URL, SB_SERVICE_ROLE_KEY, batchId); } catch {}
       try { await del("order_items", `batch_id=eq.${encodeURIComponent(batchId)}`); } catch {}
       try { await del("order_batches", `id=eq.${encodeURIComponent(batchId)}`); } catch {}
     }
     if (orderId) {
+      // Decrementa pool para todos os batches PAID desta order antes de deletar
+      try {
+        const bRes = await fetch(`${SB_URL}/rest/v1/order_batches?order_id=eq.${encodeURIComponent(orderId)}&select=id,status`, { headers: { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}` } });
+        const batches = await bRes.json().catch(() => []);
+        if (Array.isArray(batches)) {
+          for (const b of batches) {
+            if (b.status === 'PAID' || b.status === 'CONFIRMED') {
+              await decrementPoolOnCancel(SB_URL, SB_SERVICE_ROLE_KEY, b.id);
+            }
+          }
+        }
+      } catch {}
       try { await del("order_batches", `order_id=eq.${encodeURIComponent(orderId)}`); } catch {}
       try { await del("orders", `id=eq.${encodeURIComponent(orderId)}`); } catch {}
     }
