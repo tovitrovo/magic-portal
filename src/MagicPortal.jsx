@@ -291,12 +291,12 @@ function SwipeableCard({children,onSwipeLeft,onSwipeRight,leftLabel='Excluir',ri
   </div>);
 }
 
-function VirtualKeyboard({onKey,onBackspace,onDone,maxLen=6,currentLen=0}){
-  const rows=[['1','2','3'],['4','5','6'],['7','8','9'],['⌫','0','OK']];
+function VirtualKeyboard({onKey,onBackspace,onDone,maxLen=6,currentLen=0,doneLabel='OK'}){
+  const rows=[['1','2','3'],['4','5','6'],['7','8','9'],['⌫','0',doneLabel]];
   return(<div style={{background:'rgba(0,0,0,0.6)',backdropFilter:'blur(10px)',borderRadius:16,padding:10,border:'1px solid rgba(255,255,255,0.06)',maxWidth:220,margin:'0 auto'}}>
     {rows.map((row,ri)=>(<div key={ri} style={{display:'flex',justifyContent:'center',gap:4,marginBottom:4}}>
       {row.map(k=>{
-        const isBack=k==='⌫';const isOk=k==='OK';const isNum=!isBack&&!isOk;
+        const isBack=k==='⌫';const isOk=k===doneLabel;const isNum=!isBack&&!isOk;
         const disabled=isNum&&currentLen>=maxLen;
         return <button key={k} onClick={()=>{if(isBack){SFX.click();onBackspace();}else if(isOk){SFX.confirm();onDone();}else if(!disabled){SFX.click();onKey(k);}}} disabled={disabled} style={{width:60,height:48,borderRadius:12,border:isOk?'none':'1px solid rgba(255,255,255,0.08)',background:isOk?'var(--gp)':isBack?'rgba(255,70,70,0.1)':'rgba(255,255,255,0.05)',color:isOk?'#fff':isBack?'#ff6b7a':'#e9edf7',fontSize:isNum?20:isOk?13:18,fontWeight:700,cursor:disabled?'not-allowed':'pointer',fontFamily:"'Outfit',sans-serif",display:'grid',placeItems:'center',opacity:disabled?.3:1}}>{k}</button>;})}
     </div>))}
@@ -990,7 +990,7 @@ function AuthPage({onLogin,theme}){
       </div>
       {senha2.length===6&&senha!==senha2&&<div style={{fontSize:11,color:'#ff6b7a',marginTop:4,textAlign:'center'}}>As senhas não coincidem</div>}
     </div>}
-    {showVK&&<div style={{marginTop:4}}><VirtualKeyboard onKey={vkKey} onBackspace={vkBack} onDone={()=>setShowVK(false)} maxLen={6} currentLen={currentVKLen}/></div>}
+    {showVK&&<div style={{marginTop:4}}><VirtualKeyboard onKey={vkKey} onBackspace={vkBack} onDone={()=>setShowVK(false)} maxLen={6} currentLen={currentVKLen} doneLabel="Fechar"/></div>}
     {err&&<div style={{fontSize:12,color:'#ff6b7a',textAlign:'center',padding:4}}><AlertTriangle size={12}/> {err}</div>}
     <Btn full onClick={submit} disabled={!canSubmit} sfx="">{loading?<Spin size={16}/>:<>{mode==='login'?'Entrar':'Criar conta'} <ArrowRight size={16}/></>}</Btn>
     {mode==='login'&&<button onClick={()=>{setForgotMode(true);setErr('');}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',fontSize:12,cursor:'pointer',fontFamily:"'Outfit',sans-serif",padding:4,textAlign:'center'}}>Esqueci minha senha</button>}
