@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
+import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
 
 // ══════════════════════════════════════════════════════
 // SUPABASE REST CLIENT
@@ -372,8 +372,11 @@ const TUTORIAL_STEPS=[
 
 function HomePage({pool,tiers,priceBRL,closeDate,theme,nav,wantsCount,cartCount,bonusAvail,credit,campaign_status}){
   const tier=getTier(pool,tiers);const next=getNextTier(pool,tiers);
-  const progress=next?Math.min(100,((pool-tier.min)/(next.min-tier.min))*100):100;
+  const tierSpan=Math.max(1,(next?.min||tier.max)-tier.min);
+  const progress=next?Math.min(100,Math.max(0,((pool-tier.min)/tierSpan)*100)):100;
   const daysLeft=closeDate?Math.max(0,Math.ceil((new Date(closeDate)-new Date())/864e5)):null;
+  const closeDateText=closeDate?new Date(closeDate).toLocaleDateString('pt-BR'):'';
+  const nextDelta=next?Math.max(0,next.min-pool):0;
   return(<div style={{display:'flex',flexDirection:'column',gap:14}}>
     <div style={{textAlign:'center',padding:'6px 0 0'}}>
       <div style={{fontSize:11,color:'rgba(255,255,255,0.28)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>
@@ -383,16 +386,16 @@ function HomePage({pool,tiers,priceBRL,closeDate,theme,nav,wantsCount,cartCount,
       <AlertTriangle size={16} style={{color:'#d94452'}}/><div><div style={{fontSize:13,fontWeight:700,color:'#ff6b7a'}}>Campanha {campaign_status}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>Compras disponíveis apenas quando ativa</div></div>
     </Card>}
     {daysLeft!==null&&<Card style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:8,background:daysLeft<=3?'rgba(217,68,82,0.06)':undefined,borderColor:daysLeft<=3?'rgba(217,68,82,0.15)':undefined}}>
-      <Calendar size={16} style={{color:daysLeft<=3?'#d94452':theme.primary}}/><div><div style={{fontSize:13,fontWeight:700,color:daysLeft<=3?'#ff6b7a':'#fff'}}>{daysLeft===0?'Último dia!':daysLeft+' dia'+(daysLeft>1?'s':'')}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>Fecha em {new Date(closeDate).toLocaleDateString('pt-BR')}</div></div>
+      <Calendar size={16} style={{color:daysLeft<=3?'#d94452':theme.primary}}/><div><div style={{fontSize:13,fontWeight:700,color:daysLeft<=3?'#ff6b7a':'#fff'}}>Faltam {daysLeft} dia{daysLeft!==1?'s':''} para fechar a encomenda.</div><div style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>A encomenda será finalizada no dia {closeDateText}.</div></div>
     </Card>}
     <Card style={{padding:18}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',marginBottom:14}}>
-        <div><div style={{fontSize:11,color:'rgba(255,255,255,0.3)',textTransform:'uppercase',letterSpacing:1,marginBottom:3,fontWeight:600}}>Quest Ativa</div><div style={{fontSize:20,fontWeight:800,fontFamily:"'Cinzel',serif",color:theme.primary}}>{tier.label}</div></div>
-        <div style={{textAlign:'right'}}><div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:3}}>Preço/carta</div><div style={{fontSize:26,fontWeight:800,color:'#fff',lineHeight:1}}>R$ {priceBRL.toFixed(2)}</div></div>
+        <div><div style={{fontSize:11,color:'rgba(255,255,255,0.3)',textTransform:'uppercase',letterSpacing:1,marginBottom:3,fontWeight:600}}>Quest ativa</div><div style={{fontSize:20,fontWeight:800,fontFamily:"'Cinzel',serif",color:theme.primary}}>{tier.label}</div></div>
+        <div style={{textAlign:'right'}}><div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:3}}>Preco atual por carta</div><div style={{fontSize:26,fontWeight:800,color:'#fff',lineHeight:1}}>R$ {priceBRL.toFixed(2)}</div></div>
       </div>
       <div style={{fontSize:11,color:'rgba(255,255,255,0.25)',marginBottom:8,fontStyle:'italic'}}>{tier.quest||''}</div>
       <div style={{background:'rgba(0,0,0,0.35)',borderRadius:99,height:6,overflow:'hidden',marginBottom:8}}><div style={{width:progress+'%',height:'100%',borderRadius:99,background:'linear-gradient(90deg,'+theme.primary+','+theme.secondary+')',transition:'width .5s',boxShadow:'0 0 10px '+theme.glow}}/></div>
-      <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'rgba(255,255,255,0.3)'}}><span>{pool} na pool</span>{next?<span>{next.min-pool} para {next.label} (R${next.brl.toFixed(2)})</span>:<span>Máximo!</span>}</div>
+      <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'rgba(255,255,255,0.3)'}}><span>Pool atual: {pool} cartas</span>{next?<span>Próximo tier: {next.label} | Valor no próximo tier: R$ {next.brl.toFixed(2)} | Faltam {nextDelta}</span>:<span>Tier máximo atingido</span>}</div>
     </Card>
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
       {[{icon:ScrollText,val:wantsCount,lbl:'Wants',c:theme.primary},{icon:ShoppingCart,val:cartCount,lbl:'Carrinho',c:'#c9a96e'},{icon:Gift,val:bonusAvail,lbl:'Bônus',c:'#2ee59d'}].map(s=>(<Card key={s.lbl} style={{textAlign:'center',padding:12}}><s.icon size={16} style={{color:s.c,marginBottom:3}}/><div style={{fontSize:18,fontWeight:800}}>{s.val}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>{s.lbl}</div></Card>))}
@@ -448,7 +451,7 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus}){
   return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
     {!campaignOpen&&<Card style={{padding:14,borderColor:'rgba(201,169,110,0.25)',background:'rgba(201,169,110,0.08)'}}><div style={{fontSize:13,fontWeight:700,color:'#c9a96e'}}>Encomenda fechada no momento</div><div style={{fontSize:12,color:'rgba(255,255,255,0.55)',marginTop:4}}>{campaignStatusText}</div></Card>}
     <FlyingCard show={flyAnim} onDone={()=>setFlyAnim(false)}/>
-    <div style={{display:'flex',gap:6}}><Tag><ScrollText size={11}/> {wantsCount} na lista</Tag></div>
+    <div style={{display:'flex',gap:6}}><Tag><ScrollText size={11}/> {wantsCount} na wants</Tag></div>
     <div id="tut-search-area" style={{display:'flex',flexDirection:'column',gap:8}}>
       <Input icon={Search} placeholder="Buscar carta..." value={search} onChange={e=>setSearch(e.target.value)}/>
       <div style={{display:'flex',gap:5}}>
@@ -465,7 +468,7 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus}){
                 <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</div>
                 <div style={{display:'flex',gap:6,alignItems:'center',marginTop:2}}>
                   <span style={{fontSize:10,color:TC[c.type],fontWeight:700}}>{c.type}</span>
-                  {existsInWants&&<Tag color="#2ee59d" style={{fontSize:9,padding:'1px 6px'}}>na lista</Tag>}
+                  {existsInWants&&<Tag color="#2ee59d" style={{fontSize:9,padding:'1px 6px'}}>{existsInWants.quantity} na wants</Tag>}
                 </div>
               </div>
               <button id={i===0?'tut-add-btn':undefined} onClick={()=>add(c,1)} style={{background:existsInWants?'rgba(46,229,157,0.15)':'var(--gp)',border:'none',borderRadius:10,padding:'8px 14px',cursor:'pointer',color:existsInWants?'#2ee59d':'#fff',display:'flex',alignItems:'center',gap:4,fontSize:12,fontWeight:600,fontFamily:"'Outfit',sans-serif"}}><Plus size={14}/></button>
@@ -487,43 +490,57 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus}){
 // WANTS — reads order_items, cart is local toggle
 // ══════════════════════════════════════════════════════
 
-function WantsPage({wants,cartIds,setCartIds,onRemoveWant,onUpdateWantQty,priceBRL,bonusAvail,theme,nav}){
+function WantsPage({wants,cartQtyByItem,setCartQtyByItem,onRemoveWant,onUpdateWantQty,priceBRL,bonusAvail,theme,nav}){
   const [searchW,setSearchW]=useState('');
-  const notInCart=wants.filter(w=>!cartIds.includes(w.id));
-  const inCart=wants.filter(w=>cartIds.includes(w.id));
+  const [moveQty,setMoveQty]=useState({});
   const bonus=bonusAvail||0;
-  function moveToCart(id){SFX.addCard();setCartIds(prev=>[...prev,id]);}
-  function removeFromCart(id){SFX.toggle();setCartIds(prev=>prev.filter(x=>x!==id));}
+
+  const merged=wants.map(w=>{
+    const cartQty=Math.min(w.quantity,Math.max(0,cartQtyByItem[w.id]||0));
+    return {...w,cartQty,wantsQty:w.quantity-cartQty};
+  });
+  const notInCart=merged.filter(w=>w.wantsQty>0);
+  const inCart=merged.filter(w=>w.cartQty>0);
   const fW=searchW?notInCart.filter(w=>w.card_name.toLowerCase().includes(searchW.toLowerCase())):notInCart;
 
+  function setCartQty(itemId,qty){
+    const item=wants.find(w=>w.id===itemId);
+    if(!item)return;
+    const next=Math.max(0,Math.min(item.quantity,qty));
+    setCartQtyByItem(prev=>{if(next===0){const cp={...prev};delete cp[itemId];return cp;}return {...prev,[itemId]:next};});
+  }
+  function moveToCart(item,qty){SFX.addCard();setCartQty(item.id,(cartQtyByItem[item.id]||0)+qty);}
+  function moveBackToWants(itemId){SFX.toggle();setCartQty(itemId,0);}
+
   let bLeft=bonus;
-  const cartBD=inCart.map(c=>{const bq=Math.min(c.quantity,bLeft);bLeft-=bq;return{...c,bonusQty:bq,paidQty:c.quantity-bq};});
+  const cartBD=inCart.map(c=>{const bq=Math.min(c.cartQty,bLeft);bLeft-=bq;return{...c,bonusQty:bq,paidQty:c.cartQty-bq};});
   const totalB=cartBD.reduce((s,c)=>s+c.bonusQty,0);const totalP=cartBD.reduce((s,c)=>s+c.paidQty,0);
+  const wantsUnits=notInCart.reduce((s,w)=>s+w.wantsQty,0);
+  const cartUnits=inCart.reduce((s,w)=>s+w.cartQty,0);
 
   return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
     <div id="tut-wants-tags" style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
-      <Tag color={theme.primary}><ScrollText size={11}/> {notInCart.length} wants</Tag>
-      <Tag color="#c9a96e"><ShoppingCart size={11}/> {inCart.length} no carrinho</Tag>
+      <Tag color={theme.primary}><ScrollText size={11}/> {wantsUnits} na wants</Tag>
+      <Tag color="#c9a96e"><ShoppingCart size={11}/> {cartUnits} no carrinho</Tag>
       {bonus>0&&<Tag color="#2ee59d"><Gift size={11}/> {bonus} bônus</Tag>}
-      {notInCart.length>0&&<button onClick={()=>{SFX.confirm();setCartIds(wants.map(w=>w.id));}} style={{background:theme.primary+'15',border:'1px solid '+theme.primary+'30',borderRadius:99,padding:'4px 10px',color:theme.primary,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif",display:'flex',alignItems:'center',gap:4}}><CheckCircle size={11}/> Tudo pro carrinho</button>}
+      {notInCart.length>0&&<button onClick={()=>{SFX.confirm();const all={};wants.forEach(w=>{all[w.id]=w.quantity;});setCartQtyByItem(all);}} style={{background:theme.primary+'15',border:'1px solid '+theme.primary+'30',borderRadius:99,padding:'4px 10px',color:theme.primary,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif",display:'flex',alignItems:'center',gap:4}}><CheckCircle size={11}/> Tudo pro carrinho</button>}
     </div>
     {bonus>0&&<Card id="tut-bonus-card" glow="rgba(46,229,157,0.12)" style={{padding:12,background:'rgba(46,229,157,0.03)'}}>
       <div style={{display:'flex',alignItems:'center',gap:8}}><Gift size={16} style={{color:'#2ee59d'}}/><div style={{fontSize:13}}><span style={{fontWeight:700,color:'#2ee59d'}}>{bonus} carta(s) bônus</span><div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginTop:2}}>Primeiras do carrinho saem grátis!</div></div></div>
     </Card>}
 
-    {/* WANTS LIST */}
     {notInCart.length>0&&<>
       <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.3)',textTransform:'uppercase',letterSpacing:1}}>Lista de Wants</div>
       <div style={{fontSize:10,color:'rgba(255,255,255,0.2)',marginTop:-8,fontStyle:'italic'}}>Arraste → carrinho | ← excluir</div>
       {notInCart.length>3&&<Input icon={Search} placeholder="Buscar..." value={searchW} onChange={e=>setSearchW(e.target.value)}/>}
-      {fW.map((w,i)=>(<SwipeableCard key={w.id} onSwipeRight={()=>moveToCart(w.id)} onSwipeLeft={()=>onRemoveWant(w.id)} rightColor={theme.primary}>
+      {fW.map((w,i)=>{const selectedQty=Math.max(1,Math.min(moveQty[w.id]||1,w.wantsQty));return(<SwipeableCard key={w.id} onSwipeRight={()=>moveToCart(w,selectedQty)} onSwipeLeft={()=>onRemoveWant(w.id)} rightColor={theme.primary}>
         <Card style={{padding:'10px 12px'}}>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{w.card_name}</div>
               <div style={{display:'flex',gap:6,alignItems:'center',marginTop:1}}>
                 <span style={{fontSize:10,color:TC[w.card_type],fontWeight:700}}>{w.card_type}</span>
-                <span style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>x{w.quantity}</span>
+                <span style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>{w.wantsQty} na wants</span>
               </div>
             </div>
             <div style={{display:'flex',alignItems:'center',background:'rgba(0,0,0,0.3)',borderRadius:10,border:'1px solid rgba(255,255,255,0.05)'}}>
@@ -532,26 +549,44 @@ function WantsPage({wants,cartIds,setCartIds,onRemoveWant,onUpdateWantQty,priceB
               <button onClick={()=>onUpdateWantQty(w.id,w.quantity+1)} style={{background:'none',border:'none',color:'#fff',padding:'6px 9px',cursor:'pointer'}}><Plus size={12}/></button>
             </div>
           </div>
+          <div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
+            <div style={{display:'flex',alignItems:'center',background:'rgba(0,0,0,0.25)',borderRadius:8,border:'1px solid rgba(255,255,255,0.07)'}}>
+              <button onClick={()=>setMoveQty(prev=>({...prev,[w.id]:Math.max(1,selectedQty-1)}))} style={{background:'none',border:'none',color:'#fff',padding:'5px 8px',cursor:'pointer'}}><Minus size={11}/></button>
+              <span style={{minWidth:18,textAlign:'center',fontSize:12,fontWeight:700}}>{selectedQty}</span>
+              <button onClick={()=>setMoveQty(prev=>({...prev,[w.id]:Math.min(w.wantsQty,selectedQty+1)}))} style={{background:'none',border:'none',color:'#fff',padding:'5px 8px',cursor:'pointer'}}><Plus size={11}/></button>
+            </div>
+            <Btn variant="secondary" onClick={()=>moveToCart(w,selectedQty)} style={{padding:'6px 10px',fontSize:11}} sfx=""><ShoppingCart size={12}/> Adicionar ao carrinho</Btn>
+            <Btn variant="danger" onClick={()=>onRemoveWant(w.id)} style={{padding:'6px 10px',fontSize:11}} sfx=""><Trash2 size={12}/> Excluir da wants</Btn>
+          </div>
         </Card>
-      </SwipeableCard>))}
+      </SwipeableCard>);})}
     </>}
 
-    {/* CART */}
     {inCart.length>0&&<>
-      <div style={{fontSize:11,fontWeight:700,color:'#c9a96e',textTransform:'uppercase',letterSpacing:1,marginTop:4}}><ShoppingCart size={11}/> Carrinho ({inCart.length})</div>
-      {cartBD.map((w,i)=>{
-        return(<SwipeableCard key={w.id} onSwipeLeft={()=>removeFromCart(w.id)} leftLabel="Voltar" leftColor="#c9a96e" rightColor={null}>
+      <div style={{fontSize:11,fontWeight:700,color:'#c9a96e',textTransform:'uppercase',letterSpacing:1,marginTop:4}}><ShoppingCart size={11}/> Carrinho ({cartUnits})</div>
+      <div style={{fontSize:10,color:'rgba(255,255,255,0.2)',marginTop:-8,fontStyle:'italic'}}>Arraste ← para voltar; use os botões para voltar ou excluir</div>
+      {cartBD.map((w)=>{
+        return(<SwipeableCard key={w.id} onSwipeLeft={()=>moveBackToWants(w.id)} leftLabel="Voltar / Excluir" leftColor="#c9a96e" rightColor={null}>
           <Card style={{padding:'10px 12px',borderColor:w.bonusQty>0?'rgba(46,229,157,0.15)':theme.primary+'22'}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{w.card_name}</div>
-                <div style={{display:'flex',gap:6,alignItems:'center',marginTop:1}}>
+                <div style={{display:'flex',gap:6,alignItems:'center',marginTop:1,flexWrap:'wrap'}}>
                   <span style={{fontSize:10,color:TC[w.card_type],fontWeight:700}}>{w.card_type}</span>
-                  <span style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>x{w.quantity}</span>
+                  <span style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{w.cartQty} no carrinho</span>
                   {w.bonusQty>0&&<Tag color="#2ee59d" style={{fontSize:9,padding:'1px 6px'}}>🎁 {w.bonusQty}</Tag>}
                   {w.paidQty>0&&<span style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>R$ {(w.paidQty*priceBRL).toFixed(2)}</span>}
                 </div>
               </div>
+              <div style={{display:'flex',alignItems:'center',background:'rgba(0,0,0,0.3)',borderRadius:10,border:'1px solid rgba(255,255,255,0.05)'}}>
+                <button onClick={()=>setCartQty(w.id,w.cartQty-1)} style={{background:'none',border:'none',color:'#fff',padding:'6px 9px',cursor:'pointer'}}><Minus size={12}/></button>
+                <span style={{minWidth:20,textAlign:'center',fontSize:13,fontWeight:700}}>{w.cartQty}</span>
+                <button onClick={()=>setCartQty(w.id,w.cartQty+1)} style={{background:'none',border:'none',color:'#fff',padding:'6px 9px',cursor:'pointer'}}><Plus size={12}/></button>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
+              <Btn variant="ghost" onClick={()=>moveBackToWants(w.id)} style={{padding:'6px 10px',fontSize:11}} sfx=""><ArrowLeft size={12}/> Voltar para wants</Btn>
+              <Btn variant="danger" onClick={()=>onRemoveWant(w.id)} style={{padding:'6px 10px',fontSize:11}} sfx=""><Trash2 size={12}/> Excluir do carrinho</Btn>
             </div>
           </Card>
         </SwipeableCard>);
@@ -628,12 +663,15 @@ function AddressDisplay({address,onEdit}){
 // CHECKOUT
 // ══════════════════════════════════════════════════════
 
-function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token,orderId,campaignId,campaignStatus,onOrderDone,toast}){
+function CheckoutPage({wants,cartQtyByItem,priceBRL,bonusAvail,theme,nav,profile,token,orderId,campaignId,campaignStatus,onOrderDone,toast,previousPaidBatches=[]}){
   const [freteOptions,setFreteOptions]=useState([]);const [selectedFrete,setSelectedFrete]=useState(null);
   const [lF,setLF]=useState(false);const [submitting,setSubmitting]=useState(false);
+  const [step,setStep]=useState('review');
+  const [saveAddressChoice,setSaveAddressChoice]=useState(null);
+  const [joinBatchId,setJoinBatchId]=useState('');
   const [addr,setAddr]=useState({cep:profile?.cep||'',rua:profile?.rua||'',numero:profile?.numero||'',complemento:profile?.complemento||'',bairro:profile?.bairro||'',cidade:profile?.cidade||'',uf:profile?.uf||''});
 
-  const cart=wants.filter(w=>cartIds.includes(w.id));
+  const cart=wants.map(w=>{const q=Math.min(w.quantity,Math.max(0,cartQtyByItem[w.id]||0));return q>0?{...w,quantity:q,fullQty:w.quantity}:null;}).filter(Boolean);
   const totalQty=cart.reduce((s,c)=>s+c.quantity,0);const bonus=bonusAvail||0;
   let bL=bonus;
   const bd=cart.map(c=>{const bq=Math.min(c.quantity,bL);bL-=bq;return{...c,bonusQty:bq,paidQty:c.quantity-bq};});
@@ -643,8 +681,16 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
   const isFullBonus=totalPaid===0&&totalBonus>0;
   const sub=totalPaid*priceBRL;const fV=selectedFrete?selectedFrete.price:0;const total=sub+fV;
   const cepClean=(addr.cep||'').replace(/\D/g,'');
+  const usingJoinShipping=Boolean(joinBatchId);
+
+  useEffect(()=>{setFreteOptions([]);setSelectedFrete(null);setSaveAddressChoice(null);},[joinBatchId]);
 
   async function calcFrete(){
+    if(usingJoinShipping){
+      setSelectedFrete({carrier:'Envio junto pedido anterior',price:0,deadline_days:0});
+      setFreteOptions([{carrier:'Envio junto pedido anterior',price:0,deadline_days:0}]);
+      return;
+    }
     if(cepClean.length<8){toast('CEP inválido','error');return;}
     setLF(true);setFreteOptions([]);setSelectedFrete(null);
     try{
@@ -676,9 +722,18 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
     try {
       const batchData = {order_id:orderId,status:'DRAFT',brl_unit_price_locked:priceBRL,qty_in_batch:totalQty,subtotal_locked:sub,shipping_locked:fV,total_locked:isFullBonus?0:total,payment_method:'MERCADO_PAGO'};
       const [batch] = await sbPost('order_batches', batchData, token);
-      for (const item of cart) await sbPatch('order_items','id=eq.'+item.id,{batch_id:batch.id,unit_price_brl:priceBRL},token);
       await sbPatch('orders','id=eq.'+(orderId),{qty_paid:totalPaid,qty_bonus:totalBonus,shipping_price_brl_locked:fV},token);
-      if(addr.rua)await sbPatch('profiles','id=eq.'+(profile.id),{cep:addr.cep,rua:addr.rua,numero:addr.numero,complemento:addr.complemento,bairro:addr.bairro,cidade:addr.cidade,uf:addr.uf},token);
+      for (const item of cart) {
+        const fullQty = Number(item.fullQty || item.quantity);
+        if (item.quantity >= fullQty) {
+          await sbPatch('order_items','id=eq.'+item.id,{batch_id:batch.id,unit_price_brl:priceBRL},token);
+        } else {
+          await sbPatch('order_items','id=eq.'+item.id,{quantity:fullQty-item.quantity},token);
+          await sbPost('order_items',{order_id:orderId,card_id:item.card_id,quantity:item.quantity,is_bonus:false,unit_price_brl:priceBRL,batch_id:batch.id},token);
+        }
+      }
+
+      if(saveAddressChoice===true&&addr.rua)await sbPatch('profiles','id=eq.'+(profile.id),{cep:addr.cep,rua:addr.rua,numero:addr.numero,complemento:addr.complemento,bairro:addr.bairro,cidade:addr.cidade,uf:addr.uf},token);
 
       const shortId=String(batch.id).slice(0,8).toUpperCase();
       SFX.confirm();
@@ -720,12 +775,18 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
         <div style={{height:1,background:'rgba(255,255,255,0.06)',margin:'3px 0'}}/>
         <div style={{display:'flex',justifyContent:'space-between',fontSize:18,fontWeight:800}}><span>Total</span><span style={{color:isFullBonus?'#2ee59d':theme.primary}}>{isFullBonus?'R$ 0,00 (bônus!)':'R$ '+total.toFixed(2)}</span></div>
       </div>
+      {step==='review'&&<Btn full onClick={()=>setStep('address')} style={{marginTop:12}} sfx="nav"><ArrowRight size={16}/> Avançar para endereço e frete</Btn>}
     </Card>
 
-    {!isFullBonus&&<Card style={{padding:16}}>
+    {!isFullBonus&&step==='address'&&<Card style={{padding:16}}>
       <SectionTitle>Endereço de entrega</SectionTitle>
       <AddressForm address={addr} setAddress={(a)=>setAddr(a)} onCalcFrete={()=>{}} frete={null} loadingFrete={false}/>
-      <Btn full variant="secondary" onClick={calcFrete} disabled={cepClean.length<8||lF} style={{marginTop:10}} sfx="click">{lF?<Spin size={14}/>:<><Truck size={15}/> Calcular frete</>}</Btn>
+      {previousPaidBatches.length>0&&<div style={{marginTop:12,display:'flex',flexDirection:'column',gap:6}}>
+        <div style={{fontSize:12,color:'rgba(255,255,255,0.4)'}}>Nova compra com pedido pago: deseja enviar junto com um pedido anterior?</div>
+        <button onClick={()=>setJoinBatchId('')} style={{width:'100%',textAlign:'left',padding:'9px 10px',borderRadius:10,border:'1px solid '+(!joinBatchId?theme.primary+'30':'rgba(255,255,255,0.06)'),background:!joinBatchId?theme.primary+'10':'rgba(255,255,255,0.02)',color:'#fff',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Pagar novo frete normalmente</button>
+        {previousPaidBatches.map(b=><button key={b.id} onClick={()=>setJoinBatchId(String(b.id))} style={{width:'100%',textAlign:'left',padding:'9px 10px',borderRadius:10,border:'1px solid '+(joinBatchId===String(b.id)?theme.primary+'30':'rgba(255,255,255,0.06)'),background:joinBatchId===String(b.id)?theme.primary+'10':'rgba(255,255,255,0.02)',color:'#fff',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Enviar junto com pedido pago #{String(b.id).slice(0,8).toUpperCase()}</button>)}
+      </div>}
+      <Btn full variant="secondary" onClick={calcFrete} disabled={(!usingJoinShipping&&cepClean.length<8)||lF} style={{marginTop:10}} sfx="click">{lF?<Spin size={14}/>:<><Truck size={15}/> {usingJoinShipping?'Usar envio conjunto':'Calcular frete'}</>}</Btn>
       {freteOptions.length>0&&<div style={{marginTop:12}}>
         <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.4)',marginBottom:8}}>Opções de envio</div>
         {freteOptions.map((opt,i)=>(<button key={i} onClick={()=>{SFX.toggle();setSelectedFrete(opt);}} style={{width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',borderRadius:12,border:'1px solid '+(selectedFrete===opt?theme.primary+'30':'rgba(255,255,255,0.06)'),background:selectedFrete===opt?theme.primary+'10':'rgba(255,255,255,0.02)',cursor:'pointer',marginBottom:4,fontFamily:"'Outfit',sans-serif"}}>
@@ -733,6 +794,14 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
           <div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:14,fontWeight:800,color:selectedFrete===opt?theme.primary:'rgba(255,255,255,0.5)'}}>R$ {Number(opt.price).toFixed(2)}</span>{selectedFrete===opt&&<CheckCircle size={16} style={{color:theme.primary}}/>}</div>
         </button>))}
       </div>}
+      {selectedFrete&&!usingJoinShipping&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:10,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.06)'}}>
+        <div style={{fontSize:12,fontWeight:700,marginBottom:8}}>Quer salvar esse endereço?</div>
+        <div style={{display:'flex',gap:8}}>
+          <Btn variant={saveAddressChoice===true?'success':'ghost'} onClick={()=>setSaveAddressChoice(true)} style={{flex:1,padding:'8px 10px',fontSize:12}} sfx="">Sim</Btn>
+          <Btn variant={saveAddressChoice===false?'secondary':'ghost'} onClick={()=>setSaveAddressChoice(false)} style={{flex:1,padding:'8px 10px',fontSize:12}} sfx="">Não</Btn>
+        </div>
+      </div>}
+      <Btn full variant="ghost" onClick={()=>setStep('review')} style={{marginTop:10}} sfx="nav"><ChevronLeft size={14}/> Voltar para revisão</Btn>
     </Card>}
 
     <Card id="tut-payment" style={{padding:16}}>
@@ -1632,7 +1701,7 @@ export default function MagicPortal(){
   const [pricing,setPricing]=useState(null);
   const [orderId,setOrderId]=useState(null);
   const [wants,setWants]=useState([]); // order_items with card info
-  const [cartIds,setCartIds]=useState([]);
+  const [cartQtyByItem,setCartQtyByItem]=useState({});
   const [bonusGrants,setBonusGrants]=useState([]);
   const [lastOrder,setLastOrder]=useState(null);
   const [myOrders,setMyOrders]=useState([]);
@@ -1681,7 +1750,7 @@ export default function MagicPortal(){
     }));
   },[tiers,pricing]);
 
-  const pool = campaign?.pool_qty_confirmed || 0;
+  const pool = Number(campaign?.pool_qty_confirmed ?? campaign?.pool_qty ?? 0);
   const tier = computedTiers.length>0 ? getTier(pool, computedTiers) : null;
   const priceBRL = tier?.brl || 0;
   const bonusAvail = bonusGrants.filter(b=>b.status==='AVAILABLE').reduce((s,b)=>s+b.bonus_qty,0);
@@ -1724,6 +1793,7 @@ export default function MagicPortal(){
         // Wants (order_items without batch_id)
         const items = await sbGet('order_items', `order_id=eq.${ord.id}&batch_id=is.null&is_bonus=eq.false&select=id,card_id,quantity,cards(name,type)`, tkn);
         setWants(items.map(i=>({...i,card_name:i.cards?.name||'?',card_type:i.cards?.type||'Normal'})));
+        setCartQtyByItem({});
 
         // Bonus grants
         const bg = await sbGet('bonus_grants', `user_id=eq.${userId}&campaign_id=eq.${camp.id}`, tkn);
@@ -1761,7 +1831,7 @@ export default function MagicPortal(){
   function handleLogout(){
     localStorage.removeItem('cpj_session');
     setSession(null);setProfile(null);setCampaign(null);setTiers([]);setPricing(null);
-    setOrderId(null);setWants([]);setCartIds([]);setBonusGrants([]);setMyOrders([]);
+    setOrderId(null);setWants([]);setCartQtyByItem({});setBonusGrants([]);setMyOrders([]);
     setPage('home');setIsNew(false);didAutoLoad.current=false;
   }
 
@@ -1810,7 +1880,7 @@ export default function MagicPortal(){
     if (!token) return;
     await sbDelete('order_items', 'id=eq.'+(itemId), token);
     setWants(prev => prev.filter(w => w.id !== itemId));
-    setCartIds(prev => prev.filter(x => x !== itemId));
+    setCartQtyByItem(prev => { const cp = { ...prev }; delete cp[itemId]; return cp; });
     SFX.click();
   }
 
@@ -1820,16 +1890,37 @@ export default function MagicPortal(){
     if (newQty <= 0) { handleRemoveWant(itemId); return; }
     await sbPatch('order_items', 'id=eq.'+(itemId), { quantity: newQty }, token);
     setWants(prev => prev.map(w => w.id === itemId ? { ...w, quantity: newQty } : w));
+    setCartQtyByItem(prev => {
+      const selected = prev[itemId] || 0;
+      if (selected <= newQty) return prev;
+      return { ...prev, [itemId]: newQty };
+    });
   }
 
   // ─── Order done ───────────────────────────────────
   async function handleOrderDone(order) {
     setLastOrder(order);
-    setWants(prev => prev.filter(w => !cartIds.includes(w.id)));
-    setCartIds([]);
+    setWants(prev => prev.flatMap(w => {
+      const selected = Math.min(w.quantity, Math.max(0, cartQtyByItem[w.id] || 0));
+      if (selected <= 0) return [w];
+      const remaining = w.quantity - selected;
+      return remaining > 0 ? [{ ...w, quantity: remaining }] : [];
+    }));
+    setCartQtyByItem({});
     setMyOrders(prev => [{ id: order.batchId, status: 'DRAFT', total_locked: order.isFullBonus ? 0 : order.totalPaid * order.priceBRL, payment_method: order.method === 'bonus' ? 'BONUS' : 'MERCADO_PAGO', qty_in_batch: order.totalPaid + order.totalBonus, created_at: new Date().toISOString(), cards: order.cards }, ...prev]);
     toast('Pedido registrado!', 'success');
   }
+
+  useEffect(() => {
+    setCartQtyByItem(prev => {
+      const next = {};
+      wants.forEach(w => {
+        const q = Math.min(w.quantity, Math.max(0, prev[w.id] || 0));
+        if (q > 0) next[w.id] = q;
+      });
+      return next;
+    });
+  }, [wants]);
 
   // Sound toggle
   const origSfx = useRef(null);
@@ -1844,8 +1935,13 @@ export default function MagicPortal(){
   function tutNext() { if (tutStep < TUTORIAL_STEPS.length - 1) setTutStep(s => s + 1); else { setShowTutorial(false); setTutStep(0); setIsFirstTimeTut(false); setPage('catalog'); } }
   function tutSkip() { setShowTutorial(false); setTutStep(0); setIsFirstTimeTut(false); }
 
-  const wantsCount = wants.reduce((s, w) => s + w.quantity, 0);
-  const cartCount = wants.filter(w => cartIds.includes(w.id)).reduce((s, w) => s + w.quantity, 0);
+  const wantsCount = wants.reduce((s, w) => s + Math.max(0, w.quantity - (cartQtyByItem[w.id] || 0)), 0);
+  const cartCount = wants.reduce((s, w) => s + Math.min(w.quantity, cartQtyByItem[w.id] || 0), 0);
+  const previousPaidBatches = (myOrders || []).filter(o => {
+    const st = String(o.status || '').toUpperCase();
+    const paySt = String(o.payment_status || '').toLowerCase();
+    return st === 'PAID' || st === 'CONFIRMED' || st === 'APPROVED' || paySt === 'approved';
+  });
   const bottomTabs = [{ key: 'home', icon: Home, label: 'Início' }, { key: 'catalog', icon: BookOpen, label: 'Catálogo' }, { key: 'wants', icon: ScrollText, label: 'Wants' }, { key: 'checkout', icon: ShoppingCart, label: 'Carrinho' }, { key: 'profile', icon: User, label: 'Perfil' }];
 
   return (<div style={{ '--gp': theme.primary, '--gs': theme.secondary, '--gg': theme.glow, minHeight: '100vh', background: `radial-gradient(ellipse at 50% -20%,${theme.primary}12 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,${theme.secondary}08 0%,transparent 40%),#08080f`, color: '#e9edf7', fontFamily: "'Outfit',sans-serif", maxWidth: 480, margin: '0 auto', position: 'relative', paddingBottom: 78 }}>
@@ -1906,8 +2002,8 @@ export default function MagicPortal(){
           <Btn full variant="secondary" onClick={()=>{loadAppData(token,session?.user?.id);}} sfx="click"><RefreshCw size={16}/> Recarregar</Btn>
         </div>)}
         {page === 'catalog' && <CatalogPage token={token} wants={wants} onAddWant={handleAddWant} priceBRL={priceBRL} theme={theme} campaignStatus={campaign?.status} />}
-        {page === 'wants' && <WantsPage wants={wants} cartIds={cartIds} setCartIds={setCartIds} onRemoveWant={handleRemoveWant} onUpdateWantQty={handleUpdateWantQty} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} />}
-        {page === 'checkout' && <CheckoutPage wants={wants} cartIds={cartIds} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} campaignStatus={campaign?.status} onOrderDone={handleOrderDone} toast={toast} />}
+        {page === 'wants' && <WantsPage wants={wants} cartQtyByItem={cartQtyByItem} setCartQtyByItem={setCartQtyByItem} onRemoveWant={handleRemoveWant} onUpdateWantQty={handleUpdateWantQty} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} />}
+        {page === 'checkout' && <CheckoutPage wants={wants} cartQtyByItem={cartQtyByItem} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} campaignStatus={campaign?.status} onOrderDone={handleOrderDone} toast={toast} previousPaidBatches={previousPaidBatches} />}
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
         {page === 'profile' && <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} campaign={campaign} />}
         {page === 'admin' && <AdminPage pool={pool} tiers={computedTiers} priceBRL={priceBRL} pricing={pricing} campaign={campaign} theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} toast={toast} />}
