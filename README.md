@@ -124,14 +124,26 @@ O bônus permite conceder cartas grátis a um usuário em uma campanha. Pode ser
 
 1. **Usuário usa bônus**: no checkout, as cartas do carrinho são automaticamente alocadas como bônus (grátis) até esgotar o saldo
 
+#### SQL necessário para o sistema de bônus
+
+**Banco novo (primeira vez)?** Execute `supabase/schema.sql` — ele já inclui tudo.
+
+**Banco já existente (sem bônus)?** Execute `supabase/migrations/bonus-system.sql` no SQL Editor do Supabase. O script é idempotente e faz:
+
+1. `ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS bonus_pct integer DEFAULT 0` — porcentagem de bônus automático
+2. `ALTER TABLE orders ADD COLUMN IF NOT EXISTS qty_bonus integer DEFAULT 0` — qty de bônus no pedido
+3. `ALTER TABLE order_items ADD COLUMN IF NOT EXISTS is_bonus boolean DEFAULT false` — marca itens como bônus
+4. `CREATE TABLE IF NOT EXISTS bonus_grants (...)` — tabela principal de bônus com `grant_type`, `batch_id`, `status`
+5. `CREATE INDEX` nos campos `user_id` e `campaign_id` da `bonus_grants`
+6. `RLS policies` — SELECT e UPDATE para o usuário ver/usar seus bônus
+
 #### Schema e API
 
 1. **Schema**: a tabela `bonus_grants` já está no `supabase/schema.sql` — execute o script no SQL Editor do Supabase
-2. **RLS**: políticas de SELECT e UPDATE para o usuário já estão incluídas no schema
-3. **API**: o endpoint `/api/admin-bonus` gerencia bônus (listar, conceder, revogar) usando `SB_SERVICE_ROLE_KEY`
-4. **Helper**: `_bonus-helper.js` contém a lógica de auto-grant, usada por `mp-webhook.js`, `mp-sync.js` e `admin-mark-paid.js`
-
-**Não é necessário nenhum setup adicional do Supabase** além de executar o `supabase/schema.sql`. O script já cria a tabela, índices e políticas RLS necessárias.
+2. **Migração**: se o banco já existe, use `supabase/migrations/bonus-system.sql` para adicionar apenas o necessário
+3. **RLS**: políticas de SELECT e UPDATE para o usuário já estão incluídas
+4. **API**: o endpoint `/api/admin-bonus` gerencia bônus (listar, conceder, revogar) usando `SB_SERVICE_ROLE_KEY`
+5. **Helper**: `_bonus-helper.js` contém a lógica de auto-grant, usada por `mp-webhook.js`, `mp-sync.js` e `admin-mark-paid.js`
 
 ### Como executar:
 
