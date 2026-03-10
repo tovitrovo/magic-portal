@@ -407,8 +407,8 @@ function HomePage({pool,tiers,priceBRL,closeDate,theme,nav,wantsCount,cartCount,
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
       {[{icon:ScrollText,val:wantsCount,lbl:'Wants',c:theme.primary},{icon:ShoppingCart,val:cartCount,lbl:'Carrinho',c:'#c9a96e'},{icon:Gift,val:bonusAvail,lbl:'Bônus',c:'#2ee59d'}].map(s=>(<Card key={s.lbl} style={{textAlign:'center',padding:12}}><s.icon size={16} style={{color:s.c,marginBottom:3}}/><div style={{fontSize:18,fontWeight:800}}>{s.val}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>{s.lbl}</div></Card>))}
     </div>
-    {tierChangeBonus>0&&<Card style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:10,background:'rgba(46,229,157,0.06)',borderColor:'rgba(46,229,157,0.18)'}}>
-      <Gift size={18} style={{color:'#2ee59d',flexShrink:0}}/><div><div style={{fontSize:13,fontWeight:700,color:'#2ee59d'}}>Você ganhou {tierChangeBonus} carta{tierChangeBonus!==1?'s':''} bônus! 🎉</div><div style={{fontSize:11,color:'rgba(255,255,255,0.35)'}}>O preço caiu com o avanço de tier. Suas cartas extras serão grátis no checkout.</div></div>
+    {bonusAvail>0&&<Card style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:10,background:'rgba(46,229,157,0.06)',borderColor:'rgba(46,229,157,0.18)'}}>
+      <Gift size={18} style={{color:'#2ee59d',flexShrink:0}}/><div><div style={{fontSize:13,fontWeight:700,color:'#2ee59d'}}>Você tem {bonusAvail} carta{bonusAvail!==1?'s':''} bônus! 🎉</div><div style={{fontSize:11,color:'rgba(255,255,255,0.35)'}}>{tierChangeBonus>0?'O preço caiu com o avanço de tier. Suas cartas extras serão grátis no checkout.':'Serão incluídas automaticamente no seu próximo checkout.'}</div></div>
     </Card>}
     {credit>0&&<Card style={{padding:'10px 14px',display:'flex',alignItems:'center',gap:8}}><DollarSign size={14} style={{color:'#c9a96e'}}/><div style={{fontSize:12,color:'rgba(255,255,255,0.4)'}}>Crédito acumulado: <b style={{color:'#c9a96e'}}>R$ {credit.toFixed(2)}</b></div></Card>}
     <Card style={{padding:16}}>
@@ -1870,19 +1870,25 @@ export default function MagicPortal(){
         }
         setOrderId(ord.id);
 
-        // Wants (order_items without batch_id)
-        const items = await sbGet('order_items', `order_id=eq.${ord.id}&batch_id=is.null&is_bonus=eq.false&select=id,card_id,quantity,cards(name,type)`, tkn);
-        setWants(items.map(i=>({...i,card_name:i.cards?.name||'?',card_type:i.cards?.type||'Normal'})));
+        // Wants (order_items without batch_id) — wrapped so failures don't block bonus loading
+        try {
+          const items = await sbGet('order_items', `order_id=eq.${ord.id}&batch_id=is.null&is_bonus=eq.false&select=id,card_id,quantity,cards(name,type)`, tkn);
+          setWants(items.map(i=>({...i,card_name:i.cards?.name||'?',card_type:i.cards?.type||'Normal'})));
+        } catch(e) { console.warn('Failed to load order items:', e); }
         setCartQtyByItem({});
 
-        // Order history (batches with items)
-        const batches = await sbGet('order_batches', `order_id=eq.${ord.id}&select=id,status,total_locked,payment_method,created_at,qty_in_batch,mp_link,brl_unit_price_locked,subtotal_locked,order_items(quantity,cards(name,type))`, tkn);
-        setMyOrders((batches||[]).map(b=>({ ...b, cards: Array.isArray(b.order_items) ? b.order_items.map(i=>({ name:i.cards?.name||'Carta', type:i.cards?.type||'', qty:Number(i.quantity||1) })) : undefined })) );
+        // Order history (batches with items) — wrapped so failures don't block bonus loading
+        try {
+          const batches = await sbGet('order_batches', `order_id=eq.${ord.id}&select=id,status,total_locked,payment_method,created_at,qty_in_batch,mp_link,brl_unit_price_locked,subtotal_locked,order_items(quantity,cards(name,type))`, tkn);
+          setMyOrders((batches||[]).map(b=>({ ...b, cards: Array.isArray(b.order_items) ? b.order_items.map(i=>({ name:i.cards?.name||'Carta', type:i.cards?.type||'', qty:Number(i.quantity||1) })) : undefined })) );
+        } catch(e) { console.warn('Failed to load order batches:', e); }
 
         // Auto-grant tier-change bonus (server-side, idempotent), then load all grants
         try { await fetch('/api/tier-bonus', { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${tkn}`}, body:JSON.stringify({campaignId:camp.id}) }); } catch(e) { console.warn('tier-bonus check:', e); }
-        const bg = await sbGet('bonus_grants', `user_id=eq.${userId}&campaign_id=eq.${camp.id}`, tkn);
-        setBonusGrants(bg);
+        try {
+          const bg = await sbGet('bonus_grants', `user_id=eq.${userId}&campaign_id=eq.${camp.id}`, tkn);
+          setBonusGrants(bg);
+        } catch(e) { console.warn('Failed to load bonus grants:', e); }
       }
     } catch(e) {
       console.error('loadAppData', e);
