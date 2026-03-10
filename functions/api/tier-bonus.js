@@ -102,7 +102,10 @@ export async function onRequest(context) {
       const subtotal = Number(b.subtotal_locked || 0);
       if (lockedPrice <= 0 || subtotal <= 0) continue;
       if (lockedPrice <= currentPrice) continue; // no bonus if price hasn't dropped
+      // round: paidQty was an exact integer at order time (subtotal = paidQty * lockedPrice),
+      // so Math.round handles floating-point imprecision.
       const paidQty = Math.round(subtotal / lockedPrice);
+      // floor: you can only grant whole bonus cards, round down to be conservative.
       const equivalentQty = Math.floor(subtotal / currentPrice);
       const bonus = equivalentQty - paidQty;
       if (bonus > 0) totalExpected += bonus;
@@ -161,7 +164,8 @@ async function sbQuery(sbUrl, headers, path) {
 }
 
 /**
- * Same calculation as the client-side calcBrlPrice in MagicPortal.jsx
+ * Same calculation as the client-side calcBrlPrice in MagicPortal.jsx.
+ * The fallback rate 5.68 matches the client; only used when pricing_config has no usd_brl_rate.
  */
 function calcBrlPrice(usdPerCard, pricing) {
   if (!pricing) return 0;
