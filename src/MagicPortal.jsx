@@ -1446,7 +1446,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   async function saveCampaign(){
     setSaving(true);
     try{
-      const r=await fetch('/api/campaigns',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:editCamp.id,name:editCamp.name,status:editCamp.status,close_at:editCamp.close_at,max_cards:editCamp.max_cards,bonus_pct:editCamp.bonus_pct||0})});
+      const r=await fetch('/api/campaigns',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:editCamp.id,name:editCamp.name,status:editCamp.status,close_at:editCamp.close_at,max_cards:editCamp.max_cards})});
       const data=await r.json().catch(()=>({}));
       if(!r.ok)throw new Error(data.error||`HTTP ${r.status}`);
       SFX.success();setSelectedCampaign(prev=>({...prev,...editCamp}));if(onReload)onReload();loadCampaigns();
@@ -1711,7 +1711,6 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
           <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Status</label><div style={{display:'flex',flexWrap:'wrap',gap:4}}>{CAMPAIGN_STATUSES.map(s=>(<button key={s} onClick={()=>setEditCamp(c=>({...c,status:s}))} style={{padding:'5px 10px',borderRadius:8,border:'1px solid '+(editCamp.status===s?theme.primary+'30':'rgba(255,255,255,0.06)'),background:editCamp.status===s?theme.primary+'15':'rgba(255,255,255,0.02)',color:editCamp.status===s?theme.primary:'rgba(255,255,255,0.3)',fontSize:10,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{s}</button>))}</div></div>
           <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Data de fechamento</label><input type="date" value={editCamp.close_at?editCamp.close_at.slice(0,10):''} onChange={e=>setEditCamp(c=>({...c,close_at:e.target.value}))} style={{width:'100%',padding:'10px 12px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/></div>
           <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Máximo de cartas</label><input type="number" value={editCamp.max_cards||0} onChange={e=>setEditCamp(c=>({...c,max_cards:parseInt(e.target.value)||0}))} style={{width:'100%',padding:'10px 12px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/></div>
-          <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Bônus automático (%)</label><div style={{display:'flex',alignItems:'center',gap:8}}><input type="number" min="0" max="100" value={editCamp.bonus_pct||0} onChange={e=>setEditCamp(c=>({...c,bonus_pct:parseInt(e.target.value)||0}))} style={{width:'100%',padding:'10px 12px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/></div><span style={{fontSize:10,color:'rgba(255,255,255,0.25)',marginTop:2,display:'block'}}>Ex: 10 = a cada 10 cartas pagas, 1 bônus grátis. 0 = desativado.</span></div>
         </div>
         <Btn full variant="success" onClick={saveCampaign} disabled={saving} style={{marginTop:12}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar campanha</>}</Btn>
         {isFinalized&&<Btn full variant="danger" onClick={deleteCampaign} style={{marginTop:8}} sfx=""><Trash2 size={14}/> Excluir encomenda</Btn>}
@@ -2048,8 +2047,6 @@ export default function MagicPortal(){
 
   const wantsCount = wants.reduce((s, w) => s + Math.max(0, w.quantity - (cartQtyByItem[w.id] || 0)), 0);
   const cartCount = wants.reduce((s, w) => s + Math.min(w.quantity, cartQtyByItem[w.id] || 0), 0);
-  const bonusPctQty = Math.floor(cartCount * (campaign?.bonus_pct || 0) / 100);
-  const effectiveBonusAvail = bonusAvail + bonusPctQty;
   const previousPaidBatches = (myOrders || []).filter(o => {
     const st = String(o.status || '').toUpperCase();
     const paySt = String(o.payment_status || '').toLowerCase();
@@ -2106,7 +2103,7 @@ export default function MagicPortal(){
 
       {/* Pages */}
       <div style={{ padding: page === 'onboarding' ? '0 20px' : '14px 20px' }}>
-        {page === 'home' && (computedTiers.length > 0 ? <HomePage pool={pool} tiers={computedTiers} priceBRL={priceBRL} closeDate={campaign?.close_at} theme={theme} nav={nav} wantsCount={wantsCount} cartCount={cartCount} bonusAvail={effectiveBonusAvail} tierChangeBonus={tierChangeBonus} credit={0} campaign_status={campaign?.status} /> : !appLoading && <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        {page === 'home' && (computedTiers.length > 0 ? <HomePage pool={pool} tiers={computedTiers} priceBRL={priceBRL} closeDate={campaign?.close_at} theme={theme} nav={nav} wantsCount={wantsCount} cartCount={cartCount} bonusAvail={bonusAvail} tierChangeBonus={tierChangeBonus} credit={0} campaign_status={campaign?.status} /> : !appLoading && <div style={{display:'flex',flexDirection:'column',gap:14}}>
           <div style={{textAlign:'center',padding:'6px 0 0'}}>
             <div style={{fontSize:11,color:'rgba(255,255,255,0.28)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>
             <h1 style={{margin:'5px 0 0',fontSize:26,fontFamily:"'Cinzel',serif",background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Cartas para Jogar</h1>
@@ -2115,8 +2112,8 @@ export default function MagicPortal(){
           <Btn full variant="secondary" onClick={()=>{loadAppData(token,session?.user?.id);}} sfx="click"><RefreshCw size={16}/> Recarregar</Btn>
         </div>)}
         {page === 'catalog' && <CatalogPage token={token} wants={wants} onAddWant={handleAddWant} priceBRL={priceBRL} theme={theme} campaignStatus={campaign?.status} />}
-        {page === 'wants' && <WantsPage wants={wants} cartQtyByItem={cartQtyByItem} setCartQtyByItem={setCartQtyByItem} onRemoveWant={handleRemoveWant} onUpdateWantQty={handleUpdateWantQty} priceBRL={priceBRL} bonusAvail={effectiveBonusAvail} theme={theme} nav={nav} />}
-        {page === 'checkout' && <CheckoutPage wants={wants} cartQtyByItem={cartQtyByItem} priceBRL={priceBRL} bonusAvail={effectiveBonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} campaignStatus={campaign?.status} onOrderDone={handleOrderDone} toast={toast} previousPaidBatches={previousPaidBatches} />}
+        {page === 'wants' && <WantsPage wants={wants} cartQtyByItem={cartQtyByItem} setCartQtyByItem={setCartQtyByItem} onRemoveWant={handleRemoveWant} onUpdateWantQty={handleUpdateWantQty} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} />}
+        {page === 'checkout' && <CheckoutPage wants={wants} cartQtyByItem={cartQtyByItem} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} campaignStatus={campaign?.status} onOrderDone={handleOrderDone} toast={toast} previousPaidBatches={previousPaidBatches} />}
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
         {page === 'profile' && <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} campaign={campaign} />}
         {page === 'admin' && <AdminPage pool={pool} tiers={computedTiers} priceBRL={priceBRL} pricing={pricing} campaign={campaign} theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} toast={toast} />}

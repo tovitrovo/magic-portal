@@ -1,5 +1,5 @@
 import { incrementPoolOnPaid } from './_pool-helper.js';
-import { grantBonusOnPaid } from './_bonus-helper.js';
+import { grantTierBonusToAll } from './_tier-bonus-helper.js';
 
 export async function onRequest(context) {
   // Webhook server-to-server: responder 200 rápido sempre.
@@ -92,8 +92,16 @@ export async function onRequest(context) {
           }
         } catch (e) { console.error('Webhook: erro ao atualizar order pai:', e); } // não bloqueia o retorno do webhook
 
-        // Auto-grant bonus cards based on campaign.bonus_pct
-        await grantBonusOnPaid(SB_URL, SB_SERVICE_ROLE_KEY, orderId).catch(e => console.error('Webhook: bonus grant error:', e));
+        
+        // Recalcula bônus de tier-change para todos os usuários da campanha
+        try {
+          const orderRes2 = await fetch(`${SB_URL}/rest/v1/orders?id=eq.${encodeURIComponent(parentOrderId)}&select=campaign_id`, {
+            headers: { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}` },
+          });
+          const orderArr2 = await orderRes2.json().catch(() => []);
+          const campaignId = Array.isArray(orderArr2) && orderArr2.length ? orderArr2[0].campaign_id : null;
+          if (campaignId) await grantTierBonusToAll(SB_URL, SB_SERVICE_ROLE_KEY, campaignId);
+        } catch (e) { console.error('Webhook: tier bonus error:', e); }
       }
     }
 

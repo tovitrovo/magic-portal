@@ -1,5 +1,5 @@
 import { incrementPoolOnPaid } from './_pool-helper.js';
-import { grantBonusOnPaid } from './_bonus-helper.js';
+import { grantTierBonusToAll } from './_tier-bonus-helper.js';
 
 export async function onRequest(context) {
   const CORS = {
@@ -132,9 +132,20 @@ export async function onRequest(context) {
       }),
     });
 
-    // Auto-grant bonus cards based on campaign.bonus_pct
-    if (batchStatus === "PAID") {
-      await grantBonusOnPaid(SB_URL, SB_SERVICE_ROLE_KEY, batchId).catch(e => console.error('mp-sync: bonus grant error:', e));
+    if (batchStatus === 'PAID') {
+      // Recalcula bônus de tier-change para todos os usuários da campanha
+      try {
+        const sbH = { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}` };
+        const b2Res = await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(batchId)}&select=order_id`, { headers: sbH });
+        const b2Arr = await b2Res.json().catch(() => []);
+        const orderId2 = Array.isArray(b2Arr) && b2Arr.length ? b2Arr[0].order_id : null;
+        if (orderId2) {
+          const oRes = await fetch(`${SB_URL}/rest/v1/orders?id=eq.${encodeURIComponent(orderId2)}&select=campaign_id`, { headers: sbH });
+          const oArr = await oRes.json().catch(() => []);
+          const campaignId = Array.isArray(oArr) && oArr.length ? oArr[0].campaign_id : null;
+          if (campaignId) await grantTierBonusToAll(SB_URL, SB_SERVICE_ROLE_KEY, campaignId);
+        }
+      } catch (e) { console.error('mp-sync: tier bonus error:', e); }
     }
 
     if (!pRes.ok) {
