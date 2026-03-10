@@ -62,6 +62,7 @@ export async function grantTierBonusToAll(sbUrl, sbKey, campaignId) {
 }
 
 async function grantForUser(sbUrl, svc, userId, orderId, campaignId, currentPrice) {
+  // orderId is required by the production schema (NOT NULL)
   try {
     // Batches pagos (não-bônus): base financeira para o cálculo
     const paidBatchArr = await sbGet(sbUrl, svc,
@@ -108,6 +109,7 @@ async function grantForUser(sbUrl, svc, userId, orderId, campaignId, currentPric
       body: JSON.stringify({
         user_id: userId,
         campaign_id: campaignId,
+        order_id: orderId,
         bonus_qty: delta,
         status: 'AVAILABLE',
         grant_type: 'TIER_CHANGE',
