@@ -290,6 +290,11 @@ DROP POLICY IF EXISTS "Users can view own bonus" ON public.bonus_grants;
 CREATE POLICY "Users can view own bonus" ON public.bonus_grants
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own bonus" ON public.bonus_grants;
+CREATE POLICY "Users can update own bonus" ON public.bonus_grants
+  FOR UPDATE USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
 -- ══════════════════════════════════════════════════════════════
 -- TRIGGER: auto-criar perfil ao registrar usuário
 -- ══════════════════════════════════════════════════════════════
