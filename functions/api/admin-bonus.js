@@ -110,7 +110,7 @@ export async function onRequest(context) {
       status: 400, headers: { ...CORS, "Content-Type": "application/json" }
     });
   } catch (e) {
-    return new Response(JSON.stringify({ ok: false, error: String(e?.message || e) }), {
+    return new Response(JSON.stringify({ ok: false, error: "Erro interno no endpoint de bônus: " + String(e?.message || e) }), {
       status: 500, headers: { ...CORS, "Content-Type": "application/json" }
     });
   }
