@@ -1930,10 +1930,10 @@ export default function MagicPortal(){
       for (const g of avail) {
         if (remaining <= 0) break;
         if (remaining >= g.bonus_qty) {
-          await sbPatch('bonus_grants', 'id=eq.' + g.id, { status: 'USED' }, token).catch(() => {});
+          await sbPatch('bonus_grants', 'id=eq.' + g.id, { status: 'USED' }, token).catch(e => console.warn('bonus_grants update', e));
           remaining -= g.bonus_qty;
         } else {
-          await sbPatch('bonus_grants', 'id=eq.' + g.id, { bonus_qty: g.bonus_qty - remaining }, token).catch(() => {});
+          await sbPatch('bonus_grants', 'id=eq.' + g.id, { bonus_qty: g.bonus_qty - remaining }, token).catch(e => console.warn('bonus_grants update', e));
           remaining = 0;
         }
       }
