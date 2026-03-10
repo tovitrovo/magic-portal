@@ -152,9 +152,13 @@ CREATE TABLE IF NOT EXISTS public.bonus_grants (
   bonus_qty     integer NOT NULL DEFAULT 0,
   status        text DEFAULT 'AVAILABLE'
                   CHECK (status IN ('AVAILABLE','USED','EXPIRED')),
+  grant_type    text DEFAULT 'MANUAL'
+                  CHECK (grant_type IN ('MANUAL','BONUS_PCT','TIER_CHANGE')),
   created_at    timestamptz DEFAULT now(),
   batch_id      uuid REFERENCES public.order_batches(id) ON DELETE SET NULL
 );
+-- Migration for existing DBs:
+-- ALTER TABLE public.bonus_grants ADD COLUMN IF NOT EXISTS grant_type text DEFAULT 'MANUAL' CHECK (grant_type IN ('MANUAL','BONUS_PCT','TIER_CHANGE'));
 
 -- ══════════════════════════════════════════════════════════════
 -- INDEXES (para queries frequentes do app e admin)
