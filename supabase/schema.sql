@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS public.campaigns (
   close_at            timestamptz,
   max_cards           integer,
   pool_qty_confirmed  integer DEFAULT 0,
+  bonus_pct           integer DEFAULT 0,
   created_at          timestamptz DEFAULT now()
 );
 
@@ -151,7 +152,8 @@ CREATE TABLE IF NOT EXISTS public.bonus_grants (
   bonus_qty     integer NOT NULL DEFAULT 0,
   status        text DEFAULT 'AVAILABLE'
                   CHECK (status IN ('AVAILABLE','USED','EXPIRED')),
-  created_at    timestamptz DEFAULT now()
+  created_at    timestamptz DEFAULT now(),
+  batch_id      uuid REFERENCES public.order_batches(id) ON DELETE SET NULL
 );
 
 -- ══════════════════════════════════════════════════════════════
@@ -312,3 +314,10 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ══════════════════════════════════════════════════════════════
+-- MIGRATION: novas colunas para bônus automático
+-- Execute estes comandos se o banco já existir:
+-- ══════════════════════════════════════════════════════════════
+-- ALTER TABLE public.campaigns ADD COLUMN IF NOT EXISTS bonus_pct integer DEFAULT 0;
+-- ALTER TABLE public.bonus_grants ADD COLUMN IF NOT EXISTS batch_id uuid REFERENCES public.order_batches(id) ON DELETE SET NULL;

@@ -67,11 +67,11 @@ export async function onRequest(context) {
       const r = await fetch(url, {
         method: "POST",
         headers: { ...headers, Prefer: "return=representation" },
-        body: JSON.stringify({ user_id: userId, campaign_id: campaignId, bonus_qty: bonusQty, status: "AVAILABLE" }),
+        body: JSON.stringify({ user_id: userId, campaign_id: campaignId, bonus_qty: bonusQty, status: "AVAILABLE", batch_id: null }),
       });
       if (!r.ok) {
         const t = await r.text().catch(() => "");
-        return new Response(JSON.stringify({ ok: false, error: `Falha ao conceder bônus: ${r.status} ${t.slice(0, 200)}` }), {
+        return new Response(JSON.stringify({ ok: false, error: `Falha ao conceder bônus: ${r.status} ${t.slice(0, 500)}` }), {
           status: 502, headers: { ...CORS, "Content-Type": "application/json" }
         });
       }

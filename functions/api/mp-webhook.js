@@ -1,4 +1,5 @@
 import { incrementPoolOnPaid } from './_pool-helper.js';
+import { grantBonusOnPaid } from './_bonus-helper.js';
 
 export async function onRequest(context) {
   // Webhook server-to-server: responder 200 rápido sempre.
@@ -90,6 +91,9 @@ export async function onRequest(context) {
             });
           }
         } catch (e) { console.error('Webhook: erro ao atualizar order pai:', e); } // não bloqueia o retorno do webhook
+
+        // Auto-grant bonus cards based on campaign.bonus_pct
+        await grantBonusOnPaid(SB_URL, SB_SERVICE_ROLE_KEY, orderId).catch(e => console.error('Webhook: bonus grant error:', e));
       }
     }
 

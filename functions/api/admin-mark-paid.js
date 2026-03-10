@@ -1,4 +1,5 @@
 import { incrementPoolOnPaid } from './_pool-helper.js';
+import { grantBonusOnPaid } from './_bonus-helper.js';
 
 export async function onRequest(context) {
   const CORS = {
@@ -46,6 +47,9 @@ export async function onRequest(context) {
         status: 502, headers: { ...CORS, "Content-Type":"application/json" }
       });
     }
+
+    // Auto-grant bonus cards based on campaign.bonus_pct
+    await grantBonusOnPaid(SB_URL, SB_SERVICE_ROLE_KEY, batchId).catch(e => console.error('admin-mark-paid: bonus grant error:', e));
 
     return new Response(JSON.stringify({ ok:true }), {
       status: 200, headers: { ...CORS, "Content-Type":"application/json" }
