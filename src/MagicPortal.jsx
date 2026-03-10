@@ -730,7 +730,7 @@ function CheckoutPage({wants,cartQtyByItem,priceBRL,bonusAvail,theme,nav,profile
     // Campaign must be active (but we don't block the whole flow — admin can override)
     setSubmitting(true);
     try {
-      const batchData = {order_id:orderId,status:'DRAFT',brl_unit_price_locked:priceBRL,qty_in_batch:totalQty,subtotal_locked:sub,shipping_locked:fV,total_locked:isFullBonus?0:total,payment_method:'MERCADO_PAGO'};
+      const batchData = {order_id:orderId,status:'DRAFT',brl_unit_price_locked:priceBRL,qty_in_batch:totalQty,subtotal_locked:sub,shipping_locked:fV,total_locked:isFullBonus?0:total,payment_method:isFullBonus?'BONUS':'MERCADO_PAGO'};
       const [batch] = await sbPost('order_batches', batchData, token);
       await sbPatch('orders','id=eq.'+(orderId),{qty_paid:totalPaid,qty_bonus:totalBonus,shipping_price_brl_locked:fV},token);
       for (const item of bd) {
@@ -764,7 +764,11 @@ function CheckoutPage({wants,cartQtyByItem,priceBRL,bonusAvail,theme,nav,profile
         const mpLink=mpData?.mpLink||mpData?.init_point||mpData?.sandbox_init_point; if(mpLink){window.location.href=mpLink;return;}
         else if(mpData.error){console.error('MP:',mpData.error);toast('Erro MP: '+mpData.error,'error');}
         nav('success');
-      } else {nav('success');}
+      } else {
+        // Confirm bonus batch server-side (marks PAID, updates pool)
+        try{const cbRes=await fetch('/api/confirm-bonus-batch',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:batch.id})});if(!cbRes.ok)console.warn('confirm-bonus-batch status:',cbRes.status);}catch(e){console.warn('confirm-bonus-batch:',e);}
+        nav('success');
+      }
     }catch(e){console.error(e);toast('Erro ao finalizar: '+e.message,'error');}
     setSubmitting(false);
   }

@@ -8,13 +8,14 @@
  * Flow:
  *  1. Verify user JWT
  *  2. Fetch campaign pool, tiers, pricing → compute current BRL price
- *  3. Fetch user's paid batches
- *  4. For each batch where brl_unit_price_locked > currentPrice:
- *     bonus = floor(subtotal / currentPrice) − round(subtotal / lockedPrice)
- *  5. Sum total expected tier-change bonus
- *  6. Query existing TIER_CHANGE grants (AVAILABLE + USED) for user+campaign
- *  7. If expected > existing → INSERT new grant for the delta
- *  8. Return { ok, tierBonus }
+ *  3. Fetch user's paid batches (non-bonus)
+ *  4. Global calculation:
+ *     totalSubtotal  = sum of subtotal_locked across all paid batches
+ *     totalPaidQty   = sum of round(subtotal / lockedPrice) per batch
+ *     totalExpected   = floor(totalSubtotal / currentPrice) − totalPaidQty
+ *  5. Query existing TIER_CHANGE grants (AVAILABLE + USED) for user+campaign
+ *  6. If expected > existing → INSERT new grant for the delta
+ *  7. Return { ok, tierBonus }
  */
 
 export async function onRequest(context) {
@@ -95,21 +96,29 @@ export async function onRequest(context) {
     const batchArr = await sbQuery(SB_URL, svcHeaders,
       `order_batches?order_id=eq.${enc(order.id)}&${paidStatuses}&payment_method=neq.BONUS&select=id,brl_unit_price_locked,subtotal_locked,qty_in_batch`);
 
-    // ─── Compute expected tier-change bonus ─────────
-    let totalExpected = 0;
+    // ─── Global bonus calculation ──────────────────
+    // Sum ALL paid subtotals and paid qtys across batches,
+    // then compute bonus from the global totals.
+    // This avoids losing fractional bonuses that add up across batches.
+    // We include all batches regardless of lockedPrice vs currentPrice;
+    // batches at the same price contribute zero bonus (equivalent = paid),
+    // and Math.max(0, ...) guards against edge cases.
+    let totalSubtotal = 0;
+    let totalPaidQty = 0;
     for (const b of batchArr) {
       const lockedPrice = Number(b.brl_unit_price_locked || 0);
       const subtotal = Number(b.subtotal_locked || 0);
       if (lockedPrice <= 0 || subtotal <= 0) continue;
-      if (lockedPrice <= currentPrice) continue; // no bonus if price hasn't dropped
+      totalSubtotal += subtotal;
       // round: paidQty was an exact integer at order time (subtotal = paidQty * lockedPrice),
       // so Math.round handles floating-point imprecision.
-      const paidQty = Math.round(subtotal / lockedPrice);
-      // floor: you can only grant whole bonus cards, round down to be conservative.
-      const equivalentQty = Math.floor(subtotal / currentPrice);
-      const bonus = equivalentQty - paidQty;
-      if (bonus > 0) totalExpected += bonus;
+      totalPaidQty += Math.round(subtotal / lockedPrice);
     }
+
+    if (totalSubtotal <= 0) return json({ ok: true, tierBonus: 0 }, 200, CORS);
+
+    // floor: you can only grant whole bonus cards, round down to be conservative.
+    const totalExpected = Math.max(0, Math.floor(totalSubtotal / currentPrice) - totalPaidQty);
 
     if (totalExpected <= 0) return json({ ok: true, tierBonus: 0 }, 200, CORS);
 
