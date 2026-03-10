@@ -134,7 +134,7 @@ export async function onRequest(context) {
 
     // Auto-grant bonus cards based on campaign.bonus_pct
     if (batchStatus === "PAID") {
-      await grantBonusOnPaid(SB_URL, SB_SERVICE_ROLE_KEY, batchId).catch(() => {});
+      await grantBonusOnPaid(SB_URL, SB_SERVICE_ROLE_KEY, batchId).catch(e => console.error('mp-sync: bonus grant error:', e));
     }
 
     if (!pRes.ok) {

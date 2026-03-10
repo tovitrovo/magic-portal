@@ -93,7 +93,7 @@ export async function onRequest(context) {
         } catch (e) { console.error('Webhook: erro ao atualizar order pai:', e); } // não bloqueia o retorno do webhook
 
         // Auto-grant bonus cards based on campaign.bonus_pct
-        await grantBonusOnPaid(SB_URL, SB_SERVICE_ROLE_KEY, orderId).catch(() => {});
+        await grantBonusOnPaid(SB_URL, SB_SERVICE_ROLE_KEY, orderId).catch(e => console.error('Webhook: bonus grant error:', e));
       }
     }
 
