@@ -40,7 +40,7 @@ export async function onRequest(context) {
           status: 400, headers: { ...CORS, "Content-Type": "application/json" }
         });
       }
-      const select = "id,user_id,campaign_id,bonus_qty,status,created_at,profiles(name,email)";
+      const select = "id,user_id,campaign_id,bonus_qty,status,created_at,profiles(name)";
       const url = `${SB_URL}/rest/v1/bonus_grants?campaign_id=eq.${encodeURIComponent(campaignId)}&select=${encodeURIComponent(select)}&order=created_at.desc`;
       const r = await fetch(url, { headers });
       if (!r.ok) {
