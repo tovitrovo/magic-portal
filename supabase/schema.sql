@@ -320,8 +320,7 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- ══════════════════════════════════════════════════════════════
--- MIGRATION: novas colunas para bônus automático
--- Execute estes comandos se o banco já existir:
+-- MIGRATION: banco já existente sem sistema de bônus?
+-- Execute supabase/migrations/bonus-system.sql no SQL Editor.
+-- Ele contém todos os ALTER/CREATE necessários de forma idempotente.
 -- ══════════════════════════════════════════════════════════════
--- ALTER TABLE public.campaigns ADD COLUMN IF NOT EXISTS bonus_pct integer DEFAULT 0;
--- ALTER TABLE public.bonus_grants ADD COLUMN IF NOT EXISTS batch_id uuid REFERENCES public.order_batches(id) ON DELETE SET NULL;
