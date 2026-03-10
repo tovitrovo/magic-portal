@@ -108,13 +108,28 @@ As foreign keys são **essenciais** para as queries com nested select do PostgRE
 
 ### Sistema de Bônus
 
-O bônus permite que o admin conceda cartas grátis a um usuário em uma campanha. O fluxo completo é:
+O bônus permite conceder cartas grátis a um usuário em uma campanha. Pode ser **automático** ou **manual**.
+
+#### Bônus Automático
+
+1. **Configure**: no painel admin, aba **Configurações**, defina o campo **"Bônus automático (%)"** na campanha (ex: `10` = a cada 10 cartas pagas, 1 bônus grátis)
+2. **Trigger**: quando um pagamento é confirmado (via Mercado Pago webhook, sync ou marcação manual), o sistema calcula `floor(qty_in_batch × bonus_pct / 100)` e cria automaticamente um `bonus_grant` para o usuário
+3. **Idempotência**: o bônus é concedido uma única vez por batch (verificado via `batch_id`)
+
+#### Bônus Manual
+
+1. **Admin concede bônus**: no painel admin, aba **Clientes**, expanda um cliente e clique em **"Dar bônus"**
+
+#### Uso do Bônus
+
+1. **Usuário usa bônus**: no checkout, as cartas do carrinho são automaticamente alocadas como bônus (grátis) até esgotar o saldo
+
+#### Schema e API
 
 1. **Schema**: a tabela `bonus_grants` já está no `supabase/schema.sql` — execute o script no SQL Editor do Supabase
 2. **RLS**: políticas de SELECT e UPDATE para o usuário já estão incluídas no schema
-3. **Admin concede bônus**: no painel admin, aba **Clientes**, expanda um cliente e clique em **"Dar bônus"**
-4. **Usuário usa bônus**: no checkout, as cartas do carrinho são automaticamente alocadas como bônus (grátis) até esgotar o saldo
-5. **API**: o endpoint `/api/admin-bonus` gerencia bônus (listar, conceder, revogar) usando `SB_SERVICE_ROLE_KEY`
+3. **API**: o endpoint `/api/admin-bonus` gerencia bônus (listar, conceder, revogar) usando `SB_SERVICE_ROLE_KEY`
+4. **Helper**: `_bonus-helper.js` contém a lógica de auto-grant, usada por `mp-webhook.js`, `mp-sync.js` e `admin-mark-paid.js`
 
 **Não é necessário nenhum setup adicional do Supabase** além de executar o `supabase/schema.sql`. O script já cria a tabela, índices e políticas RLS necessárias.
 

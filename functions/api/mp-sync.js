@@ -1,4 +1,5 @@
 import { incrementPoolOnPaid } from './_pool-helper.js';
+import { grantBonusOnPaid } from './_bonus-helper.js';
 
 export async function onRequest(context) {
   const CORS = {
@@ -130,6 +131,11 @@ export async function onRequest(context) {
         payment_status_detail: statusDetail,
       }),
     });
+
+    // Auto-grant bonus cards based on campaign.bonus_pct
+    if (batchStatus === "PAID") {
+      await grantBonusOnPaid(SB_URL, SB_SERVICE_ROLE_KEY, batchId).catch(() => {});
+    }
 
     if (!pRes.ok) {
       const errTxt = await pRes.text().catch(() => "");
