@@ -730,13 +730,21 @@ function CheckoutPage({wants,cartQtyByItem,priceBRL,bonusAvail,theme,nav,profile
       const batchData = {order_id:orderId,status:'DRAFT',brl_unit_price_locked:priceBRL,qty_in_batch:totalQty,subtotal_locked:sub,shipping_locked:fV,total_locked:isFullBonus?0:total,payment_method:'MERCADO_PAGO'};
       const [batch] = await sbPost('order_batches', batchData, token);
       await sbPatch('orders','id=eq.'+(orderId),{qty_paid:totalPaid,qty_bonus:totalBonus,shipping_price_brl_locked:fV},token);
-      for (const item of cart) {
+      for (const item of bd) {
         const fullQty = Number(item.fullQty || item.quantity);
         if (item.quantity >= fullQty) {
-          await sbPatch('order_items','id=eq.'+item.id,{batch_id:batch.id,unit_price_brl:priceBRL},token);
+          if (item.bonusQty > 0 && item.paidQty > 0) {
+            await sbPatch('order_items','id=eq.'+item.id,{quantity:item.bonusQty,batch_id:batch.id,is_bonus:true,unit_price_brl:0},token);
+            await sbPost('order_items',{order_id:orderId,card_id:item.card_id,quantity:item.paidQty,is_bonus:false,unit_price_brl:priceBRL,batch_id:batch.id},token);
+          } else if (item.bonusQty > 0) {
+            await sbPatch('order_items','id=eq.'+item.id,{batch_id:batch.id,is_bonus:true,unit_price_brl:0},token);
+          } else {
+            await sbPatch('order_items','id=eq.'+item.id,{batch_id:batch.id,unit_price_brl:priceBRL},token);
+          }
         } else {
           await sbPatch('order_items','id=eq.'+item.id,{quantity:fullQty-item.quantity},token);
-          await sbPost('order_items',{order_id:orderId,card_id:item.card_id,quantity:item.quantity,is_bonus:false,unit_price_brl:priceBRL,batch_id:batch.id},token);
+          if (item.bonusQty > 0) await sbPost('order_items',{order_id:orderId,card_id:item.card_id,quantity:item.bonusQty,is_bonus:true,unit_price_brl:0,batch_id:batch.id},token);
+          if (item.paidQty > 0) await sbPost('order_items',{order_id:orderId,card_id:item.card_id,quantity:item.paidQty,is_bonus:false,unit_price_brl:priceBRL,batch_id:batch.id},token);
         }
       }
 
@@ -773,7 +781,7 @@ function CheckoutPage({wants,cartQtyByItem,priceBRL,bonusAvail,theme,nav,profile
     <Card id="tut-checkout-summary" style={{padding:18}}>
       <SectionTitle sub={totalQty+' cartas ('+totalBonus+' bônus + '+totalPaid+' pagas)'}>Resumo</SectionTitle>
       {totalBonus>0&&<><div style={{fontSize:11,fontWeight:700,color:'#2ee59d',marginBottom:6,display:'flex',alignItems:'center',gap:5}}><Gift size={12}/> Bônus (grátis)</div>
-        {bd.filter(c=>c.bonusQty>0).map((c,i)=>(<div key={'b'+i} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(46,229,157,0.08)'}}><span style={{color:'rgba(255,255,255,0.6)'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span></span><span style={{fontWeight:700,color:'#2ee59d'}}>R$ 0,00</span></div>))}</>}
+        {bd.filter(c=>c.bonusQty>0).map((c,i)=>(<div key={'b'+i} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(46,229,157,0.08)'}}><span style={{color:'rgba(255,255,255,0.6)'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.bonusQty}</span><span style={{fontWeight:700,color:'#2ee59d'}}>R$ 0,00</span></div>))}</>}
       {totalPaid>0&&<><div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.4)',marginTop:totalBonus>0?12:0,marginBottom:6,display:'flex',alignItems:'center',gap:5}}><CreditCard size={12}/> Pagas</div>
         {bd.filter(c=>c.paidQty>0).map((c,i)=>(<div key={'p'+i} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(255,255,255,0.03)'}}><span style={{color:'rgba(255,255,255,0.6)'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.paidQty}</span><span style={{fontWeight:700}}>R$ {(c.paidQty*priceBRL).toFixed(2)}</span></div>))}</>}
       <div style={{marginTop:14,display:'flex',flexDirection:'column',gap:5}}>
@@ -1915,6 +1923,30 @@ export default function MagicPortal(){
     }));
     setCartQtyByItem({});
     setMyOrders(prev => [{ id: order.batchId, status: 'DRAFT', total_locked: order.isFullBonus ? 0 : order.totalPaid * order.priceBRL, payment_method: order.method === 'bonus' ? 'BONUS' : 'MERCADO_PAGO', qty_in_batch: order.totalPaid + order.totalBonus, created_at: new Date().toISOString(), cards: order.cards }, ...prev]);
+
+    if (order.totalBonus > 0) {
+      let remaining = order.totalBonus;
+      const avail = bonusGrants.filter(b => b.status === 'AVAILABLE').sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      for (const g of avail) {
+        if (remaining <= 0) break;
+        if (remaining >= g.bonus_qty) {
+          await sbPatch('bonus_grants', 'id=eq.' + g.id, { status: 'USED' }, token).catch(() => {});
+          remaining -= g.bonus_qty;
+        } else {
+          await sbPatch('bonus_grants', 'id=eq.' + g.id, { bonus_qty: g.bonus_qty - remaining }, token).catch(() => {});
+          remaining = 0;
+        }
+      }
+      setBonusGrants(prev => {
+        let rem = order.totalBonus;
+        return prev.map(g => {
+          if (g.status !== 'AVAILABLE' || rem <= 0) return g;
+          if (rem >= g.bonus_qty) { rem -= g.bonus_qty; return { ...g, status: 'USED' }; }
+          const newQty = g.bonus_qty - rem; rem = 0; return { ...g, bonus_qty: newQty };
+        });
+      });
+    }
+
     toast('Pedido registrado!', 'success');
   }
 
