@@ -103,6 +103,21 @@ As foreign keys são **essenciais** para as queries com nested select do PostgRE
 
 **Sem essas FKs, o endpoint `/api/admin-orders` retorna erro ou dados incompletos.**
 
+- `bonus_grants.user_id → profiles.id` — permite `bonus_grants?select=...,profiles(name,email)`
+- `bonus_grants.campaign_id → campaigns.id`
+
+### Sistema de Bônus
+
+O bônus permite que o admin conceda cartas grátis a um usuário em uma campanha. O fluxo completo é:
+
+1. **Schema**: a tabela `bonus_grants` já está no `supabase/schema.sql` — execute o script no SQL Editor do Supabase
+2. **RLS**: políticas de SELECT e UPDATE para o usuário já estão incluídas no schema
+3. **Admin concede bônus**: no painel admin, aba **Clientes**, expanda um cliente e clique em **"Dar bônus"**
+4. **Usuário usa bônus**: no checkout, as cartas do carrinho são automaticamente alocadas como bônus (grátis) até esgotar o saldo
+5. **API**: o endpoint `/api/admin-bonus` gerencia bônus (listar, conceder, revogar) usando `SB_SERVICE_ROLE_KEY`
+
+**Não é necessário nenhum setup adicional do Supabase** além de executar o `supabase/schema.sql`. O script já cria a tabela, índices e políticas RLS necessárias.
+
 ### Como executar:
 
 1. Abra o [Supabase Dashboard](https://supabase.com/dashboard)

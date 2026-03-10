@@ -1227,6 +1227,45 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   const [listLoading,setListLoading]=useState(false);
   const [copied,setCopied]=useState(false);
 
+  const [adminBonusGrants,setAdminBonusGrants]=useState([]);
+  const [bonusLoading,setBonusLoading]=useState(false);
+  const [bonusForm,setBonusForm]=useState({userId:null,qty:1});
+
+  async function loadBonusGrants(){
+    if(!selectedCampaign)return;
+    setBonusLoading(true);
+    try{
+      const r=await fetch('/api/admin-bonus',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({action:'list',campaignId:selectedCampaign.id})});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      setAdminBonusGrants(json.grants||[]);
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao carregar bônus: '+(e.message||String(e)),'error');}
+    setBonusLoading(false);
+  }
+
+  async function grantBonus(userId,qty){
+    if(!selectedCampaign||!userId||!qty||qty<1)return;
+    try{
+      const r=await fetch('/api/admin-bonus',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({action:'grant',userId,campaignId:selectedCampaign.id,bonusQty:qty})});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      SFX.success();if(toastFn)toastFn(`Bônus de ${qty} carta(s) concedido!`,'success');
+      loadBonusGrants();
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao conceder bônus: '+(e.message||String(e)),'error');}
+    setBonusForm({userId:null,qty:1});
+  }
+
+  async function revokeBonus(grantId){
+    if(!confirm('Revogar este bônus?'))return;
+    try{
+      const r=await fetch('/api/admin-bonus',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({action:'revoke',grantId})});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      SFX.success();if(toastFn)toastFn('Bônus revogado','success');
+      loadBonusGrants();
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao revogar: '+(e.message||String(e)),'error');}
+  }
+
   useEffect(()=>{
     loadCampaigns();
     fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL').then(r=>r.json()).then(d=>{if(d.USDBRL)setLiveUsd(parseFloat(d.USDBRL.bid));}).catch(()=>{});
@@ -1239,7 +1278,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   useEffect(()=>{if(campProp&&!selectedCampaign)setSelectedCampaign(campProp);},[campProp]);
 
   useEffect(()=>{
-    if(selectedCampaign){loadOrders();setEditCamp({...selectedCampaign});}else{setOrders([]);setOrdersLoading(false);}
+    if(selectedCampaign){loadOrders();loadBonusGrants();setEditCamp({...selectedCampaign});}else{setOrders([]);setOrdersLoading(false);setAdminBonusGrants([]);}
   },[selectedCampaign?.id]);
 
   async function loadOrders(){
@@ -1619,6 +1658,23 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
               </div>);
             }))}
             {client.whatsapp&&<a href={'https://wa.me/55'+client.whatsapp} target="_blank" rel="noopener noreferrer" style={{display:'inline-flex',alignItems:'center',gap:4,margin:'6px 14px 10px',fontSize:11,color:'#25d366',textDecoration:'none'}}><MessageCircle size={12}/> WhatsApp</a>}
+            <div style={{padding:'8px 14px',borderTop:'1px solid rgba(255,255,255,0.04)'}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                <span style={{fontSize:11,fontWeight:700,color:'#2ee59d'}}><Gift size={11}/> Bônus</span>
+                {(()=>{const cb=adminBonusGrants.filter(g=>g.user_id===client.userId&&g.status==='AVAILABLE');const t=cb.reduce((s,g)=>s+g.bonus_qty,0);return t>0?<Tag color="#2ee59d" style={{fontSize:9}}>{t} disponível</Tag>:null;})()}
+              </div>
+              {adminBonusGrants.filter(g=>g.user_id===client.userId).map(g=>(
+                <div key={g.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'3px 0',fontSize:11,borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
+                  <span style={{color:g.status==='AVAILABLE'?'#2ee59d':g.status==='USED'?'rgba(255,255,255,0.3)':'rgba(255,255,255,0.15)'}}>{g.bonus_qty} carta(s) — {g.status==='AVAILABLE'?'Disponível':g.status==='USED'?'Usado':'Expirado'}</span>
+                  {g.status==='AVAILABLE'&&<button onClick={()=>revokeBonus(g.id)} style={{background:'none',border:'none',color:'#ff6b6b',fontSize:10,cursor:'pointer',padding:'2px 4px'}}>Revogar</button>}
+                </div>
+              ))}
+              {bonusForm.userId===client.userId?<div style={{display:'flex',gap:4,marginTop:6}}>
+                <input type="number" min="1" value={bonusForm.qty} onChange={e=>setBonusForm(f=>({...f,qty:Math.max(1,parseInt(e.target.value)||1)}))} style={{width:50,padding:'4px 6px',borderRadius:6,border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.05)',color:'#fff',fontSize:11,textAlign:'center'}}/>
+                <Btn variant="success" onClick={()=>grantBonus(client.userId,bonusForm.qty)} style={{padding:'4px 10px',fontSize:10}} sfx=""><Gift size={10}/> Conceder</Btn>
+                <button onClick={()=>setBonusForm({userId:null,qty:1})} style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',fontSize:10,cursor:'pointer'}}>Cancelar</button>
+              </div>:<Btn variant="secondary" onClick={()=>{setBonusForm({userId:client.userId,qty:1});if(adminBonusGrants.length===0)loadBonusGrants();}} style={{padding:'4px 10px',fontSize:10,marginTop:4}} sfx=""><Gift size={10}/> Dar bônus</Btn>}
+            </div>
           </div>}
         </Card>);})}
     </>}
