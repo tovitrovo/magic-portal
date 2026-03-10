@@ -100,6 +100,9 @@ export async function onRequest(context) {
     // Sum ALL paid subtotals and paid qtys across batches,
     // then compute bonus from the global totals.
     // This avoids losing fractional bonuses that add up across batches.
+    // We include all batches regardless of lockedPrice vs currentPrice;
+    // batches at the same price contribute zero bonus (equivalent = paid),
+    // and Math.max(0, ...) guards against edge cases.
     let totalSubtotal = 0;
     let totalPaidQty = 0;
     for (const b of batchArr) {

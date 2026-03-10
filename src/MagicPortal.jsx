@@ -766,7 +766,7 @@ function CheckoutPage({wants,cartQtyByItem,priceBRL,bonusAvail,theme,nav,profile
         nav('success');
       } else {
         // Confirm bonus batch server-side (marks PAID, updates pool)
-        try{await fetch('/api/confirm-bonus-batch',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:batch.id})});}catch(e){console.warn('confirm-bonus-batch:',e);}
+        try{const cbRes=await fetch('/api/confirm-bonus-batch',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:batch.id})});if(!cbRes.ok)console.warn('confirm-bonus-batch status:',cbRes.status);}catch(e){console.warn('confirm-bonus-batch:',e);}
         nav('success');
       }
     }catch(e){console.error(e);toast('Erro ao finalizar: '+e.message,'error');}

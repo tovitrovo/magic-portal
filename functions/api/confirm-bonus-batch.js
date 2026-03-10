@@ -75,7 +75,7 @@ export async function onRequest(context) {
     await incrementPoolOnPaid(SB_URL, SB_SERVICE_ROLE_KEY, batchId);
 
     // ─── Mark batch as PAID ─────────────────────────
-    await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${enc(batchId)}`, {
+    const patchRes = await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${enc(batchId)}`, {
       method: "PATCH",
       headers: { ...svcHeaders, Prefer: "return=minimal" },
       body: JSON.stringify({
@@ -84,13 +84,21 @@ export async function onRequest(context) {
         payment_status: "approved",
       }),
     });
+    if (!patchRes.ok) {
+      const errTxt = await patchRes.text().catch(() => "");
+      console.error("confirm-bonus-batch: failed to mark batch PAID:", patchRes.status, errTxt);
+      return json({ ok: false, error: "Falha ao confirmar batch" }, 502, CORS);
+    }
 
     // ─── Update parent order status ─────────────────
-    await fetch(`${SB_URL}/rest/v1/orders?id=eq.${enc(batch.order_id)}`, {
+    const orderRes = await fetch(`${SB_URL}/rest/v1/orders?id=eq.${enc(batch.order_id)}`, {
       method: "PATCH",
       headers: { ...svcHeaders, Prefer: "return=minimal" },
       body: JSON.stringify({ status: "PAID" }),
     });
+    if (!orderRes.ok) {
+      console.error("confirm-bonus-batch: failed to update order status:", orderRes.status);
+    }
 
     return json({ ok: true }, 200, CORS);
   } catch (e) {
