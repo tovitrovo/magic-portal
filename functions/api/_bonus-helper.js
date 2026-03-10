@@ -90,6 +90,7 @@ export async function grantBonusOnPaid(sbUrl, sbKey, batchId) {
         campaign_id: order.campaign_id,
         bonus_qty: bonusQty,
         status: "AVAILABLE",
+        grant_type: "BONUS_PCT",
         batch_id: batchId,
       }),
     });

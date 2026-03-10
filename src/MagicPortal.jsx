@@ -370,7 +370,7 @@ const TUTORIAL_STEPS=[
 // HOME
 // ══════════════════════════════════════════════════════
 
-function HomePage({pool,tiers,priceBRL,closeDate,theme,nav,wantsCount,cartCount,bonusAvail,credit,campaign_status}){
+function HomePage({pool,tiers,priceBRL,closeDate,theme,nav,wantsCount,cartCount,bonusAvail,tierChangeBonus,credit,campaign_status}){
   const tier=getTier(pool,tiers);const next=getNextTier(pool,tiers);
   const tierSpan=Math.max(1,(next?.min||tier.max)-tier.min);
   const progress=next?Math.min(100,Math.max(0,((pool-tier.min)/tierSpan)*100)):100;
@@ -407,6 +407,9 @@ function HomePage({pool,tiers,priceBRL,closeDate,theme,nav,wantsCount,cartCount,
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
       {[{icon:ScrollText,val:wantsCount,lbl:'Wants',c:theme.primary},{icon:ShoppingCart,val:cartCount,lbl:'Carrinho',c:'#c9a96e'},{icon:Gift,val:bonusAvail,lbl:'Bônus',c:'#2ee59d'}].map(s=>(<Card key={s.lbl} style={{textAlign:'center',padding:12}}><s.icon size={16} style={{color:s.c,marginBottom:3}}/><div style={{fontSize:18,fontWeight:800}}>{s.val}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>{s.lbl}</div></Card>))}
     </div>
+    {tierChangeBonus>0&&<Card style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:10,background:'rgba(46,229,157,0.06)',borderColor:'rgba(46,229,157,0.18)'}}>
+      <Gift size={18} style={{color:'#2ee59d',flexShrink:0}}/><div><div style={{fontSize:13,fontWeight:700,color:'#2ee59d'}}>Você ganhou {tierChangeBonus} carta{tierChangeBonus!==1?'s':''} bônus! 🎉</div><div style={{fontSize:11,color:'rgba(255,255,255,0.35)'}}>O preço caiu com o avanço de tier. Suas cartas extras serão grátis no checkout.</div></div>
+    </Card>}
     {credit>0&&<Card style={{padding:'10px 14px',display:'flex',alignItems:'center',gap:8}}><DollarSign size={14} style={{color:'#c9a96e'}}/><div style={{fontSize:12,color:'rgba(255,255,255,0.4)'}}>Crédito acumulado: <b style={{color:'#c9a96e'}}>R$ {credit.toFixed(2)}</b></div></Card>}
     <Card style={{padding:16}}>
       <SectionTitle sub="Complete quests coletivas para desbloquear preços menores">Quests</SectionTitle>
@@ -1826,6 +1829,7 @@ export default function MagicPortal(){
   const tier = computedTiers.length>0 ? getTier(pool, computedTiers) : null;
   const priceBRL = tier?.brl || 0;
   const bonusAvail = bonusGrants.filter(b=>b.status==='AVAILABLE').reduce((s,b)=>s+b.bonus_qty,0);
+  const tierChangeBonus = bonusGrants.filter(b=>b.status==='AVAILABLE'&&b.grant_type==='TIER_CHANGE').reduce((s,b)=>s+b.bonus_qty,0);
 
   // ─── Load data after login ─────────────────────────
   async function loadAppData(tkn, userId) {
@@ -1872,8 +1876,16 @@ export default function MagicPortal(){
         setBonusGrants(bg);
 
         // Order history (batches with items)
-        const batches = await sbGet('order_batches', `order_id=eq.${ord.id}&select=id,status,total_locked,payment_method,created_at,qty_in_batch,mp_link,order_items(quantity,cards(name,type))`, tkn);
+        const batches = await sbGet('order_batches', `order_id=eq.${ord.id}&select=id,status,total_locked,payment_method,created_at,qty_in_batch,mp_link,brl_unit_price_locked,subtotal_locked,order_items(quantity,cards(name,type))`, tkn);
         setMyOrders((batches||[]).map(b=>({ ...b, cards: Array.isArray(b.order_items) ? b.order_items.map(i=>({ name:i.cards?.name||'Carta', type:i.cards?.type||'', qty:Number(i.quantity||1) })) : undefined })) );
+
+        // Auto-grant tier-change bonus (server-side, idempotent)
+        try {
+          await fetch('/api/tier-bonus', { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${tkn}`}, body:JSON.stringify({campaignId:camp.id}) });
+          // Reload bonus grants to pick up any new tier-change grants
+          const bg2 = await sbGet('bonus_grants', `user_id=eq.${userId}&campaign_id=eq.${camp.id}`, tkn);
+          setBonusGrants(bg2);
+        } catch(e) { console.warn('tier-bonus check:', e); }
       }
     } catch(e) {
       console.error('loadAppData', e);
@@ -2089,7 +2101,7 @@ export default function MagicPortal(){
 
       {/* Pages */}
       <div style={{ padding: page === 'onboarding' ? '0 20px' : '14px 20px' }}>
-        {page === 'home' && (computedTiers.length > 0 ? <HomePage pool={pool} tiers={computedTiers} priceBRL={priceBRL} closeDate={campaign?.close_at} theme={theme} nav={nav} wantsCount={wantsCount} cartCount={cartCount} bonusAvail={bonusAvail} credit={0} campaign_status={campaign?.status} /> : !appLoading && <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        {page === 'home' && (computedTiers.length > 0 ? <HomePage pool={pool} tiers={computedTiers} priceBRL={priceBRL} closeDate={campaign?.close_at} theme={theme} nav={nav} wantsCount={wantsCount} cartCount={cartCount} bonusAvail={bonusAvail} tierChangeBonus={tierChangeBonus} credit={0} campaign_status={campaign?.status} /> : !appLoading && <div style={{display:'flex',flexDirection:'column',gap:14}}>
           <div style={{textAlign:'center',padding:'6px 0 0'}}>
             <div style={{fontSize:11,color:'rgba(255,255,255,0.28)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>
             <h1 style={{margin:'5px 0 0',fontSize:26,fontFamily:"'Cinzel',serif",background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Cartas para Jogar</h1>
