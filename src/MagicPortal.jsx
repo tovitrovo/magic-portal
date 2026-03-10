@@ -1874,21 +1874,21 @@ export default function MagicPortal(){
         try {
           const items = await sbGet('order_items', `order_id=eq.${ord.id}&batch_id=is.null&is_bonus=eq.false&select=id,card_id,quantity,cards(name,type)`, tkn);
           setWants(items.map(i=>({...i,card_name:i.cards?.name||'?',card_type:i.cards?.type||'Normal'})));
-          setCartQtyByItem({});
-        } catch(e) { console.warn('loadAppData order_items:', e); }
+        } catch(e) { console.warn('Failed to load order items:', e); }
+        setCartQtyByItem({});
 
         // Order history (batches with items) — wrapped so failures don't block bonus loading
         try {
           const batches = await sbGet('order_batches', `order_id=eq.${ord.id}&select=id,status,total_locked,payment_method,created_at,qty_in_batch,mp_link,brl_unit_price_locked,subtotal_locked,order_items(quantity,cards(name,type))`, tkn);
           setMyOrders((batches||[]).map(b=>({ ...b, cards: Array.isArray(b.order_items) ? b.order_items.map(i=>({ name:i.cards?.name||'Carta', type:i.cards?.type||'', qty:Number(i.quantity||1) })) : undefined })) );
-        } catch(e) { console.warn('loadAppData order_batches:', e); }
+        } catch(e) { console.warn('Failed to load order batches:', e); }
 
         // Auto-grant tier-change bonus (server-side, idempotent), then load all grants
         try { await fetch('/api/tier-bonus', { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${tkn}`}, body:JSON.stringify({campaignId:camp.id}) }); } catch(e) { console.warn('tier-bonus check:', e); }
         try {
           const bg = await sbGet('bonus_grants', `user_id=eq.${userId}&campaign_id=eq.${camp.id}`, tkn);
           setBonusGrants(bg);
-        } catch(e) { console.warn('loadAppData bonus_grants:', e); }
+        } catch(e) { console.warn('Failed to load bonus grants:', e); }
       }
     } catch(e) {
       console.error('loadAppData', e);
