@@ -2042,6 +2042,8 @@ export default function MagicPortal(){
 
   const wantsCount = wants.reduce((s, w) => s + Math.max(0, w.quantity - (cartQtyByItem[w.id] || 0)), 0);
   const cartCount = wants.reduce((s, w) => s + Math.min(w.quantity, cartQtyByItem[w.id] || 0), 0);
+  const bonusPctQty = Math.floor(cartCount * (campaign?.bonus_pct || 0) / 100);
+  const effectiveBonusAvail = bonusAvail + bonusPctQty;
   const previousPaidBatches = (myOrders || []).filter(o => {
     const st = String(o.status || '').toUpperCase();
     const paySt = String(o.payment_status || '').toLowerCase();
@@ -2098,7 +2100,7 @@ export default function MagicPortal(){
 
       {/* Pages */}
       <div style={{ padding: page === 'onboarding' ? '0 20px' : '14px 20px' }}>
-        {page === 'home' && (computedTiers.length > 0 ? <HomePage pool={pool} tiers={computedTiers} priceBRL={priceBRL} closeDate={campaign?.close_at} theme={theme} nav={nav} wantsCount={wantsCount} cartCount={cartCount} bonusAvail={bonusAvail} tierChangeBonus={tierChangeBonus} credit={0} campaign_status={campaign?.status} /> : !appLoading && <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        {page === 'home' && (computedTiers.length > 0 ? <HomePage pool={pool} tiers={computedTiers} priceBRL={priceBRL} closeDate={campaign?.close_at} theme={theme} nav={nav} wantsCount={wantsCount} cartCount={cartCount} bonusAvail={effectiveBonusAvail} tierChangeBonus={tierChangeBonus} credit={0} campaign_status={campaign?.status} /> : !appLoading && <div style={{display:'flex',flexDirection:'column',gap:14}}>
           <div style={{textAlign:'center',padding:'6px 0 0'}}>
             <div style={{fontSize:11,color:'rgba(255,255,255,0.28)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>
             <h1 style={{margin:'5px 0 0',fontSize:26,fontFamily:"'Cinzel',serif",background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Cartas para Jogar</h1>
@@ -2107,8 +2109,8 @@ export default function MagicPortal(){
           <Btn full variant="secondary" onClick={()=>{loadAppData(token,session?.user?.id);}} sfx="click"><RefreshCw size={16}/> Recarregar</Btn>
         </div>)}
         {page === 'catalog' && <CatalogPage token={token} wants={wants} onAddWant={handleAddWant} priceBRL={priceBRL} theme={theme} campaignStatus={campaign?.status} />}
-        {page === 'wants' && <WantsPage wants={wants} cartQtyByItem={cartQtyByItem} setCartQtyByItem={setCartQtyByItem} onRemoveWant={handleRemoveWant} onUpdateWantQty={handleUpdateWantQty} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} />}
-        {page === 'checkout' && <CheckoutPage wants={wants} cartQtyByItem={cartQtyByItem} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} campaignStatus={campaign?.status} onOrderDone={handleOrderDone} toast={toast} previousPaidBatches={previousPaidBatches} />}
+        {page === 'wants' && <WantsPage wants={wants} cartQtyByItem={cartQtyByItem} setCartQtyByItem={setCartQtyByItem} onRemoveWant={handleRemoveWant} onUpdateWantQty={handleUpdateWantQty} priceBRL={priceBRL} bonusAvail={effectiveBonusAvail} theme={theme} nav={nav} />}
+        {page === 'checkout' && <CheckoutPage wants={wants} cartQtyByItem={cartQtyByItem} priceBRL={priceBRL} bonusAvail={effectiveBonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} campaignStatus={campaign?.status} onOrderDone={handleOrderDone} toast={toast} previousPaidBatches={previousPaidBatches} />}
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
         {page === 'profile' && <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} campaign={campaign} />}
         {page === 'admin' && <AdminPage pool={pool} tiers={computedTiers} priceBRL={priceBRL} pricing={pricing} campaign={campaign} theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} toast={toast} />}
