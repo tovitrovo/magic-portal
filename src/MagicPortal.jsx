@@ -499,118 +499,51 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutSte
 
 function WantsPage({wants,cartQtyByItem,setCartQtyByItem,onRemoveWant,onUpdateWantQty,priceBRL,bonusAvail,theme,nav}){
   const [searchW,setSearchW]=useState('');
-  const [moveQty,setMoveQty]=useState({});
   const bonus=bonusAvail||0;
 
-  const merged=wants.map(w=>{
-    const cartQty=Math.min(w.quantity,Math.max(0,cartQtyByItem[w.id]||0));
-    return {...w,cartQty,wantsQty:w.quantity-cartQty};
-  });
-  const notInCart=merged.filter(w=>w.wantsQty>0);
-  const inCart=merged.filter(w=>w.cartQty>0);
+  const notInCart=wants.filter(w=>!(cartQtyByItem[w.id]>0));
+  const cartUnits=Object.entries(cartQtyByItem).reduce((s,[id,qty])=>s+qty,0);
+  const wantsUnits=notInCart.reduce((s,w)=>s+w.quantity,0);
   const fW=searchW?notInCart.filter(w=>w.card_name.toLowerCase().includes(searchW.toLowerCase())):notInCart;
 
-  function setCartQty(itemId,qty){
-    const item=wants.find(w=>w.id===itemId);
-    if(!item)return;
-    const next=Math.max(0,Math.min(item.quantity,qty));
-    setCartQtyByItem(prev=>{if(next===0){const cp={...prev};delete cp[itemId];return cp;}return {...prev,[itemId]:next};});
-  }
-  function moveToCart(item,qty){SFX.addCard();setCartQty(item.id,(cartQtyByItem[item.id]||0)+qty);}
-  function moveBackToWants(itemId){SFX.toggle();setCartQty(itemId,0);}
-
-  let bLeft=bonus;
-  const cartBD=inCart.map(c=>{const bq=Math.min(c.cartQty,bLeft);bLeft-=bq;return{...c,bonusQty:bq,paidQty:c.cartQty-bq};});
-  const totalB=cartBD.reduce((s,c)=>s+c.bonusQty,0);const totalP=cartBD.reduce((s,c)=>s+c.paidQty,0);
-  const wantsUnits=notInCart.reduce((s,w)=>s+w.wantsQty,0);
-  const cartUnits=inCart.reduce((s,w)=>s+w.cartQty,0);
+  function moveToCart(item){SFX.addCard();setCartQtyByItem(prev=>({...prev,[item.id]:item.quantity}));}
+  function moveAllToCart(){SFX.confirm();const all={};wants.forEach(w=>{all[w.id]=w.quantity;});setCartQtyByItem(all);}
 
   return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
     <div id="tut-wants-tags" style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
       <Tag color={theme.primary}><ScrollText size={11}/> {wantsUnits} na wants</Tag>
       <Tag color="#c9a96e"><ShoppingCart size={11}/> {cartUnits} no carrinho</Tag>
       {bonus>0&&<Tag color="#2ee59d"><Gift size={11}/> {bonus} bônus</Tag>}
-      {notInCart.length>0&&<button onClick={()=>{SFX.confirm();const all={};wants.forEach(w=>{all[w.id]=w.quantity;});setCartQtyByItem(all);}} style={{background:theme.primary+'15',border:'1px solid '+theme.primary+'30',borderRadius:99,padding:'4px 10px',color:theme.primary,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif",display:'flex',alignItems:'center',gap:4}}><CheckCircle size={11}/> Tudo pro carrinho</button>}
+      {notInCart.length>0&&<button onClick={moveAllToCart} style={{background:theme.primary+'15',border:'1px solid '+theme.primary+'30',borderRadius:99,padding:'4px 10px',color:theme.primary,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif",display:'flex',alignItems:'center',gap:4}}><CheckCircle size={11}/> Tudo pro carrinho</button>}
     </div>
     {bonus>0&&<Card id="tut-bonus-card" glow="rgba(46,229,157,0.12)" style={{padding:12,background:'rgba(46,229,157,0.03)'}}>
       <div style={{display:'flex',alignItems:'center',gap:8}}><Gift size={16} style={{color:'#2ee59d'}}/><div style={{fontSize:13}}><span style={{fontWeight:700,color:'#2ee59d'}}>{bonus} carta(s) bônus</span><div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginTop:2}}>Primeiras do carrinho saem grátis!</div></div></div>
     </Card>}
 
     {notInCart.length>0&&<>
-      <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.3)',textTransform:'uppercase',letterSpacing:1}}>Lista de Wants</div>
-      <div style={{fontSize:10,color:'rgba(255,255,255,0.2)',marginTop:-8,fontStyle:'italic'}}>Arraste → carrinho | ← excluir</div>
       {notInCart.length>3&&<Input icon={Search} placeholder="Buscar..." value={searchW} onChange={e=>setSearchW(e.target.value)}/>}
-      {fW.map((w,i)=>{const selectedQty=Math.max(1,Math.min(moveQty[w.id]||1,w.wantsQty));return(<SwipeableCard key={w.id} onSwipeRight={()=>moveToCart(w,selectedQty)} onSwipeLeft={()=>onRemoveWant(w.id)} rightColor={theme.primary}>
-        <Card style={{padding:'10px 12px'}}>
-          <div style={{display:'flex',alignItems:'center',gap:8}}>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{w.card_name}</div>
-              <div style={{display:'flex',gap:6,alignItems:'center',marginTop:1}}>
-                <span style={{fontSize:10,color:TC[w.card_type],fontWeight:700}}>{w.card_type}</span>
-                <span style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>{w.wantsQty} na wants</span>
-              </div>
-            </div>
-            <div style={{display:'flex',alignItems:'center',background:'rgba(0,0,0,0.3)',borderRadius:10,border:'1px solid rgba(255,255,255,0.05)'}}>
-              <button onClick={()=>onUpdateWantQty(w.id,w.quantity-1)} style={{background:'none',border:'none',color:'#fff',padding:'6px 9px',cursor:'pointer'}}><Minus size={12}/></button>
-              <span style={{minWidth:20,textAlign:'center',fontSize:13,fontWeight:700}}>{w.quantity}</span>
-              <button onClick={()=>onUpdateWantQty(w.id,w.quantity+1)} style={{background:'none',border:'none',color:'#fff',padding:'6px 9px',cursor:'pointer'}}><Plus size={12}/></button>
-            </div>
-          </div>
-          <div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
-            <div style={{display:'flex',alignItems:'center',background:'rgba(0,0,0,0.25)',borderRadius:8,border:'1px solid rgba(255,255,255,0.07)'}}>
-              <button onClick={()=>setMoveQty(prev=>({...prev,[w.id]:Math.max(1,selectedQty-1)}))} style={{background:'none',border:'none',color:'#fff',padding:'5px 8px',cursor:'pointer'}}><Minus size={11}/></button>
-              <span style={{minWidth:18,textAlign:'center',fontSize:12,fontWeight:700}}>{selectedQty}</span>
-              <button onClick={()=>setMoveQty(prev=>({...prev,[w.id]:Math.min(w.wantsQty,selectedQty+1)}))} style={{background:'none',border:'none',color:'#fff',padding:'5px 8px',cursor:'pointer'}}><Plus size={11}/></button>
-            </div>
-            <Btn variant="secondary" onClick={()=>moveToCart(w,selectedQty)} style={{padding:'6px 10px',fontSize:11}} sfx=""><ShoppingCart size={12}/> Adicionar ao carrinho</Btn>
-            <Btn variant="danger" onClick={()=>onRemoveWant(w.id)} style={{padding:'6px 10px',fontSize:11}} sfx=""><Trash2 size={12}/> Excluir da wants</Btn>
-          </div>
-        </Card>
-      </SwipeableCard>);})}
-    </>}
-
-    {inCart.length>0&&<>
-      <div style={{fontSize:11,fontWeight:700,color:'#c9a96e',textTransform:'uppercase',letterSpacing:1,marginTop:4}}><ShoppingCart size={11}/> Carrinho ({cartUnits})</div>
-      <div style={{fontSize:10,color:'rgba(255,255,255,0.2)',marginTop:-8,fontStyle:'italic'}}>Arraste ← para voltar; use os botões para voltar ou excluir</div>
-      {cartBD.map((w)=>{
-        return(<SwipeableCard key={w.id} onSwipeLeft={()=>moveBackToWants(w.id)} leftLabel="Voltar / Excluir" leftColor="#c9a96e" rightColor={null}>
-          <Card style={{padding:'10px 12px',borderColor:w.bonusQty>0?'rgba(46,229,157,0.15)':theme.primary+'22'}}>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+      <div style={{display:'flex',flexDirection:'column',gap:5}}>
+        {fW.map((w)=>(
+          <Card key={w.id} style={{padding:'10px 12px'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{w.card_name}</div>
-                <div style={{display:'flex',gap:6,alignItems:'center',marginTop:1,flexWrap:'wrap'}}>
+                <div style={{display:'flex',gap:6,alignItems:'center',marginTop:1}}>
                   <span style={{fontSize:10,color:TC[w.card_type],fontWeight:700}}>{w.card_type}</span>
-                  <span style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{w.cartQty} no carrinho</span>
-                  {w.bonusQty>0&&<Tag color="#2ee59d" style={{fontSize:9,padding:'1px 6px'}}>🎁 {w.bonusQty}</Tag>}
-                  {w.paidQty>0&&<span style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>R$ {(w.paidQty*priceBRL).toFixed(2)}</span>}
+                  <span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>{w.quantity}x</span>
                 </div>
               </div>
-              <div style={{display:'flex',alignItems:'center',background:'rgba(0,0,0,0.3)',borderRadius:10,border:'1px solid rgba(255,255,255,0.05)'}}>
-                <button onClick={()=>setCartQty(w.id,w.cartQty-1)} style={{background:'none',border:'none',color:'#fff',padding:'6px 9px',cursor:'pointer'}}><Minus size={12}/></button>
-                <span style={{minWidth:20,textAlign:'center',fontSize:13,fontWeight:700}}>{w.cartQty}</span>
-                <button onClick={()=>setCartQty(w.id,w.cartQty+1)} style={{background:'none',border:'none',color:'#fff',padding:'6px 9px',cursor:'pointer'}}><Plus size={12}/></button>
+              <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                <button onClick={()=>moveToCart(w)} style={{background:theme.primary+'18',border:'1px solid '+theme.primary+'30',borderRadius:10,padding:'8px 10px',cursor:'pointer',color:theme.primary,display:'flex',alignItems:'center'}}><ShoppingCart size={14}/></button>
+                <button onClick={()=>onRemoveWant(w.id)} style={{background:'rgba(217,68,82,0.08)',border:'1px solid rgba(217,68,82,0.15)',borderRadius:10,padding:'8px 10px',cursor:'pointer',color:'#ff6b7a',display:'flex',alignItems:'center'}}><Trash2 size={14}/></button>
               </div>
             </div>
-            <div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
-              <Btn variant="ghost" onClick={()=>moveBackToWants(w.id)} style={{padding:'6px 10px',fontSize:11}} sfx=""><ArrowLeft size={12}/> Voltar para wants</Btn>
-              <Btn variant="danger" onClick={()=>onRemoveWant(w.id)} style={{padding:'6px 10px',fontSize:11}} sfx=""><Trash2 size={12}/> Excluir do carrinho</Btn>
-            </div>
           </Card>
-        </SwipeableCard>);
-      })}
-      <Card id="tut-cart-summary" style={{padding:14}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div>
-            {totalB>0&&<div style={{fontSize:12,color:'#2ee59d',fontWeight:600}}>🎁 {totalB} bônus (grátis)</div>}
-            {totalP>0&&<div style={{fontSize:12,color:'rgba(255,255,255,0.5)'}}>💳 {totalP} pagas = R$ {(totalP*priceBRL).toFixed(2)}</div>}
-            {totalP===0&&totalB>0&&<div style={{fontSize:12,color:'#2ee59d',fontWeight:700}}>Pedido 100% bônus!</div>}
-          </div>
-          <Btn onClick={()=>nav('checkout')} style={{padding:'10px 16px',fontSize:13}} sfx="nav"><ShoppingCart size={15}/> Checkout</Btn>
-        </div>
-      </Card>
+        ))}
+      </div>
     </>}
-
-    {notInCart.length===0&&inCart.length===0&&<EmptyState icon={ScrollText} title="Lista vazia" sub="Adicione cartas pelo catálogo"/>}
+    {notInCart.length===0&&wants.length>0&&<EmptyState icon={ShoppingCart} title="Tudo no carrinho!" sub="Acesse a aba Carrinho para finalizar"/>}
+    {wants.length===0&&<EmptyState icon={ScrollText} title="Wants vazia" sub="Adicione cartas pelo catálogo"/>}
   </div>);
 }
 
