@@ -10,6 +10,15 @@
 -- ══════════════════════════════════════════════════════════════
 
 -- ──────────────────────────────────────────────
+-- 0. ENUMS
+-- ──────────────────────────────────────────────
+DO $$ BEGIN
+  CREATE TYPE payment_method AS ENUM ('PIX_MANUAL', 'MERCADO_PAGO', 'BONUS');
+EXCEPTION WHEN duplicate_object THEN
+  BEGIN ALTER TYPE payment_method ADD VALUE IF NOT EXISTS 'BONUS'; EXCEPTION WHEN others THEN NULL; END;
+END $$;
+
+-- ──────────────────────────────────────────────
 -- 1. PROFILES (estende auth.users)
 -- ──────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.profiles (
