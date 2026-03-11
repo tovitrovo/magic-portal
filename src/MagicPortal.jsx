@@ -315,9 +315,8 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
   const cardAbove=rect&&rect.top>window.innerHeight/2;
   const msgTop=rect?(cardAbove?Math.max(60,rect.top-220):rect.top+rect.height+20):null;
   return(<div style={{position:'fixed',inset:0,zIndex:100,pointerEvents:'auto'}}>
-    {rect&&<div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.78)'}} onClick={isFirstTime?undefined:onSkip}/>}
-    {!rect&&<div style={{position:'absolute',inset:0}} onClick={isFirstTime?undefined:onSkip}/>}
-    {rect&&<div style={{position:'absolute',top:rect.top,left:rect.left,width:rect.width,height:rect.height,borderRadius:14,border:'2.5px solid '+theme.primary,boxShadow:'0 0 0 9999px rgba(0,0,0,0.78), 0 0 30px '+theme.glow+', inset 0 0 20px '+theme.glow,background:'transparent',zIndex:101,pointerEvents:'none',animation:'tutPulse 1.5s ease-in-out infinite'}}/>}
+    <div style={{position:'absolute',inset:0}} onClick={isFirstTime?undefined:onSkip}/>
+    {rect&&<div style={{position:'absolute',top:rect.top,left:rect.left,width:rect.width,height:rect.height,borderRadius:14,border:'2.5px solid '+theme.primary,boxShadow:'0 0 30px '+theme.glow+', inset 0 0 20px '+theme.glow,background:'transparent',zIndex:101,pointerEvents:'none',animation:'tutPulse 1.5s ease-in-out infinite'}}/>}
     <div style={{position:rect?'absolute':'fixed',top:rect?msgTop:72,left:'50%',transform:'translateX(-50%)',width:'calc(100% - 40px)',maxWidth:420,zIndex:102}}>
       {rect&&!cardAbove&&<div style={{display:'flex',justifyContent:'center',marginBottom:-1,pointerEvents:'none'}}>
         <div style={{width:0,height:0,borderLeft:'10px solid transparent',borderRight:'10px solid transparent',borderBottom:'12px solid '+theme.primary+'60',animation:'tutArrowBounce 1.2s ease-in-out infinite',filter:'drop-shadow(0 0 6px '+theme.glow+')'}}/>
