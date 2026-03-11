@@ -315,9 +315,10 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
   const cardAbove=rect&&rect.top>window.innerHeight/2;
   const msgTop=rect?(cardAbove?Math.max(60,rect.top-220):rect.top+rect.height+20):null;
   return(<div style={{position:'fixed',inset:0,zIndex:100,pointerEvents:'auto'}}>
-    <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.78)'}} onClick={isFirstTime?undefined:onSkip}/>
+    {rect&&<div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.78)'}} onClick={isFirstTime?undefined:onSkip}/>}
+    {!rect&&<div style={{position:'absolute',inset:0}} onClick={isFirstTime?undefined:onSkip}/>}
     {rect&&<div style={{position:'absolute',top:rect.top,left:rect.left,width:rect.width,height:rect.height,borderRadius:14,border:'2.5px solid '+theme.primary,boxShadow:'0 0 0 9999px rgba(0,0,0,0.78), 0 0 30px '+theme.glow+', inset 0 0 20px '+theme.glow,background:'transparent',zIndex:101,pointerEvents:'none',animation:'tutPulse 1.5s ease-in-out infinite'}}/>}
-    <div style={{position:rect?'absolute':'fixed',top:msgTop||'50%',left:'50%',transform:rect?'translateX(-50%)':'translate(-50%,-50%)',width:'calc(100% - 40px)',maxWidth:420,zIndex:102}}>
+    <div style={{position:rect?'absolute':'fixed',top:rect?msgTop:72,left:'50%',transform:'translateX(-50%)',width:'calc(100% - 40px)',maxWidth:420,zIndex:102}}>
       {rect&&!cardAbove&&<div style={{display:'flex',justifyContent:'center',marginBottom:-1,pointerEvents:'none'}}>
         <div style={{width:0,height:0,borderLeft:'10px solid transparent',borderRight:'10px solid transparent',borderBottom:'12px solid '+theme.primary+'60',animation:'tutArrowBounce 1.2s ease-in-out infinite',filter:'drop-shadow(0 0 6px '+theme.glow+')'}}/>
       </div>}
@@ -355,7 +356,7 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
 }
 
 const TUTORIAL_STEPS=[
-  {title:'Catálogo',body:'Aqui ficam todas as cartas. Busque pelo nome e filtre por tipo.',navTo:'catalog',tabIndex:1,spotlightId:null,icon:'📖',tip:'Este é seu grimório de cartas'},
+  {title:'Catálogo',body:'Aqui ficam todas as cartas. Busque pelo nome e filtre por tipo.',navTo:'catalog',tabIndex:1,spotlightId:null,icon:'📖'},
   {title:'Busca e filtros',body:'Use a barra de busca e os botões Normal, Holo e Foil para encontrar cartas específicas.',navTo:'catalog',tabIndex:1,spotlightId:'tut-search-area',scrollTo:true,icon:'🔍',tip:'Veja a área destacada na tela'},
   {title:'Adicionar à lista',body:'Clique no + para adicionar a carta na sua lista de wants.',navTo:'catalog',tabIndex:1,spotlightId:'tut-add-btn',scrollTo:true,icon:'➕',tip:'Toque no botão destacado'},
   {title:'Lista de Wants',body:'Suas cartas escolhidas ficam aqui. Arraste para a direita para mover pro carrinho, ou para a esquerda para excluir.',navTo:'wants',tabIndex:2,spotlightId:null,icon:'📋',tip:'Deslize as cartas para organizar',gesture:'swipe'},
