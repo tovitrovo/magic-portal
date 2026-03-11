@@ -1814,6 +1814,14 @@ export default function MagicPortal(){
   const isAdmin = profile?.is_admin || false;
   const nav = useCallback(p=>{SFX.nav();setPage(p);},[]);
 
+  // Recalcula bônus de tier sempre que o usuário entra na home
+  useEffect(()=>{
+    if(page!=='home'||!token||!campaign?.id)return;
+    fetch('/api/tier-bonus',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({campaignId:campaign.id})})
+      .then(()=>sbGet('bonus_grants',`user_id=eq.${session?.user?.id}&campaign_id=eq.${campaign.id}`,token).then(bg=>setBonusGrants(bg)))
+      .catch(e=>console.warn('tier-bonus refresh:',e));
+  },[page]);
+
   function toast(msg,type='info'){setToastMsg({msg,type});setTimeout(()=>setToastMsg(null),4000);}
 
   // Compute tiers with BRL prices
