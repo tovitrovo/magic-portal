@@ -1872,8 +1872,15 @@ export default function MagicPortal(){
         let ords = await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}`, tkn);
         let ord = ords[0];
         if (!ord) {
-          const [newOrd] = await sbPost('orders', { campaign_id: camp.id, user_id: userId, status: 'DRAFT' }, tkn);
-          ord = newOrd;
+          try {
+            const [newOrd] = await sbPost('orders', { campaign_id: camp.id, user_id: userId, status: 'DRAFT' }, tkn);
+            ord = newOrd;
+          } catch(e) {
+            // Race condition: order may have been created by concurrent call
+            const [existing] = await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}`, tkn);
+            if (existing) ord = existing;
+            else throw e;
+          }
         }
         setOrderId(ord.id);
 
@@ -1911,6 +1918,7 @@ export default function MagicPortal(){
 
   // ─── Auth handler ──────────────────────────────────
   async function handleLogin(res, type) {
+    didAutoLoad.current = true; // prevent useEffect from firing a second loadAppData
     setSession(res);
     if (type === 'signup') {
       setIsNew(true);
