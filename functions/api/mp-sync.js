@@ -85,7 +85,7 @@ export async function onRequest(context) {
     const payment = await fetchPayment().catch(() => null);
 
     if (!payment) {
-      return new Response(JSON.stringify({ ok: true, status: "not_found", batchStatus: "PENDING_PAYMENT", updated: null }), {
+      return new Response(JSON.stringify({ ok: true, status: "not_found", batchStatus: "AWAITING_PAYMENT", updated: null }), {
         status: 200,
         headers: { ...CORS, "Content-Type": "application/json" },
       });
@@ -97,16 +97,16 @@ export async function onRequest(context) {
 
     const statusMap = {
       approved: "PAID",
-      in_process: "PENDING_PAYMENT",
-      pending: "PENDING_PAYMENT",
-      authorized: "PENDING_PAYMENT",
-      rejected: "FAILED",
+      in_process: "AWAITING_PAYMENT",
+      pending: "AWAITING_PAYMENT",
+      authorized: "AWAITING_PAYMENT",
+      rejected: "CANCELLED",
       cancelled: "CANCELLED",
-      refunded: "REFUNDED",
-      charged_back: "CHARGEDBACK",
+      refunded: "CANCELLED",
+      charged_back: "CANCELLED",
     };
 
-    const batchStatus = statusMap[status] || "PENDING_PAYMENT";
+    const batchStatus = statusMap[status] || "AWAITING_PAYMENT";
 
     // Incrementa pool ANTES de marcar como PAID (para detectar a transição)
     if (batchStatus === "PAID") {

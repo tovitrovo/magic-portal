@@ -14,8 +14,10 @@
 -- ──────────────────────────────────────────────
 DO $$ BEGIN
   CREATE TYPE payment_method AS ENUM ('PIX_MANUAL', 'MERCADO_PAGO', 'BONUS');
-EXCEPTION WHEN duplicate_object THEN
-  BEGIN ALTER TYPE payment_method ADD VALUE IF NOT EXISTS 'BONUS'; EXCEPTION WHEN others THEN NULL; END;
+  CREATE TYPE batch_status AS ENUM ('DRAFT', 'AWAITING_PAYMENT', 'PAYMENT_REVIEW', 'PAID_CONFIRMED', 'CANCELLED', 'PAID');
+  CREATE TYPE order_status AS ENUM ('DRAFT', 'AWAITING_PAYMENT', 'PAYMENT_REVIEW', 'PAID_CONFIRMED', 'LOCKED', 'CANCELLED', 'SHIPPED', 'DELIVERED');
+  CREATE TYPE bonus_status AS ENUM ('AVAILABLE', 'CONSUMED', 'EXPIRED');
+EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 -- ──────────────────────────────────────────────
@@ -161,7 +163,7 @@ CREATE TABLE IF NOT EXISTS public.bonus_grants (
   order_id      uuid NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
   bonus_qty     integer NOT NULL DEFAULT 0,
   status        text DEFAULT 'AVAILABLE'
-                  CHECK (status IN ('AVAILABLE','CONSUMED','EXPIRED')),
+                  CHECK (status IN ('AVAILABLE','CONSUMED','EXPIRED'))  -- matches bonus_status enum,
   grant_type    text DEFAULT 'MANUAL'
                   CHECK (grant_type IN ('MANUAL','TIER_CHANGE')),
   created_at    timestamptz DEFAULT now(),

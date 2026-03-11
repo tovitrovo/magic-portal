@@ -33,15 +33,15 @@ export async function onRequest(context) {
     // Map de status do MP -> status interno
     const statusMap = {
       approved: "PAID",
-      in_process: "PENDING_PAYMENT",
-      pending: "PENDING_PAYMENT",
-      authorized: "PENDING_PAYMENT",
-      rejected: "FAILED",
+      in_process: "AWAITING_PAYMENT",
+      pending: "AWAITING_PAYMENT",
+      authorized: "AWAITING_PAYMENT",
+      rejected: "CANCELLED",
       cancelled: "CANCELLED",
-      refunded: "REFUNDED",
-      charged_back: "CHARGEDBACK",
+      refunded: "CANCELLED",
+      charged_back: "CANCELLED",
     };
-    const batchStatus = statusMap[status] || "PENDING_PAYMENT";
+    const batchStatus = statusMap[status] || "AWAITING_PAYMENT";
 
     if (SB_URL && SB_SERVICE_ROLE_KEY && orderId) {
       const headers = {

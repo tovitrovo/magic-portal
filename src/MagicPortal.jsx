@@ -954,7 +954,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
       myOrders.map((o,i)=>{const isExp=expandedOrder===i;const st = String(o.status||'').toUpperCase();
         const paySt = String(o.payment_status||'').toLowerCase();
         const isPaid = (st==='PAID' || st==='CONFIRMED' || st==='APPROVED') || paySt==='approved';
-        const isPending = !isPaid && (st==='' || st==='DRAFT' || st==='PENDING' || st==='PENDING_PAYMENT' || st==='IN_PROCESS' || paySt==='pending' || paySt==='in_process');return(<Card key={o.id||i} style={{padding:0,marginBottom:6,borderColor:isPending?'rgba(201,169,110,0.15)':undefined,cursor:'pointer'}} onClick={async()=>{const next=isExp?null:i;setExpandedOrder(next);if(next!==null && !o.cards && !orderCardsCache[String(o.id)]){const cards=await loadOrderCards(o, token);setOrderCardsCache(prev=>({...prev,[String(o.id)]:cards}));}}}>
+        const isPending = !isPaid && (st==='' || st==='DRAFT' || st==='AWAITING_PAYMENT' || st==='AWAITING_PAYMENT' || st==='IN_PROCESS' || paySt==='pending' || paySt==='in_process');return(<Card key={o.id||i} style={{padding:0,marginBottom:6,borderColor:isPending?'rgba(201,169,110,0.15)':undefined,cursor:'pointer'}} onClick={async()=>{const next=isExp?null:i;setExpandedOrder(next);if(next!==null && !o.cards && !orderCardsCache[String(o.id)]){const cards=await loadOrderCards(o, token);setOrderCardsCache(prev=>({...prev,[String(o.id)]:cards}));}}}>
         <div style={{padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
             <Tag style={{fontSize:9,padding:'2px 6px'}}>{o.payment_method==='MERCADO_PAGO'?'MP':'Bônus'}</Tag>
@@ -1367,7 +1367,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
 
   const ordStats=useMemo(()=>{
     const paid=allBatches.filter(b=>b.status==='PAID'||b.status==='PAID_CONFIRMED');
-    const pending=allBatches.filter(b=>b.status==='DRAFT'||b.status==='PENDING'||b.status==='PENDING_PAYMENT');
+    const pending=allBatches.filter(b=>b.status==='DRAFT'||b.status==='AWAITING_PAYMENT'||b.status==='AWAITING_PAYMENT');
     const cancelled=allBatches.filter(b=>b.status==='CANCELLED');
     const totalRevenue=paid.reduce((s,b)=>s+Number(b.total_locked||0),0);
     const totalCards=paid.reduce((s,b)=>s+(b.qty_in_batch||0),0);
@@ -1378,7 +1378,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   const filteredBatches=useMemo(()=>{
     let list=allBatches;
     if(ordStatusFilter==='PAID')list=list.filter(b=>b.status==='PAID'||b.status==='PAID_CONFIRMED');
-    else if(ordStatusFilter==='PENDING')list=list.filter(b=>b.status==='DRAFT'||b.status==='PENDING'||b.status==='PENDING_PAYMENT');
+    else if(ordStatusFilter==='AWAITING_PAYMENT')list=list.filter(b=>b.status==='DRAFT'||b.status==='AWAITING_PAYMENT'||b.status==='AWAITING_PAYMENT');
     else if(ordStatusFilter==='CANCELLED')list=list.filter(b=>b.status==='CANCELLED');
     if(searchOrders){
       const q=searchOrders.toLowerCase();
@@ -1521,7 +1521,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
 
       {/* Status Filter Pills */}
       <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
-        {[{key:'ALL',label:'Todos',color:'rgba(255,255,255,0.4)',count:ordStats.total},{key:'PAID',label:'Pagos',color:'#2ee59d',count:ordStats.paidCount},{key:'PENDING',label:'Pendentes',color:'#c9a96e',count:ordStats.pendingCount},{key:'CANCELLED',label:'Cancelados',color:'#ff6b7a',count:ordStats.cancelledCount}].map(f=>(
+        {[{key:'ALL',label:'Todos',color:'rgba(255,255,255,0.4)',count:ordStats.total},{key:'PAID',label:'Pagos',color:'#2ee59d',count:ordStats.paidCount},{key:'AWAITING_PAYMENT',label:'Pendentes',color:'#c9a96e',count:ordStats.pendingCount},{key:'CANCELLED',label:'Cancelados',color:'#ff6b7a',count:ordStats.cancelledCount}].map(f=>(
           <button key={f.key} onClick={()=>{SFX.toggle();setOrdStatusFilter(f.key);}} style={{display:'flex',alignItems:'center',gap:4,padding:'5px 10px',borderRadius:99,border:'1px solid '+(ordStatusFilter===f.key?f.color+'40':'rgba(255,255,255,0.06)'),background:ordStatusFilter===f.key?f.color+'15':'rgba(255,255,255,0.02)',color:ordStatusFilter===f.key?f.color:'rgba(255,255,255,0.3)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{f.label} <span style={{fontSize:9,opacity:.7}}>({f.count})</span></button>
         ))}
       </div>
@@ -1544,7 +1544,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
         const isExp=expandedOrdBatch===b.id;
         const isPaid=b.status==='PAID'||b.status==='PAID_CONFIRMED';
         const isCancelled=b.status==='CANCELLED';
-        const isDraft=b.status==='DRAFT'||b.status==='PENDING'||b.status==='PENDING_PAYMENT';
+        const isDraft=b.status==='DRAFT'||b.status==='AWAITING_PAYMENT'||b.status==='AWAITING_PAYMENT';
         const sid=String(b.id).slice(0,8).toUpperCase();
         const ship=Number(b.shipping_locked||0);
         const valNoShip=b.subtotal_locked?Number(b.subtotal_locked):Number(b.total_locked||0)-ship;
