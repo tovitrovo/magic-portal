@@ -1,16 +1,17 @@
 /**
  * Confirm a full-bonus batch (no payment required).
  *
- * When a user places an order using only bonus cards, there is no
- * Mercado Pago payment. This endpoint:
  *  1. Verifies user JWT
  *  2. Validates the batch belongs to the user and is a bonus order
- *  3. Marks the batch as PAID with confirmed_at
- *  4. Increments campaign pool_qty_confirmed
- *  5. Updates parent order status to PAID
+ *  3. Consumes AVAILABLE bonus_grants (marks as USED) for the qty used
+ *  4. Marks the batch as PAID with confirmed_at
+ *  5. Increments campaign pool_qty_confirmed
+ *  6. Updates parent order status to PAID
+ *  7. Recalculates tier-change bonus for all users in the campaign
  */
 
 import { incrementPoolOnPaid } from './_pool-helper.js';
+import { grantTierBonusToAll } from './_tier-bonus-helper.js';
 
 export async function onRequest(context) {
   const CORS = {
@@ -56,12 +57,11 @@ export async function onRequest(context) {
     const batch = batchArr[0];
     if (!batch) return json({ ok: false, error: "Batch não encontrado" }, 404, CORS);
 
-    // Verify the batch belongs to this user
     const orderArr = await sbQuery(SB_URL, svcHeaders,
-      `orders?id=eq.${enc(batch.order_id)}&user_id=eq.${enc(userId)}&select=id`);
+      `orders?id=eq.${enc(batch.order_id)}&user_id=eq.${enc(userId)}&select=id,campaign_id`);
     if (!orderArr.length) return json({ ok: false, error: "Batch não pertence ao usuário" }, 403, CORS);
+    const campaignId = orderArr[0].campaign_id;
 
-    // Verify it's a bonus order
     if (batch.payment_method !== 'BONUS') {
       return json({ ok: false, error: "Batch não é um pedido bônus" }, 400, CORS);
     }
@@ -69,6 +69,37 @@ export async function onRequest(context) {
     // Skip if already confirmed
     if (batch.status === 'PAID' || batch.status === 'CONFIRMED') {
       return json({ ok: true, alreadyConfirmed: true }, 200, CORS);
+    }
+
+    const qtyToConsume = Number(batch.qty_in_batch || 0);
+
+    // ─── Consume bonus_grants ────────────────────────
+    // Fetch AVAILABLE grants sorted oldest first
+    const grantsArr = await sbQuery(SB_URL, svcHeaders,
+      `bonus_grants?user_id=eq.${enc(userId)}&campaign_id=eq.${enc(campaignId)}&status=eq.AVAILABLE&order=created_at.asc`);
+
+    let remaining = qtyToConsume;
+    for (const grant of grantsArr) {
+      if (remaining <= 0) break;
+      const grantQty = Number(grant.bonus_qty || 0);
+
+      if (remaining >= grantQty) {
+        // Consume entire grant
+        await fetch(`${SB_URL}/rest/v1/bonus_grants?id=eq.${enc(grant.id)}`, {
+          method: "PATCH",
+          headers: { ...svcHeaders, Prefer: "return=minimal" },
+          body: JSON.stringify({ status: "USED" }),
+        });
+        remaining -= grantQty;
+      } else {
+        // Partially consume grant
+        await fetch(`${SB_URL}/rest/v1/bonus_grants?id=eq.${enc(grant.id)}`, {
+          method: "PATCH",
+          headers: { ...svcHeaders, Prefer: "return=minimal" },
+          body: JSON.stringify({ bonus_qty: grantQty - remaining }),
+        });
+        remaining = 0;
+      }
     }
 
     // ─── Increment pool BEFORE marking as PAID ──────
@@ -91,13 +122,16 @@ export async function onRequest(context) {
     }
 
     // ─── Update parent order status ─────────────────
-    const orderRes = await fetch(`${SB_URL}/rest/v1/orders?id=eq.${enc(batch.order_id)}`, {
+    await fetch(`${SB_URL}/rest/v1/orders?id=eq.${enc(batch.order_id)}`, {
       method: "PATCH",
       headers: { ...svcHeaders, Prefer: "return=minimal" },
       body: JSON.stringify({ status: "PAID" }),
-    });
-    if (!orderRes.ok) {
-      console.error("confirm-bonus-batch: failed to update order status:", orderRes.status);
+    }).catch(e => console.error("confirm-bonus-batch: failed to update order status:", e));
+
+    // ─── Recalculate tier-change bonus for all users ─
+    if (campaignId) {
+      await grantTierBonusToAll(SB_URL, SB_SERVICE_ROLE_KEY, campaignId)
+        .catch(e => console.error("confirm-bonus-batch: tier bonus error:", e));
     }
 
     return json({ ok: true }, 200, CORS);
