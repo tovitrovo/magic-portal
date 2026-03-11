@@ -1040,7 +1040,7 @@ function AuthPage({onLogin,theme}){
         else session = await sbAuthSignIn(email, senha);
         const userId = session.user?.id || res.user?.id;
         const token = session.access_token;
-        await sbUpsert('profiles', { id: userId, name, whatsapp, is_admin: false }, token);
+        await sbUpsert('profiles', { id: userId, name, whatsapp, email, is_admin: false }, token);
         SFX.confirm();
         onLogin(session, 'signup');
       } else {
