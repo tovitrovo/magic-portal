@@ -1151,29 +1151,6 @@ function OnboardingPage({onComplete,theme}){
   function toggleC(k){setColors(p=>{if(p.includes(k))return p.filter(c=>c!==k);if(p.length>=2)return[p[1],k];return[...p,k];});}
   const guild=colors.length===2?getGuild(colors[0],colors[1]):null;const gT=guild?GT[guild]:theme;
   const steps=[
-    {mood:'🧙',title:'A Convocação',body:'"Sozinho você paga caro. Quando a guilda se une, o mana flui e os preços caem."',
-      illus:()=><div style={{display:'flex',gap:16,justifyContent:'center',alignItems:'center',marginTop:16,marginBottom:8}}>
-        <div style={{textAlign:'center',padding:'12px 14px',borderRadius:14,background:'rgba(255,70,70,0.06)',border:'1px solid rgba(255,70,70,0.12)'}}>
-          <div style={{fontSize:28,marginBottom:4}}>🧙</div><div style={{fontSize:11,color:'rgba(255,255,255,0.35)'}}>Sozinho</div><div style={{fontSize:15,fontWeight:700,color:'#ff6b7a',marginTop:2}}>💰💰💰</div>
-        </div>
-        <div style={{fontSize:22,color:'rgba(255,255,255,0.2)'}}>→</div>
-        <div style={{textAlign:'center',padding:'12px 14px',borderRadius:14,background:'rgba(46,229,157,0.06)',border:'1px solid rgba(46,229,157,0.12)'}}>
-          <div style={{fontSize:28,marginBottom:4}}>🧙🧙🧙</div><div style={{fontSize:11,color:'rgba(255,255,255,0.35)'}}>Em grupo</div><div style={{fontSize:15,fontWeight:700,color:'#2ee59d',marginTop:2}}>💰</div>
-        </div>
-      </div>},
-    {mood:'⚡',title:'O Encantamento do Bônus',body:'"Se o preço do tier cair depois, a diferença vira cartas extras. Mas se não escolher antes do fechamento, o encantamento se dissipa."',
-      illus:()=><div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'center',marginTop:16,marginBottom:8}}>
-        <div style={{display:'flex',gap:12,alignItems:'center'}}>
-          <div style={{textAlign:'center',padding:'10px 16px',borderRadius:12,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.06)'}}>
-            <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:2}}>Preço caiu?</div><div style={{fontSize:20}}>📉</div>
-          </div>
-          <div style={{fontSize:18,color:'rgba(255,255,255,0.2)'}}>→</div>
-          <div style={{textAlign:'center',padding:'10px 16px',borderRadius:12,background:'rgba(201,169,110,0.08)',border:'1px solid rgba(201,169,110,0.15)'}}>
-            <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:2}}>Bônus!</div><div style={{fontSize:20}}>🎁✨</div>
-          </div>
-        </div>
-        <div style={{fontSize:11,color:'rgba(255,255,255,0.25)',fontStyle:'italic',textAlign:'center',maxWidth:240}}>A diferença vira cartas extras gratuitas</div>
-      </div>},
     {mood:'🔮',title:'Escolha sua Guilda',body:'"Duas cores de mana definem sua essência. Cada combinação invoca uma guilda diferente."',hasColors:true},
   ];
   const s=steps[step];
