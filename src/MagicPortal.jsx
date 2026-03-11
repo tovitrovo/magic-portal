@@ -317,10 +317,7 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
   return(<div style={{position:'fixed',inset:0,zIndex:100,pointerEvents:'auto'}}>
     <div style={{position:'absolute',inset:0}} onClick={isFirstTime?undefined:onSkip}/>
     {rect&&<div style={{position:'absolute',top:rect.top,left:rect.left,width:rect.width,height:rect.height,borderRadius:14,border:'2.5px solid '+theme.primary,boxShadow:'0 0 30px '+theme.glow+', inset 0 0 20px '+theme.glow,background:'transparent',zIndex:101,pointerEvents:'none',animation:'tutPulse 1.5s ease-in-out infinite'}}/>}
-    <div style={{position:rect?'absolute':'fixed',top:rect?msgTop:72,left:'50%',transform:'translateX(-50%)',width:'calc(100% - 40px)',maxWidth:420,zIndex:102}}>
-      {rect&&!cardAbove&&<div style={{display:'flex',justifyContent:'center',marginBottom:-1,pointerEvents:'none'}}>
-        <div style={{width:0,height:0,borderLeft:'10px solid transparent',borderRight:'10px solid transparent',borderBottom:'12px solid '+theme.primary+'60',animation:'tutArrowBounce 1.2s ease-in-out infinite',filter:'drop-shadow(0 0 6px '+theme.glow+')'}}/>
-      </div>}
+    <div style={{position:'fixed',bottom:70,left:'50%',transform:'translateX(-50%)',width:'calc(100% - 40px)',maxWidth:420,zIndex:102}}>
       <Card glow={theme.glow} style={{padding:18,background:'rgba(12,12,20,0.97)',border:'1px solid '+theme.primary+'30'}}>
         <div style={{fontSize:15,fontWeight:700,color:theme.primary,marginBottom:6}}>{s.title}</div>
         <div style={{fontSize:13,lineHeight:1.7,color:'rgba(255,255,255,0.6)',marginBottom:8}}>{s.body}</div>
@@ -343,9 +340,6 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
           <Btn onClick={onNext} style={{flex:isFirstTime?1:2,fontSize:13}} sfx="click">Entendi <ArrowRight size={14}/></Btn>}
         </div>
       </Card>
-      {rect&&cardAbove&&<div style={{display:'flex',justifyContent:'center',marginTop:-1,pointerEvents:'none'}}>
-        <div style={{width:0,height:0,borderLeft:'10px solid transparent',borderRight:'10px solid transparent',borderTop:'12px solid '+theme.primary+'60',animation:'tutArrowBounce 1.2s ease-in-out infinite',filter:'drop-shadow(0 0 6px '+theme.glow+')'}}/>
-      </div>}
     </div>
   </div>);
 }
