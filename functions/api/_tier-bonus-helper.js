@@ -21,11 +21,11 @@ export async function grantTierBonusToAll(sbUrl, sbKey, campaignId) {
 
     // ─── 1. Campanha: pool atual ─────────────────────────────
     const campArr = await sbGet(sbUrl, svc,
-      `campaigns?id=eq.${enc(campaignId)}&select=pool_qty_confirmed,pool_qty`);
+      `campaigns?id=eq.${enc(campaignId)}&select=pool_qty_confirmed`);
     const camp = campArr[0];
     if (!camp) return;
 
-    const pool = Number(camp.pool_qty_confirmed ?? camp.pool_qty ?? 0);
+    const pool = Number(camp.pool_qty_confirmed ?? 0);
 
     // ─── 2. Tiers da campanha ────────────────────────────────
     const tiersArr = await sbGet(sbUrl, svc,

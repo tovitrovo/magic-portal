@@ -58,11 +58,11 @@ export async function onRequest(context) {
 
     // ─── Fetch campaign ─────────────────────────────
     const campArr = await sbQuery(SB_URL, svcHeaders,
-      `campaigns?id=eq.${enc(campaignId)}&select=id,pool_qty_confirmed,pool_qty`);
+      `campaigns?id=eq.${enc(campaignId)}&select=id,pool_qty_confirmed`);
     const camp = campArr[0];
     if (!camp) return json({ ok: true, tierBonus: 0 }, 200, CORS);
 
-    const pool = Number(camp.pool_qty_confirmed ?? camp.pool_qty ?? 0);
+    const pool = Number(camp.pool_qty_confirmed ?? 0);
 
     // ─── Fetch tiers ────────────────────────────────
     const tiersArr = await sbQuery(SB_URL, svcHeaders,
