@@ -1672,7 +1672,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
               </div>
               {adminBonusGrants.filter(g=>g.user_id===client.userId).map(g=>(
                 <div key={g.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'3px 0',fontSize:11,borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
-                  <span style={{color:g.status==='AVAILABLE'?'#2ee59d':g.status==='USED'?'rgba(255,255,255,0.3)':'rgba(255,255,255,0.15)'}}>{g.bonus_qty} carta(s) — {g.status==='AVAILABLE'?'Disponível':g.status==='USED'?'Usado':'Expirado'}</span>
+                  <span style={{color:g.status==='AVAILABLE'?'#2ee59d':g.status==='CONSUMED'?'rgba(255,255,255,0.3)':'rgba(255,255,255,0.15)'}}>{g.bonus_qty} carta(s) — {g.status==='AVAILABLE'?'Disponível':g.status==='CONSUMED'?'Usado':'Expirado'}</span>
                   {g.status==='AVAILABLE'&&<button onClick={()=>revokeBonus(g.id)} style={{background:'none',border:'none',color:'#ff6b6b',fontSize:10,cursor:'pointer',padding:'2px 4px'}}>Revogar</button>}
                 </div>
               ))}
@@ -2001,7 +2001,7 @@ export default function MagicPortal(){
       for (const g of avail) {
         if (remaining <= 0) break;
         if (remaining >= g.bonus_qty) {
-          await sbPatch('bonus_grants', 'id=eq.' + g.id, { status: 'USED' }, token).catch(e => console.warn('bonus_grants update', e));
+          await sbPatch('bonus_grants', 'id=eq.' + g.id, { status: 'CONSUMED' }, token).catch(e => console.warn('bonus_grants update', e));
           remaining -= g.bonus_qty;
         } else {
           await sbPatch('bonus_grants', 'id=eq.' + g.id, { bonus_qty: g.bonus_qty - remaining }, token).catch(e => console.warn('bonus_grants update', e));
@@ -2012,7 +2012,7 @@ export default function MagicPortal(){
         let rem = order.totalBonus;
         return prev.map(g => {
           if (g.status !== 'AVAILABLE' || rem <= 0) return g;
-          if (rem >= g.bonus_qty) { rem -= g.bonus_qty; return { ...g, status: 'USED' }; }
+          if (rem >= g.bonus_qty) { rem -= g.bonus_qty; return { ...g, status: 'CONSUMED' }; }
           const newQty = g.bonus_qty - rem; rem = 0; return { ...g, bonus_qty: newQty };
         });
       });

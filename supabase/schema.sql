@@ -161,7 +161,7 @@ CREATE TABLE IF NOT EXISTS public.bonus_grants (
   order_id      uuid NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
   bonus_qty     integer NOT NULL DEFAULT 0,
   status        text DEFAULT 'AVAILABLE'
-                  CHECK (status IN ('AVAILABLE','USED','EXPIRED')),
+                  CHECK (status IN ('AVAILABLE','CONSUMED','EXPIRED')),
   grant_type    text DEFAULT 'MANUAL'
                   CHECK (grant_type IN ('MANUAL','TIER_CHANGE')),
   created_at    timestamptz DEFAULT now(),
