@@ -1158,7 +1158,7 @@ function OnboardingPage({onComplete,theme}){
   if(askTutorial)return(<div style={{display:'flex',flexDirection:'column',gap:16,paddingTop:40,alignItems:'center',textAlign:'center'}}>
     <div style={{width:56,height:56,borderRadius:14,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.06)',display:'grid',placeItems:'center',fontSize:28}}>🧙</div>
     <h2 style={{fontFamily:"'Cinzel',serif",fontSize:20}}>"Agora vou guiar seus primeiros passos!"</h2>
-    <p style={{fontSize:13,color:'rgba(255,255,255,0.4)',maxWidth:300,fontStyle:'italic'}}>Um grimório rápido sobre o ritual da encomenda</p>
+    <p style={{fontSize:13,color:'rgba(255,255,255,0.4)',maxWidth:300,fontStyle:'italic'}}>Um guia rápido sobre o ritual da encomenda</p>
     <div style={{display:'flex',gap:10,width:'100%',maxWidth:300}}>
       <Btn onClick={()=>onComplete(colors,guild,true)} style={{flex:1}} sfx="confirm">Vamos lá! 🔮</Btn>
     </div>
