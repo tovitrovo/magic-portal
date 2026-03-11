@@ -323,10 +323,6 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
         <div style={{width:0,height:0,borderLeft:'10px solid transparent',borderRight:'10px solid transparent',borderBottom:'12px solid '+theme.primary+'60',animation:'tutArrowBounce 1.2s ease-in-out infinite',filter:'drop-shadow(0 0 6px '+theme.glow+')'}}/>
       </div>}
       <Card glow={theme.glow} style={{padding:18,background:'rgba(12,12,20,0.97)',border:'1px solid '+theme.primary+'30'}}>
-        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
-          <div style={{width:38,height:38,borderRadius:12,background:theme.primary+'14',border:'1px solid '+theme.primary+'25',display:'grid',placeItems:'center',fontSize:20}}>{s.icon||'🧙'}</div>
-          <div style={{flex:1}}><div style={{fontWeight:800,fontSize:13}}>Goblin Guia</div><div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>Passo {step+1} de {steps.length}</div></div>
-        </div>
         <div style={{fontSize:15,fontWeight:700,color:theme.primary,marginBottom:6}}>{s.title}</div>
         <div style={{fontSize:13,lineHeight:1.7,color:'rgba(255,255,255,0.6)',marginBottom:8}}>{s.body}</div>
         {s.gesture==='swipe'&&<div style={{display:'flex',justifyContent:'center',gap:20,padding:'10px 0',marginBottom:6}}>
