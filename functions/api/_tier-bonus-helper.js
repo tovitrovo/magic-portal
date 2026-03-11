@@ -66,7 +66,7 @@ async function grantForUser(sbUrl, svc, userId, orderId, campaignId, currentPric
   try {
     // Batches pagos (não-bônus): base financeira para o cálculo
     const paidBatchArr = await sbGet(sbUrl, svc,
-      `order_batches?order_id=eq.${enc(orderId)}&status=in.(PAID,CONFIRMED,APPROVED)&payment_method=neq.BONUS&select=brl_unit_price_locked,subtotal_locked`);
+      `order_batches?order_id=eq.${enc(orderId)}&status=in.(PAID,PAID_CONFIRMED)&payment_method=neq.BONUS&select=brl_unit_price_locked,subtotal_locked`);
 
     if (!paidBatchArr.length) return;
 
@@ -86,7 +86,7 @@ async function grantForUser(sbUrl, svc, userId, orderId, campaignId, currentPric
     // Batches de bônus já utilizados: contam como "cartas pagas" para não
     // gerar novo bônus de tier sobre cartas que o usuário já recebeu de graça.
     const bonusBatchArr = await sbGet(sbUrl, svc,
-      `order_batches?order_id=eq.${enc(orderId)}&status=in.(PAID,CONFIRMED,APPROVED)&payment_method=eq.BONUS&select=qty_in_batch`);
+      `order_batches?order_id=eq.${enc(orderId)}&status=in.(PAID,PAID_CONFIRMED)&payment_method=eq.BONUS&select=qty_in_batch`);
     for (const b of bonusBatchArr) {
       totalPaidQty += Number(b.qty_in_batch || 0);
     }

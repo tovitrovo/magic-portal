@@ -1366,7 +1366,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   },[orders]);
 
   const ordStats=useMemo(()=>{
-    const paid=allBatches.filter(b=>b.status==='PAID'||b.status==='CONFIRMED');
+    const paid=allBatches.filter(b=>b.status==='PAID'||b.status==='PAID_CONFIRMED');
     const pending=allBatches.filter(b=>b.status==='DRAFT'||b.status==='PENDING'||b.status==='PENDING_PAYMENT');
     const cancelled=allBatches.filter(b=>b.status==='CANCELLED');
     const totalRevenue=paid.reduce((s,b)=>s+Number(b.total_locked||0),0);
@@ -1377,7 +1377,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
 
   const filteredBatches=useMemo(()=>{
     let list=allBatches;
-    if(ordStatusFilter==='PAID')list=list.filter(b=>b.status==='PAID'||b.status==='CONFIRMED');
+    if(ordStatusFilter==='PAID')list=list.filter(b=>b.status==='PAID'||b.status==='PAID_CONFIRMED');
     else if(ordStatusFilter==='PENDING')list=list.filter(b=>b.status==='DRAFT'||b.status==='PENDING'||b.status==='PENDING_PAYMENT');
     else if(ordStatusFilter==='CANCELLED')list=list.filter(b=>b.status==='CANCELLED');
     if(searchOrders){
@@ -1396,7 +1396,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
     try{
       const paidBatchIds=[];const batchMeta={};
       orders.forEach(o=>{(o.order_batches||[]).forEach(b=>{
-        if(b.status==='PAID'||b.status==='CONFIRMED'){paidBatchIds.push(b.id);batchMeta[b.id]={userName:o.profiles?.name||'—',date:b.confirmed_at||b.created_at||o.created_at};}
+        if(b.status==='PAID'||b.status==='PAID_CONFIRMED'){paidBatchIds.push(b.id);batchMeta[b.id]={userName:o.profiles?.name||'—',date:b.confirmed_at||b.created_at||o.created_at};}
       });});
       if(paidBatchIds.length===0){setFinalList([]);setListLoading(false);return;}
       const r=await fetch('/api/admin-batch-items',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchIds:paidBatchIds})});
@@ -1542,7 +1542,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
       filteredBatches.length===0?<EmptyState icon={Package} title="Nenhum pedido" sub={searchOrders||ordStatusFilter!=='ALL'?'Tente outro filtro':'Nenhum pedido nesta campanha'}/>:
       filteredBatches.map(b=>{
         const isExp=expandedOrdBatch===b.id;
-        const isPaid=b.status==='PAID'||b.status==='CONFIRMED';
+        const isPaid=b.status==='PAID'||b.status==='PAID_CONFIRMED';
         const isCancelled=b.status==='CANCELLED';
         const isDraft=b.status==='DRAFT'||b.status==='PENDING'||b.status==='PENDING_PAYMENT';
         const sid=String(b.id).slice(0,8).toUpperCase();
@@ -1638,7 +1638,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
           </div>
           {isClientExp&&<div style={{borderTop:'1px solid rgba(255,255,255,0.04)'}}>
             {client.orders.map(o=>(o.order_batches||[]).map(b=>{
-              const batchExp=expandedBatch===b.id;const isPaid=b.status==='PAID'||b.status==='CONFIRMED';
+              const batchExp=expandedBatch===b.id;const isPaid=b.status==='PAID'||b.status==='PAID_CONFIRMED';
               const sid=String(b.id).slice(0,8).toUpperCase();
               const mpCode=b.mp_payment_id||b.mp_preference_id||'—';
               const ship=Number(b.shipping_locked||0);

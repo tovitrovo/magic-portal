@@ -92,7 +92,7 @@ export async function onRequest(context) {
     if (!order) return json({ ok: true, tierBonus: 0 }, 200, CORS);
 
     // ─── Fetch user's paid batches ──────────────────
-    const paidStatuses = "status=in.(PAID,CONFIRMED,APPROVED)";
+    const paidStatuses = "status=in.(PAID,PAID_CONFIRMED)";
     const batchArr = await sbQuery(SB_URL, svcHeaders,
       `order_batches?order_id=eq.${enc(order.id)}&${paidStatuses}&payment_method=neq.BONUS&select=id,brl_unit_price_locked,subtotal_locked,qty_in_batch`);
 

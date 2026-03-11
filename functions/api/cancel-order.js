@@ -49,7 +49,7 @@ export async function onRequest(context) {
         const batches = await bRes.json().catch(() => []);
         if (Array.isArray(batches)) {
           for (const b of batches) {
-            if (b.status === 'PAID' || b.status === 'CONFIRMED') {
+            if (b.status === 'PAID' || b.status === 'PAID_CONFIRMED') {
               await decrementPoolOnCancel(SB_URL, SB_SERVICE_ROLE_KEY, b.id);
             }
           }

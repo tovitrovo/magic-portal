@@ -68,7 +68,7 @@ export async function onRequest(context) {
 
     // Filtrar apenas pedidos com batches pagos
     const paidOrders = data.filter(order => 
-      order.order_batches && order.order_batches.some(batch => batch.status === 'PAID' || batch.status === 'CONFIRMED')
+      order.order_batches && order.order_batches.some(batch => batch.status === 'PAID' || batch.status === 'PAID_CONFIRMED')
     );
 
     return new Response(JSON.stringify({

@@ -87,7 +87,7 @@ export async function onRequest(context) {
             await fetch(`${SB_URL}/rest/v1/orders?id=eq.${encodeURIComponent(parentOrderId)}`, {
               method: "PATCH",
               headers,
-              body: JSON.stringify({ status: "PAID" }),
+              body: JSON.stringify({ status: "PAID_CONFIRMED" }),
             });
           }
         } catch (e) { console.error('Webhook: erro ao atualizar order pai:', e); } // não bloqueia o retorno do webhook

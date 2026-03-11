@@ -67,7 +67,7 @@ export async function onRequest(context) {
     }
 
     // Skip if already confirmed
-    if (batch.status === 'PAID' || batch.status === 'CONFIRMED') {
+    if (batch.status === 'PAID' || batch.status === 'PAID_CONFIRMED') {
       return json({ ok: true, alreadyConfirmed: true }, 200, CORS);
     }
 
@@ -125,7 +125,7 @@ export async function onRequest(context) {
     await fetch(`${SB_URL}/rest/v1/orders?id=eq.${enc(batch.order_id)}`, {
       method: "PATCH",
       headers: { ...svcHeaders, Prefer: "return=minimal" },
-      body: JSON.stringify({ status: "PAID" }),
+      body: JSON.stringify({ status: "PAID_CONFIRMED" }),
     }).catch(e => console.error("confirm-bonus-batch: failed to update order status:", e));
 
     // ─── Recalculate tier-change bonus for all users ─

@@ -57,7 +57,7 @@ export async function incrementPoolOnPaid(sbUrl, sbKey, batchId) {
     const batch = await getBatchInfo(sbUrl, sbKey, batchId);
     if (!batch?.order_id) return;
     // Avoid double-counting: only increment if batch is not already PAID
-    if (batch.status === "PAID" || batch.status === "CONFIRMED") return;
+    if (batch.status === "PAID" || batch.status === "PAID_CONFIRMED") return;
     const qty = Number(batch.qty_in_batch || 0);
     if (qty <= 0) return;
 

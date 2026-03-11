@@ -70,7 +70,7 @@ export async function onRequest(context) {
       campaignId: campaignId,
       totalOrders: data.length,
       ordersWithBatches: data.filter(o => o.order_batches?.length > 0).length,
-      paidOrders: data.filter(o => o.order_batches?.some(b => b.status === 'PAID' || b.status === 'CONFIRMED')).length,
+      paidOrders: data.filter(o => o.order_batches?.some(b => b.status === 'PAID' || b.status === 'PAID_CONFIRMED')).length,
       batchStatuses: [...new Set(data.flatMap(o => o.order_batches?.map(b => b.status) || []))],
       campaigns: [...new Set(data.map(o => o.campaign_id))],
       ordersByCampaign: data.reduce((acc, o) => {
