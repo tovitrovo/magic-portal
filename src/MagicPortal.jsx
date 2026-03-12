@@ -1856,7 +1856,7 @@ export default function MagicPortal(){
   const guild = profile?.guild || 'Izzet';
   const theme = GT[guild] || GT.Izzet;
   const isAdmin = profile?.is_admin || false;
-  const nav = useCallback(p=>{SFX.nav();setPage(p);},[]);
+  const nav = useCallback(p=>{SFX.nav();setPage(p);if(p==='profile'&&!profile&&token&&session?.user?.id){loadAppData(token,session.user.id);};},[profile,token,session]);
 
   // Recalcula bônus de tier sempre que o usuário entra na home
   useEffect(()=>{
