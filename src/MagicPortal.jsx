@@ -1716,7 +1716,7 @@ export default function MagicPortal(){
 
   // Auto-load on mount if session exists
   const didAutoLoad=useRef(false);
-  useEffect(()=>{if(session&&!profile&&!didAutoLoad.current){didAutoLoad.current=true;loadAppData(session.access_token,session.user.id).catch(()=>{setSession(null);});}},[session,profile]);
+  useEffect(()=>{if(session&&!profile&&!didAutoLoad.current){didAutoLoad.current=true;loadAppData(session.access_token,session.user.id).catch(e=>console.warn('loadAppData error:', e));}},[session,profile]);
 
   // Data state
   const [campaign,setCampaign]=useState(null);
