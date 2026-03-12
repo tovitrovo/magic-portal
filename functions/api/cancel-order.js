@@ -42,7 +42,7 @@ export async function onRequest(context) {
       try { await del("order_items", `batch_id=eq.${encodeURIComponent(batchId)}`); } catch {}
       try { await del("order_batches", `id=eq.${encodeURIComponent(batchId)}`); } catch {}
     }
-    if (orderId) {
+    else if (orderId) {
       // Decrementa pool para todos os batches PAID desta order antes de deletar
       try {
         const bRes = await fetch(`${SB_URL}/rest/v1/order_batches?order_id=eq.${encodeURIComponent(orderId)}&select=id,status`, { headers: { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}` } });
