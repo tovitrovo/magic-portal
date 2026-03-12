@@ -1823,34 +1823,48 @@ export default function MagicPortal(){
       const [pc] = await sbGet('pricing_config', `is_active=eq.true&limit=1`, tkn);
       setPricing(pc);
 
-      // Order (get or create DRAFT)
-      if (camp) {
-        let ords = await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}`, tkn);
-        let ord = ords[0];
+      // Order (get or create DRAFT) — works with or without active campaign
+      {
+        // Find order: prefer campaign order, fallback to null-campaign order
+        let ord = null;
+        if (camp) {
+          const ords = await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}`, tkn);
+          ord = ords[0] || null;
+        }
+        // No campaign order — look for null-campaign order (wishlist)
+        if (!ord) {
+          const nullOrds = await sbGet('orders', `campaign_id=is.null&user_id=eq.${userId}&select=id,created_at&order=created_at.desc&limit=1`, tkn);
+          ord = nullOrds[0] || null;
+        }
         if (!ord) {
           try {
-            const [newOrd] = await sbPost('orders', { campaign_id: camp.id, user_id: userId, status: 'DRAFT' }, tkn);
+            const payload = camp ? { campaign_id: camp.id, user_id: userId, status: 'DRAFT' } : { user_id: userId, status: 'DRAFT' };
+            const [newOrd] = await sbPost('orders', payload, tkn);
             ord = newOrd;
-            // Copiar wants do pedido mais recente de outra campanha
+            // Copiar wants do pedido mais recente de qualquer campanha
             try {
-              const prevOrds = await sbGet('orders', `user_id=eq.${userId}&campaign_id=neq.${camp.id}&select=id,created_at&order=created_at.desc&limit=1`, tkn);
+              const prevOrds = await sbGet('orders', `user_id=eq.${userId}&id=neq.${ord.id}&select=id,created_at&order=created_at.desc&limit=1`, tkn);
               if (prevOrds && prevOrds.length > 0) {
                 const prevItems = await sbGet('order_items', `order_id=eq.${prevOrds[0].id}&batch_id=is.null&is_bonus=eq.false&select=card_id,quantity`, tkn);
                 for (const item of (prevItems || [])) {
                   await sbPost('order_items', { order_id: ord.id, card_id: item.card_id, quantity: item.quantity, is_bonus: false }, tkn).catch(()=>{});
                 }
               }
-            } catch(e) { console.warn('Failed to copy wants from previous order:', e); }
+            } catch(e) { console.warn('Failed to copy wants:', e); }
           } catch(e) {
-            // Race condition: order may have been created by concurrent call
-            const [existing] = await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}`, tkn);
-            if (existing) ord = existing;
-            else throw e;
+            // Race condition fallback
+            const fallback = camp
+              ? await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}`, tkn)
+              : await sbGet('orders', `campaign_id=is.null&user_id=eq.${userId}&order=created_at.desc&limit=1`, tkn);
+            if (fallback[0]) ord = fallback[0]; else throw e;
           }
+        } else if (camp && !ord.campaign_id) {
+          // Migrate null-campaign order to this campaign
+          await sbPatch('orders', `id=eq.${ord.id}`, { campaign_id: camp.id }, tkn).catch(()=>{});
         }
         setOrderId(ord.id);
 
-        // Wants (order_items without batch_id) — wrapped so failures don't block bonus loading
+        // Wants
         try {
           const items = await sbGet('order_items', `order_id=eq.${ord.id}&batch_id=is.null&is_bonus=eq.false&select=id,card_id,quantity,cards(name,type)`, tkn);
           setWants(items.map(i=>({...i,card_name:i.cards?.name||'?',card_type:i.cards?.type||'Normal'})));
@@ -1867,12 +1881,14 @@ export default function MagicPortal(){
           }
         } catch(e) { console.warn('Failed to load order batches:', e); }
 
-        // Auto-grant tier-change bonus (server-side, idempotent), then load all grants
-        try { await fetch('/api/tier-bonus', { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${tkn}`}, body:JSON.stringify({campaignId:camp.id}) }); } catch(e) { console.warn('tier-bonus check:', e); }
-        try {
-          const bg = await sbGet('bonus_grants', `user_id=eq.${userId}&campaign_id=eq.${camp.id}`, tkn);
-          setBonusGrants(bg);
-        } catch(e) { console.warn('Failed to load bonus grants:', e); }
+        // Bonus grants (only if active campaign)
+        if (camp) {
+          try { await fetch('/api/tier-bonus', { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${tkn}`}, body:JSON.stringify({campaignId:camp.id}) }); } catch(e) { console.warn('tier-bonus check:', e); }
+          try {
+            const bg = await sbGet('bonus_grants', `user_id=eq.${userId}&campaign_id=eq.${camp.id}`, tkn);
+            setBonusGrants(bg);
+          } catch(e) { console.warn('Failed to load bonus grants:', e); }
+        }
       }
     } catch(e) {
       console.error('loadAppData', e);
@@ -1930,7 +1946,7 @@ export default function MagicPortal(){
   // ─── Add want ─────────────────────────────────────
   async function handleAddWant(card, qty) {
     if (!token) { toast('Faça login primeiro','error'); return; }
-    if (!orderId) { toast('Nenhuma encomenda ativa no momento','error'); return; }
+    if (!orderId) { toast('Erro ao carregar seu pedido. Recarregue a página.','error'); return; }
     try {
       const existing = wants.find(w => w.card_id === card.id);
       if (existing) {
