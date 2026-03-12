@@ -1947,11 +1947,10 @@ export default function MagicPortal(){
         await sbPatch('order_items', 'id=eq.'+(existing.id), { quantity: newQty }, token);
         setWants(prev => prev.map(w => w.id === existing.id ? { ...w, quantity: newQty } : w));
       } else if (inCart) {
-        // Carta no carrinho — move de volta pra wants com qty incrementada
+        // Carta no carrinho — incrementa no carrinho
         const newQty = inCart.quantity + qty;
-        await sbPatch('order_items', 'id=eq.'+(inCart.id), { quantity: newQty, in_cart: false }, token);
-        setCartItems(prev => prev.filter(c => c.id !== inCart.id));
-        setWants(prev => [{ ...inCart, quantity: newQty, in_cart: false }, ...prev]);
+        await sbPatch('order_items', 'id=eq.'+(inCart.id), { quantity: newQty }, token);
+        setCartItems(prev => prev.map(c => c.id === inCart.id ? { ...c, quantity: newQty } : c));
       } else {
         const [item] = await sbPost('order_items', { order_id: orderId, card_id: card.id, quantity: qty, is_bonus: false, unit_price_brl: 0 }, token);
         setWants(prev => [{ ...item, card_name: card.name, card_type: card.type }, ...prev]);
