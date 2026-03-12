@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
+import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff, Archive } from 'lucide-react';
 
 // ══════════════════════════════════════════════════════
 // SUPABASE REST CLIENT
@@ -1120,6 +1120,11 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   const [loading,setLoading]=useState(true);
   const [ordersLoading,setOrdersLoading]=useState(false);
   const [saving,setSaving]=useState(false);
+  const [archiving,setArchiving]=useState(false);
+  const [showArchiveConfirm,setShowArchiveConfirm]=useState(false);
+  const [showCreateForm,setShowCreateForm]=useState(false);
+  const [newCamp,setNewCamp]=useState({name:'',status:'DRAFT',close_at:'',max_cards:1000});
+  const [creating,setCreating]=useState(false);
 
   const [editTiers,setEditTiers]=useState((tiersProp||[]).map(t=>({...t})));
   const [editPricing,setEditPricing]=useState(pricingProp?{...pricingProp}:{});
@@ -1349,6 +1354,29 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
     setSaving(false);
   }
 
+  async function archiveCampaign(){
+    setArchiving(true);
+    try{
+      const r=await fetch('/api/archive-campaign',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({campaignId:selectedCampaign.id})});
+      const d=await r.json().catch(()=>({}));
+      if(!d.ok)throw new Error(d.error||`HTTP ${r.status}`);
+      SFX.success();setSelectedCampaign(null);setShowArchiveConfirm(false);loadCampaigns();if(onReload)onReload();
+    }catch(e){if(toastFn)toastFn('Erro ao arquivar: '+(e.message||String(e)),'error');}
+    setArchiving(false);
+  }
+
+  async function createCampaign(){
+    if(!newCamp.name.trim()){if(toastFn)toastFn('Nome obrigatório','error');return;}
+    setCreating(true);
+    try{
+      const r=await fetch('/api/campaigns',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:newCamp.name,status:newCamp.status,close_at:newCamp.close_at||null,max_cards:newCamp.max_cards||1000})});
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);
+      SFX.success();setShowCreateForm(false);setNewCamp({name:'',status:'DRAFT',close_at:'',max_cards:1000});loadCampaigns();if(onReload)onReload();
+    }catch(e){if(toastFn)toastFn('Erro ao criar: '+(e.message||String(e)),'error');}
+    setCreating(false);
+  }
+
   async function saveCampaign(){
     setSaving(true);
     try{
@@ -1380,7 +1408,20 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
       <div style={{display:'flex',alignItems:'center',gap:8}}><Shield size={18} style={{color:theme.primary}}/><span style={{fontFamily:"'Cinzel',serif",fontSize:18,fontWeight:700}}>Admin</span></div>
       <Btn variant="ghost" onClick={()=>nav('profile')} style={{padding:'6px 10px',fontSize:12}} sfx="nav"><ChevronLeft size={14}/></Btn>
     </div>
-    <SectionTitle sub="Selecione uma encomenda para gerenciar">Encomendas</SectionTitle>
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+      <SectionTitle sub="Selecione uma encomenda para gerenciar">Encomendas</SectionTitle>
+      <button onClick={()=>setShowCreateForm(v=>!v)} style={{width:32,height:32,borderRadius:10,border:'1px solid '+theme.primary+'30',background:theme.primary+'15',color:theme.primary,fontSize:20,display:'grid',placeItems:'center',cursor:'pointer'}}>{showCreateForm?'×':'+'}</button>
+    </div>
+    {showCreateForm&&<Card style={{padding:16}}>
+      <SectionTitle sub="Preencha os dados da nova encomenda">Nova Encomenda</SectionTitle>
+      <div style={{display:'flex',flexDirection:'column',gap:10,marginTop:8}}>
+        <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Nome</label><input value={newCamp.name} onChange={e=>setNewCamp(c=>({...c,name:e.target.value}))} placeholder="Ex: Encomenda Abril 26" style={{width:'100%',padding:'10px 12px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/></div>
+        <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Status inicial</label><div style={{display:'flex',gap:4,flexWrap:'wrap'}}>{CAMPAIGN_STATUSES.map(s=>(<button key={s} onClick={()=>setNewCamp(c=>({...c,status:s}))} style={{padding:'5px 10px',borderRadius:8,border:'1px solid '+(newCamp.status===s?theme.primary+'30':'rgba(255,255,255,0.06)'),background:newCamp.status===s?theme.primary+'15':'rgba(255,255,255,0.02)',color:newCamp.status===s?theme.primary:'rgba(255,255,255,0.3)',fontSize:10,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{s}</button>))}</div></div>
+        <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Data de fechamento</label><input type="date" value={newCamp.close_at} onChange={e=>setNewCamp(c=>({...c,close_at:e.target.value}))} style={{width:'100%',padding:'10px 12px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/></div>
+        <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Máximo de cartas</label><input type="number" value={newCamp.max_cards} onChange={e=>setNewCamp(c=>({...c,max_cards:parseInt(e.target.value)||0}))} style={{width:'100%',padding:'10px 12px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/></div>
+        <Btn full variant="success" onClick={createCampaign} disabled={creating} sfx="">{creating?<Spin size={14}/>:<><Check size={14}/> Criar encomenda</>}</Btn>
+      </div>
+    </Card>}
     {loading&&<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>}
     {activeCampaigns.length>0&&<><div style={{fontSize:12,fontWeight:700,color:theme.primary,marginBottom:4}}>Ativas</div>
       {activeCampaigns.map(c=>(<Card key={c.id} onClick={()=>setSelectedCampaign(c)} style={{padding:'12px 16px',cursor:'pointer',marginBottom:4}}>
@@ -1620,7 +1661,16 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
         </div>
         <Btn full variant="success" onClick={saveCampaign} disabled={saving} style={{marginTop:12}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar campanha</>}</Btn>
         {isFinalized&&<Btn full variant="danger" onClick={deleteCampaign} style={{marginTop:8}} sfx=""><Trash2 size={14}/> Excluir encomenda</Btn>}
+        {!isFinalized&&<Btn full variant="danger" onClick={()=>setShowArchiveConfirm(true)} style={{marginTop:8}} sfx=""><Archive size={14}/> Finalizar e arquivar encomenda</Btn>}
       </Card>
+      {showArchiveConfirm&&<Card style={{padding:20,borderColor:'rgba(217,68,82,0.3)',background:'rgba(217,68,82,0.06)'}}>
+        <div style={{fontSize:15,fontWeight:700,marginBottom:8,color:'#ff6b7a'}}>⚠️ Finalizar encomenda?</div>
+        <div style={{fontSize:13,color:'rgba(255,255,255,0.55)',marginBottom:16,lineHeight:1.6}}>Todos os pedidos, batches, itens e bônus desta campanha serão <b>apagados permanentemente</b>. A campanha será arquivada como DONE. Esta ação não pode ser desfeita.</div>
+        <div style={{display:'flex',gap:8}}>
+          <Btn variant="secondary" onClick={()=>setShowArchiveConfirm(false)} style={{flex:1}} sfx="">Cancelar</Btn>
+          <Btn variant="danger" onClick={archiveCampaign} disabled={archiving} style={{flex:1}} sfx="">{archiving?<Spin size={14}/>:'Sim, finalizar'}</Btn>
+        </div>
+      </Card>}
 
       <Card style={{padding:16}}>
         <SectionTitle sub="Ajuste câmbio, taxas e markup">Taxas e Câmbio</SectionTitle>
