@@ -26,7 +26,8 @@ export async function onRequest(context) {
 
     const body = await context.request.json().catch(() => ({}));
     const tiers = body.tiers;
-    if (!Array.isArray(tiers) || tiers.length === 0) {
+    const deletedIds = body.deletedIds || [];
+    if (!Array.isArray(tiers)) {
       return new Response(JSON.stringify({ ok: false, error: "Lista de tiers inválida" }), {
         status: 400, headers: { ...CORS, "Content-Type": "application/json" }
       });
@@ -39,19 +40,41 @@ export async function onRequest(context) {
       Prefer: "return=minimal",
     };
 
-    for (const tier of tiers) {
-      const { id, usd_per_card, label, min_qty, max_qty, quest_text } = tier;
+    // Delete removed tiers
+    for (const id of deletedIds) {
       if (!id) continue;
-      const r = await fetch(`${SB_URL}/rest/v1/tiers?id=eq.${encodeURIComponent(id)}`, {
-        method: "PATCH",
-        headers,
-        body: JSON.stringify({ usd_per_card, label, min_qty, max_qty, quest_text }),
+      await fetch(`${SB_URL}/rest/v1/tiers?id=eq.${encodeURIComponent(id)}`, {
+        method: "DELETE", headers,
       });
-      if (!r.ok) {
-        const t = await r.text().catch(() => "");
-        return new Response(JSON.stringify({ ok: false, error: `Falha ao salvar tier ${id}: ${r.status} ${t.slice(0, 200)}` }), {
-          status: 502, headers: { ...CORS, "Content-Type": "application/json" }
+    }
+
+    // Update existing and create new tiers
+    for (const tier of tiers) {
+      const { id, campaign_id, usd_per_card, label, min_qty, max_qty, quest_text, rank } = tier;
+      if (id) {
+        // Update existing
+        const r = await fetch(`${SB_URL}/rest/v1/tiers?id=eq.${encodeURIComponent(id)}`, {
+          method: "PATCH", headers,
+          body: JSON.stringify({ usd_per_card, label, min_qty, max_qty, quest_text, rank }),
         });
+        if (!r.ok) {
+          const t = await r.text().catch(() => "");
+          return new Response(JSON.stringify({ ok: false, error: `Falha ao salvar tier ${id}: ${r.status} ${t.slice(0, 200)}` }), {
+            status: 502, headers: { ...CORS, "Content-Type": "application/json" }
+          });
+        }
+      } else if (campaign_id) {
+        // Create new
+        const r = await fetch(`${SB_URL}/rest/v1/tiers`, {
+          method: "POST", headers,
+          body: JSON.stringify({ campaign_id, usd_per_card, label, min_qty, max_qty, quest_text, rank }),
+        });
+        if (!r.ok) {
+          const t = await r.text().catch(() => "");
+          return new Response(JSON.stringify({ ok: false, error: `Falha ao criar tier: ${r.status} ${t.slice(0, 200)}` }), {
+            status: 502, headers: { ...CORS, "Content-Type": "application/json" }
+          });
+        }
       }
     }
 

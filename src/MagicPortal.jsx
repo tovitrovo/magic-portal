@@ -1263,6 +1263,10 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   const [liveUsd,setLiveUsd]=useState(null);
   const [tierAdditional,setTierAdditional]=useState({});
 
+  // Sync editTiers/editPricing when parent data reloads
+  useEffect(()=>{setEditTiers((tiersProp||[]).map(t=>({...t})));setTierAdditional({});},[tiersProp]);
+  useEffect(()=>{if(pricingProp)setEditPricing({...pricingProp});},[pricingProp]);
+
   const [expandedClient,setExpandedClient]=useState(null);
   const [expandedBatch,setExpandedBatch]=useState(null);
   const [batchCards,setBatchCards]=useState({});
@@ -1459,13 +1463,21 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   async function saveTiers(){
     setSaving(true);
     try{
-      const payload=editTiers.map(t=>{
+      const campId=selectedCampaign?.id||campProp?.id;
+      if(!campId){if(toastFn)toastFn('Nenhuma campanha selecionada','error');setSaving(false);return;}
+      const payload=editTiers.map((t,i)=>{
         const add=tierAdditional[t.id]||0;
         const finalBrl=calcBrlPrice(t.usd,editPricing)+add;
         const newUsd=add?calcUsdFromBrl(finalBrl,editPricing):t.usd;
-        return{id:t.id,usd_per_card:newUsd,label:t.label,min_qty:t.min,max_qty:t.max>999999?null:t.max,quest_text:t.quest};
+        const tier={usd_per_card:newUsd,label:t.label,min_qty:t.min,max_qty:t.max>999999?null:t.max,quest_text:t.quest,rank:i+1};
+        if(t._isNew)tier.campaign_id=campId; else tier.id=t.id;
+        return tier;
       });
-      const r=await fetch('/api/admin-save-tiers',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({tiers:payload})});
+      // IDs originais que foram removidos
+      const originalIds=(tiersProp||[]).map(t=>t.id).filter(Boolean);
+      const currentIds=editTiers.filter(t=>!t._isNew).map(t=>t.id).filter(Boolean);
+      const deletedIds=originalIds.filter(id=>!currentIds.includes(id));
+      const r=await fetch('/api/admin-save-tiers',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({tiers:payload,deletedIds})});
       const json=await r.json().catch(()=>({}));
       if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
       setTierAdditional({});SFX.success();if(onReload)onReload();
@@ -1820,15 +1832,22 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
 
       <Card style={{padding:16}}>
         <SectionTitle sub="Preços USD, BRL calculado e ajuste adicional por tier">Tiers</SectionTitle>
+        {editTiers.length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,0.25)',textAlign:'center',padding:12}}>Nenhum tier configurado. Adicione abaixo.</div>}
         {editTiers.map((t,i)=>{const brlCalc=calcBrlPrice(t.usd,editPricing);const add=tierAdditional[t.id]||0;const finalBrl=brlCalc+add;return(
-          <div key={i} style={{padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+          <div key={t.id||i} style={{padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
             <div style={{display:'flex',gap:6,alignItems:'center',marginBottom:4}}>
               <input value={t.label} onChange={e=>{const v=[...editTiers];v[i]={...v[i],label:e.target.value};setEditTiers(v);}} style={{flex:2,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",outline:'none'}}/>
               <div style={{display:'flex',alignItems:'center',gap:2}}><span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>US$</span><input type="number" step="0.01" value={t.usd} onChange={e=>{const v=[...editTiers];v[i]={...v[i],usd:parseFloat(e.target.value)||0};setEditTiers(v);}} style={{width:55,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/></div>
               <span style={{fontSize:12,fontWeight:700,color:'rgba(255,255,255,0.4)',minWidth:48,textAlign:'right'}}>R${brlCalc.toFixed(0)}</span>
+              <button onClick={()=>{const v=[...editTiers];v.splice(i,1);setEditTiers(v);}} style={{background:'rgba(217,68,82,0.1)',border:'1px solid rgba(217,68,82,0.15)',borderRadius:6,padding:'4px 6px',cursor:'pointer',color:'#ff6b7a',display:'grid',placeItems:'center',flexShrink:0}}><X size={12}/></button>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:6,marginTop:4}}>
-              <span style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>{t.min}-{t.max>999999?'∞':t.max} cartas</span>
+              <div style={{display:'flex',alignItems:'center',gap:3}}>
+                <input type="number" value={t.min} onChange={e=>{const v=[...editTiers];v[i]={...v[i],min:parseInt(e.target.value)||0};setEditTiers(v);}} style={{width:50,padding:'4px 6px',borderRadius:6,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'rgba(255,255,255,0.5)',fontSize:10,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/>
+                <span style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>–</span>
+                <input type="number" value={t.max>999999?'':t.max} placeholder="∞" onChange={e=>{const v=[...editTiers];v[i]={...v[i],max:parseInt(e.target.value)||9999999};setEditTiers(v);}} style={{width:50,padding:'4px 6px',borderRadius:6,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'rgba(255,255,255,0.5)',fontSize:10,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/>
+                <span style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>cartas</span>
+              </div>
               <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:3}}>
                 <span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>+R$</span>
                 <input type="number" step="0.5" value={add} onChange={e=>setTierAdditional(p=>({...p,[t.id]:parseFloat(e.target.value)||0}))} style={{width:45,padding:'4px 6px',borderRadius:6,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#c9a96e',fontSize:11,fontWeight:700,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}} placeholder="0"/>
@@ -1837,7 +1856,10 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
               </div>
             </div>
           </div>);})}
-        <Btn full variant="success" onClick={saveTiers} disabled={saving} style={{marginTop:10}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar tiers</>}</Btn>
+        <div style={{display:'flex',gap:8,marginTop:10}}>
+          <Btn full variant="secondary" onClick={()=>{const nextRank=editTiers.length+1;const lastMax=editTiers.length>0?(editTiers[editTiers.length-1].max||0):0;setEditTiers(p=>[...p,{id:'new_'+Date.now(),label:'Tier '+nextRank,usd:0.10,min:lastMax>999999?lastMax:lastMax+1,max:9999999,quest:'',_isNew:true}]);}} sfx="click"><Plus size={14}/> Adicionar tier</Btn>
+          <Btn full variant="success" onClick={saveTiers} disabled={saving} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar tiers</>}</Btn>
+        </div>
       </Card>
     </>}
   </div>);

@@ -36,6 +36,27 @@ export async function onRequest(context) {
       const insertBody = JSON.stringify(payload);
       const res = await fetch(insertUrl, { method: "POST", headers: { ...headers, Prefer: "return=representation" }, body: insertBody });
       const data = await res.json();
+
+      // Auto-criar tiers padrão para a nova campanha
+      if (res.ok && Array.isArray(data) && data[0]?.id) {
+        const campId = data[0].id;
+        const defaultTiers = [
+          { campaign_id: campId, rank: 1, label: 'Tier 1', min_qty: 1,    max_qty: 500,     usd_per_card: 0.18 },
+          { campaign_id: campId, rank: 2, label: 'Tier 2', min_qty: 501,  max_qty: 750,     usd_per_card: 0.16 },
+          { campaign_id: campId, rank: 3, label: 'Tier 3', min_qty: 751,  max_qty: 1000,    usd_per_card: 0.14 },
+          { campaign_id: campId, rank: 4, label: 'Tier 4', min_qty: 1001, max_qty: 1500,    usd_per_card: 0.12 },
+          { campaign_id: campId, rank: 5, label: 'Tier 5', min_qty: 1501, max_qty: 2000,    usd_per_card: 0.10 },
+          { campaign_id: campId, rank: 6, label: 'Tier 6', min_qty: 2001, max_qty: 99999999, usd_per_card: 0.08 },
+        ];
+        try {
+          await fetch(`${SB_URL}/rest/v1/tiers`, {
+            method: "POST",
+            headers: { ...headers, Prefer: "return=minimal" },
+            body: JSON.stringify(defaultTiers),
+          });
+        } catch (e) { console.error('Erro ao criar tiers padrão:', e); }
+      }
+
       return new Response(JSON.stringify(data), {
         status: res.ok ? 201 : 400, headers: { ...CORS, "Content-Type":"application/json" }
       });
