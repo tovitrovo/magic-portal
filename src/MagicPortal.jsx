@@ -1814,7 +1814,17 @@ export default function MagicPortal(){
 
   // Auto-load on mount if session exists
   const didAutoLoad=useRef(false);
-  useEffect(()=>{if(session&&!profile&&!didAutoLoad.current){didAutoLoad.current=true;const uid=session.user?.id||session.user_id;console.log('[autoload] session.user:', session.user, 'uid:', uid);loadAppData(session.access_token,uid).catch(e=>console.warn('loadAppData error:', e));}},[session,profile]);
+  useEffect(()=>{
+    if(session&&!profile&&!didAutoLoad.current){
+      didAutoLoad.current=true;
+      const uid=session.user?.id||session.user_id;
+      const userMeta=session.user?.user_metadata||{};
+      // Seta perfil mínimo imediatamente para o UI aparecer
+      setProfile({id:uid,name:userMeta.name||'',is_admin:false,whatsapp:userMeta.whatsapp||''});
+      // Depois enriquece com dados do banco
+      loadAppData(session.access_token,uid).catch(e=>console.warn('loadAppData error:',e));
+    }
+  },[session,profile]);
 
   // Data state
   const [campaign,setCampaign]=useState(null);
