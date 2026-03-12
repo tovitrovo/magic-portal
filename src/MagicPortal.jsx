@@ -25,7 +25,8 @@ function campaignLabel(status){
 }
 
 function campaignCanOrder(status){
-  return String(status || 'ACTIVE').toUpperCase() === 'ACTIVE';
+  if (!status) return false;
+  return String(status).toUpperCase() === 'ACTIVE';
 }
 
 // Sync Mercado Pago status for a batch (server-side)
@@ -1940,10 +1941,18 @@ export default function MagicPortal(){
     if (!orderId) { toast('Erro ao carregar seu pedido. Recarregue a página.','error'); return; }
     try {
       const existing = wants.find(w => w.card_id === card.id);
+      const inCart = cartItems.find(c => c.card_id === card.id);
       if (existing) {
         const newQty = existing.quantity + qty;
         await sbPatch('order_items', 'id=eq.'+(existing.id), { quantity: newQty }, token);
         setWants(prev => prev.map(w => w.id === existing.id ? { ...w, quantity: newQty } : w));
+      } else if (inCart) {
+        // Carta já está no carrinho — incrementa lá
+        const newQty = inCart.quantity + qty;
+        await sbPatch('order_items', 'id=eq.'+(inCart.id), { quantity: newQty }, token);
+        setCartItems(prev => prev.map(c => c.id === inCart.id ? { ...c, quantity: newQty } : c));
+        toast(qty+'x '+card.name+' adicionada ao carrinho!','success');
+        return;
       } else {
         const [item] = await sbPost('order_items', { order_id: orderId, card_id: card.id, quantity: qty, is_bonus: false, unit_price_brl: 0 }, token);
         setWants(prev => [{ ...item, card_name: card.name, card_type: card.type }, ...prev]);
