@@ -1847,10 +1847,14 @@ export default function MagicPortal(){
         } catch(e) { console.warn('Failed to load order items:', e); }
         setCartQtyByItem({});
 
-        // Order history (batches with items) — wrapped so failures don't block bonus loading
+        // Order history — all paid batches across all campaigns
         try {
-          const batches = await sbGet('order_batches', `order_id=eq.${ord.id}&select=id,status,total_locked,payment_method,created_at,qty_in_batch,mp_link,brl_unit_price_locked,subtotal_locked,order_items(quantity,cards(name,type))`, tkn);
-          setMyOrders((batches||[]).map(b=>({ ...b, cards: Array.isArray(b.order_items) ? b.order_items.map(i=>({ name:i.cards?.name||'Carta', type:i.cards?.type||'', qty:Number(i.quantity||1) })) : undefined })) );
+          const allOrds = await sbGet('orders', `user_id=eq.${userId}&select=id,campaign_id`, tkn);
+          if (allOrds && allOrds.length > 0) {
+            const ordIds = allOrds.map(o=>o.id).join(',');
+            const batches = await sbGet('order_batches', `order_id=in.(${ordIds})&select=id,status,total_locked,payment_method,created_at,qty_in_batch,mp_link,brl_unit_price_locked,subtotal_locked,order_id,order_items(quantity,cards(name,type))`, tkn);
+            setMyOrders((batches||[]).map(b=>({ ...b, cards: Array.isArray(b.order_items) ? b.order_items.map(i=>({ name:i.cards?.name||'Carta', type:i.cards?.type||'', qty:Number(i.quantity||1) })) : undefined })));
+          }
         } catch(e) { console.warn('Failed to load order batches:', e); }
 
         // Auto-grant tier-change bonus (server-side, idempotent), then load all grants

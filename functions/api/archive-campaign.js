@@ -33,39 +33,19 @@ export async function onRequest(context) {
       "Prefer": "return=minimal",
     };
 
-    // 1. Buscar todos os order_ids dessa campanha
+    // 1. Apagar bonus_grants (não fazem sentido na próxima campanha)
+    await fetch(`${SB_URL}/rest/v1/bonus_grants?campaign_id=eq.${campaignId}`, { method: "DELETE", headers: h });
+
+    // 2. Apagar order_items SEM batch (wants não finalizadas — rascunhos)
     const ordersRes = await fetch(`${SB_URL}/rest/v1/orders?campaign_id=eq.${campaignId}&select=id`, { headers: h });
     const orders = await ordersRes.json().catch(() => []);
     const orderIds = (orders || []).map(o => o.id);
-
     if (orderIds.length > 0) {
       const oIn = orderIds.map(id => encodeURIComponent(id)).join(",");
-
-      // 2. Buscar todos os batch_ids desses orders
-      const batchesRes = await fetch(`${SB_URL}/rest/v1/order_batches?order_id=in.(${oIn})&select=id`, { headers: h });
-      const batches = await batchesRes.json().catch(() => []);
-      const batchIds = (batches || []).map(b => b.id);
-
-      if (batchIds.length > 0) {
-        const bIn = batchIds.map(id => encodeURIComponent(id)).join(",");
-        // 3. Deletar order_items desses batches
-        await fetch(`${SB_URL}/rest/v1/order_items?batch_id=in.(${bIn})`, { method: "DELETE", headers: h });
-      }
-
-      // 4. Deletar order_items sem batch (wants)
-      await fetch(`${SB_URL}/rest/v1/order_items?order_id=in.(${oIn})`, { method: "DELETE", headers: h });
-
-      // 5. Deletar order_batches
-      await fetch(`${SB_URL}/rest/v1/order_batches?order_id=in.(${oIn})`, { method: "DELETE", headers: h });
-
-      // 6. Deletar orders
-      await fetch(`${SB_URL}/rest/v1/orders?campaign_id=eq.${campaignId}`, { method: "DELETE", headers: h });
+      await fetch(`${SB_URL}/rest/v1/order_items?order_id=in.(${oIn})&batch_id=is.null`, { method: "DELETE", headers: h });
     }
 
-    // 7. Deletar bonus_grants dessa campanha
-    await fetch(`${SB_URL}/rest/v1/bonus_grants?campaign_id=eq.${campaignId}`, { method: "DELETE", headers: h });
-
-    // 8. Arquivar a campanha (status = DONE)
+    // 3. Arquivar campanha
     await fetch(`${SB_URL}/rest/v1/campaigns?id=eq.${campaignId}`, {
       method: "PATCH", headers: h, body: JSON.stringify({ status: "DONE" })
     });
