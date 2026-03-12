@@ -56,11 +56,9 @@ export async function onRequest(context) {
         });
       }
       const updateUrl = `${SB_URL}/rest/v1/campaigns?id=eq.${id}`;
-      const res = await fetch(updateUrl, { method: "PATCH", headers, body: JSON.stringify(fields) });
-      const data = await res.json();
-      return new Response(JSON.stringify(data), {
-        status: res.ok ? 200 : 400, headers: { ...CORS, "Content-Type":"application/json" }
-      });
+      const res = await fetch(updateUrl, { method: "PATCH", headers: { ...headers, "Prefer": "return=minimal" }, body: JSON.stringify(fields) });
+      if (!res.ok) { const err = await res.text(); return new Response(JSON.stringify({ error: err }), { status: 400, headers: { ...CORS, "Content-Type":"application/json" } }); }
+      return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...CORS, "Content-Type":"application/json" } });
     }
     if (context.request.method === "DELETE") {
       // Deletar campanha
