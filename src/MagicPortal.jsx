@@ -1891,6 +1891,7 @@ export default function MagicPortal(){
       console.error('loadAppData', e);
       if (e.message && (e.message.includes('JWT') || e.message.includes('401') || e.message.includes('token'))) {
         toast('Sessão expirada. Faça login novamente.', 'error');
+        setAppLoading(false);
         handleLogout();
         return;
       }
