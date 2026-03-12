@@ -406,6 +406,7 @@ const TUTORIAL_STEPS=[
   {title:'Adicionar à lista',body:'Toque no + de qualquer carta para adicioná-la à sua lista de wants.',navTo:'catalog',tabIndex:1,spotlightId:null,icon:'➕',interactive:true},
   {title:'Lista de Wants',body:'Suas cartas escolhidas ficam aqui. Toque no 🛒 para mover a carta pro carrinho, ou na 🗑️ para excluir.',navTo:'wants',tabIndex:2,spotlightId:null,icon:'📋'},
   {title:'Bônus',body:'Se o grupo crescer e o preço cair, você ganha cartas extras de graça! Elas aparecem aqui quando disponíveis.',navTo:'wants',tabIndex:2,spotlightId:null,icon:'🎁'},
+  {title:'Carrinho',body:'Edite quantidades, mova cartas de volta para wants e avance para o checkout.',navTo:'cart',tabIndex:3,spotlightId:null,icon:'🛒'},
   {title:'Checkout',body:'Revise o pedido, preencha o endereço e calcule o frete antes de finalizar.',navTo:'checkout',tabIndex:3,spotlightId:'tut-checkout-summary',icon:'📦'},
   {title:'Pagamento',body:'Pague com segurança via Mercado Pago — cartão, boleto ou saldo.',navTo:'checkout',tabIndex:3,spotlightId:'tut-payment',icon:'💳'},
   {title:'Perfil',body:'Veja seus pedidos, altere endereço, mude a senha e reabra este tutorial quando quiser.',navTo:'profile',tabIndex:4,spotlightId:null,icon:'👤'},
@@ -464,7 +465,7 @@ function HomePage({pool,tiers,priceBRL,closeDate,theme,nav,wantsCount,cartCount,
       </div>);})}
     </Card>
     <Btn full onClick={()=>{SFX.nav();nav('catalog');}} sfx="nav"><BookOpen size={18}/> Ver catálogo</Btn>
-    {cartCount>0&&<Btn full variant="secondary" onClick={()=>nav('checkout')} sfx="nav"><ShoppingCart size={18}/> Checkout ({cartCount})</Btn>}
+    {cartCount>0&&<Btn full variant="secondary" onClick={()=>nav('cart')} sfx="nav"><ShoppingCart size={18}/> Carrinho ({cartCount})</Btn>}
   </div>);
 }
 
@@ -645,7 +646,8 @@ function CartPage({cartItems,priceBRL,bonusAvail,campaignStatus,theme,nav,onMove
       </div>
       {campaignOpen&&<Btn full onClick={()=>nav('checkout')} sfx="nav" style={{marginTop:4}}><CreditCard size={15}/> Ir para checkout</Btn>}
     </>}
-    {cartItems.length===0&&<EmptyState icon={ShoppingCart} title="Carrinho vazio" sub="Mova cartas da sua lista de wants"/>}
+    {cartItems.length===0&&<><EmptyState icon={ShoppingCart} title="Carrinho vazio" sub="Mova cartas da sua lista de wants"/><div style={{textAlign:'center',marginTop:8}}><Btn variant="secondary" onClick={()=>nav('wants')} sfx="nav"><ScrollText size={15}/> Ir para Wants</Btn></div></>}
+    {cartItems.length>0&&<Btn full variant="ghost" onClick={()=>nav('wants')} sfx="nav" style={{marginTop:4}}><ArrowLeft size={14}/> Voltar para Wants</Btn>}
   </div>);
 }
 function CheckoutPage({cartItems=[],wants,cartQtyByItem,priceBRL,bonusAvail,theme,nav,profile,token,orderId,campaignId,campaignStatus,onOrderDone,toast,previousPaidBatches=[],onMoveToWants,onRemoveFromCart,onUpdateCartQty}){
@@ -757,7 +759,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,priceBRL,bonusAvail,them
     </Card>
     <div style={{textAlign:'center',marginTop:16}}><Btn onClick={()=>nav('catalog')} sfx="nav"><BookOpen size={16}/> Ver catálogo</Btn></div>
   </div>);
-  if(totalQty===0)return(<div style={{paddingTop:40}}><EmptyState icon={ShoppingCart} title="Carrinho vazio" sub="Selecione cartas nos wants"/><div style={{textAlign:'center',marginTop:16}}><Btn onClick={()=>nav('wants')} sfx="nav"><ScrollText size={16}/> Wants</Btn></div></div>);
+  if(totalQty===0)return(<div style={{paddingTop:40}}><EmptyState icon={ShoppingCart} title="Carrinho vazio" sub="Selecione cartas nos wants"/><div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'center',marginTop:16}}><Btn onClick={()=>nav('wants')} sfx="nav"><ScrollText size={14}/> Ir para Wants</Btn></div></div>);
 
   return(<div style={{display:'flex',flexDirection:'column',gap:14}}>
     <Card id="tut-checkout-summary" style={{padding:18}}>
@@ -2332,7 +2334,7 @@ export default function MagicPortal(){
     const paySt = String(o.payment_status || '').toLowerCase();
     return st === 'PAID' || st === 'CONFIRMED' || st === 'APPROVED' || paySt === 'approved';
   });
-  const bottomTabs = [{ key: 'home', icon: Home, label: 'Início' }, { key: 'catalog', icon: BookOpen, label: 'Catálogo' }, { key: 'wants', icon: ScrollText, label: 'Wants' }, { key: 'checkout', icon: ShoppingCart, label: 'Carrinho' }, { key: 'profile', icon: User, label: 'Perfil' }];
+  const bottomTabs = [{ key: 'home', icon: Home, label: 'Início' }, { key: 'catalog', icon: BookOpen, label: 'Catálogo' }, { key: 'wants', icon: ScrollText, label: 'Wants' }, { key: 'cart', icon: ShoppingCart, label: 'Carrinho' }, { key: 'profile', icon: User, label: 'Perfil' }];
 
   return (<div style={{ '--gp': theme.primary, '--gs': theme.secondary, '--gg': theme.glow, minHeight: '100vh', background: `radial-gradient(ellipse at 50% -20%,${theme.primary}12 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,${theme.secondary}08 0%,transparent 40%),#08080f`, color: '#e9edf7', fontFamily: "'Outfit',sans-serif", maxWidth: 480, margin: '0 auto', position: 'relative', paddingBottom: 78 }}>
     <FloatingMana theme={theme}/>
@@ -2362,8 +2364,8 @@ export default function MagicPortal(){
       {/* Header */}
       {page !== 'onboarding' && <div style={{ padding: '13px 20px 11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.035)', position: 'sticky', top: 0, zIndex: 10, background: 'rgba(8,8,15,0.88)', backdropFilter: 'blur(20px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {(page === 'success' || page === 'admin') && <button onClick={() => nav(page === 'admin' ? 'profile' : 'home')} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 2 }}><ChevronLeft size={20} /></button>}
-          <span style={{ fontFamily: "'Cinzel',serif", fontSize: 15, fontWeight: 700, letterSpacing: .3 }}>{({ home: 'Cartas para Jogar', catalog: 'Catálogo', wants: 'Wants', checkout: 'Checkout', success: '', profile: 'Perfil', admin: 'Admin', onboarding: '' })[page] || ''}</span>
+          {(page === 'success' || page === 'admin' || page === 'checkout') && <button onClick={() => nav(page === 'admin' ? 'profile' : page === 'checkout' ? 'cart' : 'home')} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 2 }}><ChevronLeft size={20} /></button>}
+          <span style={{ fontFamily: "'Cinzel',serif", fontSize: 15, fontWeight: 700, letterSpacing: .3 }}>{({ home: 'Cartas para Jogar', catalog: 'Catálogo', wants: 'Wants', cart: 'Carrinho', checkout: 'Checkout', success: '', profile: 'Perfil', admin: 'Admin', onboarding: '' })[page] || ''}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button onClick={() => setSoundOn(s => !s)} style={{ background: 'none', border: 'none', color: soundOn ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)', cursor: 'pointer', padding: 2 }}>{soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}</button>
@@ -2371,9 +2373,9 @@ export default function MagicPortal(){
       </div>}
 
       {/* Bottom tabs */}
-      {page !== 'onboarding' && page !== 'success' && page !== 'admin' && <div id="tut-bottom-tabs" style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: 'rgba(8,8,15,0.94)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.04)', display: 'flex', justifyContent: 'space-around', padding: '5px 0 10px', zIndex: 20 }}>
+      {page !== 'onboarding' && page !== 'success' && page !== 'admin' && page !== 'checkout' && <div id="tut-bottom-tabs" style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: 'rgba(8,8,15,0.94)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.04)', display: 'flex', justifyContent: 'space-around', padding: '5px 0 10px', zIndex: 20 }}>
         {bottomTabs.map((t, ti) => {
-          const active = page === t.key; const badge = t.key === 'checkout' && cartCount > 0;
+          const active = page === t.key; const badge = t.key === 'cart' && cartCount > 0;
           return (<button key={t.key} id={'tut-tab-' + ti} onClick={() => nav(t.key)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '4px 10px', borderRadius: 10, position: 'relative', color: active ? theme.primary : 'rgba(255,255,255,0.22)', transition: 'all .2s' }}>
             <t.icon size={20} />{badge && <div style={{ position: 'absolute', top: 0, right: 3, width: 15, height: 15, borderRadius: 8, background: theme.primary, fontSize: 9, fontWeight: 800, color: '#fff', display: 'grid', placeItems: 'center' }}>{cartCount}</div>}
             <span style={{ fontSize: 9, fontWeight: active ? 700 : 400 }}>{t.label}</span>{active && <div style={{ width: 4, height: 4, borderRadius: 2, background: theme.primary }} />}
@@ -2396,8 +2398,9 @@ export default function MagicPortal(){
         </div>)}
         {page === 'catalog' && <CatalogPage token={token} wants={wants} onAddWant={handleAddWant} priceBRL={priceBRL} theme={theme} campaignStatus={campaign?.status} tutStep={showTutorial?tutStep:-1} onTutNext={tutNext} />}
         {page === 'wants' && <WantsPage wants={wants} onMoveToCart={handleMoveToCart} onMoveAllToCart={handleMoveAllToCart} onRemoveWant={handleRemoveWant} onUpdateWantQty={handleUpdateWantQty} cartCount={cartCount} bonusAvail={bonusAvail} theme={theme} />}
-        {page === 'checkout' && !campaignCanOrder(campaign?.status) && <CartPage cartItems={cartItems} priceBRL={priceBRL} bonusAvail={bonusAvail} campaignStatus={campaign?.status} theme={theme} nav={nav} onMoveToWants={handleMoveToWants} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} profile={profile} previousPaidBatches={previousPaidBatches} />}
+        {page === 'cart' && <CartPage cartItems={cartItems} priceBRL={priceBRL} bonusAvail={bonusAvail} campaignStatus={campaign?.status} theme={theme} nav={nav} onMoveToWants={handleMoveToWants} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} profile={profile} previousPaidBatches={previousPaidBatches} />}
         {page === 'checkout' && campaignCanOrder(campaign?.status) && <CheckoutPage cartItems={cartItems} wants={wants} cartQtyByItem={cartQtyByItem} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} campaignStatus={campaign?.status} onOrderDone={handleOrderDone} toast={toast} previousPaidBatches={previousPaidBatches} onMoveToWants={handleMoveToWants} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} />}
+        {page === 'checkout' && !campaignCanOrder(campaign?.status) && <CartPage cartItems={cartItems} priceBRL={priceBRL} bonusAvail={bonusAvail} campaignStatus={campaign?.status} theme={theme} nav={nav} onMoveToWants={handleMoveToWants} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} profile={profile} previousPaidBatches={previousPaidBatches} />}
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
         {page === 'profile' && !profile && <div style={{padding:20,color:'#ff6b7a',fontSize:12}}><div>profile: null</div><div>token: {token?'ok':'null'}</div><div>appLoading: {String(appLoading)}</div><Btn onClick={()=>loadAppData(token,session?.user?.id)} sfx="click"><RefreshCw size={14}/> Recarregar</Btn></div>}
         {page === 'profile' && profile && (() => { try { return <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} campaign={campaign} />; } catch(e) { return <div style={{padding:20,color:'#ff6b7a',fontSize:12}}>Crash: {e.message}</div>; } })()}
