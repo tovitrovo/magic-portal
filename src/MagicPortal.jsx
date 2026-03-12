@@ -632,8 +632,10 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,priceBRL,bonusAvail,them
   const [joinBatchId,setJoinBatchId]=useState('');
   const [addr,setAddr]=useState({cep:profile?.cep||'',rua:profile?.rua||'',numero:profile?.numero||'',complemento:profile?.complemento||'',bairro:profile?.bairro||'',cidade:profile?.cidade||'',uf:profile?.uf||''});
   const cart=cartItems.length>0?cartItems:wants.map(w=>{const q=Math.min(w.quantity,Math.max(0,cartQtyByItem[w.id]||0));return q>0?{...w,quantity:q,fullQty:w.quantity}:null;}).filter(Boolean);
+  const bonus=bonusAvail||0;
   let bL=bonus;
   const bd=cart.map(c=>{const bq=Math.min(c.quantity,bL);bL-=bq;return{...c,bonusQty:bq,paidQty:c.quantity-bq};});
+  const totalQty=cart.reduce((s,c)=>s+c.quantity,0);
   const totalBonus=bd.reduce((s,c)=>s+c.bonusQty,0);const totalPaid=bd.reduce((s,c)=>s+c.paidQty,0);
   const campaignOpen = campaignCanOrder(campaignStatus);
   const campaignStatusText = campaignLabel(campaignStatus);
