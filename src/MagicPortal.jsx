@@ -1792,11 +1792,11 @@ export default function MagicPortal(){
   async function loadAppData(tkn, userId) {
     setAppLoading(true);
     try {
-      // Profile — seleciona apenas colunas existentes (email fica em auth.users, não em profiles)
-      const [prof] = await sbGet('profiles', 'id=eq.'+(userId)+'&select=id,name,is_admin,guild,whatsapp,cep,rua,numero,complemento,bairro,cidade,uf,mana_color_1,mana_color_2', tkn);
-      console.log('[loadAppData] profile:', prof);
-      console.log('[loadAppData] is_admin:', prof?.is_admin);
-      setProfile(prof);
+      // Profile
+      try {
+        const [prof] = await sbGet('profiles', 'id=eq.'+(userId)+'&select=id,name,is_admin,guild,whatsapp,cep,rua,numero,complemento,bairro,cidade,uf,mana_color_1,mana_color_2', tkn);
+        setProfile(prof);
+      } catch(eProf) { console.warn('Profile load failed:', eProf); }
 
       // Campaign
       const camps = await sbGet('campaigns', `status=neq.CANCELLED&status=neq.DONE&limit=1&order=created_at.desc`, tkn);
@@ -1890,8 +1890,9 @@ export default function MagicPortal(){
         return;
       }
       toast('Erro ao carregar dados: '+e.message, 'error');
+    } finally {
+      setAppLoading(false);
     }
-    setAppLoading(false);
   }
 
   // ─── Auth handler ──────────────────────────────────
@@ -2108,7 +2109,7 @@ export default function MagicPortal(){
     {!session && !recoveryToken && <div style={{ padding: '14px 20px' }}><AuthPage onLogin={handleLogin} theme={theme} /></div>}
 
     {/* Session exists but still loading */}
-    {session && !recoveryToken && !profile && !appLoading && <div style={{ padding: '60px 20px', textAlign: 'center' }}><Spin size={32} /><div style={{ marginTop: 12, fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>Carregando perfil...</div></div>}
+    {session && !recoveryToken && !profile && !appLoading && <div style={{ padding: '60px 20px', textAlign: 'center' }}><div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div><div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 16 }}>Erro ao carregar perfil</div><Btn onClick={() => loadAppData(token, session?.user?.id)} sfx="click"><RefreshCw size={16}/> Tentar novamente</Btn></div>}
 
     {/* Logged in */}
     {session && !recoveryToken && <>
