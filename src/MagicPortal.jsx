@@ -1962,19 +1962,26 @@ export default function MagicPortal(){
       }
 
       // Campaign
-      const camps = await sbGet('campaigns', `status=neq.CANCELLED&status=neq.DONE&limit=1&order=created_at.desc`, tkn);
-      const camp = camps[0] || null;
-      setCampaign(camp);
+      let camp = null;
+      try {
+        const camps = await sbGet('campaigns', `status=not.in.(CANCELLED,DONE)&limit=1&order=created_at.desc`, tkn);
+        camp = camps[0] || null;
+        setCampaign(camp);
+      } catch(eCamp) { console.warn('Campaign load failed:', eCamp); }
 
       // Tiers
       if (camp) {
-        const t = await sbGet('tiers', `campaign_id=eq.${camp.id}&order=rank`, tkn);
-        setTiers(t);
+        try {
+          const t = await sbGet('tiers', `campaign_id=eq.${camp.id}&order=rank`, tkn);
+          setTiers(t);
+        } catch(eTiers) { console.warn('Tiers load failed:', eTiers); }
       }
 
       // Pricing
-      const [pc] = await sbGet('pricing_config', `is_active=eq.true&limit=1`, tkn);
-      setPricing(pc);
+      try {
+        const [pc] = await sbGet('pricing_config', `is_active=eq.true&limit=1`, tkn);
+        setPricing(pc);
+      } catch(ePrice) { console.warn('Pricing load failed:', ePrice); }
 
       // Order (get or create DRAFT) — works with or without active campaign
       try {
@@ -2019,7 +2026,15 @@ export default function MagicPortal(){
 
         // Wants (in_cart=false) and Cart (in_cart=true)
         try {
-          const items = await sbGet('order_items', `order_id=eq.${ord.id}&batch_id=is.null&is_bonus=eq.false&select=id,card_id,quantity,in_cart,cards(name,type)`, tkn);
+          let items;
+          const itemsFilter = `order_id=eq.${ord.id}&batch_id=is.null&is_bonus=eq.false`;
+          try {
+            items = await sbGet('order_items', `${itemsFilter}&select=id,card_id,quantity,in_cart,cards(name,type)`, tkn);
+          } catch(eCart) {
+            // Fallback if in_cart column does not exist
+            console.warn('order_items query with in_cart failed, retrying without:', eCart);
+            items = (await sbGet('order_items', `${itemsFilter}&select=id,card_id,quantity,cards(name,type)`, tkn)).map(i=>({...i,in_cart:false}));
+          }
           const mapped = items.map(i=>({...i,card_name:i.cards?.name||'?',card_type:i.cards?.type||'Normal'}));
           setWants(mapped.filter(i=>!i.in_cart));
           setCartItems(mapped.filter(i=>i.in_cart));
