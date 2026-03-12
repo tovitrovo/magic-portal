@@ -1894,12 +1894,17 @@ export default function MagicPortal(){
       try {
         let [prof] = await sbGet('profiles', 'id=eq.'+(userId)+'&select=id,name,is_admin,guild,whatsapp,cep,rua,numero,complemento,bairro,cidade,uf,mana_color_1,mana_color_2', tkn);
         if (!prof) {
-          // Criar perfil se não existir
-          const created = await sbPost('profiles', { id: userId, name: '', is_admin: false }, tkn);
-          prof = created[0] || { id: userId, name: '', is_admin: false };
+          try {
+            const created = await sbPost('profiles', { id: userId, name: '', is_admin: false }, tkn);
+            prof = created[0];
+          } catch(e) { /* already exists */ }
         }
-        setProfile(prof);
-      } catch(eProf) { console.warn('Profile load failed:', eProf); toast('Erro perfil: '+eProf.message, 'error'); }
+        // Fallback mínimo para o UI sempre renderizar
+        setProfile(prof || { id: userId, name: '', is_admin: false });
+      } catch(eProf) { 
+        console.warn('Profile load failed:', eProf);
+        setProfile({ id: userId, name: '', is_admin: false });
+      }
 
       // Campaign
       const camps = await sbGet('campaigns', `status=neq.CANCELLED&status=neq.DONE&limit=1&order=created_at.desc`, tkn);
