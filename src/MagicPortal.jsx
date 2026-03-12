@@ -2119,9 +2119,9 @@ export default function MagicPortal(){
 
     {/* Logged in */}
     {session && !recoveryToken && <>
-      {/* Loading overlay */}
-      {appLoading && <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(8,8,15,0.92)', display: 'grid', placeItems: 'center' }}>
-        <div style={{ textAlign: 'center' }}><Spin size={36} /><div style={{ marginTop: 12, fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>Carregando dados...</div></div>
+      {/* Loading indicator - non-blocking */}
+      {appLoading && <div style={{ position: 'fixed', top: 60, left: '50%', transform: 'translateX(-50%)', zIndex: 50, background: 'rgba(8,8,15,0.85)', borderRadius: 20, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Spin size={14}/><span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Carregando...</span>
       </div>}
 
       {/* Header */}
