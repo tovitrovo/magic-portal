@@ -148,6 +148,7 @@ CREATE TABLE IF NOT EXISTS public.order_items (
   batch_id        uuid REFERENCES public.order_batches(id) ON DELETE SET NULL,
   card_id         uuid NOT NULL REFERENCES public.cards(id) ON DELETE CASCADE,
   quantity        integer NOT NULL DEFAULT 1,
+  in_cart         boolean DEFAULT false,
   is_bonus        boolean DEFAULT false,
   unit_price_brl  numeric(10,4) DEFAULT 0,
   created_at      timestamptz DEFAULT now()
