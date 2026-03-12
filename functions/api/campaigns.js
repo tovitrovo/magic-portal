@@ -23,15 +23,18 @@ export async function onRequest(context) {
     if (context.request.method === "POST") {
       // Cadastro de campanha
       const body = await context.request.json();
-      const { name, status, start_date, end_date, config } = body;
+      const { name, status, close_at, max_cards } = body;
       if (!name || !status) {
         return new Response(JSON.stringify({ error: "Nome e status obrigatórios" }), {
           status: 400, headers: { ...CORS, "Content-Type":"application/json" }
         });
       }
       const insertUrl = `${SB_URL}/rest/v1/campaigns`;
-      const insertBody = JSON.stringify({ name, status, start_date, end_date, config });
-      const res = await fetch(insertUrl, { method: "POST", headers, body: insertBody });
+      const payload = { name, status };
+      if (close_at) payload.close_at = close_at;
+      if (max_cards) payload.max_cards = max_cards;
+      const insertBody = JSON.stringify(payload);
+      const res = await fetch(insertUrl, { method: "POST", headers: { ...headers, Prefer: "return=representation" }, body: insertBody });
       const data = await res.json();
       return new Response(JSON.stringify(data), {
         status: res.ok ? 201 : 400, headers: { ...CORS, "Content-Type":"application/json" }
