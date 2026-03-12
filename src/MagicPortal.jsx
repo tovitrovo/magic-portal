@@ -1954,6 +1954,17 @@ export default function MagicPortal(){
     }
   },[]);
 
+  // Re-load data when page is restored from back-forward cache (e.g. returning from Mercado Pago)
+  useEffect(()=>{
+    function onPageShow(e){
+      if(e.persisted&&session?.access_token&&session?.user?.id){
+        loadAppData(session.access_token,session.user.id).catch(err=>console.warn('pageshow reload:',err));
+      }
+    }
+    window.addEventListener('pageshow',onPageShow);
+    return ()=>window.removeEventListener('pageshow',onPageShow);
+  },[session?.access_token,session?.user?.id]);
+
   const token = session?.access_token;
   const guild = profile?.guild || 'Izzet';
   const theme = GT[guild] || GT.Izzet;
@@ -2261,6 +2272,7 @@ export default function MagicPortal(){
       return remaining > 0 ? [{ ...w, quantity: remaining }] : [];
     }));
     setCartQtyByItem({});
+    setCartItems([]);
     setMyOrders(prev => [{ id: order.batchId, status: 'DRAFT', total_locked: order.isFullBonus ? 0 : order.totalPaid * order.priceBRL, payment_method: order.method === 'bonus' ? 'BONUS' : 'MERCADO_PAGO', qty_in_batch: order.totalPaid + order.totalBonus, created_at: new Date().toISOString(), cards: order.cards }, ...prev]);
 
     if (order.totalBonus > 0) {
