@@ -1831,6 +1831,16 @@ export default function MagicPortal(){
           try {
             const [newOrd] = await sbPost('orders', { campaign_id: camp.id, user_id: userId, status: 'DRAFT' }, tkn);
             ord = newOrd;
+            // Copiar wants do pedido mais recente de outra campanha
+            try {
+              const prevOrds = await sbGet('orders', `user_id=eq.${userId}&campaign_id=neq.${camp.id}&select=id,created_at&order=created_at.desc&limit=1`, tkn);
+              if (prevOrds && prevOrds.length > 0) {
+                const prevItems = await sbGet('order_items', `order_id=eq.${prevOrds[0].id}&batch_id=is.null&is_bonus=eq.false&select=card_id,quantity`, tkn);
+                for (const item of (prevItems || [])) {
+                  await sbPost('order_items', { order_id: ord.id, card_id: item.card_id, quantity: item.quantity, is_bonus: false }, tkn).catch(()=>{});
+                }
+              }
+            } catch(e) { console.warn('Failed to copy wants from previous order:', e); }
           } catch(e) {
             // Race condition: order may have been created by concurrent call
             const [existing] = await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}`, tkn);

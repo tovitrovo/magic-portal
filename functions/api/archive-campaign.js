@@ -36,16 +36,7 @@ export async function onRequest(context) {
     // 1. Apagar bonus_grants (não fazem sentido na próxima campanha)
     await fetch(`${SB_URL}/rest/v1/bonus_grants?campaign_id=eq.${campaignId}`, { method: "DELETE", headers: h });
 
-    // 2. Apagar order_items SEM batch (wants não finalizadas — rascunhos)
-    const ordersRes = await fetch(`${SB_URL}/rest/v1/orders?campaign_id=eq.${campaignId}&select=id`, { headers: h });
-    const orders = await ordersRes.json().catch(() => []);
-    const orderIds = (orders || []).map(o => o.id);
-    if (orderIds.length > 0) {
-      const oIn = orderIds.map(id => encodeURIComponent(id)).join(",");
-      await fetch(`${SB_URL}/rest/v1/order_items?order_id=in.(${oIn})&batch_id=is.null`, { method: "DELETE", headers: h });
-    }
-
-    // 3. Arquivar campanha
+    // 2. Arquivar campanha
     await fetch(`${SB_URL}/rest/v1/campaigns?id=eq.${campaignId}`, {
       method: "PATCH", headers: h, body: JSON.stringify({ status: "DONE" })
     });
