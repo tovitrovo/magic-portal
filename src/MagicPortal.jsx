@@ -973,50 +973,63 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
     </ProfileSection>
 
     {/* Pedidos */}
-    <ProfileSection title={`Meus Pedidos${myOrders.length>0?' ('+myOrders.length+')':''}`} icon={Package} color="#4a90d9">
-      <div style={{marginTop:12,display:'flex',flexDirection:'column',gap:6}}>
-        {myOrders.length===0?<div style={{fontSize:13,color:'rgba(255,255,255,0.25)',textAlign:'center',padding:12}}>Nenhum pedido ainda</div>:
-        myOrders.map((o,i)=>{
-          const isExp=expandedOrder===i;
-          const st=String(o.status||'').toUpperCase();
-          const paySt=String(o.payment_status||'').toLowerCase();
-          const isPaid=(st==='PAID'||st==='CONFIRMED'||st==='APPROVED')||paySt==='approved';
-          const isPending=!isPaid&&(st===''||st==='DRAFT'||st==='AWAITING_PAYMENT'||st==='IN_PROCESS'||paySt==='pending'||paySt==='in_process');
-          return(<div key={o.id||i} style={{borderRadius:12,border:`1px solid ${isPending?'rgba(201,169,110,0.2)':isPaid?'rgba(46,229,157,0.12)':'rgba(255,255,255,0.05)'}`,overflow:'hidden',background:'rgba(0,0,0,0.2)',cursor:'pointer'}} onClick={async()=>{const next=isExp?null:i;setExpandedOrder(next);if(next!==null&&!o.cards&&!orderCardsCache[String(o.id)]){const cards=await loadOrderCards(o,token);setOrderCardsCache(prev=>({...prev,[String(o.id)]:cards}));}}}>
-            <div style={{padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <div style={{display:'flex',alignItems:'center',gap:8}}>
-                <div style={{width:36,height:36,borderRadius:10,background:isPaid?'rgba(46,229,157,0.1)':isPending?'rgba(201,169,110,0.1)':'rgba(255,255,255,0.04)',display:'grid',placeItems:'center'}}>
-                  <Package size={15} style={{color:isPaid?'#2ee59d':isPending?'#c9a96e':'rgba(255,255,255,0.3)'}}/>
-                </div>
-                <div>
-                  <div style={{fontSize:12,fontWeight:700}}>{Number(o.total_locked)>0?'R$ '+Number(o.total_locked).toFixed(2):'Bônus'}</div>
-                  <div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>{o.qty_in_batch} cartas · {new Date(o.created_at).toLocaleDateString('pt-BR')}</div>
-                </div>
+    {(()=>{
+      const archivedStatuses=['DONE','CANCELLED'];
+      const activeOrders=myOrders.filter(o=>!archivedStatuses.includes(o.campaignStatus));
+      const archivedOrders=myOrders.filter(o=>archivedStatuses.includes(o.campaignStatus));
+      function renderOrder(o,showActions){
+        const isExp=expandedOrder===o.id;
+        const st=String(o.status||'').toUpperCase();
+        const paySt=String(o.payment_status||'').toLowerCase();
+        const isPaid=(st==='PAID'||st==='CONFIRMED'||st==='APPROVED')||paySt==='approved';
+        const isPending=!isPaid&&(st===''||st==='DRAFT'||st==='AWAITING_PAYMENT'||st==='IN_PROCESS'||paySt==='pending'||paySt==='in_process');
+        return(<div key={o.id} style={{borderRadius:12,border:`1px solid ${isPending?'rgba(201,169,110,0.2)':isPaid?'rgba(46,229,157,0.12)':'rgba(255,255,255,0.05)'}`,overflow:'hidden',background:'rgba(0,0,0,0.2)',cursor:'pointer'}} onClick={async()=>{const next=isExp?null:o.id;setExpandedOrder(next);if(next!==null&&!o.cards&&!orderCardsCache[String(o.id)]){const cards=await loadOrderCards(o,token);setOrderCardsCache(prev=>({...prev,[String(o.id)]:cards}));}}}>
+          <div style={{padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <div style={{width:36,height:36,borderRadius:10,background:isPaid?'rgba(46,229,157,0.1)':isPending?'rgba(201,169,110,0.1)':'rgba(255,255,255,0.04)',display:'grid',placeItems:'center'}}>
+                <Package size={15} style={{color:isPaid?'#2ee59d':isPending?'#c9a96e':'rgba(255,255,255,0.3)'}}/>
               </div>
-              <div style={{display:'flex',alignItems:'center',gap:6}}>
-                <Tag color={isPending?'#c9a96e':isPaid?'#2ee59d':'#4a90d9'} style={{fontSize:9}}>{isPending?'Pendente':isPaid?'Pago':o.status}</Tag>
-                <ChevronRight size={13} style={{color:'rgba(255,255,255,0.2)',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
+              <div>
+                <div style={{fontSize:12,fontWeight:700}}>{Number(o.total_locked)>0?'R$ '+Number(o.total_locked).toFixed(2):'Bônus'}</div>
+                <div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>{o.qty_in_batch} cartas · {new Date(o.created_at).toLocaleDateString('pt-BR')}</div>
               </div>
             </div>
-            {isExp&&<div style={{padding:'0 14px 12px',borderTop:'1px solid rgba(255,255,255,0.04)'}}>
-              {((o.cards&&o.cards.length>0)?o.cards:(orderCardsCache[String(o.id)]||[])).length>0?
-                <div style={{marginTop:8}}>{((o.cards&&o.cards.length>0)?o.cards:(orderCardsCache[String(o.id)]||[])).map((c,ci,arr)=>(
-                  <div key={ci} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:12,borderBottom:ci<arr.length-1?'1px solid rgba(255,255,255,0.03)':'none'}}>
-                    <span style={{color:'rgba(255,255,255,0.5)'}}>{c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
-                    <span style={{fontWeight:700}}>x{c.qty}</span>
-                  </div>
-                ))}</div>
-                :<div style={{fontSize:11,color:'rgba(255,255,255,0.2)',marginTop:8}}>Detalhes não disponíveis</div>}
-              {isPending&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginTop:10}}>
-                <Btn variant="warn" onClick={(e)=>{e.stopPropagation();pagarAgoraPedido(o,toastFn);}} style={{width:'100%',fontSize:11,whiteSpace:'nowrap',justifyContent:'center'}} sfx="nav"><CreditCard size={12}/> Pagar</Btn>
-                <Btn variant="ghost" onClick={async(e)=>{e.stopPropagation();try{await mpSync(o.id);onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:11,justifyContent:'center'}} sfx=""><RefreshCw size={12}/></Btn>
-                <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(!confirm('Cancelar este pedido?'))return;try{const res=await fetch('/api/cancel-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batchId:String(o.id),orderId:String(o.order_id||'')})});const j=await res.json().catch(()=>({}));if(!res.ok||!j.ok)throw new Error(j.error||'Falha');toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:11,justifyContent:'center'}} sfx=""><X size={12}/> Cancelar</Btn>
-              </div>}
+            <div style={{display:'flex',alignItems:'center',gap:6}}>
+              <Tag color={isPending?'#c9a96e':isPaid?'#2ee59d':'#4a90d9'} style={{fontSize:9}}>{isPending?'Pendente':isPaid?'Pago':o.status}</Tag>
+              <ChevronRight size={13} style={{color:'rgba(255,255,255,0.2)',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
+            </div>
+          </div>
+          {isExp&&<div style={{padding:'0 14px 12px',borderTop:'1px solid rgba(255,255,255,0.04)'}}>
+            {((o.cards&&o.cards.length>0)?o.cards:(orderCardsCache[String(o.id)]||[])).length>0?
+              <div style={{marginTop:8}}>{((o.cards&&o.cards.length>0)?o.cards:(orderCardsCache[String(o.id)]||[])).map((c,ci,arr)=>(
+                <div key={ci} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:12,borderBottom:ci<arr.length-1?'1px solid rgba(255,255,255,0.03)':'none'}}>
+                  <span style={{color:'rgba(255,255,255,0.5)'}}>{c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
+                  <span style={{fontWeight:700}}>x{c.qty}</span>
+                </div>
+              ))}</div>
+              :<div style={{fontSize:11,color:'rgba(255,255,255,0.2)',marginTop:8}}>Detalhes não disponíveis</div>}
+            {showActions&&isPending&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginTop:10}}>
+              <Btn variant="warn" onClick={(e)=>{e.stopPropagation();pagarAgoraPedido(o,toastFn);}} style={{width:'100%',fontSize:11,whiteSpace:'nowrap',justifyContent:'center'}} sfx="nav"><CreditCard size={12}/> Pagar</Btn>
+              <Btn variant="ghost" onClick={async(e)=>{e.stopPropagation();try{await mpSync(o.id);onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:11,justifyContent:'center'}} sfx=""><RefreshCw size={12}/></Btn>
+              <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(!confirm('Cancelar este pedido?'))return;try{const res=await fetch('/api/cancel-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batchId:String(o.id),orderId:String(o.order_id||'')})});const j=await res.json().catch(()=>({}));if(!res.ok||!j.ok)throw new Error(j.error||'Falha');toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:11,justifyContent:'center'}} sfx=""><X size={12}/> Cancelar</Btn>
             </div>}
-          </div>);
-        })}
-      </div>
-    </ProfileSection>
+          </div>}
+        </div>);
+      }
+      return(<>
+        <ProfileSection title={`Meus Pedidos${activeOrders.length>0?' ('+activeOrders.length+')':''}`} icon={Package} color="#4a90d9">
+          <div style={{marginTop:12,display:'flex',flexDirection:'column',gap:6}}>
+            {activeOrders.length===0?<div style={{fontSize:13,color:'rgba(255,255,255,0.25)',textAlign:'center',padding:12}}>Nenhum pedido ativo</div>:
+            activeOrders.map(o=>renderOrder(o,true))}
+          </div>
+        </ProfileSection>
+        {archivedOrders.length>0&&<ProfileSection title={`Arquivados (${archivedOrders.length})`} icon={Archive} color="rgba(255,255,255,0.25)">
+          <div style={{marginTop:12,display:'flex',flexDirection:'column',gap:6}}>
+            {archivedOrders.map(o=>renderOrder(o,false))}
+          </div>
+        </ProfileSection>}
+      </>);
+    })()}
 
     {/* Senha */}
     <ProfileSection title="Alterar Senha" icon={Lock} color="#f87171">
@@ -2016,11 +2029,13 @@ export default function MagicPortal(){
 
         // Order history — all paid batches across all campaigns
         try {
-          const allOrds = await sbGet('orders', `user_id=eq.${userId}&select=id,campaign_id`, tkn);
+          const allOrds = await sbGet('orders', `user_id=eq.${userId}&select=id,campaign_id,campaigns(status)`, tkn);
           if (allOrds && allOrds.length > 0) {
+            const ordCampStatus = {};
+            allOrds.forEach(o => { ordCampStatus[o.id] = o.campaigns?.status || null; });
             const ordIds = allOrds.map(o=>o.id).join(',');
             const batches = await sbGet('order_batches', `order_id=in.(${ordIds})&select=id,status,total_locked,payment_method,created_at,qty_in_batch,mp_link,brl_unit_price_locked,subtotal_locked,order_id,order_items(quantity,cards(name,type))`, tkn);
-            setMyOrders((batches||[]).map(b=>({ ...b, cards: Array.isArray(b.order_items) ? b.order_items.map(i=>({ name:i.cards?.name||'Carta', type:i.cards?.type||'', qty:Number(i.quantity||1) })) : undefined })));
+            setMyOrders((batches||[]).map(b=>({ ...b, campaignStatus: ordCampStatus[b.order_id] || null, cards: Array.isArray(b.order_items) ? b.order_items.map(i=>({ name:i.cards?.name||'Carta', type:i.cards?.type||'', qty:Number(i.quantity||1) })) : undefined })));
           }
         } catch(e) { console.warn('Failed to load order batches:', e); }
 
