@@ -1796,7 +1796,7 @@ export default function MagicPortal(){
       try {
         const [prof] = await sbGet('profiles', 'id=eq.'+(userId)+'&select=id,name,is_admin,guild,whatsapp,cep,rua,numero,complemento,bairro,cidade,uf,mana_color_1,mana_color_2', tkn);
         setProfile(prof);
-      } catch(eProf) { console.warn('Profile load failed:', eProf); }
+      } catch(eProf) { console.warn('Profile load failed:', eProf); toast('Erro perfil: '+eProf.message, 'error'); }
 
       // Campaign
       const camps = await sbGet('campaigns', `status=neq.CANCELLED&status=neq.DONE&limit=1&order=created_at.desc`, tkn);
@@ -2112,7 +2112,7 @@ export default function MagicPortal(){
     {session && !recoveryToken && !profile && !appLoading && <div style={{ padding: '60px 20px', textAlign: 'center' }}><div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div><div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 16 }}>Erro ao carregar perfil</div><Btn onClick={() => loadAppData(token, session?.user?.id)} sfx="click"><RefreshCw size={16}/> Tentar novamente</Btn></div>}
 
     {/* Logged in */}
-    {session && !recoveryToken && profile && <>
+    {session && !recoveryToken && <>
       {/* Loading overlay */}
       {appLoading && <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(8,8,15,0.92)', display: 'grid', placeItems: 'center' }}>
         <div style={{ textAlign: 'center' }}><Spin size={36} /><div style={{ marginTop: 12, fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>Carregando dados...</div></div>
