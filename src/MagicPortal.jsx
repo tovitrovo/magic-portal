@@ -1813,7 +1813,7 @@ export default function MagicPortal(){
       setPricing(pc);
 
       // Order (get or create DRAFT) — works with or without active campaign
-      {
+      try {
         // Find order: prefer campaign order, fallback to null-campaign order
         let ord = null;
         if (camp) {
@@ -1861,6 +1861,7 @@ export default function MagicPortal(){
           setCartItems(mapped.filter(i=>i.in_cart));
         } catch(e) { console.warn('Failed to load order items:', e); }
         setCartQtyByItem({});
+      } catch(eOrder) { console.warn('Order block error:', eOrder); }
 
         // Order history — all paid batches across all campaigns
         try {
@@ -1880,7 +1881,6 @@ export default function MagicPortal(){
             setBonusGrants(bg);
           } catch(e) { console.warn('Failed to load bonus grants:', e); }
         }
-      }
     } catch(e) {
       console.error('loadAppData', e);
       if (e.message && (e.message.includes('JWT') || e.message.includes('401') || e.message.includes('token'))) {
