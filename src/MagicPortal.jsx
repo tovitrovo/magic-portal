@@ -266,6 +266,37 @@ const GuildBadge=({guild,size=22})=>{const t=GT[guild];if(!t)return null;return 
 const Spin=({size=18,color})=><Loader size={size} style={{color:color||'var(--gp)',animation:'spin 1s linear infinite'}}/>;
 const Toast=({msg,type='info',onClose})=>{const bg=type==='error'?'rgba(217,68,82,0.15)':type==='success'?'rgba(46,229,157,0.15)':'rgba(74,144,217,0.15)';const c=type==='error'?'#ff6b7a':type==='success'?'#2ee59d':'#4a90d9';return <div style={{position:'fixed',top:16,left:'50%',transform:'translateX(-50%)',zIndex:200,padding:'10px 18px',borderRadius:14,background:bg,border:'1px solid '+c+'30',color:c,fontSize:13,fontWeight:600,display:'flex',alignItems:'center',gap:8,backdropFilter:'blur(12px)',maxWidth:'90%'}}>{type==='error'?<AlertTriangle size={15}/>:<Check size={15}/>}{msg}<button onClick={onClose} style={{background:'none',border:'none',color:c,cursor:'pointer',padding:2}}><X size={14}/></button></div>;};
 
+const AddressForm=({address,setAddress})=>{
+  const u=(k,v)=>setAddress(prev=>({...prev,[k]:v}));
+  return(<div style={{display:'flex',flexDirection:'column',gap:8}}>
+    <Input icon={MapPin} placeholder="CEP" value={address.cep||''} onChange={e=>u('cep',e.target.value.replace(/\D/g,'').slice(0,8))} inputMode="numeric"/>
+    <Input icon={MapPin} placeholder="Rua" value={address.rua||''} onChange={e=>u('rua',e.target.value)}/>
+    <div style={{display:'flex',gap:8}}>
+      <div style={{flex:'0 0 90px'}}><Input placeholder="Nº" value={address.numero||''} onChange={e=>u('numero',e.target.value)}/></div>
+      <div style={{flex:1}}><Input placeholder="Complemento" value={address.complemento||''} onChange={e=>u('complemento',e.target.value)}/></div>
+    </div>
+    <Input placeholder="Bairro" value={address.bairro||''} onChange={e=>u('bairro',e.target.value)}/>
+    <div style={{display:'flex',gap:8}}>
+      <div style={{flex:1}}><Input placeholder="Cidade" value={address.cidade||''} onChange={e=>u('cidade',e.target.value)}/></div>
+      <div style={{flex:'0 0 72px'}}><Input placeholder="UF" value={address.uf||''} onChange={e=>u('uf',e.target.value.toUpperCase().slice(0,2))}/></div>
+    </div>
+  </div>);
+};
+
+const AddressDisplay=({address,onEdit})=>{
+  const has=address&&(address.rua||address.cep);
+  return(<div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10}}>
+    <div style={{fontSize:13,color:'rgba(255,255,255,0.55)',lineHeight:1.6}}>
+      {has?<>
+        {address.rua&&<div>{address.rua}{address.numero?', '+address.numero:''}{address.complemento?' · '+address.complemento:''}</div>}
+        {(address.bairro||address.cidade)&&<div>{[address.bairro,address.cidade,address.uf].filter(Boolean).join(' — ')}</div>}
+        {address.cep&&<div style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>CEP {address.cep}</div>}
+      </>:<span style={{color:'rgba(255,255,255,0.25)'}}>Nenhum endereço cadastrado</span>}
+    </div>
+    <button onClick={onEdit} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'6px 10px',cursor:'pointer',color:'rgba(255,255,255,0.5)',display:'flex',alignItems:'center',gap:4,fontSize:11,flexShrink:0}}><Edit3 size={12}/> Editar</button>
+  </div>);
+};
+
 function FlyingCard({show,onDone}){
   useEffect(()=>{if(show){const t=setTimeout(()=>onDone&&onDone(),600);return()=>clearTimeout(t);}},[show]);
   if(!show)return null;
