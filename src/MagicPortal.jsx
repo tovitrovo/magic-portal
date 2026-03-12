@@ -2112,7 +2112,7 @@ export default function MagicPortal(){
     {session && !recoveryToken && !profile && !appLoading && <div style={{ padding: '60px 20px', textAlign: 'center' }}><div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div><div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 16 }}>Erro ao carregar perfil</div><Btn onClick={() => loadAppData(token, session?.user?.id)} sfx="click"><RefreshCw size={16}/> Tentar novamente</Btn></div>}
 
     {/* Logged in */}
-    {session && !recoveryToken && <>
+    {session && !recoveryToken && profile && <>
       {/* Loading overlay */}
       {appLoading && <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(8,8,15,0.92)', display: 'grid', placeItems: 'center' }}>
         <div style={{ textAlign: 'center' }}><Spin size={36} /><div style={{ marginTop: 12, fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>Carregando dados...</div></div>
