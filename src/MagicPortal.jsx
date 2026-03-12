@@ -1929,7 +1929,8 @@ export default function MagicPortal(){
 
   // ─── Add want ─────────────────────────────────────
   async function handleAddWant(card, qty) {
-    if (!token || !orderId) { toast('Faça login primeiro','error'); return; }
+    if (!token) { toast('Faça login primeiro','error'); return; }
+    if (!orderId) { toast('Nenhuma encomenda ativa no momento','error'); return; }
     try {
       const existing = wants.find(w => w.card_id === card.id);
       if (existing) {
