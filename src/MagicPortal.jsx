@@ -267,9 +267,33 @@ const Spin=({size=18,color})=><Loader size={size} style={{color:color||'var(--gp
 const Toast=({msg,type='info',onClose})=>{const bg=type==='error'?'rgba(217,68,82,0.15)':type==='success'?'rgba(46,229,157,0.15)':'rgba(74,144,217,0.15)';const c=type==='error'?'#ff6b7a':type==='success'?'#2ee59d':'#4a90d9';return <div style={{position:'fixed',top:16,left:'50%',transform:'translateX(-50%)',zIndex:200,padding:'10px 18px',borderRadius:14,background:bg,border:'1px solid '+c+'30',color:c,fontSize:13,fontWeight:600,display:'flex',alignItems:'center',gap:8,backdropFilter:'blur(12px)',maxWidth:'90%'}}>{type==='error'?<AlertTriangle size={15}/>:<Check size={15}/>}{msg}<button onClick={onClose} style={{background:'none',border:'none',color:c,cursor:'pointer',padding:2}}><X size={14}/></button></div>;};
 
 const AddressForm=({address,setAddress})=>{
+  const [cepLoading,setCepLoading]=useState(false);
+  const lastCepRef=useRef('');
   const u=(k,v)=>setAddress(prev=>({...prev,[k]:v}));
+
+  function handleCepChange(raw){
+    const cep=raw.replace(/\D/g,'').slice(0,8);
+    u('cep',cep);
+    if(cep.length===8&&cep!==lastCepRef.current){
+      lastCepRef.current=cep;
+      setCepLoading(true);
+      fetch(`https://viacep.com.br/ws/${cep}/json/`)
+        .then(r=>r.json())
+        .then(d=>{
+          if(!d.erro){
+            setAddress(prev=>({...prev,rua:d.logradouro||prev.rua,bairro:d.bairro||prev.bairro,cidade:d.localidade||prev.cidade,uf:d.uf||prev.uf,complemento:d.complemento||prev.complemento}));
+          }
+        })
+        .catch(()=>{})
+        .finally(()=>setCepLoading(false));
+    }
+  }
+
   return(<div style={{display:'flex',flexDirection:'column',gap:8}}>
-    <Input icon={MapPin} placeholder="CEP" value={address.cep||''} onChange={e=>u('cep',e.target.value.replace(/\D/g,'').slice(0,8))} inputMode="numeric"/>
+    <div style={{position:'relative'}}>
+      <Input icon={MapPin} placeholder="CEP" value={address.cep||''} onChange={e=>handleCepChange(e.target.value)} inputMode="numeric"/>
+      {cepLoading&&<div style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50)'}}><Spin size={14}/></div>}
+    </div>
     <Input icon={MapPin} placeholder="Rua" value={address.rua||''} onChange={e=>u('rua',e.target.value)}/>
     <div style={{display:'flex',gap:8}}>
       <div style={{flex:'0 0 90px'}}><Input placeholder="Nº" value={address.numero||''} onChange={e=>u('numero',e.target.value)}/></div>
