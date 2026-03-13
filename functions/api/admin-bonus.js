@@ -54,11 +54,24 @@ export async function onRequest(context) {
           status: 400, headers: { ...CORS, "Content-Type": "application/json" }
         });
       }
+
+      // Look up the user's order for this campaign for data consistency
+      let orderId = null;
+      try {
+        const oUrl = `${SB_URL}/rest/v1/orders?user_id=eq.${encodeURIComponent(userId)}&campaign_id=eq.${encodeURIComponent(campaignId)}&select=id&limit=1`;
+        const oRes = await fetch(oUrl, { headers });
+        const oArr = await oRes.json().catch(() => []);
+        if (Array.isArray(oArr) && oArr.length) orderId = oArr[0].id;
+      } catch (_) { /* proceed with null */ }
+
+      const grantBody = { user_id: userId, campaign_id: campaignId, bonus_qty: bonusQty, status: "AVAILABLE", grant_type: "MANUAL", batch_id: null };
+      if (orderId) grantBody.order_id = orderId;
+
       const url = `${SB_URL}/rest/v1/bonus_grants`;
       const r = await fetch(url, {
         method: "POST",
         headers: { ...headers, Prefer: "return=representation" },
-        body: JSON.stringify({ user_id: userId, campaign_id: campaignId, bonus_qty: bonusQty, status: "AVAILABLE", grant_type: "MANUAL", batch_id: null }),
+        body: JSON.stringify(grantBody),
       });
       if (!r.ok) {
         const t = await r.text().catch(() => "");
