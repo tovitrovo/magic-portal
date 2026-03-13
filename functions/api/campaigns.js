@@ -55,11 +55,19 @@ export async function onRequest(context) {
             { campaign_id: campId, rank: 10, label: 'Lenda',       min_qty:  901, max_qty:     1000, usd_per_card: 1.19 },
             { campaign_id: campId, rank: 11, label: 'Mítico',      min_qty: 1001, max_qty: 99999999, usd_per_card: 1.08 },
           ];
-          const tierRes = await fetch(`${SB_URL}/rest/v1/tiers`, {
+          let tierRes = await fetch(`${SB_URL}/rest/v1/tiers?on_conflict=campaign_id,min_qty,max_qty`, {
             method: "POST",
-            headers: { ...headers, Prefer: "return=minimal" },
+            headers: { ...headers, Prefer: "resolution=merge-duplicates,return=minimal" },
             body: JSON.stringify(defaultTiers),
           });
+          if (!tierRes.ok) {
+            // Correct constraint may not exist — fallback to plain INSERT
+            tierRes = await fetch(`${SB_URL}/rest/v1/tiers`, {
+              method: "POST",
+              headers: { ...headers, Prefer: "return=minimal" },
+              body: JSON.stringify(defaultTiers),
+            });
+          }
           console.log('[campaigns] Tiers insert status:', tierRes.status, tierRes.ok ? 'OK' : await tierRes.text().catch(() => ''));
         }
       }

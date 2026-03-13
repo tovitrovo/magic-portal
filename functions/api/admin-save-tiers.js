@@ -64,6 +64,9 @@ export async function onRequest(context) {
     }
 
     // Update existing and create new tiers
+    const lookupHeaders = { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}` };
+    const upsertHeaders = { ...headers, Prefer: "resolution=merge-duplicates,return=minimal" };
+
     for (const tier of tiers) {
       const { id, usd_per_card, label, min_qty, max_qty, quest_text, rank } = tier;
       if (id && uuidRe.test(id)) {
@@ -79,17 +82,49 @@ export async function onRequest(context) {
           });
         }
       } else if (campId) {
-        // Create new — old tiers were already deleted above, so plain INSERT is safe
-        const r = await fetch(`${SB_URL}/rest/v1/tiers`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ campaign_id: campId, usd_per_card, label, min_qty, max_qty, quest_text, rank }),
-        });
+        // Create new tier — try UPSERT with correct (campaign_id, min_qty, max_qty) constraint first
+        const tierData = { campaign_id: campId, usd_per_card, label, min_qty, max_qty, quest_text, rank };
+        let r = await fetch(
+          `${SB_URL}/rest/v1/tiers?on_conflict=campaign_id,min_qty,max_qty`,
+          { method: "POST", headers: upsertHeaders, body: JSON.stringify(tierData) }
+        );
+
         if (!r.ok) {
-          const t = await r.text().catch(() => "");
-          return new Response(JSON.stringify({ ok: false, error: `Falha ao criar tier: ${r.status} ${t.slice(0, 200)}` }), {
-            status: 502, headers: { ...CORS, "Content-Type": "application/json" }
-          });
+          // Correct constraint may not exist (old schema has UNIQUE(min_qty, max_qty) only).
+          // Fallback: find conflicting tier by min_qty/max_qty and PATCH it.
+          const maxQtyFilter = max_qty === null || max_qty === undefined
+            ? 'max_qty=is.null' : `max_qty=eq.${encodeURIComponent(max_qty)}`;
+          const lookupRes = await fetch(
+            `${SB_URL}/rest/v1/tiers?min_qty=eq.${encodeURIComponent(min_qty)}&${maxQtyFilter}&select=id&limit=1`,
+            { headers: lookupHeaders }
+          );
+          if (!lookupRes.ok) {
+            const t = await lookupRes.text().catch(() => "");
+            return new Response(JSON.stringify({ ok: false, error: `Falha ao buscar tier existente: ${lookupRes.status} ${t.slice(0, 200)}` }), {
+              status: 502, headers: { ...CORS, "Content-Type": "application/json" }
+            });
+          }
+          const existing = await lookupRes.json().catch(() => []);
+
+          if (existing.length > 0) {
+            r = await fetch(`${SB_URL}/rest/v1/tiers?id=eq.${encodeURIComponent(existing[0].id)}`, {
+              method: "PATCH", headers,
+              body: JSON.stringify(tierData),
+            });
+          } else {
+            // No conflicting tier found — try plain INSERT as last resort
+            r = await fetch(`${SB_URL}/rest/v1/tiers`, {
+              method: "POST", headers,
+              body: JSON.stringify(tierData),
+            });
+          }
+
+          if (!r.ok) {
+            const t = await r.text().catch(() => "");
+            return new Response(JSON.stringify({ ok: false, error: `Falha ao criar tier: ${r.status} ${t.slice(0, 200)}` }), {
+              status: 502, headers: { ...CORS, "Content-Type": "application/json" }
+            });
+          }
         }
       }
     }
