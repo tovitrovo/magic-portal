@@ -52,6 +52,9 @@ CREATE TABLE IF NOT EXISTS public.bonus_grants (
 -- Migração para bancos que já têm a tabela bonus_grants
 -- mas sem as colunas mais recentes:
 ALTER TABLE public.bonus_grants
+  ADD COLUMN IF NOT EXISTS order_id uuid REFERENCES public.orders(id) ON DELETE CASCADE;
+
+ALTER TABLE public.bonus_grants
   ADD COLUMN IF NOT EXISTS grant_type text DEFAULT 'MANUAL';
 
 -- Adiciona CHECK constraint se não existir

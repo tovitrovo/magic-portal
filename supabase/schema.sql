@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS public.bonus_grants (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id       uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   campaign_id   uuid NOT NULL REFERENCES public.campaigns(id) ON DELETE CASCADE,
-  order_id      uuid NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+  order_id      uuid REFERENCES public.orders(id) ON DELETE CASCADE,
   bonus_qty     integer NOT NULL DEFAULT 0,
   status        text DEFAULT 'AVAILABLE'
                   CHECK (status IN ('AVAILABLE','CONSUMED','EXPIRED'))  -- matches bonus_status enum,
