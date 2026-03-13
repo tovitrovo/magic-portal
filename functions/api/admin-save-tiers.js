@@ -17,6 +17,7 @@ export async function onRequest(context) {
 
     const body = await context.request.json().catch(() => ({}));
     const tiers = body.tiers;
+    const campaignId = body.campaign_id;
     const deletedIds = body.deletedIds || [];
     if (!Array.isArray(tiers)) {
       return new Response(JSON.stringify({ ok: false, error: "Lista de tiers inválida" }), {
@@ -31,18 +32,41 @@ export async function onRequest(context) {
       Prefer: "return=minimal",
     };
 
-    // Delete removed tiers
-    for (const id of deletedIds) {
-      if (!id) continue;
-      await fetch(`${SB_URL}/rest/v1/tiers?id=eq.${encodeURIComponent(id)}`, {
-        method: "DELETE", headers,
-      });
+    // Resolve campaign_id from request body or from the tier payloads
+    const campId = campaignId || tiers.find(t => t.campaign_id)?.campaign_id;
+
+    // Validate and collect IDs of existing tiers to keep (UUID format only)
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const keepIds = tiers.map(t => t.id).filter(id => id && uuidRe.test(id));
+
+    // Delete tiers that are no longer in the payload for this campaign
+    if (campId) {
+      if (keepIds.length === 0) {
+        // No existing tiers to preserve — delete ALL tiers for this campaign
+        await fetch(`${SB_URL}/rest/v1/tiers?campaign_id=eq.${encodeURIComponent(campId)}`, {
+          method: "DELETE", headers,
+        });
+      } else {
+        // Keep specified tiers, delete everything else for this campaign
+        const keepFilter = keepIds.map(id => encodeURIComponent(id)).join(',');
+        await fetch(`${SB_URL}/rest/v1/tiers?campaign_id=eq.${encodeURIComponent(campId)}&id=not.in.(${keepFilter})`, {
+          method: "DELETE", headers,
+        });
+      }
+    } else {
+      // Fallback: delete by explicit IDs from client (legacy behavior)
+      for (const id of deletedIds) {
+        if (!id) continue;
+        await fetch(`${SB_URL}/rest/v1/tiers?id=eq.${encodeURIComponent(id)}`, {
+          method: "DELETE", headers,
+        });
+      }
     }
 
     // Update existing and create new tiers
     for (const tier of tiers) {
-      const { id, campaign_id, usd_per_card, label, min_qty, max_qty, quest_text, rank } = tier;
-      if (id) {
+      const { id, usd_per_card, label, min_qty, max_qty, quest_text, rank } = tier;
+      if (id && uuidRe.test(id)) {
         // Update existing
         const r = await fetch(`${SB_URL}/rest/v1/tiers?id=eq.${encodeURIComponent(id)}`, {
           method: "PATCH", headers,
@@ -54,11 +78,11 @@ export async function onRequest(context) {
             status: 502, headers: { ...CORS, "Content-Type": "application/json" }
           });
         }
-      } else if (campaign_id) {
+      } else if (campId) {
         // Create new
         const r = await fetch(`${SB_URL}/rest/v1/tiers`, {
           method: "POST", headers,
-          body: JSON.stringify({ campaign_id, usd_per_card, label, min_qty, max_qty, quest_text, rank }),
+          body: JSON.stringify({ campaign_id: campId, usd_per_card, label, min_qty, max_qty, quest_text, rank }),
         });
         if (!r.ok) {
           const t = await r.text().catch(() => "");
