@@ -1611,7 +1611,10 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
       {finalizedCampaigns.map(c=>(<Card key={c.id} onClick={()=>setSelectedCampaign(c)} style={{padding:'12px 16px',cursor:'pointer',marginBottom:4,opacity:0.6}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <div><div style={{fontWeight:700,fontSize:14}}>{c.name}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>{new Date(c.created_at).toLocaleDateString('pt-BR')}</div></div>
-          <Tag color="rgba(255,255,255,0.3)" style={{fontSize:10}}>{c.status}</Tag>
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+            <Tag color="rgba(255,255,255,0.3)" style={{fontSize:10}}>{c.status}</Tag>
+            <button onClick={async(e)=>{e.stopPropagation();if(!confirm(`Excluir "${c.name}"? Todos os dados serão perdidos.`))return;try{const r=await fetch('/api/campaigns',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:c.id})});const d=await r.json();if(d.success){SFX.success();loadCampaigns();if(onReload)onReload();}}catch(err){console.error(err);}}} style={{background:'rgba(217,68,82,0.1)',border:'1px solid rgba(217,68,82,0.15)',borderRadius:8,padding:'5px 7px',cursor:'pointer',color:'#ff6b7a',display:'grid',placeItems:'center',flexShrink:0}}><Trash2 size={13}/></button>
+          </div>
         </div>
       </Card>))}</>}
     {campaigns.length===0&&!loading&&<EmptyState icon={Calendar} title="Nenhuma encomenda" sub=""/>}
