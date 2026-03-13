@@ -205,6 +205,19 @@ const GT={Azorius:{primary:'#4a90d9',secondary:'#f0e6b2',glow:'rgba(74,144,217,0
 function getGuild(a,b){return a&&b&&a!==b?(GUILD_MAP[a+b]||null):null;}
 const TC={Normal:'rgba(255,255,255,0.4)',Holo:'#c9a96e',Foil:'#d94452'};
 const RPG_TIER_NAMES=['Aprendiz','Iniciado','Escudeiro','Guerreiro','Veterano','Campeão','Herói','Mestre','Grão-Mestre','Lenda','Mítico'];
+const DEFAULT_TIERS=[
+  {label:'Aprendiz',   usd:2.00,min:1,   max:100,     quest:''},
+  {label:'Iniciado',   usd:1.90,min:101,  max:200,     quest:''},
+  {label:'Escudeiro',  usd:1.80,min:201,  max:300,     quest:''},
+  {label:'Guerreiro',  usd:1.70,min:301,  max:400,     quest:''},
+  {label:'Veterano',   usd:1.66,min:401,  max:500,     quest:''},
+  {label:'Campeão',    usd:1.63,min:501,  max:600,     quest:''},
+  {label:'Herói',      usd:1.52,min:601,  max:700,     quest:''},
+  {label:'Mestre',     usd:1.41,min:701,  max:800,     quest:''},
+  {label:'Grão-Mestre',usd:1.30,min:801,  max:900,     quest:''},
+  {label:'Lenda',      usd:1.19,min:901,  max:1000,    quest:''},
+  {label:'Mítico',     usd:1.08,min:1001, max:99999999,quest:''},
+];
 
 function getTier(q,tiers){return tiers.find(t=>q>=t.min&&q<=t.max)||tiers[0];}
 function getNextTier(q,tiers){const c=getTier(q,tiers);const i=tiers.indexOf(c);return i<tiers.length-1?tiers[i+1]:null;}
@@ -1895,6 +1908,9 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
           </div>);})}
         <div style={{display:'flex',gap:8,marginTop:10}}>
           <Btn full variant="secondary" onClick={()=>{const nextRank=editTiers.length+1;const lbl=RPG_TIER_NAMES[editTiers.length]||('Tier '+nextRank);const lastMax=editTiers.length>0?(editTiers[editTiers.length-1].max||0):0;setEditTiers(p=>[...p,{id:'new_'+Date.now(),label:lbl,usd:0.10,min:lastMax>999999?lastMax:lastMax+1,max:9999999,quest:'',_isNew:true}]);}} sfx="click"><Plus size={14}/> Adicionar tier</Btn>
+          <Btn full variant="secondary" onClick={()=>{setEditTiers(DEFAULT_TIERS.map((t,i)=>({...t,id:'new_'+Date.now()+'_'+i,_isNew:true})));setTierAdditional({});}} sfx="click"><Upload size={14}/> Importar padrão</Btn>
+        </div>
+        <div style={{marginTop:8}}>
           <Btn full variant="success" onClick={saveTiers} disabled={saving} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar tiers</>}</Btn>
         </div>
       </Card>
