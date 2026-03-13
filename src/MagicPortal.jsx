@@ -1295,6 +1295,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   const [selectedCampaign,setSelectedCampaign]=useState(campProp||null);
   const [tab,setTab]=useState('orders');
   const [orders,setOrders]=useState([]);
+  const [allProfiles,setAllProfiles]=useState([]);
   const [loading,setLoading]=useState(true);
   const [ordersLoading,setOrdersLoading]=useState(false);
   const [saving,setSaving]=useState(false);
@@ -1378,7 +1379,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   useEffect(()=>{if(campProp&&!selectedCampaign)setSelectedCampaign(campProp);},[campProp]);
 
   useEffect(()=>{
-    if(selectedCampaign){loadOrders();loadBonusGrants();setEditCamp({...selectedCampaign});}else{setOrders([]);setOrdersLoading(false);setAdminBonusGrants([]);}
+    if(selectedCampaign){loadOrders();loadBonusGrants();loadAllProfiles();setEditCamp({...selectedCampaign});}else{setOrders([]);setOrdersLoading(false);setAdminBonusGrants([]);}
   },[selectedCampaign?.id]);
 
   async function loadOrders(){
@@ -1393,18 +1394,31 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
     setOrdersLoading(false);
   }
 
+  async function loadAllProfiles(){
+    try{
+      const profs=await sbGet('profiles','select=id,name,whatsapp,email,is_admin&order=name.asc',token);
+      setAllProfiles(profs||[]);
+    }catch(e){console.warn('loadAllProfiles error:',e);}
+  }
+
   const clientGroups=useMemo(()=>{
     const groups={};
     orders.forEach(o=>{
       const allBatches=(o.order_batches||[]);
       if(allBatches.length===0)return;
       const key=o.user_id;
-      if(!groups[key]){groups[key]={userId:o.user_id,name:o.profiles?.name||'—',whatsapp:o.profiles?.whatsapp||'',orders:[],totalCards:0};}
+      if(!groups[key]){groups[key]={userId:o.user_id,name:o.profiles?.name||'—',whatsapp:o.profiles?.whatsapp||'',email:o.profiles?.email||'',orders:[],totalCards:0,hasOrder:true};}
       groups[key].orders.push({...o,order_batches:allBatches});
       groups[key].totalCards+=allBatches.reduce((s,b)=>s+(b.qty_in_batch||0),0);
     });
-    return Object.values(groups);
-  },[orders]);
+    // Adiciona profiles sem pedido
+    allProfiles.forEach(p=>{
+      if(!groups[p.id]&&!p.is_admin){
+        groups[p.id]={userId:p.id,name:p.name||'—',whatsapp:p.whatsapp||'',email:p.email||'',orders:[],totalCards:0,hasOrder:false};
+      }
+    });
+    return Object.values(groups).sort((a,b)=>b.hasOrder-a.hasOrder||a.name.localeCompare(b.name));
+  },[orders,allProfiles]);
 
   const filteredClients=searchOrd?clientGroups.filter(c=>{
     const q=searchOrd.toLowerCase();
@@ -1772,7 +1786,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
           <div onClick={()=>setExpandedClient(isClientExp?null:client.userId)} style={{padding:'10px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer'}}>
             <div><div style={{fontSize:13,fontWeight:700}}>{client.name}</div>{client.whatsapp&&<div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{client.whatsapp}</div>}</div>
             <div style={{display:'flex',alignItems:'center',gap:4}}>
-              <Tag style={{fontSize:9}}>{client.totalCards} cartas</Tag>
+              {client.hasOrder?<Tag style={{fontSize:9}}>{client.totalCards} cartas</Tag>:<Tag color="rgba(255,255,255,0.15)" style={{fontSize:9,color:'rgba(255,255,255,0.3)'}}>sem pedido</Tag>}
               <ChevronRight size={12} style={{color:'rgba(255,255,255,0.15)',transform:isClientExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
             </div>
           </div>
