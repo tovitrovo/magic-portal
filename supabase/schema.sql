@@ -69,7 +69,8 @@ CREATE TABLE IF NOT EXISTS public.tiers (
   max_qty       integer,
   usd_per_card  numeric(10,4),
   quest_text    text,
-  created_at    timestamptz DEFAULT now()
+  created_at    timestamptz DEFAULT now(),
+  UNIQUE (campaign_id, min_qty, max_qty)
 );
 
 -- ──────────────────────────────────────────────
