@@ -79,10 +79,10 @@ export async function onRequest(context) {
           });
         }
       } else if (campId) {
-        // Create new (upsert to handle unique constraint conflicts gracefully)
-        const r = await fetch(`${SB_URL}/rest/v1/tiers?on_conflict=campaign_id,min_qty,max_qty`, {
+        // Create new — old tiers were already deleted above, so plain INSERT is safe
+        const r = await fetch(`${SB_URL}/rest/v1/tiers`, {
           method: "POST",
-          headers: { ...headers, Prefer: "return=minimal,resolution=merge-duplicates" },
+          headers,
           body: JSON.stringify({ campaign_id: campId, usd_per_card, label, min_qty, max_qty, quest_text, rank }),
         });
         if (!r.ok) {
