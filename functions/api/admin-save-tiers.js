@@ -64,7 +64,7 @@ export async function onRequest(context) {
     }
 
     // Update existing and create new tiers
-    const getHeaders = { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}` };
+    const lookupHeaders = { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}` };
     const upsertHeaders = { ...headers, Prefer: "resolution=merge-duplicates,return=minimal" };
 
     for (const tier of tiers) {
@@ -96,8 +96,14 @@ export async function onRequest(context) {
             ? 'max_qty=is.null' : `max_qty=eq.${encodeURIComponent(max_qty)}`;
           const lookupRes = await fetch(
             `${SB_URL}/rest/v1/tiers?min_qty=eq.${encodeURIComponent(min_qty)}&${maxQtyFilter}&select=id&limit=1`,
-            { headers: getHeaders }
+            { headers: lookupHeaders }
           );
+          if (!lookupRes.ok) {
+            const t = await lookupRes.text().catch(() => "");
+            return new Response(JSON.stringify({ ok: false, error: `Falha ao buscar tier existente: ${lookupRes.status} ${t.slice(0, 200)}` }), {
+              status: 502, headers: { ...CORS, "Content-Type": "application/json" }
+            });
+          }
           const existing = await lookupRes.json().catch(() => []);
 
           if (existing.length > 0) {
