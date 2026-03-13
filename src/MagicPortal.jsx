@@ -1837,7 +1837,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
             <div style={{padding:'8px 14px',borderTop:'1px solid rgba(255,255,255,0.04)'}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
                 <span style={{fontSize:11,fontWeight:700,color:'#2ee59d'}}><Gift size={11}/> Bônus</span>
-                {(()=>{const t=clientBonus;return t>0?<Tag color="#2ee59d" style={{fontSize:9}}>{t} disponível</Tag>:null;})()}
+                {clientBonus>0&&<Tag color="#2ee59d" style={{fontSize:9}}>{clientBonus} disponível</Tag>}
               </div>
               {adminBonusGrants.filter(g=>g.user_id===client.userId).map(g=>(
                 <div key={g.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'3px 0',fontSize:11,borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
