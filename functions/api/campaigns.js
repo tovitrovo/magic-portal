@@ -41,12 +41,17 @@ export async function onRequest(context) {
       if (res.ok && Array.isArray(data) && data[0]?.id) {
         const campId = data[0].id;
         const defaultTiers = [
-          { campaign_id: campId, rank: 1, label: 'Tier 1', min_qty: 1,    max_qty: 500,     usd_per_card: 0.18 },
-          { campaign_id: campId, rank: 2, label: 'Tier 2', min_qty: 501,  max_qty: 750,     usd_per_card: 0.16 },
-          { campaign_id: campId, rank: 3, label: 'Tier 3', min_qty: 751,  max_qty: 1000,    usd_per_card: 0.14 },
-          { campaign_id: campId, rank: 4, label: 'Tier 4', min_qty: 1001, max_qty: 1500,    usd_per_card: 0.12 },
-          { campaign_id: campId, rank: 5, label: 'Tier 5', min_qty: 1501, max_qty: 2000,    usd_per_card: 0.10 },
-          { campaign_id: campId, rank: 6, label: 'Tier 6', min_qty: 2001, max_qty: 99999999, usd_per_card: 0.08 },
+          { campaign_id: campId, rank: 1,  label: 'Tier 1',  min_qty: 1,    max_qty: 100,      usd_per_card: 2.00 },
+          { campaign_id: campId, rank: 2,  label: 'Tier 2',  min_qty: 101,  max_qty: 200,      usd_per_card: 1.90 },
+          { campaign_id: campId, rank: 3,  label: 'Tier 3',  min_qty: 201,  max_qty: 300,      usd_per_card: 1.80 },
+          { campaign_id: campId, rank: 4,  label: 'Tier 4',  min_qty: 301,  max_qty: 400,      usd_per_card: 1.70 },
+          { campaign_id: campId, rank: 5,  label: 'Tier 5',  min_qty: 401,  max_qty: 500,      usd_per_card: 1.66 },
+          { campaign_id: campId, rank: 6,  label: 'Tier 6',  min_qty: 501,  max_qty: 600,      usd_per_card: 1.63 },
+          { campaign_id: campId, rank: 7,  label: 'Tier 7',  min_qty: 601,  max_qty: 700,      usd_per_card: 1.52 },
+          { campaign_id: campId, rank: 8,  label: 'Tier 8',  min_qty: 701,  max_qty: 800,      usd_per_card: 1.41 },
+          { campaign_id: campId, rank: 9,  label: 'Tier 9',  min_qty: 801,  max_qty: 900,      usd_per_card: 1.30 },
+          { campaign_id: campId, rank: 10, label: 'Tier 10', min_qty: 901,  max_qty: 1000,     usd_per_card: 1.19 },
+          { campaign_id: campId, rank: 11, label: 'Tier 11', min_qty: 1001, max_qty: 99999999, usd_per_card: 1.08 },
         ];
         try {
           await fetch(`${SB_URL}/rest/v1/tiers`, {
