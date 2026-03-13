@@ -1524,7 +1524,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
       const originalIds=(tiersProp||[]).map(t=>t.id).filter(Boolean);
       const currentIds=editTiers.filter(t=>!t._isNew).map(t=>t.id).filter(Boolean);
       const deletedIds=originalIds.filter(id=>!currentIds.includes(id));
-      const r=await fetch('/api/admin-save-tiers',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({tiers:payload,deletedIds})});
+      const r=await fetch('/api/admin-save-tiers',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({tiers:payload,deletedIds,campaign_id:campId})});
       const json=await r.json().catch(()=>({}));
       if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
       setTierAdditional({});SFX.success();if(onReload)onReload();
