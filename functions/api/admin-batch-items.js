@@ -1,4 +1,3 @@
-import { verifyAdmin } from "./_admin-auth.js";
 
 export async function onRequest(context) {
   const CORS = {
@@ -13,14 +12,6 @@ export async function onRequest(context) {
     if (!SB_URL || !SB_SERVICE_ROLE_KEY) {
       return new Response(JSON.stringify({ ok: false, error: "SB_URL/SB_SERVICE_ROLE_KEY não configurado" }), {
         status: 500, headers: { ...CORS, "Content-Type": "application/json" }
-      });
-    }
-
-    // Verify admin
-    const auth = await verifyAdmin(context, SB_URL, SB_SERVICE_ROLE_KEY);
-    if (!auth.ok) {
-      return new Response(JSON.stringify({ ok: false, error: auth.error }), {
-        status: auth.status, headers: { ...CORS, "Content-Type": "application/json" }
       });
     }
 
