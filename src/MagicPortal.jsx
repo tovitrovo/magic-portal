@@ -204,6 +204,7 @@ const GUILD_MAP={'WU':'Azorius','UW':'Azorius','UB':'Dimir','BU':'Dimir','BR':'R
 const GT={Azorius:{primary:'#4a90d9',secondary:'#f0e6b2',glow:'rgba(74,144,217,0.25)'},Dimir:{primary:'#5b6abf',secondary:'#9b8ec0',glow:'rgba(91,106,191,0.25)'},Rakdos:{primary:'#d94452',secondary:'#9b8ec0',glow:'rgba(217,68,82,0.25)'},Gruul:{primary:'#d94452',secondary:'#2d8f4e',glow:'rgba(45,143,78,0.25)'},Selesnya:{primary:'#2d8f4e',secondary:'#f0e6b2',glow:'rgba(45,143,78,0.25)'},Orzhov:{primary:'#f0e6b2',secondary:'#9b8ec0',glow:'rgba(201,169,110,0.25)'},Izzet:{primary:'#4a90d9',secondary:'#d94452',glow:'rgba(74,144,217,0.25)'},Golgari:{primary:'#2d8f4e',secondary:'#9b8ec0',glow:'rgba(45,143,78,0.25)'},Boros:{primary:'#d94452',secondary:'#f0e6b2',glow:'rgba(217,68,82,0.25)'},Simic:{primary:'#2d8f4e',secondary:'#4a90d9',glow:'rgba(45,143,78,0.25)'}};
 function getGuild(a,b){return a&&b&&a!==b?(GUILD_MAP[a+b]||null):null;}
 const TC={Normal:'rgba(255,255,255,0.4)',Holo:'#c9a96e',Foil:'#d94452'};
+const RPG_TIER_NAMES=['Aprendiz','Iniciado','Escudeiro','Guerreiro','Veterano','Campeão','Herói','Mestre','Grão-Mestre','Lenda','Mítico'];
 
 function getTier(q,tiers){return tiers.find(t=>q>=t.min&&q<=t.max)||tiers[0];}
 function getNextTier(q,tiers){const c=getTier(q,tiers);const i=tiers.indexOf(c);return i<tiers.length-1?tiers[i+1]:null;}
@@ -1548,7 +1549,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
       const r=await fetch('/api/campaigns',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:newCamp.name,status:newCamp.status,close_at:newCamp.close_at||null,max_cards:newCamp.max_cards||1000})});
       const d=await r.json().catch(()=>({}));
       if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);
-      SFX.success();setShowCreateForm(false);setNewCamp({name:'',status:'DRAFT',close_at:'',max_cards:1000});loadCampaigns();if(onReload)onReload();
+      SFX.success();setShowCreateForm(false);setNewCamp({name:'',status:'DRAFT',close_at:'',max_cards:1000});if(Array.isArray(d)&&d[0])setSelectedCampaign(d[0]);loadCampaigns();if(onReload)onReload();
     }catch(e){if(toastFn)toastFn('Erro ao criar: '+(e.message||String(e)),'error');}
     setCreating(false);
   }
@@ -1890,7 +1891,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
             </div>
           </div>);})}
         <div style={{display:'flex',gap:8,marginTop:10}}>
-          <Btn full variant="secondary" onClick={()=>{const nextRank=editTiers.length+1;const lastMax=editTiers.length>0?(editTiers[editTiers.length-1].max||0):0;setEditTiers(p=>[...p,{id:'new_'+Date.now(),label:'Tier '+nextRank,usd:0.10,min:lastMax>999999?lastMax:lastMax+1,max:9999999,quest:'',_isNew:true}]);}} sfx="click"><Plus size={14}/> Adicionar tier</Btn>
+          <Btn full variant="secondary" onClick={()=>{const nextRank=editTiers.length+1;const lbl=RPG_TIER_NAMES[editTiers.length]||('Tier '+nextRank);const lastMax=editTiers.length>0?(editTiers[editTiers.length-1].max||0):0;setEditTiers(p=>[...p,{id:'new_'+Date.now(),label:lbl,usd:0.10,min:lastMax>999999?lastMax:lastMax+1,max:9999999,quest:'',_isNew:true}]);}} sfx="click"><Plus size={14}/> Adicionar tier</Btn>
           <Btn full variant="success" onClick={saveTiers} disabled={saving} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar tiers</>}</Btn>
         </div>
       </Card>
