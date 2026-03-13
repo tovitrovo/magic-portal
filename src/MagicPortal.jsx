@@ -657,6 +657,8 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,priceBRL,bonusAvail,them
   const [saveAddressChoice,setSaveAddressChoice]=useState(null);
   const [joinBatchId,setJoinBatchId]=useState('');
   const [addr,setAddr]=useState({cep:profile?.cep||'',rua:profile?.rua||'',numero:profile?.numero||'',complemento:profile?.complemento||'',bairro:profile?.bairro||'',cidade:profile?.cidade||'',uf:profile?.uf||''});
+  const profileHasSavedAddress=Boolean(profile?.cep&&(profile.cep||'').replace(/\D/g,'').length===8&&profile?.rua);
+  const [editingAddr,setEditingAddr]=useState(!profileHasSavedAddress);
   const cart=cartItems.length>0?cartItems:wants.map(w=>{const q=Math.min(w.quantity,Math.max(0,cartQtyByItem[w.id]||0));return q>0?{...w,quantity:q,fullQty:w.quantity}:null;}).filter(Boolean);
   const bonus=bonusAvail||0;
   let bL=bonus;
@@ -669,8 +671,10 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,priceBRL,bonusAvail,them
   const sub=totalPaid*priceBRL;const fV=selectedFrete?selectedFrete.price:0;const total=sub+fV;
   const cepClean=(addr.cep||'').replace(/\D/g,'');
   const usingJoinShipping=Boolean(joinBatchId);
+  const addressUnchanged=addr.cep===(profile?.cep||'')&&addr.rua===(profile?.rua||'')&&addr.numero===(profile?.numero||'')&&addr.complemento===(profile?.complemento||'')&&addr.bairro===(profile?.bairro||'')&&addr.cidade===(profile?.cidade||'')&&addr.uf===(profile?.uf||'');
 
   useEffect(()=>{setFreteOptions([]);setSelectedFrete(null);setSaveAddressChoice(null);},[joinBatchId]);
+  useEffect(()=>{if(step==='address'&&profileHasSavedAddress&&!editingAddr&&cepClean.length===8&&freteOptions.length===0&&!lF)calcFrete();},[step]);
 
   async function calcFrete(){
     if(usingJoinShipping){
@@ -779,13 +783,14 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,priceBRL,bonusAvail,them
 
     {!isFullBonus&&step==='address'&&<Card style={{padding:16}}>
       <SectionTitle>Endereço de entrega</SectionTitle>
-      <AddressForm address={addr} setAddress={(a)=>setAddr(a)} onCalcFrete={()=>{}} frete={null} loadingFrete={false}/>
+      {profileHasSavedAddress&&!editingAddr?<AddressDisplay address={addr} onEdit={()=>{setEditingAddr(true);setFreteOptions([]);setSelectedFrete(null);}}/>:<AddressForm address={addr} setAddress={(a)=>setAddr(a)}/>}
       {previousPaidBatches.length>0&&<div style={{marginTop:12,display:'flex',flexDirection:'column',gap:6}}>
         <div style={{fontSize:12,color:'rgba(255,255,255,0.4)'}}>Nova compra com pedido pago: deseja enviar junto com um pedido anterior?</div>
         <button onClick={()=>setJoinBatchId('')} style={{width:'100%',textAlign:'left',padding:'9px 10px',borderRadius:10,border:'1px solid '+(!joinBatchId?theme.primary+'30':'rgba(255,255,255,0.06)'),background:!joinBatchId?theme.primary+'10':'rgba(255,255,255,0.02)',color:'#fff',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Pagar novo frete normalmente</button>
         {previousPaidBatches.map(b=><button key={b.id} onClick={()=>setJoinBatchId(String(b.id))} style={{width:'100%',textAlign:'left',padding:'9px 10px',borderRadius:10,border:'1px solid '+(joinBatchId===String(b.id)?theme.primary+'30':'rgba(255,255,255,0.06)'),background:joinBatchId===String(b.id)?theme.primary+'10':'rgba(255,255,255,0.02)',color:'#fff',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Enviar junto com pedido pago #{String(b.id).slice(0,8).toUpperCase()}</button>)}
       </div>}
-      <Btn full variant="secondary" onClick={calcFrete} disabled={(!usingJoinShipping&&cepClean.length<8)||lF} style={{marginTop:10}} sfx="click">{lF?<Spin size={14}/>:<><Truck size={15}/> {usingJoinShipping?'Usar envio conjunto':'Calcular frete'}</>}</Btn>
+      {(editingAddr||!profileHasSavedAddress||usingJoinShipping)&&<Btn full variant="secondary" onClick={calcFrete} disabled={(!usingJoinShipping&&cepClean.length<8)||lF} style={{marginTop:10}} sfx="click">{lF?<Spin size={14}/>:<><Truck size={15}/> {usingJoinShipping?'Usar envio conjunto':'Calcular frete'}</>}</Btn>}
+      {!editingAddr&&profileHasSavedAddress&&!usingJoinShipping&&lF&&<div style={{marginTop:10,textAlign:'center',color:'rgba(255,255,255,0.4)',fontSize:13,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><Spin size={14}/> Calculando frete...</div>}
       {freteOptions.length>0&&<div style={{marginTop:12}}>
         <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.4)',marginBottom:8}}>Opções de envio</div>
         {freteOptions.map((opt,i)=>(<button key={i} onClick={()=>{SFX.toggle();setSelectedFrete(opt);}} style={{width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',borderRadius:12,border:'1px solid '+(selectedFrete===opt?theme.primary+'30':'rgba(255,255,255,0.06)'),background:selectedFrete===opt?theme.primary+'10':'rgba(255,255,255,0.02)',cursor:'pointer',marginBottom:4,fontFamily:"'Outfit',sans-serif"}}>
@@ -793,7 +798,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,priceBRL,bonusAvail,them
           <div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:14,fontWeight:800,color:selectedFrete===opt?theme.primary:'rgba(255,255,255,0.5)'}}>R$ {Number(opt.price).toFixed(2)}</span>{selectedFrete===opt&&<CheckCircle size={16} style={{color:theme.primary}}/>}</div>
         </button>))}
       </div>}
-      {selectedFrete&&!usingJoinShipping&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:10,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.06)'}}>
+      {selectedFrete&&!usingJoinShipping&&!addressUnchanged&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:10,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.06)'}}>
         <div style={{fontSize:12,fontWeight:700,marginBottom:8}}>Quer salvar esse endereço?</div>
         <div style={{display:'flex',gap:8}}>
           <Btn variant={saveAddressChoice===true?'success':'ghost'} onClick={()=>setSaveAddressChoice(true)} style={{flex:1,padding:'8px 10px',fontSize:12}} sfx="">Sim</Btn>
