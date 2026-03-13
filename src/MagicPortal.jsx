@@ -1887,7 +1887,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
           <div key={t.id||i} style={{padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
             <div style={{display:'flex',gap:6,alignItems:'center',marginBottom:4}}>
               <input value={t.label} onChange={e=>{const v=[...editTiers];v[i]={...v[i],label:e.target.value};setEditTiers(v);}} style={{flex:2,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",outline:'none'}}/>
-              <div style={{display:'flex',alignItems:'center',gap:2}}><span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>US$</span><input type="number" step="0.01" value={t.usd} onChange={e=>{const v=[...editTiers];v[i]={...v[i],usd:parseFloat(e.target.value)||0};setEditTiers(v);}} style={{width:55,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/></div>
+              <div style={{display:'flex',alignItems:'center',gap:2}}><span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>US$</span><input type="text" inputMode="decimal" value={t.usdRaw??String(t.usd)} onChange={e=>{const v=[...editTiers];v[i]={...v[i],usdRaw:e.target.value,usd:parseFloat(e.target.value.replace(',','.'))||0};setEditTiers(v);}} style={{width:55,padding:'6px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/></div>
               <span style={{fontSize:12,fontWeight:700,color:'rgba(255,255,255,0.4)',minWidth:48,textAlign:'right'}}>R${brlCalc.toFixed(0)}</span>
               <button onClick={()=>{const v=[...editTiers];v.splice(i,1);setEditTiers(v);}} style={{background:'rgba(217,68,82,0.1)',border:'1px solid rgba(217,68,82,0.15)',borderRadius:6,padding:'4px 6px',cursor:'pointer',color:'#ff6b7a',display:'grid',placeItems:'center',flexShrink:0}}><X size={12}/></button>
             </div>
@@ -1897,12 +1897,6 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
                 <span style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>–</span>
                 <input type="number" value={t.max>999999?'':t.max} placeholder="∞" onChange={e=>{const v=[...editTiers];v[i]={...v[i],max:parseInt(e.target.value)||9999999};setEditTiers(v);}} style={{width:50,padding:'4px 6px',borderRadius:6,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'rgba(255,255,255,0.5)',fontSize:10,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/>
                 <span style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>cartas</span>
-              </div>
-              <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:3}}>
-                <span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>+R$</span>
-                <input type="number" step="0.5" value={add} onChange={e=>setTierAdditional(p=>({...p,[t.id]:parseFloat(e.target.value)||0}))} style={{width:45,padding:'4px 6px',borderRadius:6,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#c9a96e',fontSize:11,fontWeight:700,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}} placeholder="0"/>
-                <span style={{fontSize:10,color:'rgba(255,255,255,0.4)'}}>=</span>
-                <span style={{fontSize:12,fontWeight:800,color:theme.primary}}>R${finalBrl.toFixed(0)}</span>
               </div>
             </div>
           </div>);})}
