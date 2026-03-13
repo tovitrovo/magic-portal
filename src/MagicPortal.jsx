@@ -1331,6 +1331,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   const [adminBonusGrants,setAdminBonusGrants]=useState([]);
   const [bonusLoading,setBonusLoading]=useState(false);
   const [bonusForm,setBonusForm]=useState({userId:null,qty:1});
+  const [clientActiveFilter,setClientActiveFilter]=useState(false);
 
   async function loadBonusGrants(){
     if(!selectedCampaign)return;
@@ -1396,8 +1397,10 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
 
   async function loadAllProfiles(){
     try{
-      const profs=await sbGet('profiles','select=id,name,whatsapp,email,is_admin&order=name.asc',token);
-      setAllProfiles(profs||[]);
+      const r=await fetch('/api/admin-profiles',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`}});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      setAllProfiles(json.profiles||[]);
     }catch(e){console.warn('loadAllProfiles error:',e);}
   }
 
@@ -1407,23 +1410,26 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
       const allBatches=(o.order_batches||[]);
       if(allBatches.length===0)return;
       const key=o.user_id;
-      if(!groups[key]){groups[key]={userId:o.user_id,name:o.profiles?.name||'—',whatsapp:o.profiles?.whatsapp||'',email:o.profiles?.email||'',orders:[],totalCards:0,hasOrder:true};}
+      if(!groups[key]){groups[key]={userId:o.user_id,name:o.profiles?.name||'—',whatsapp:o.profiles?.whatsapp||'',email:o.profiles?.email||'',orders:[],totalCards:0,hasOrder:true,hasActiveOrder:false};}
       groups[key].orders.push({...o,order_batches:allBatches});
       groups[key].totalCards+=allBatches.reduce((s,b)=>s+(b.qty_in_batch||0),0);
+      if(allBatches.some(b=>b.status&&b.status!=='CANCELLED'))groups[key].hasActiveOrder=true;
     });
     // Adiciona profiles sem pedido
     allProfiles.forEach(p=>{
       if(!groups[p.id]&&!p.is_admin){
-        groups[p.id]={userId:p.id,name:p.name||'—',whatsapp:p.whatsapp||'',email:p.email||'',orders:[],totalCards:0,hasOrder:false};
+        groups[p.id]={userId:p.id,name:p.name||'—',whatsapp:p.whatsapp||'',email:p.email||'',orders:[],totalCards:0,hasOrder:false,hasActiveOrder:false};
       }
     });
-    return Object.values(groups).sort((a,b)=>b.hasOrder-a.hasOrder||a.name.localeCompare(b.name));
+    return Object.values(groups).sort((a,b)=>b.hasActiveOrder-a.hasActiveOrder||b.hasOrder-a.hasOrder||a.name.localeCompare(b.name));
   },[orders,allProfiles]);
 
-  const filteredClients=searchOrd?clientGroups.filter(c=>{
-    const q=searchOrd.toLowerCase();
-    return c.name.toLowerCase().includes(q)||c.whatsapp.toLowerCase().includes(q)||c.orders.some(o=>String(o.id).toLowerCase().includes(q)||o.order_batches?.some(b=>String(b.id).slice(0,8).toUpperCase().includes(q.toUpperCase())));
-  }):clientGroups;
+  const filteredClients=useMemo(()=>{
+    let list=clientGroups;
+    if(clientActiveFilter)list=list.filter(c=>c.hasActiveOrder);
+    if(searchOrd){const q=searchOrd.toLowerCase();list=list.filter(c=>c.name.toLowerCase().includes(q)||c.whatsapp.toLowerCase().includes(q)||c.orders.some(o=>String(o.id).toLowerCase().includes(q)||o.order_batches?.some(b=>String(b.id).slice(0,8).toUpperCase().includes(q.toUpperCase()))));}
+    return list;
+  },[clientGroups,clientActiveFilter,searchOrd]);
 
   async function loadBatchCards(batchId){
     if(batchCards[batchId])return;
@@ -1779,18 +1785,27 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
 
     {tab==='clients'&&<>
       <Input icon={Search} placeholder="Buscar por nome, email ou pedido..." value={searchOrd} onChange={e=>setSearchOrd(e.target.value)}/>
+      <div style={{display:'flex',gap:6,marginBottom:4}}>
+        <button onClick={()=>setClientActiveFilter(false)} style={{padding:'5px 12px',borderRadius:8,border:'none',background:!clientActiveFilter?theme.primary+'20':'rgba(255,255,255,0.04)',color:!clientActiveFilter?theme.primary:'rgba(255,255,255,0.35)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Todos ({clientGroups.length})</button>
+        <button onClick={()=>setClientActiveFilter(true)} style={{padding:'5px 12px',borderRadius:8,border:'none',background:clientActiveFilter?'rgba(46,229,157,0.15)':'rgba(255,255,255,0.04)',color:clientActiveFilter?'#2ee59d':'rgba(255,255,255,0.35)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Ativos ({clientGroups.filter(c=>c.hasActiveOrder).length})</button>
+      </div>
       {ordersLoading?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:
-      filteredClients.length===0?<EmptyState icon={User} title="Nenhum cliente" sub={searchOrd?'Tente outro filtro':''}/>:
-      filteredClients.map(client=>{const isClientExp=expandedClient===client.userId;return(
+      filteredClients.length===0?<EmptyState icon={User} title="Nenhum cliente" sub={searchOrd||clientActiveFilter?'Tente outro filtro':''}/>:
+      filteredClients.map(client=>{const isClientExp=expandedClient===client.userId;const clientBonus=adminBonusGrants.filter(g=>g.user_id===client.userId&&g.status==='AVAILABLE').reduce((s,g)=>s+g.bonus_qty,0);return(
         <Card key={client.userId} style={{padding:0,marginBottom:4}}>
-          <div onClick={()=>setExpandedClient(isClientExp?null:client.userId)} style={{padding:'10px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer'}}>
-            <div><div style={{fontSize:13,fontWeight:700}}>{client.name}</div>{client.whatsapp&&<div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{client.whatsapp}</div>}</div>
+          <div onClick={()=>{setExpandedClient(isClientExp?null:client.userId);if(!isClientExp&&adminBonusGrants.length===0)loadBonusGrants();}} style={{padding:'10px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              {client.hasActiveOrder&&<span style={{display:'inline-block',width:8,height:8,borderRadius:'50%',background:'#2ee59d',boxShadow:'0 0 6px #2ee59d80',flexShrink:0}}/>}
+              <div><div style={{fontSize:13,fontWeight:700}}>{client.name}</div>{client.whatsapp&&<div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{client.whatsapp}</div>}</div>
+            </div>
             <div style={{display:'flex',alignItems:'center',gap:4}}>
+              {clientBonus>0&&<Tag color="#2ee59d" style={{fontSize:9}}><Gift size={9}/> {clientBonus}</Tag>}
               {client.hasOrder?<Tag style={{fontSize:9}}>{client.totalCards} cartas</Tag>:<Tag color="rgba(255,255,255,0.15)" style={{fontSize:9,color:'rgba(255,255,255,0.3)'}}>sem pedido</Tag>}
               <ChevronRight size={12} style={{color:'rgba(255,255,255,0.15)',transform:isClientExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
             </div>
           </div>
           {isClientExp&&<div style={{borderTop:'1px solid rgba(255,255,255,0.04)'}}>
+            {client.email&&<div style={{padding:'6px 14px 0',fontSize:11,color:'rgba(255,255,255,0.3)'}}>{client.email}</div>}
             {client.orders.map(o=>(o.order_batches||[]).map(b=>{
               const batchExp=expandedBatch===b.id;const isPaid=b.status==='PAID'||b.status==='PAID_CONFIRMED';
               const sid=String(b.id).slice(0,8).toUpperCase();
@@ -1822,7 +1837,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
             <div style={{padding:'8px 14px',borderTop:'1px solid rgba(255,255,255,0.04)'}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
                 <span style={{fontSize:11,fontWeight:700,color:'#2ee59d'}}><Gift size={11}/> Bônus</span>
-                {(()=>{const cb=adminBonusGrants.filter(g=>g.user_id===client.userId&&g.status==='AVAILABLE');const t=cb.reduce((s,g)=>s+g.bonus_qty,0);return t>0?<Tag color="#2ee59d" style={{fontSize:9}}>{t} disponível</Tag>:null;})()}
+                {clientBonus>0&&<Tag color="#2ee59d" style={{fontSize:9}}>{clientBonus} disponível</Tag>}
               </div>
               {adminBonusGrants.filter(g=>g.user_id===client.userId).map(g=>(
                 <div key={g.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'3px 0',fontSize:11,borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
