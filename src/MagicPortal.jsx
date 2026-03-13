@@ -2054,12 +2054,12 @@ export default function MagicPortal(){
         // Find order: prefer campaign order, fallback to null-campaign order
         let ord = null;
         if (camp) {
-          const ords = await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}`, tkn);
+          const ords = await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}&status=eq.DRAFT`, tkn);
           ord = ords[0] || null;
         }
         // No campaign order — look for null-campaign order (wishlist)
         if (!ord) {
-          const nullOrds = await sbGet('orders', `campaign_id=is.null&user_id=eq.${userId}&select=id,created_at&order=created_at.desc&limit=1`, tkn);
+          const nullOrds = await sbGet('orders', `campaign_id=is.null&user_id=eq.${userId}&status=eq.DRAFT&select=id,created_at&order=created_at.desc&limit=1`, tkn);
           ord = nullOrds[0] || null;
         }
         if (!ord) {
@@ -2071,17 +2071,17 @@ export default function MagicPortal(){
             try {
               const prevOrds = await sbGet('orders', `user_id=eq.${userId}&id=neq.${ord.id}&select=id,created_at&order=created_at.desc&limit=1`, tkn);
               if (prevOrds && prevOrds.length > 0) {
-                const prevItems = await sbGet('order_items', `order_id=eq.${prevOrds[0].id}&batch_id=is.null&is_bonus=eq.false&select=card_id,quantity`, tkn);
+                const prevItems = await sbGet('order_items', `order_id=eq.${prevOrds[0].id}&batch_id=is.null&is_bonus=eq.false&select=card_id,quantity,in_cart`, tkn);
                 for (const item of (prevItems || [])) {
-                  await sbPost('order_items', { order_id: ord.id, card_id: item.card_id, quantity: item.quantity, is_bonus: false }, tkn).catch(()=>{});
+                  await sbPost('order_items', { order_id: ord.id, card_id: item.card_id, quantity: item.quantity, is_bonus: false, in_cart: item.in_cart || false }, tkn).catch(()=>{});
                 }
               }
             } catch(e) { console.warn('Failed to copy wants:', e); }
           } catch(e) {
             // Race condition fallback
             const fallback = camp
-              ? await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}`, tkn)
-              : await sbGet('orders', `campaign_id=is.null&user_id=eq.${userId}&order=created_at.desc&limit=1`, tkn);
+              ? await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}&status=eq.DRAFT`, tkn)
+              : await sbGet('orders', `campaign_id=is.null&user_id=eq.${userId}&status=eq.DRAFT&order=created_at.desc&limit=1`, tkn);
             if (fallback[0]) ord = fallback[0]; else throw e;
           }
         } else if (camp && !ord.campaign_id) {
@@ -2280,7 +2280,7 @@ export default function MagicPortal(){
     }));
     setCartQtyByItem({});
     setCartItems([]);
-    setMyOrders(prev => [{ id: order.batchId, status: 'DRAFT', total_locked: order.isFullBonus ? 0 : order.totalPaid * order.priceBRL, payment_method: order.method === 'bonus' ? 'BONUS' : 'MERCADO_PAGO', qty_in_batch: order.totalPaid + order.totalBonus, created_at: new Date().toISOString(), cards: order.cards }, ...prev]);
+    setMyOrders(prev => [{ id: order.batchId, status: 'DRAFT', total_locked: order.isFullBonus ? 0 : order.totalPaid * order.priceBRL, payment_method: order.method === 'bonus' ? 'BONUS' : 'MERCADO_PAGO', qty_in_batch: order.totalPaid + order.totalBonus, created_at: new Date().toISOString(), cards: order.cards, order_id: orderId, campaignStatus: campaign?.status || null }, ...prev]);
 
     if (order.totalBonus > 0) {
       let remaining = order.totalBonus;
