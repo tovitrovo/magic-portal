@@ -38,28 +38,30 @@ export async function onRequest(context) {
       const data = await res.json();
 
       // Auto-criar tiers padrão para a nova campanha
-      if (res.ok && Array.isArray(data) && data[0]?.id) {
-        const campId = data[0].id;
-        const defaultTiers = [
-          { campaign_id: campId, rank:  1, label: 'Aprendiz',    min_qty:    1, max_qty:      100, usd_per_card: 2.00 },
-          { campaign_id: campId, rank:  2, label: 'Iniciado',    min_qty:  101, max_qty:      200, usd_per_card: 1.90 },
-          { campaign_id: campId, rank:  3, label: 'Escudeiro',   min_qty:  201, max_qty:      300, usd_per_card: 1.80 },
-          { campaign_id: campId, rank:  4, label: 'Guerreiro',   min_qty:  301, max_qty:      400, usd_per_card: 1.70 },
-          { campaign_id: campId, rank:  5, label: 'Veterano',    min_qty:  401, max_qty:      500, usd_per_card: 1.66 },
-          { campaign_id: campId, rank:  6, label: 'Campeão',     min_qty:  501, max_qty:      600, usd_per_card: 1.63 },
-          { campaign_id: campId, rank:  7, label: 'Herói',       min_qty:  601, max_qty:      700, usd_per_card: 1.52 },
-          { campaign_id: campId, rank:  8, label: 'Mestre',      min_qty:  701, max_qty:      800, usd_per_card: 1.41 },
-          { campaign_id: campId, rank:  9, label: 'Grão-Mestre', min_qty:  801, max_qty:      900, usd_per_card: 1.30 },
-          { campaign_id: campId, rank: 10, label: 'Lenda',       min_qty:  901, max_qty:     1000, usd_per_card: 1.19 },
-          { campaign_id: campId, rank: 11, label: 'Mítico',      min_qty: 1001, max_qty: 99999999, usd_per_card: 1.08 },
-        ];
-        try {
-          await fetch(`${SB_URL}/rest/v1/tiers`, {
+      if (res.ok) {
+        const campId = Array.isArray(data) ? data[0]?.id : data?.id;
+        console.log('[campaigns] Created campaign, response:', JSON.stringify(data), 'campId:', campId);
+        if (campId) {
+          const defaultTiers = [
+            { campaign_id: campId, rank:  1, label: 'Aprendiz',    min_qty:    1, max_qty:      100, usd_per_card: 2.00 },
+            { campaign_id: campId, rank:  2, label: 'Iniciado',    min_qty:  101, max_qty:      200, usd_per_card: 1.90 },
+            { campaign_id: campId, rank:  3, label: 'Escudeiro',   min_qty:  201, max_qty:      300, usd_per_card: 1.80 },
+            { campaign_id: campId, rank:  4, label: 'Guerreiro',   min_qty:  301, max_qty:      400, usd_per_card: 1.70 },
+            { campaign_id: campId, rank:  5, label: 'Veterano',    min_qty:  401, max_qty:      500, usd_per_card: 1.66 },
+            { campaign_id: campId, rank:  6, label: 'Campeão',     min_qty:  501, max_qty:      600, usd_per_card: 1.63 },
+            { campaign_id: campId, rank:  7, label: 'Herói',       min_qty:  601, max_qty:      700, usd_per_card: 1.52 },
+            { campaign_id: campId, rank:  8, label: 'Mestre',      min_qty:  701, max_qty:      800, usd_per_card: 1.41 },
+            { campaign_id: campId, rank:  9, label: 'Grão-Mestre', min_qty:  801, max_qty:      900, usd_per_card: 1.30 },
+            { campaign_id: campId, rank: 10, label: 'Lenda',       min_qty:  901, max_qty:     1000, usd_per_card: 1.19 },
+            { campaign_id: campId, rank: 11, label: 'Mítico',      min_qty: 1001, max_qty: 99999999, usd_per_card: 1.08 },
+          ];
+          const tierRes = await fetch(`${SB_URL}/rest/v1/tiers`, {
             method: "POST",
             headers: { ...headers, Prefer: "return=minimal" },
             body: JSON.stringify(defaultTiers),
           });
-        } catch (e) { console.error('Erro ao criar tiers padrão:', e); }
+          console.log('[campaigns] Tiers insert status:', tierRes.status, tierRes.ok ? 'OK' : await tierRes.text().catch(() => ''));
+        }
       }
 
       return new Response(JSON.stringify(data), {
