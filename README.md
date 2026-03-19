@@ -1,4 +1,32 @@
-﻿## 🎯 Status Atual do Catálogo
+## 🚀 Deploy Automático (Cloudflare Pages)
+
+O deploy acontece **automaticamente** via GitHub Actions quando um push é feito na branch `main` (incluindo merge de PRs).
+
+### Pré-requisitos
+
+Adicione os seguintes **secrets** no repositório GitHub (`Settings → Secrets and variables → Actions`):
+
+| Secret | Descrição |
+|--------|-----------|
+| `CLOUDFLARE_API_TOKEN` | Token de API do Cloudflare com permissão de edição em Cloudflare Pages |
+| `CLOUDFLARE_ACCOUNT_ID` | ID da conta Cloudflare (encontrado em qualquer página de overview do dashboard) |
+
+### Como funciona
+
+1. Push/merge na `main` → GitHub Actions executa o workflow `deploy.yml`
+2. `npm ci` → `npm run build` → `wrangler pages deploy dist`
+3. O site é publicado automaticamente no Cloudflare Pages
+
+### Deploy manual (alternativa)
+
+```bash
+npm run build
+npm run deploy
+```
+
+---
+
+## 🎯 Status Atual do Catálogo
 
 O **catálogo está funcional** no código! Corrigi os bugs que impediam o funcionamento:
 
