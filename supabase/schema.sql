@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS public.cards (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name        text NOT NULL,
   type        text DEFAULT 'Normal',
+  tcg         text NOT NULL DEFAULT 'Magic',
   image_url   text,
   is_active   boolean DEFAULT true,
   created_at  timestamptz DEFAULT now()
