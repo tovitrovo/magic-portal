@@ -1,6 +1,6 @@
 ﻿## 🎯 Status Atual do Catálogo
 
-O **catálogo está funcional** no código! Corrigi os bugs que impediam o funcionamento:
+O **catálogo está funcional** no código. Corrigi os bugs que impediam o funcionamento:
 
 ### ✅ Correções Realizadas:
 1. **Variáveis undefined** - Adicionei campaignStatus como prop no CatalogPage
