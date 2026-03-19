@@ -203,7 +203,16 @@ const MANA_COLORS=[{key:'W',emoji:'☀️',color:'#f0e6b2'},{key:'U',emoji:'💧
 const GUILD_MAP={'WU':'Azorius','UW':'Azorius','UB':'Dimir','BU':'Dimir','BR':'Rakdos','RB':'Rakdos','RG':'Gruul','GR':'Gruul','GW':'Selesnya','WG':'Selesnya','WB':'Orzhov','BW':'Orzhov','UR':'Izzet','RU':'Izzet','BG':'Golgari','GB':'Golgari','RW':'Boros','WR':'Boros','GU':'Simic','UG':'Simic'};
 const GT={Azorius:{primary:'#4a90d9',secondary:'#f0e6b2',glow:'rgba(74,144,217,0.25)'},Dimir:{primary:'#5b6abf',secondary:'#9b8ec0',glow:'rgba(91,106,191,0.25)'},Rakdos:{primary:'#d94452',secondary:'#9b8ec0',glow:'rgba(217,68,82,0.25)'},Gruul:{primary:'#d94452',secondary:'#2d8f4e',glow:'rgba(45,143,78,0.25)'},Selesnya:{primary:'#2d8f4e',secondary:'#f0e6b2',glow:'rgba(45,143,78,0.25)'},Orzhov:{primary:'#f0e6b2',secondary:'#9b8ec0',glow:'rgba(201,169,110,0.25)'},Izzet:{primary:'#4a90d9',secondary:'#d94452',glow:'rgba(74,144,217,0.25)'},Golgari:{primary:'#2d8f4e',secondary:'#9b8ec0',glow:'rgba(45,143,78,0.25)'},Boros:{primary:'#d94452',secondary:'#f0e6b2',glow:'rgba(217,68,82,0.25)'},Simic:{primary:'#2d8f4e',secondary:'#4a90d9',glow:'rgba(45,143,78,0.25)'}};
 function getGuild(a,b){return a&&b&&a!==b?(GUILD_MAP[a+b]||null):null;}
-const TC={Normal:'rgba(255,255,255,0.4)',Holo:'#c9a96e',Foil:'#d94452'};
+const TC={Normal:'rgba(255,255,255,0.4)',Holo:'#c9a96e',Foil:'#d94452',English:'#3b82f6',Chinese:'#ef4444',Japanese:'#f59e0b',Promo:'#f472b6','Showcase Foil':'#a78bfa',Regular:'rgba(255,255,255,0.4)','Enchanted Foil':'#c084fc','Cold Foil':'#38bdf8'};
+const TCG_LIST=[
+  {key:'Magic',color:'#a78bfa',types:['Todos','Normal','Holo','Foil']},
+  {key:'Pokemon',color:'#facc15',types:['Todos','English','Chinese','Japanese']},
+  {key:'One Piece',color:'#ef4444',types:[]},
+  {key:'Star Wars',color:'#38bdf8',types:['Todos','Promo','Showcase Foil','Regular']},
+  {key:'YuGiOh',color:'#c084fc',types:['Todos','Foil']},
+  {key:'Lorcana',color:'#2dd4bf',types:['Todos','Regular','Enchanted Foil','Cold Foil']},
+  {key:'FAB',color:'#fb923c',types:['Todos','Regular','Japanese','Foil','Cold Foil']},
+];
 const RPG_TIER_NAMES=['Aprendiz','Iniciado','Escudeiro','Guerreiro','Veterano','Campeão','Herói','Mestre','Grão-Mestre','Lenda','Mítico'];
 const DEFAULT_TIERS=[
   {label:'Aprendiz',   usd:2.00,min:1,   max:100,     quest:''},
@@ -416,7 +425,7 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
 
 const TUTORIAL_STEPS=[
   {title:'Catálogo',body:'Aqui ficam todas as cartas. Busque pelo nome e filtre por tipo.',navTo:'catalog',tabIndex:1,spotlightId:null,icon:'📖'},
-  {title:'Busca e filtros',body:'Use a barra de busca e os botões Normal, Holo e Foil para encontrar cartas específicas.',navTo:'catalog',tabIndex:1,spotlightId:'tut-search-area',scrollTo:true,icon:'🔍'},
+  {title:'Busca e filtros',body:'Use a barra de busca, selecione o TCG e filtre por tipo de carta.',navTo:'catalog',tabIndex:1,spotlightId:'tut-search-area',scrollTo:true,icon:'🔍'},
   {title:'Adicionar à lista',body:'Toque no + de qualquer carta para adicioná-la à sua lista de wants.',navTo:'catalog',tabIndex:1,spotlightId:null,icon:'➕',interactive:true},
   {title:'Lista de Wants',body:'Suas cartas escolhidas ficam aqui. Toque no 🛒 para mover a carta pro carrinho, ou na 🗑️ para excluir.',navTo:'wants',tabIndex:2,spotlightId:null,icon:'📋'},
   {title:'Bônus',body:'Se o grupo crescer e o preço cair, você ganha cartas extras de graça! Elas aparecem aqui quando disponíveis.',navTo:'wants',tabIndex:2,spotlightId:null,icon:'🎁'},
@@ -488,9 +497,10 @@ function HomePage({pool,tiers,priceBRL,closeDate,theme,nav,wantsCount,cartCount,
 // ══════════════════════════════════════════════════════
 
 function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutStep,onTutNext}){
-  const [search,setSearch]=useState('');const [typeF,setTypeF]=useState('Todos');const [cards,setCards]=useState([]);const [total,setTotal]=useState(0);
+  const [search,setSearch]=useState('');const [typeF,setTypeF]=useState('Todos');const [tcgFilter,setTcgFilter]=useState('Magic');const [cards,setCards]=useState([]);const [total,setTotal]=useState(0);
   const [page,setPage]=useState(0);const [loading,setLoading]=useState(false);const [addQty,setAddQty]=useState({});
-  const [flyAnim,setFlyAnim]=useState(false);const PAGE_SIZE=20;const wantsCount=wants.reduce((s,w)=>s+w.quantity,0);
+  const [flyAnim,setFlyAnim]=useState(false);const PAGE_SIZE=20;
+  const currentTcg=TCG_LIST.find(t=>t.key===tcgFilter)||TCG_LIST[0];
   const firstAddBtnRef=useRef(null);const [handPos,setHandPos]=useState(null);
   useEffect(()=>{
     if(tutStep!==2){setHandPos(null);return;}
@@ -504,21 +514,21 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutSte
   const fetchCards = useCallback(async()=>{
     setLoading(true);
     try {
-      let q = `select=id,name,type,image_url&is_active=eq.true&order=name`;
+      let q = `select=id,name,type,image_url&is_active=eq.true&order=name&tcg=eq.${encodeURIComponent(tcgFilter)}`;
       if (search) q += `&name=ilike.*${encodeURIComponent(search)}*`;
-      if (typeF !== 'Todos') q += `&type=eq.${typeF}`;
+      if (typeF !== 'Todos') q += `&type=eq.${encodeURIComponent(typeF)}`;
       q += `&limit=${PAGE_SIZE}&offset=${page*PAGE_SIZE}`;
       const data = await sbGet('cards', q, token);
       setCards(data);
       // Get count
-      const countQ = `select=id&is_active=eq.true${search?'&name=ilike.*'+encodeURIComponent(search)+'*':''}${typeF!=='Todos'?'&type=eq.'+typeF:''}`;
+      const countQ = `select=id&is_active=eq.true&tcg=eq.${encodeURIComponent(tcgFilter)}${search?'&name=ilike.*'+encodeURIComponent(search)+'*':''}${typeF!=='Todos'?'&type=eq.'+encodeURIComponent(typeF):''}`;
       const countData = await sbGet('cards', countQ, token);
       setTotal(countData.length);
     } catch(e) { console.error(e); }
     setLoading(false);
-  },[search,typeF,page,token]);
+  },[search,typeF,tcgFilter,page,token]);
 
-  useEffect(()=>{setPage(0);},[search,typeF]);
+  useEffect(()=>{setPage(0);},[search,typeF,tcgFilter]);
   useEffect(()=>{const t=setTimeout(fetchCards,300);return()=>clearTimeout(t);},[fetchCards,page]);
 
   const getQ=id=>addQty[id]||1;const setQ=(id,v)=>setAddQty(q=>({...q,[id]:Math.max(1,v)}));
@@ -527,12 +537,14 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutSte
   return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
     {!campaignOpen&&<Card style={{padding:14,borderColor:'rgba(201,169,110,0.25)',background:'rgba(201,169,110,0.08)'}}><div style={{fontSize:13,fontWeight:700,color:'#c9a96e'}}>Encomenda fechada no momento</div><div style={{fontSize:12,color:'rgba(255,255,255,0.55)',marginTop:4}}>{campaignStatusText}</div></Card>}
     <FlyingCard show={flyAnim} onDone={()=>setFlyAnim(false)}/>
-    <div style={{display:'flex',gap:6}}><Tag><ScrollText size={11}/> {wantsCount} na wants</Tag></div>
+    <div style={{display:'flex',gap:5,overflowX:'auto',WebkitOverflowScrolling:'touch',paddingBottom:2}}>
+      {TCG_LIST.map(t=>(<button key={t.key} onClick={()=>{SFX.toggle();setTcgFilter(t.key);setTypeF('Todos');}} style={{padding:'7px 12px',borderRadius:10,border:'none',background:tcgFilter===t.key?t.color+'22':'rgba(255,255,255,0.04)',color:tcgFilter===t.key?t.color:'rgba(255,255,255,0.3)',fontWeight:700,fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap',flexShrink:0,boxShadow:tcgFilter===t.key?`0 0 0 1.5px ${t.color}60`:'none'}}>{t.key}</button>))}
+    </div>
     <div id="tut-search-area" style={{display:'flex',flexDirection:'column',gap:8}}>
       <Input icon={Search} placeholder="Buscar carta..." value={search} onChange={e=>setSearch(e.target.value)}/>
-      <div style={{display:'flex',gap:5}}>
-        {['Todos','Normal','Holo','Foil'].map(t=>(<button key={t} onClick={()=>{SFX.toggle();setTypeF(t);}} style={{flex:1,padding:'7px 0',borderRadius:10,border:'none',background:typeF===t?'var(--gp)':'rgba(255,255,255,0.04)',color:typeF===t?'#fff':'rgba(255,255,255,0.3)',fontWeight:600,fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{t}</button>))}
-      </div>
+      {currentTcg.types.length>0&&<div style={{display:'flex',gap:5}}>
+        {currentTcg.types.map(t=>(<button key={t} onClick={()=>{SFX.toggle();setTypeF(t);}} style={{flex:1,padding:'7px 0',borderRadius:10,border:'none',background:typeF===t?currentTcg.color:'rgba(255,255,255,0.04)',color:typeF===t?'#fff':'rgba(255,255,255,0.3)',fontWeight:600,fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{t}</button>))}
+      </div>}
     </div>
     {loading?<div style={{textAlign:'center',padding:40}}><Spin size={28}/></div>:(
       <div style={{display:'flex',flexDirection:'column',gap:5}}>

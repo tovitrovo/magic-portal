@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS public.cards (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name        text NOT NULL,
   type        text DEFAULT 'Normal',
+  tcg         text NOT NULL DEFAULT 'Magic',
   image_url   text,
   is_active   boolean DEFAULT true,
   created_at  timestamptz DEFAULT now()
@@ -165,7 +166,7 @@ CREATE TABLE IF NOT EXISTS public.bonus_grants (
   order_id      uuid REFERENCES public.orders(id) ON DELETE CASCADE,
   bonus_qty     integer NOT NULL DEFAULT 0,
   status        text DEFAULT 'AVAILABLE'
-                  CHECK (status IN ('AVAILABLE','CONSUMED','EXPIRED'))  -- matches bonus_status enum,
+                  CHECK (status IN ('AVAILABLE','CONSUMED','EXPIRED')),  -- matches bonus_status enum
   grant_type    text DEFAULT 'MANUAL'
                   CHECK (grant_type IN ('MANUAL','TIER_CHANGE')),
   created_at    timestamptz DEFAULT now(),
