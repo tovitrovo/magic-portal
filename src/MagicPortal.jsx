@@ -111,6 +111,32 @@ async function sbDelete(table, query, token) {
   return r.status === 204 ? [] : r.json();
 }
 
+async function ensureDraftOrder(campaignId, userId, token) {
+  const allOrders = await sbGet(
+    'orders',
+    `campaign_id=eq.${campaignId}&user_id=eq.${userId}&order=created_at.desc`,
+    token
+  );
+
+  let order = allOrders.find(o => String(o.status || '').toUpperCase() === 'DRAFT') || allOrders[0] || null;
+
+  if (!order) {
+    const [newOrder] = await sbPost('orders', { campaign_id: campaignId, user_id: userId, status: 'DRAFT' }, token);
+    order = newOrder;
+  }
+
+  if (String(order.status || '').toUpperCase() !== 'DRAFT') {
+    try {
+      await sbPatch('orders', 'id=eq.' + (order.id), { status: 'DRAFT' }, token);
+      order = { ...order, status: 'DRAFT' };
+    } catch (e) {
+      console.warn('ensureDraftOrder: could not move order to DRAFT, reusing existing order', e);
+    }
+  }
+
+  return order;
+}
+
 async function sbAuthSignUp(email, password) {
   const r = await fetch(`${SB_URL}/auth/v1/signup`, { method: 'POST', headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
   if (!r.ok) { const t = await r.text(); if (t.includes('already registered') || t.includes('already been registered')) throw new Error('Este usuário já está cadastrado'); throw new Error('Erro ao criar conta. Tente novamente.'); }
@@ -396,29 +422,23 @@ function HomePage({pool,tiers,priceBRL,closeDate,theme,nav,wantsCount,cartCount,
 // ══════════════════════════════════════════════════════
 
 function CatalogPage({token,wants,onAddWant,priceBRL,theme}){
-  const [search,setSearch]=useState('');const [typeF,setTypeF]=useState('Todos');const [cards,setCards]=useState([]);const [total,setTotal]=useState(0);
-  const [page,setPage]=useState(0);const [loading,setLoading]=useState(false);const [addQty,setAddQty]=useState({});
-  const [flyAnim,setFlyAnim]=useState(false);const PAGE_SIZE=20;const wantsCount=wants.reduce((s,w)=>s+w.quantity,0);
+  const [search,setSearch]=useState('');const [typeF,setTypeF]=useState('Todos');const [cards,setCards]=useState([]);
+  const [loading,setLoading]=useState(false);const [addQty,setAddQty]=useState({});
+  const [flyAnim,setFlyAnim]=useState(false);const wantsCount=wants.reduce((s,w)=>s+w.quantity,0);
 
   const fetchCards = useCallback(async()=>{
     setLoading(true);
     try {
-      let q = `select=id,name,type,image_url&is_active=eq.true&order=name`;
+      let q = 'select=id,name,type,image_url&order=name';
       if (search) q += `&name=ilike.*${encodeURIComponent(search)}*`;
       if (typeF !== 'Todos') q += `&type=eq.${typeF}`;
-      q += `&limit=${PAGE_SIZE}&offset=${page*PAGE_SIZE}`;
       const data = await sbGet('cards', q, token);
-      setCards(data);
-      // Get count
-      const countQ = `select=id&is_active=eq.true${search?'&name=ilike.*'+encodeURIComponent(search)+'*':''}${typeF!=='Todos'?'&type=eq.'+typeF:''}`;
-      const countData = await sbGet('cards', countQ, token);
-      setTotal(countData.length);
+      setCards(Array.isArray(data) ? data : []);
     } catch(e) { console.error(e); }
     setLoading(false);
-  },[search,typeF,page,token]);
+  },[search,typeF,token]);
 
-  useEffect(()=>{setPage(0);},[search,typeF]);
-  useEffect(()=>{const t=setTimeout(fetchCards,300);return()=>clearTimeout(t);},[fetchCards,page]);
+  useEffect(()=>{const t=setTimeout(fetchCards,300);return()=>clearTimeout(t);},[fetchCards]);
 
   const getQ=id=>addQty[id]||1;const setQ=(id,v)=>setAddQty(q=>({...q,[id]:Math.max(1,v)}));
   function add(card,qty){SFX.addCard();setFlyAnim(true);onAddWant(card,qty);setQ(card.id,1);}
@@ -452,13 +472,7 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme}){
         })}
         {cards.length===0&&!loading&&<EmptyState icon={Search} title="Nenhuma carta encontrada" sub="Tente outro termo"/>}
       </div>
-    )}
-    {total>PAGE_SIZE&&<div style={{display:'flex',justifyContent:'center',gap:8,padding:'8px 0'}}>
-      <Btn variant="secondary" disabled={page===0} onClick={()=>setPage(p=>p-1)} style={{padding:'8px 14px',fontSize:12}} sfx="nav"><ChevronLeft size={14}/></Btn>
-      <Tag>{page+1}/{Math.ceil(total/PAGE_SIZE)}</Tag>
-      <Btn variant="secondary" disabled={(page+1)*PAGE_SIZE>=total} onClick={()=>setPage(p=>p+1)} style={{padding:'8px 14px',fontSize:12}} sfx="nav"><ChevronRight size={14}/></Btn>
-    </div>}
-  </div>);
+    )}  </div>);
 }
 
 // ══════════════════════════════════════════════════════
@@ -853,7 +867,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
           </div>))}</div>:<div style={{fontSize:11,color:'rgba(255,255,255,0.2)',marginTop:8}}>Detalhes não disponíveis</div>}
           {isPending&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginTop:10}}>
               <Btn variant="warn" onClick={(e)=>{e.stopPropagation();pagarAgoraPedido(o, toastFn);}} style={{width:'100%',fontSize:11,whiteSpace:'nowrap',justifyContent:'center'}} sfx="nav"><CreditCard size={14}/> Pagar agora</Btn>
-              <Btn variant="ghost" onClick={async(e)=>{e.stopPropagation();try{await mpSync(o.id);toastFn(`Status: ${String((await mpSync(o.id)).batchStatus||'ok')}`,'success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:11,whiteSpace:'nowrap',justifyContent:'center'}} sfx=""><RefreshCw size={16}/></Btn>
+              <Btn variant="ghost" onClick={async(e)=>{e.stopPropagation();try{const syncRes=await mpSync(o.id);toastFn(`Status: ${String(syncRes.batchStatus||'ok')}`,'success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:11,whiteSpace:'nowrap',justifyContent:'center'}} sfx=""><RefreshCw size={16}/></Btn>
               <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(!confirm('Cancelar este pedido?')) return;try{const res=await fetch('/api/cancel-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batchId:String(o.id),orderId:String(o.order_id||'')})});const j=await res.json().catch(()=>({}));if(!res.ok||!j.ok) throw new Error(j.error||'Falha ao cancelar');toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:11,whiteSpace:'nowrap',justifyContent:'center'}} sfx=""><X size={14}/> Cancelar</Btn>
             </div>}
             {!isPending&&o.status!=='CANCELLED'&&<div style={{fontSize:10,color:'rgba(255,255,255,0.2)',marginTop:6}}>Para cancelar pedido pago, entre em contato.</div>}
@@ -1382,12 +1396,7 @@ export default function MagicPortal(){
 
       // Order (get or create DRAFT)
       if (camp) {
-        let ords = await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}&status=eq.DRAFT`, tkn);
-        let ord = ords[0];
-        if (!ord) {
-          const [newOrd] = await sbPost('orders', { campaign_id: camp.id, user_id: userId, status: 'DRAFT' }, tkn);
-          ord = newOrd;
-        }
+        const ord = await ensureDraftOrder(camp.id, userId, tkn);
         setOrderId(ord.id);
 
         // Wants (order_items without batch_id)
@@ -1456,15 +1465,26 @@ export default function MagicPortal(){
 
   // ─── Add want ─────────────────────────────────────
   async function handleAddWant(card, qty) {
-    if (!token || !orderId) { toast('Faça login primeiro','error'); return; }
+    if (!token) { toast('Faça login primeiro','error'); return; }
     try {
+      let activeOrderId = orderId;
+      if (!activeOrderId) {
+        if (!campaign?.id || !session?.user?.id) {
+          toast('Erro ao carregar seu pedido. Recarregue a página.', 'error');
+          return;
+        }
+        const ord = await ensureDraftOrder(campaign.id, session.user.id, token);
+        activeOrderId = ord.id;
+        setOrderId(ord.id);
+      }
+
       const existing = wants.find(w => w.card_id === card.id);
       if (existing) {
         const newQty = existing.quantity + qty;
         await sbPatch('order_items', 'id=eq.'+(existing.id), { quantity: newQty }, token);
         setWants(prev => prev.map(w => w.id === existing.id ? { ...w, quantity: newQty } : w));
       } else {
-        const [item] = await sbPost('order_items', { order_id: orderId, card_id: card.id, quantity: qty, is_bonus: false, unit_price_brl: 0 }, token);
+        const [item] = await sbPost('order_items', { order_id: activeOrderId, card_id: card.id, quantity: qty, is_bonus: false, unit_price_brl: 0 }, token);
         setWants(prev => [{ ...item, card_name: card.name, card_type: card.type }, ...prev]);
       }
       toast(qty+'x '+card.name+' adicionada!','success');
