@@ -50,8 +50,9 @@ CREATE TABLE IF NOT EXISTS public.campaigns (
   name                text NOT NULL,
   status              text NOT NULL DEFAULT 'DRAFT'
                         CHECK (status IN ('DRAFT','ACTIVE','LOCKED','ORDERING','ORDERED','RECEIVED','PACKING','SHIPPING','DONE','CANCELLED')),
-  close_at            timestamptz,
+  close_at            timestamptz,  -- data prevista de fechamento (não é encerramento automático)
   max_cards           integer,
+  min_cards           integer NOT NULL DEFAULT 150, -- meta mínima de cartas pagas para a encomenda ser confirmada
   pool_qty_confirmed  integer DEFAULT 0,
 
   created_at          timestamptz DEFAULT now()
@@ -79,7 +80,12 @@ CREATE TABLE IF NOT EXISTS public.tiers (
 CREATE TABLE IF NOT EXISTS public.pricing_config (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   is_active         boolean DEFAULT true,
-  usd_brl_rate      numeric(10,4) NOT NULL DEFAULT 5.0, -- valor inicial; atualize via painel admin (aba Taxas)
+  -- Preços fixos por tipo de carta (nova lógica simplificada)
+  normal_price_brl  numeric(10,2) NOT NULL DEFAULT 16.00, -- carta Normal
+  ouro_price_brl    numeric(10,2) NOT NULL DEFAULT 16.00, -- carta Ouro / Holo
+  foil_price_brl    numeric(10,2) NOT NULL DEFAULT 18.00, -- carta Foil
+  -- Campos legados (mantidos para compatibilidade, não usados na UI)
+  usd_brl_rate      numeric(10,4) NOT NULL DEFAULT 5.0,
   card_fee_percent  numeric(6,4) DEFAULT 0,
   tax_percent       numeric(6,4) DEFAULT 0,
   markup_percent    numeric(6,4) DEFAULT 0,
