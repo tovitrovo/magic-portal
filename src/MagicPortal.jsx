@@ -739,6 +739,8 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
   const [saveAddressChoice,setSaveAddressChoice]=useState(null);
   // Frete conjunto: true = enviar junto com pedidos anteriores desta encomenda (sem novo frete)
   const [useJointShipping,setUseJointShipping]=useState(false);
+  // Já paguei o frete: true = cliente informa que o frete já foi pago anteriormente
+  const [alreadyPaidShipping,setAlreadyPaidShipping]=useState(false);
   const hasPreviousOrders=previousPaidBatches.length>0;
   const [addr,setAddr]=useState({cep:profile?.cep||'',rua:profile?.rua||'',numero:profile?.numero||'',complemento:profile?.complemento||'',bairro:profile?.bairro||'',cidade:profile?.cidade||'',uf:profile?.uf||''});
   const profileHasSavedAddress=Boolean(profile?.cep&&(profile.cep||'').replace(/\D/g,'').length===8&&profile?.rua);
@@ -758,15 +760,21 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
   const missingCards=hasMetMinimumBefore?0:Math.max(0,MIN_ORDER_CARDS-totalPaid);
   // Subtotal com preço por tipo de carta
   const sub=bd.reduce((s,c)=>s+c.paidQty*getCardPrice(c.card_type,pricing),0);
-  const fV=selectedFrete?selectedFrete.price:0;const total=sub+fV;
+  // Frete: 0 se "já paguei" ou frete conjunto, senão valor da opção selecionada
+  const shippingSkipped = alreadyPaidShipping || useJointShipping;
+  const fV=shippingSkipped?0:(selectedFrete?selectedFrete.price:0);
+  const total=sub+fV;
   const cepClean=(addr.cep||'').replace(/\D/g,'');
   const addressUnchanged=addr.cep===(profile?.cep||'')&&addr.rua===(profile?.rua||'')&&addr.numero===(profile?.numero||'')&&addr.complemento===(profile?.complemento||'')&&addr.bairro===(profile?.bairro||'')&&addr.cidade===(profile?.cidade||'')&&addr.uf===(profile?.uf||'');
+  // payViaBonusFlow: pedido só de bônus E frete não será cobrado agora
+  const payViaBonusFlow = isFullBonus && shippingSkipped;
 
   useEffect(()=>{if(useJointShipping){setSelectedFrete({carrier:'Envio conjunto',price:0,deadline_days:0});setFreteOptions([]);}else{setSelectedFrete(null);setFreteOptions([]);}},[useJointShipping]);
-  useEffect(()=>{if(step==='address'&&profileHasSavedAddress&&!editingAddr&&cepClean.length===8&&freteOptions.length===0&&!lF&&!useJointShipping)calcFrete();},[step]);
+  useEffect(()=>{if(alreadyPaidShipping){setSelectedFrete(null);setFreteOptions([]);}},[alreadyPaidShipping]);
+  useEffect(()=>{if(step==='address'&&profileHasSavedAddress&&!editingAddr&&cepClean.length===8&&freteOptions.length===0&&!lF&&!useJointShipping&&!alreadyPaidShipping)calcFrete();},[step]);
 
   async function calcFrete(){
-    if(useJointShipping) return; // frete conjunto não precisa calcular
+    if(shippingSkipped) return; // frete não é necessário
     if(cepClean.length<8){toast('CEP inválido','error');return;}
     setLF(true);setFreteOptions([]);setSelectedFrete(null);
     try{
@@ -791,11 +799,32 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
   async function finalize(){
     if(!campaignOpen){toast('Encomenda fechada no momento','error');return;}
     if(!canCheckout){toast(`Mínimo de ${MIN_ORDER_CARDS} cartas pagas por pedido. Adicione mais ${missingCards} carta${missingCards!==1?'s':''}.`,'error');return;}
-    if(!isFullBonus&&!selectedFrete){toast('Selecione uma opção de frete para continuar','error');return;}
+    if(!shippingSkipped&&!selectedFrete){toast('Selecione uma opção de frete para continuar','error');return;}
     setSubmitting(true);
     try {
-      const batchData = {order_id:orderId,status:'DRAFT',brl_unit_price_locked:null,qty_in_batch:totalQty,subtotal_locked:sub,shipping_locked:fV,total_locked:isFullBonus?0:total,payment_method:isFullBonus?'BONUS':'MERCADO_PAGO'};
-      const [batch] = await sbPost('order_batches', batchData, token);
+      const batchBaseData = {
+        order_id:orderId,
+        status:'DRAFT',
+        brl_unit_price_locked:null,
+        qty_in_batch:totalQty,
+        subtotal_locked:sub,
+        shipping_locked:fV,
+        shipping_already_paid:alreadyPaidShipping,
+        total_locked:total,
+        payment_method:payViaBonusFlow?'BONUS':'MERCADO_PAGO',
+      };
+      // Try batch creation with shipping_already_paid column; fall back if column doesn't exist yet
+      let batch;
+      try {
+        const created = await sbPost('order_batches', batchBaseData, token);
+        batch = Array.isArray(created) ? created[0] : created;
+      } catch(eBatch) {
+        console.warn('[finalize] batch POST with shipping_already_paid failed (column may not exist), retrying without it:', eBatch);
+        const {shipping_already_paid:_,...batchFallback}=batchBaseData;
+        const created = await sbPost('order_batches', batchFallback, token);
+        batch = Array.isArray(created) ? created[0] : created;
+      }
+      if(!batch?.id) throw new Error('Falha ao criar lote de pedido');
       await sbPatch('orders','id=eq.'+(orderId),{qty_paid:totalPaid,qty_bonus:totalBonus,shipping_price_brl_locked:fV},token);
       for (const item of bd) {
         const itemPrice = getCardPrice(item.card_type, pricing);
@@ -820,20 +849,21 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
 
       const shortId=String(batch.id).slice(0,8).toUpperCase();
       SFX.confirm();
-      onOrderDone({method:isFullBonus?'bonus':'mp',totalPaid,totalBonus,pricing,isFullBonus,batchId:batch.id,shortId,cards:cart.map(c=>({name:c.card_name,type:c.card_type,qty:c.quantity}))});
+      onOrderDone({method:payViaBonusFlow?'bonus':'mp',totalPaid,totalBonus,pricing,isFullBonus,alreadyPaidShipping,batchId:batch.id,shortId,cards:cart.map(c=>({name:c.card_name,type:c.card_type,qty:c.quantity}))});
 
-      if(!isFullBonus){
+      if(payViaBonusFlow){
+        try{const cbRes=await fetch('/api/confirm-bonus-batch',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:batch.id})});if(!cbRes.ok)console.warn('confirm-bonus-batch status:',cbRes.status);}catch(e){console.warn('confirm-bonus-batch:',e);}
+        nav('success');
+      } else {
         toast('Gerando link de pagamento...','info');
-        const mpRes=await fetch(`/api/mp-create`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderId:String(batch.id),total:Number(total.toFixed(2)),descricao:`Pedido #${shortId} - ${totalPaid} cartas`})});
+        const descricao=isFullBonus?`Frete pedido bônus #${shortId}`:`Pedido #${shortId} - ${totalPaid} cartas`;
+        const mpRes=await fetch(`/api/mp-create`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderId:String(batch.id),total:Number(total.toFixed(2)),descricao})});
         const mpData=await mpRes.json();
         const mpLink=mpData?.mpLink||mpData?.init_point||mpData?.sandbox_init_point; if(mpLink){window.location.href=mpLink;return;}
         else if(mpData.error){console.error('MP:',mpData.error);toast('Erro MP: '+mpData.error,'error');}
         nav('success');
-      } else {
-        try{const cbRes=await fetch('/api/confirm-bonus-batch',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:batch.id})});if(!cbRes.ok)console.warn('confirm-bonus-batch status:',cbRes.status);}catch(e){console.warn('confirm-bonus-batch:',e);}
-        nav('success');
       }
-    }catch(e){console.error(e);toast('Erro ao finalizar: '+e.message,'error');}
+    }catch(e){console.error('[finalize]',e);toast('Erro ao finalizar: '+e.message,'error');}
     setSubmitting(false);
   }
 
@@ -868,18 +898,31 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
         {bd.filter(c=>c.paidQty>0).map((c,i)=>{const ip=getCardPrice(c.card_type,pricing);return(<div key={'p'+i} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(255,255,255,0.03)'}}><span style={{color:'rgba(255,255,255,0.6)'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.paidQty}</span><span style={{fontWeight:700}}>R$ {(c.paidQty*ip).toFixed(2)}</span></div>);})}</>}
       <div style={{marginTop:14,display:'flex',flexDirection:'column',gap:5}}>
         {totalPaid>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'rgba(255,255,255,0.4)'}}><span>Subtotal</span><span style={{color:'#fff',fontWeight:600}}>R$ {sub.toFixed(2)}</span></div>}
-        {!isFullBonus&&<div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'rgba(255,255,255,0.4)'}}><span>Frete</span><span style={{color:'#fff',fontWeight:600}}>{useJointShipping?'Envio conjunto (R$ 0,00)':selectedFrete?'R$ '+fV.toFixed(2):lF?'Calculando...':'—'}</span></div>}
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'rgba(255,255,255,0.4)'}}><span>Frete</span><span style={{color:alreadyPaidShipping?'#2ee59d':'#fff',fontWeight:600}}>{alreadyPaidShipping?'Já pago ✓':useJointShipping?'Envio conjunto (R$ 0,00)':selectedFrete?'R$ '+fV.toFixed(2):lF?'Calculando...':'—'}</span></div>
         <div style={{height:1,background:'rgba(255,255,255,0.06)',margin:'3px 0'}}/>
-        <div style={{display:'flex',justifyContent:'space-between',fontSize:18,fontWeight:800}}><span>Total</span><span style={{color:isFullBonus?'#2ee59d':theme.primary}}>{isFullBonus?'R$ 0,00 (bônus!)':'R$ '+total.toFixed(2)}</span></div>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:18,fontWeight:800}}><span>Total</span><span style={{color:payViaBonusFlow?'#2ee59d':theme.primary}}>{payViaBonusFlow?'R$ 0,00 (bônus!)':'R$ '+total.toFixed(2)}</span></div>
       </div>
       {step==='review'&&<Btn full onClick={()=>setStep('address')} style={{marginTop:12}} sfx="nav"><ArrowRight size={16}/> Avançar para endereço e frete</Btn>}
     </Card>
 
-    {!isFullBonus&&step==='address'&&<Card style={{padding:16}}>
+    {step==='address'&&<Card style={{padding:16}}>
       <SectionTitle>Endereço de entrega</SectionTitle>
 
+      {/* Já paguei o frete — opção para informar que o frete já foi pago anteriormente */}
+      <div style={{marginBottom:14,padding:'12px 14px',borderRadius:12,background:alreadyPaidShipping?'rgba(46,229,157,0.06)':'rgba(255,255,255,0.03)',border:'1px solid '+(alreadyPaidShipping?'rgba(46,229,157,0.2)':'rgba(255,255,255,0.08)')}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
+          <div>
+            <div style={{fontSize:13,fontWeight:700,color:alreadyPaidShipping?'#2ee59d':'#fff',marginBottom:2,display:'flex',alignItems:'center',gap:6}}><CheckCircle size={14} style={{flexShrink:0,color:alreadyPaidShipping?'#2ee59d':'rgba(255,255,255,0.3)'}}/> Já paguei o frete</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',lineHeight:1.4}}>Marque se o frete deste envio já foi pago em um pedido anterior.</div>
+          </div>
+          <button onClick={()=>{SFX.toggle();setAlreadyPaidShipping(v=>!v);if(useJointShipping)setUseJointShipping(false);}} style={{flexShrink:0,width:44,height:26,borderRadius:13,border:'none',background:alreadyPaidShipping?'#2ee59d':'rgba(255,255,255,0.1)',cursor:'pointer',position:'relative',transition:'background .2s'}}>
+            <div style={{position:'absolute',top:3,left:alreadyPaidShipping?22:4,width:20,height:20,borderRadius:10,background:'#fff',transition:'left .2s',boxShadow:'0 1px 4px rgba(0,0,0,0.3)'}}/>
+          </button>
+        </div>
+      </div>
+
       {/* Frete conjunto — aparece automaticamente se houver pedidos anteriores nesta encomenda */}
-      {hasPreviousOrders&&<div style={{marginBottom:14,padding:'12px 14px',borderRadius:12,background:useJointShipping?'rgba(46,229,157,0.06)':'rgba(255,255,255,0.03)',border:'1px solid '+(useJointShipping?'rgba(46,229,157,0.2)':'rgba(255,255,255,0.08)')}}>
+      {hasPreviousOrders&&!alreadyPaidShipping&&<div style={{marginBottom:14,padding:'12px 14px',borderRadius:12,background:useJointShipping?'rgba(46,229,157,0.06)':'rgba(255,255,255,0.03)',border:'1px solid '+(useJointShipping?'rgba(46,229,157,0.2)':'rgba(255,255,255,0.08)')}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
           <div>
             <div style={{fontSize:13,fontWeight:700,color:useJointShipping?'#2ee59d':'#fff',marginBottom:2,display:'flex',alignItems:'center',gap:6}}><Truck size={14} style={{flexShrink:0}}/> Envio conjunto</div>
@@ -891,17 +934,17 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
         </div>
       </div>}
 
-      {!useJointShipping&&(profileHasSavedAddress&&!editingAddr?<AddressDisplay address={addr} onEdit={()=>{setEditingAddr(true);setFreteOptions([]);setSelectedFrete(null);}}/>:<AddressForm address={addr} setAddress={(a)=>setAddr(a)}/>)}
-      {!useJointShipping&&(editingAddr||!profileHasSavedAddress)&&<Btn full variant="secondary" onClick={calcFrete} disabled={cepClean.length<8||lF} style={{marginTop:10}} sfx="click">{lF?<Spin size={14}/>:<><Truck size={15}/> Calcular frete</>}</Btn>}
-      {!useJointShipping&&profileHasSavedAddress&&!editingAddr&&lF&&<div style={{marginTop:10,textAlign:'center',color:'rgba(255,255,255,0.4)',fontSize:13,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><Spin size={14}/> Calculando frete...</div>}
-      {!useJointShipping&&freteOptions.length>0&&<div style={{marginTop:12}}>
+      {!shippingSkipped&&(profileHasSavedAddress&&!editingAddr?<AddressDisplay address={addr} onEdit={()=>{setEditingAddr(true);setFreteOptions([]);setSelectedFrete(null);}}/>:<AddressForm address={addr} setAddress={(a)=>setAddr(a)}/>)}
+      {!shippingSkipped&&(editingAddr||!profileHasSavedAddress)&&<Btn full variant="secondary" onClick={calcFrete} disabled={cepClean.length<8||lF} style={{marginTop:10}} sfx="click">{lF?<Spin size={14}/>:<><Truck size={15}/> Calcular frete</>}</Btn>}
+      {!shippingSkipped&&profileHasSavedAddress&&!editingAddr&&lF&&<div style={{marginTop:10,textAlign:'center',color:'rgba(255,255,255,0.4)',fontSize:13,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><Spin size={14}/> Calculando frete...</div>}
+      {!shippingSkipped&&freteOptions.length>0&&<div style={{marginTop:12}}>
         <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.4)',marginBottom:8}}>Opções de envio</div>
         {freteOptions.map((opt,i)=>(<button key={i} onClick={()=>{SFX.toggle();setSelectedFrete(opt);}} style={{width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',borderRadius:12,border:'1px solid '+(selectedFrete===opt?theme.primary+'30':'rgba(255,255,255,0.06)'),background:selectedFrete===opt?theme.primary+'10':'rgba(255,255,255,0.02)',cursor:'pointer',marginBottom:4,fontFamily:"'Outfit',sans-serif"}}>
           <div style={{textAlign:'left'}}><div style={{fontSize:13,fontWeight:600,color:selectedFrete===opt?'#fff':'rgba(255,255,255,0.5)'}}>{opt.carrier}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.25)'}}>{opt.deadline_days} dias úteis</div></div>
           <div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:14,fontWeight:800,color:selectedFrete===opt?theme.primary:'rgba(255,255,255,0.5)'}}>R$ {Number(opt.price).toFixed(2)}</span>{selectedFrete===opt&&<CheckCircle size={16} style={{color:theme.primary}}/>}</div>
         </button>))}
       </div>}
-      {selectedFrete&&!useJointShipping&&!addressUnchanged&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:10,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.06)'}}>
+      {selectedFrete&&!shippingSkipped&&!addressUnchanged&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:10,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.06)'}}>
         <div style={{fontSize:12,fontWeight:700,marginBottom:8}}>Quer salvar esse endereço?</div>
         <div style={{display:'flex',gap:8}}>
           <Btn variant={saveAddressChoice===true?'success':'ghost'} onClick={()=>setSaveAddressChoice(true)} style={{flex:1,padding:'8px 10px',fontSize:12}} sfx="">Sim</Btn>
@@ -912,9 +955,9 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
     </Card>}
 
     <Card id="tut-payment" style={{padding:16}}>
-      {isFullBonus?<Btn full variant="success" onClick={finalize} disabled={submitting || !campaignOpen} sfx="">{submitting?<Spin size={16}/>:<><Gift size={18}/> Finalizar pedido bônus</>}</Btn>:
-      <><SectionTitle sub="Pagamento seguro via Mercado Pago">Pagamento</SectionTitle>
-      <Btn full onClick={finalize} disabled={submitting||!campaignOpen||(!isFullBonus&&!selectedFrete)} sfx="">{submitting?<Spin size={16}/>:<><CreditCard size={18}/> Pagar R$ {total.toFixed(2)}</>}</Btn></>}
+      {payViaBonusFlow?<Btn full variant="success" onClick={finalize} disabled={submitting || !campaignOpen} sfx="">{submitting?<Spin size={16}/>:<><Gift size={18}/> Finalizar pedido bônus</>}</Btn>:
+      <><SectionTitle sub={isFullBonus?'Pagamento do frete via Mercado Pago':'Pagamento seguro via Mercado Pago'}>Pagamento</SectionTitle>
+      <Btn full onClick={finalize} disabled={submitting||!campaignOpen||(!shippingSkipped&&!selectedFrete)} sfx="">{submitting?<Spin size={16}/>:<><CreditCard size={18}/> Pagar R$ {total.toFixed(2)}</>}</Btn></>}
     </Card>
   </div>);
 }
@@ -1839,9 +1882,15 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
             {/* Payment Info */}
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
               <div style={{padding:'8px 10px',borderRadius:10,background:'rgba(0,0,0,0.2)'}}><div style={{fontSize:9,color:'rgba(255,255,255,0.25)',marginBottom:2}}>Subtotal</div><div style={{fontSize:13,fontWeight:700}}>R$ {valNoShip.toFixed(2)}</div></div>
-              <div style={{padding:'8px 10px',borderRadius:10,background:'rgba(0,0,0,0.2)'}}><div style={{fontSize:9,color:'rgba(255,255,255,0.25)',marginBottom:2}}>Frete</div><div style={{fontSize:13,fontWeight:700}}>R$ {ship.toFixed(2)}</div></div>
+              <div style={{padding:'8px 10px',borderRadius:10,background:b.shipping_already_paid?'rgba(46,229,157,0.06)':'rgba(0,0,0,0.2)',border:b.shipping_already_paid?'1px solid rgba(46,229,157,0.2)':'none'}}>
+                <div style={{fontSize:9,color:'rgba(255,255,255,0.25)',marginBottom:2}}>Frete</div>
+                <div style={{fontSize:13,fontWeight:700,color:b.shipping_already_paid?'#2ee59d':undefined}}>
+                  {b.shipping_already_paid?'Já pago ✓':'R$ '+ship.toFixed(2)}
+                </div>
+                {b.shipping_already_paid&&<div style={{fontSize:9,color:'rgba(46,229,157,0.6)',marginTop:2}}>Cliente informou que já pagou</div>}
+              </div>
               <div style={{padding:'8px 10px',borderRadius:10,background:'rgba(0,0,0,0.2)'}}><div style={{fontSize:9,color:'rgba(255,255,255,0.25)',marginBottom:2}}>Total</div><div style={{fontSize:13,fontWeight:800,color:theme.primary}}>R$ {total.toFixed(2)}</div></div>
-              <div style={{padding:'8px 10px',borderRadius:10,background:'rgba(0,0,0,0.2)'}}><div style={{fontSize:9,color:'rgba(255,255,255,0.25)',marginBottom:2}}>Método</div><div style={{fontSize:13,fontWeight:700}}>{b.payment_method==='MERCADO_PAGO'?'Mercado Pago':b.payment_method||'—'}</div></div>
+              <div style={{padding:'8px 10px',borderRadius:10,background:'rgba(0,0,0,0.2)'}}><div style={{fontSize:9,color:'rgba(255,255,255,0.25)',marginBottom:2}}>Método</div><div style={{fontSize:13,fontWeight:700}}>{b.payment_method==='MERCADO_PAGO'?'Mercado Pago':b.payment_method==='BONUS'?'Bônus':b.payment_method||'—'}</div></div>
             </div>
 
             {/* MP Code */}
@@ -1917,7 +1966,9 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
                 </div>
                 {batchExp&&<div style={{marginTop:8,padding:'8px 0'}}>
                   <div style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginBottom:4}}>Código MP: <span style={{fontFamily:'monospace',color:'rgba(255,255,255,0.5)'}}>{mpCode}</span></div>
-                  <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:8}}>Valor (sem frete): R$ {valNoShip.toFixed(2)}{ship>0&&<span> | Frete: R$ {ship.toFixed(2)}</span>}</div>
+                  <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:4}}>Valor (sem frete): R$ {valNoShip.toFixed(2)}{ship>0&&<span> | Frete: R$ {ship.toFixed(2)}</span>}</div>
+                  {b.shipping_already_paid&&<div style={{fontSize:11,color:'#2ee59d',marginBottom:8,display:'flex',alignItems:'center',gap:4}}><CheckCircle size={11}/> Frete marcado como já pago pelo cliente</div>}
+                  {!b.shipping_already_paid&&ship===0&&b.payment_method==='BONUS'&&<div style={{fontSize:11,color:'rgba(46,229,157,0.6)',marginBottom:8}}>Pedido bônus — frete cobrado normalmente</div>}
                   <div style={{marginBottom:8}}>{(batchCards[b.id]||[]).length>0?batchCards[b.id].map((c,ci)=>(
                     <div key={ci} style={{display:'flex',justifyContent:'space-between',padding:'3px 0',fontSize:12,borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
                       <span style={{color:'rgba(255,255,255,0.5)'}}>{c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
@@ -2158,62 +2209,130 @@ export default function MagicPortal(){
 
       // Order (get or create DRAFT) — works with or without active campaign
       try {
-        // Find order: prefer campaign order, fallback to null-campaign order
+        // ── Step 1: Find existing DRAFT order ──────────────────────────────────
         let ord = null;
         if (camp) {
-          const ords = await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}&status=eq.DRAFT`, tkn);
-          ord = ords[0] || null;
+          try {
+            const ords = await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}&status=eq.DRAFT`, tkn);
+            ord = ords[0] || null;
+          } catch(e) { console.warn('[loadAppData] campaign DRAFT order query failed:', e); }
         }
-        // No campaign order — look for null-campaign order (wishlist)
+
+        // ── Step 2: Fallback — find any non-cancelled order for this campaign ──
+        // Handles legacy orders that may have status=PAID/PAID_CONFIRMED due to old bugs
+        if (!ord && camp) {
+          try {
+            const anyOrds = await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}&status=not.in.(CANCELLED)&order=created_at.desc&limit=1`, tkn);
+            if (anyOrds && anyOrds[0]) {
+              console.log('[loadAppData] Found non-DRAFT order for campaign:', anyOrds[0].id, 'status:', anyOrds[0].status, '— attempting recovery to DRAFT');
+              // Try to reset the order status back to DRAFT so new items can be added
+              await sbPatch('orders', `id=eq.${anyOrds[0].id}`, { status: 'DRAFT' }, tkn).catch(e => {
+                console.warn('[loadAppData] Could not reset order to DRAFT:', e);
+              });
+              ord = anyOrds[0];
+            }
+          } catch(e) { console.warn('[loadAppData] any-order fallback query failed:', e); }
+        }
+
+        // ── Step 3: Null-campaign order (wishlist mode) ─────────────────────────
         if (!ord) {
-          const nullOrds = await sbGet('orders', `campaign_id=is.null&user_id=eq.${userId}&status=eq.DRAFT&select=id,created_at&order=created_at.desc&limit=1`, tkn);
-          ord = nullOrds[0] || null;
+          try {
+            const nullOrds = await sbGet('orders', `campaign_id=is.null&user_id=eq.${userId}&status=eq.DRAFT&select=id,created_at&order=created_at.desc&limit=1`, tkn);
+            ord = nullOrds[0] || null;
+          } catch(e) { console.warn('[loadAppData] null-campaign order query failed:', e); }
         }
+
+        // ── Step 4: Create a new DRAFT order ────────────────────────────────────
         if (!ord) {
           try {
             const payload = camp ? { campaign_id: camp.id, user_id: userId, status: 'DRAFT' } : { user_id: userId, status: 'DRAFT' };
-            const [newOrd] = await sbPost('orders', payload, tkn);
-            ord = newOrd;
-            // Copiar wants do pedido mais recente de qualquer campanha
-            try {
-              const prevOrds = await sbGet('orders', `user_id=eq.${userId}&id=neq.${ord.id}&select=id,created_at&order=created_at.desc&limit=1`, tkn);
-              if (prevOrds && prevOrds.length > 0) {
-                const prevItems = await sbGet('order_items', `order_id=eq.${prevOrds[0].id}&batch_id=is.null&is_bonus=eq.false&select=card_id,quantity,in_cart`, tkn);
-                for (const item of (prevItems || [])) {
-                  await sbPost('order_items', { order_id: ord.id, card_id: item.card_id, quantity: item.quantity, is_bonus: false, in_cart: item.in_cart || false }, tkn).catch(()=>{});
+            const created = await sbPost('orders', payload, tkn);
+            // Defensive: sbPost may return an array or a single object
+            ord = Array.isArray(created) ? (created[0] ?? null) : (created ?? null);
+
+            if (ord?.id) {
+              // Copy non-bonus wants from the most recent previous order (any campaign)
+              try {
+                const prevOrds = await sbGet('orders', `user_id=eq.${userId}&id=neq.${ord.id}&select=id,created_at&order=created_at.desc&limit=1`, tkn);
+                if (prevOrds && prevOrds.length > 0) {
+                  let prevItems = [];
+                  try {
+                    prevItems = await sbGet('order_items', `order_id=eq.${prevOrds[0].id}&batch_id=is.null&is_bonus=not.eq.true&select=card_id,quantity,in_cart`, tkn);
+                  } catch(eInCart) {
+                    // Fallback if in_cart column doesn't exist in the DB yet
+                    console.warn('[loadAppData] prevItems with in_cart failed, retrying without it:', eInCart);
+                    try {
+                      const raw = await sbGet('order_items', `order_id=eq.${prevOrds[0].id}&batch_id=is.null&is_bonus=not.eq.true&select=card_id,quantity`, tkn);
+                      prevItems = (raw || []).map(i => ({ ...i, in_cart: false }));
+                    } catch(e2) { console.warn('[loadAppData] prevItems fallback also failed:', e2); }
+                  }
+                  for (const item of (prevItems || [])) {
+                    if (!item.card_id) continue;
+                    await sbPost('order_items', {
+                      order_id: ord.id,
+                      card_id: item.card_id,
+                      quantity: Math.max(1, Number(item.quantity) || 1),
+                      is_bonus: false,
+                      in_cart: item.in_cart || false,
+                    }, tkn).catch(e => console.warn('[loadAppData] copy item failed for card_id:', item.card_id, e));
+                  }
                 }
-              }
-            } catch(e) { console.warn('Failed to copy wants:', e); }
+              } catch(e) { console.warn('[loadAppData] Failed to copy wants from previous order:', e); }
+            }
           } catch(e) {
-            // Race condition fallback
-            const fallback = camp
-              ? await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}&status=eq.DRAFT`, tkn)
-              : await sbGet('orders', `campaign_id=is.null&user_id=eq.${userId}&status=eq.DRAFT&order=created_at.desc&limit=1`, tkn);
-            if (fallback[0]) ord = fallback[0]; else throw e;
+            // Race condition: another tab/request may have created the order simultaneously
+            console.warn('[loadAppData] Order creation failed, trying race-condition fallback:', e);
+            try {
+              const fallback = camp
+                ? await sbGet('orders', `campaign_id=eq.${camp.id}&user_id=eq.${userId}&status=eq.DRAFT`, tkn)
+                : await sbGet('orders', `campaign_id=is.null&user_id=eq.${userId}&status=eq.DRAFT&order=created_at.desc&limit=1`, tkn);
+              if (fallback && fallback[0]) {
+                ord = fallback[0];
+              } else {
+                console.error('[loadAppData] All order creation/recovery attempts failed. userId:', userId, 'campaignId:', camp?.id, 'error:', e);
+                throw e;
+              }
+            } catch(fallbackErr) {
+              console.error('[loadAppData] Race-condition fallback failed:', fallbackErr);
+              throw e;
+            }
           }
         } else if (camp && !ord.campaign_id) {
           // Migrate null-campaign order to this campaign
           await sbPatch('orders', `id=eq.${ord.id}`, { campaign_id: camp.id }, tkn).catch(()=>{});
         }
+
+        // ── Final validation before using ord ──────────────────────────────────
+        if (!ord || !ord.id) {
+          console.error('[loadAppData] ord is null/invalid after all recovery attempts. userId:', userId, 'ord:', ord);
+          throw new Error('Não foi possível carregar ou criar seu pedido.');
+        }
+
         setOrderId(ord.id);
 
-        // Wants (in_cart=false) and Cart (in_cart=true)
+        // ── Load wants (in_cart=false) and cart items (in_cart=true) ──────────
+        // Filters: no batch (not yet checked out) + not a bonus item
+        // is_bonus=not.eq.true includes both is_bonus=false AND is_bonus=NULL (legacy rows)
         try {
           let items;
-          const itemsFilter = `order_id=eq.${ord.id}&batch_id=is.null&is_bonus=eq.false`;
+          const itemsFilter = `order_id=eq.${ord.id}&batch_id=is.null&is_bonus=not.eq.true`;
           try {
             items = await sbGet('order_items', `${itemsFilter}&select=id,card_id,quantity,in_cart,cards(name,type)`, tkn);
           } catch(eCart) {
-            // Fallback if in_cart column does not exist
-            console.warn('order_items query with in_cart failed, retrying without:', eCart);
+            // Fallback if in_cart column does not exist in this DB yet
+            console.warn('[loadAppData] order_items with in_cart failed, retrying without:', eCart);
             items = (await sbGet('order_items', `${itemsFilter}&select=id,card_id,quantity,cards(name,type)`, tkn)).map(i=>({...i,in_cart:false}));
           }
-          const mapped = items.map(i=>({...i,card_name:i.cards?.name||'?',card_type:i.cards?.type||'Normal'}));
+          const mapped = (items || [])
+            .filter(i => i && i.id && i.card_id) // skip any invalid/incomplete rows
+            .map(i=>({...i, card_name:i.cards?.name||'?', card_type:i.cards?.type||'Normal'}));
           setWants(mapped.filter(i=>!i.in_cart));
           setCartItems(mapped.filter(i=>i.in_cart));
-        } catch(e) { console.warn('Failed to load order items:', e); }
+        } catch(e) { console.warn('[loadAppData] Failed to load order items:', e); }
         setCartQtyByItem({});
-      } catch(eOrder) { console.warn('Order block error:', eOrder); }
+      } catch(eOrder) {
+        console.error('[loadAppData] Order block failed — orderId will be null:', eOrder);
+      }
 
         // Order history — all paid batches across all campaigns
         try {
@@ -2292,7 +2411,15 @@ export default function MagicPortal(){
   // ─── Add want ─────────────────────────────────────
   async function handleAddWant(card, qty) {
     if (!token) { toast('Faça login primeiro','error'); return; }
-    if (!orderId) { toast('Erro ao carregar seu pedido. Recarregue a página.','error'); return; }
+    if (!orderId) {
+      console.error('[handleAddWant] orderId is null — order was not loaded. userId:', session?.user?.id);
+      toast('Seu pedido está sendo carregado. Aguarde um momento e tente novamente.','error');
+      // Attempt silent recovery in the background so the next add attempt works
+      if (token && session?.user?.id) {
+        loadAppData(token, session.user.id).catch(e => console.warn('[handleAddWant] recovery loadAppData failed:', e));
+      }
+      return;
+    }
     try {
       const existing = wants.find(w => w.card_id === card.id);
       if (existing) {
@@ -2300,12 +2427,15 @@ export default function MagicPortal(){
         await sbPatch('order_items', 'id=eq.'+(existing.id), { quantity: newQty }, token);
         setWants(prev => prev.map(w => w.id === existing.id ? { ...w, quantity: newQty } : w));
       } else {
-        const [item] = await sbPost('order_items', { order_id: orderId, card_id: card.id, quantity: qty, is_bonus: false, unit_price_brl: 0 }, token);
-        setWants(prev => [{ ...item, card_name: card.name, card_type: card.type }, ...prev]);
+        const created = await sbPost('order_items', { order_id: orderId, card_id: card.id, quantity: qty, is_bonus: false, unit_price_brl: 0 }, token);
+        const item = Array.isArray(created) ? created[0] : created;
+        if (item?.id) {
+          setWants(prev => [{ ...item, card_name: card.name, card_type: card.type || 'Normal' }, ...prev]);
+        }
       }
       toast(qty+'x '+card.name+' adicionada!','success');
     } catch(e) {
-      console.error('addWant',e);
+      console.error('[handleAddWant] error:', e);
       toast('Erro ao adicionar: '+e.message,'error');
     }
   }
