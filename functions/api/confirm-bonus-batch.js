@@ -6,8 +6,10 @@
  *  3. Consumes AVAILABLE bonus_grants (marks as USED) for the qty used
  *  4. Marks the batch as PAID with confirmed_at
  *  5. Increments campaign pool_qty_confirmed
- *  6. Updates parent order status to PAID
- *  7. Recalculates tier-change bonus for all users in the campaign
+ *  6. Recalculates tier-change bonus for all users in the campaign
+ *
+ * NOTE: The parent order is intentionally kept as DRAFT so users can continue
+ * adding cards and creating new batches within the same campaign order.
  */
 
 import { incrementPoolOnPaid } from './_pool-helper.js';
@@ -122,11 +124,9 @@ export async function onRequest(context) {
     }
 
     // ─── Update parent order status ─────────────────
-    await fetch(`${SB_URL}/rest/v1/orders?id=eq.${enc(batch.order_id)}`, {
-      method: "PATCH",
-      headers: { ...svcHeaders, Prefer: "return=minimal" },
-      body: JSON.stringify({ status: "PAID_CONFIRMED" }),
-    }).catch(e => console.error("confirm-bonus-batch: failed to update order status:", e));
+    // NOTE: We intentionally keep the parent order as DRAFT so users can continue
+    // adding cards and creating new batches within the same campaign order.
+    // Only individual batches (order_batches) track their payment status.
 
     // ─── Recalculate tier-change bonus for all users ─
     if (campaignId) {
