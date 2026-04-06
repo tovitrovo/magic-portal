@@ -438,7 +438,7 @@ const TUTORIAL_STEPS=[
   {title:'Busca e filtros',body:'Use a barra de busca, selecione o TCG e filtre por tipo de carta.',navTo:'catalog',tabIndex:1,spotlightId:'tut-search-area',scrollTo:true,icon:'🔍'},
   {title:'Adicionar à lista',body:'Toque no + de qualquer carta para adicioná-la à sua lista de wants.',navTo:'catalog',tabIndex:1,spotlightId:null,icon:'➕',interactive:true},
   {title:'Lista de Wants',body:'Suas cartas escolhidas ficam aqui. Toque no 🛒 para mover a carta pro carrinho, ou na 🗑️ para excluir.',navTo:'wants',tabIndex:2,spotlightId:null,icon:'📋'},
-  {title:'Bônus',body:'Se o grupo crescer e o preço cair, você ganha cartas extras de graça! Elas aparecem aqui quando disponíveis.',navTo:'wants',tabIndex:2,spotlightId:null,icon:'🎁'},
+  {title:'Bônus',body:'O administrador pode conceder cartas bônus para você. Quando disponíveis, elas aparecem aqui e saem de graça no próximo checkout!',navTo:'wants',tabIndex:2,spotlightId:null,icon:'🎁'},
   {title:'Carrinho',body:'Edite quantidades, mova cartas de volta para wants e avance para o checkout.',navTo:'cart',tabIndex:3,spotlightId:null,icon:'🛒'},
   {title:'Checkout',body:'Revise o pedido, preencha o endereço e calcule o frete antes de finalizar.',navTo:'checkout',tabIndex:3,spotlightId:'tut-checkout-summary',icon:'📦'},
   {title:'Pagamento',body:'Pague com segurança via Mercado Pago — cartão, boleto ou saldo.',navTo:'checkout',tabIndex:3,spotlightId:'tut-payment',icon:'💳'},
@@ -1347,17 +1347,21 @@ function OnboardingPage({onComplete,theme}){
   function toggleC(k){setColors(p=>{if(p.includes(k))return p.filter(c=>c!==k);if(p.length>=2)return[p[1],k];return[...p,k];});}
   const guild=colors.length===2?getGuild(colors[0],colors[1]):null;const gT=guild?GT[guild]:theme;
   const steps=[
-    {mood:'🔮',title:'Escolha sua Guilda',body:'"Duas cores de mana definem sua essência. Cada combinação invoca uma guilda diferente."',hasColors:true},
+    {mood:'🌟',title:'Bem-vindo ao Magic Portal!',body:'"Você acabou de entrar no portal onde fãs de Magic se unem para montar pedidos em grupo e economizar de verdade."'},
+    {mood:'📦',title:'Como funciona',body:'"Escolha suas cartas no catálogo, monte seu carrinho e finalize quando estiver pronto. Pagamentos via Mercado Pago com frete calculado na hora."'},
+    {mood:'🎁',title:'Bônus especiais',body:'"O administrador pode conceder cartas bônus para você a qualquer momento. Quando disponíveis, elas aparecem no seu carrinho e saem de graça!"'},
+    {mood:'🔮',title:'Escolha sua Guilda',body:'"Duas cores de mana definem sua essência. Cada combinação invoca uma guilda diferente — personalize sua jornada!"',hasColors:true},
   ];
   const s=steps[step];
 
   if(askTutorial)return(<div style={{display:'flex',flexDirection:'column',gap:16,paddingTop:40,alignItems:'center',textAlign:'center'}}>
     <div style={{width:56,height:56,borderRadius:14,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.06)',display:'grid',placeItems:'center',fontSize:28}}>🧙</div>
-    <h2 style={{fontFamily:"'Cinzel',serif",fontSize:20}}>"Agora vou guiar seus primeiros passos!"</h2>
-    <p style={{fontSize:13,color:'rgba(255,255,255,0.4)',maxWidth:300,fontStyle:'italic'}}>Um guia rápido sobre o ritual da encomenda</p>
+    <h2 style={{fontFamily:"'Cinzel',serif",fontSize:20}}>"Vamos explorar o portal juntos!"</h2>
+    <p style={{fontSize:13,color:'rgba(255,255,255,0.4)',maxWidth:300,fontStyle:'italic'}}>Um guia rápido sobre o ritual da encomenda — leva menos de 1 minuto</p>
     <div style={{display:'flex',gap:10,width:'100%',maxWidth:300}}>
       <Btn onClick={()=>onComplete(colors,guild,true)} style={{flex:1}} sfx="confirm">Vamos lá! 🔮</Btn>
     </div>
+    <button onClick={()=>onComplete(colors,guild,false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',fontSize:12,cursor:'pointer',marginTop:4}}>Pular tutorial</button>
   </div>);
 
   return(<div style={{display:'flex',flexDirection:'column',gap:16,paddingTop:16,minHeight:'70vh',justifyContent:'space-between'}}>

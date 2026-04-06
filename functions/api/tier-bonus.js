@@ -26,6 +26,12 @@ export async function onRequest(context) {
   };
   if (context.request.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
+  // Sistema de bônus por queda de preço desativado — apenas bônus manuais são utilizados.
+  return new Response(JSON.stringify({ ok: true, tierBonus: 0, disabled: true }), {
+    status: 200,
+    headers: { ...CORS, "Content-Type": "application/json" },
+  });
+
   try {
     const { SB_URL, SB_SERVICE_ROLE_KEY } = context.env;
     if (!SB_URL || !SB_SERVICE_ROLE_KEY) {
