@@ -523,7 +523,7 @@ function HomePage({pool,minCards,pricing,closeDate,theme,nav,wantsCount,cartCoun
     {/* Tabela de preços por tipo */}
     <Card style={{padding:16}}>
       <SectionTitle sub="Preços fixos por tipo de carta">Preços</SectionTitle>
-      {[{label:'Carta Normal',price:normalPrice,color:'rgba(255,255,255,0.6)',desc:'Cartas comuns e não-foil'},{label:'Carta Ouro',price:outerPrice,color:'#c9a96e',desc:'Cartas Holo / especiais'},{label:'Carta Foil',price:foilPrice,color:'#d94452',desc:'Cartas foil de qualquer tipo'}].map(t=>(
+      {[{label:'Carta Normal',price:normalPrice,color:'rgba(255,255,255,0.6)',desc:'Cartas comuns e não-foil'},{label:'Carta Holo',price:outerPrice,color:'#c9a96e',desc:'Cartas Holo / especiais'},{label:'Carta Foil',price:foilPrice,color:'#d94452',desc:'Cartas foil de qualquer tipo'}].map(t=>(
         <div key={t.label} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 12px',borderRadius:10,marginBottom:3,background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.05)'}}>
           <div><div style={{fontSize:13,fontWeight:600,color:t.color}}>{t.label}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{t.desc}</div></div>
           <span style={{fontSize:16,fontWeight:800,color:t.color}}>R$ {t.price.toFixed(2)}</span>
@@ -1991,7 +1991,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         <div style={{fontSize:12,color:'rgba(255,255,255,0.3)',marginBottom:12,lineHeight:1.5}}>Estes são os preços que o cliente paga por carta, dependendo do tipo. Mínimo de {MIN_ORDER_CARDS} cartas por pedido.</div>
         {[
           {k:'normal_price_brl',l:'Carta Normal',desc:'Cartas comuns, não-foil',color:'rgba(255,255,255,0.6)',def:16},
-          {k:'ouro_price_brl',l:'Carta Ouro / Holo',desc:'Cartas especiais (Holo)',color:'#c9a96e',def:16},
+          {k:'ouro_price_brl',l:'Carta Holo',desc:'Cartas especiais (Holo)',color:'#c9a96e',def:16},
           {k:'foil_price_brl',l:'Carta Foil',desc:'Cartas foil de qualquer tipo',color:'#d94452',def:18},
         ].map(({k,l,desc,color,def})=>(<div key={k} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
           <div><div style={{fontSize:13,fontWeight:600,color}}>{l}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{desc}</div></div>
