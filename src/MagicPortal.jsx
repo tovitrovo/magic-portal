@@ -820,7 +820,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
         batch = Array.isArray(created) ? created[0] : created;
       } catch(eBatch) {
         console.warn('[finalize] batch POST with shipping_already_paid failed (column may not exist), retrying without it:', eBatch);
-        const {shipping_already_paid:_,...batchFallback}=batchBaseData;
+        const {shipping_already_paid:_shippingAlreadyPaid,...batchFallback}=batchBaseData;
         const created = await sbPost('order_batches', batchFallback, token);
         batch = Array.isArray(created) ? created[0] : created;
       }
