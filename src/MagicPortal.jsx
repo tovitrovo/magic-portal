@@ -1384,8 +1384,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   const [loading,setLoading]=useState(true);
   const [ordersLoading,setOrdersLoading]=useState(false);
   const [saving,setSaving]=useState(false);
-  const [archiving,setArchiving]=useState(false);
-  const [showArchiveConfirm,setShowArchiveConfirm]=useState(false);
+
   const [showCreateForm,setShowCreateForm]=useState(false);
   const [newCamp,setNewCamp]=useState({name:'',status:'DRAFT',close_at:'',max_cards:null,min_cards:150});
   const [creating,setCreating]=useState(false);
@@ -1533,28 +1532,6 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     }catch(e){console.error(e);}
   }
 
-  async function deleteBatch(batchId){
-    if(!confirm('Excluir permanentemente este pedido cancelado? Esta ação não pode ser desfeita.'))return;
-    try{
-      const r=await fetch('/api/admin-delete-batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batchId})});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      SFX.success();if(toastFn)toastFn('Pedido cancelado excluído','success');loadOrders();
-    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao excluir: '+(e.message||String(e)),'error');}
-  }
-
-  async function deleteAllCancelledBatches(){
-    if(!selectedCampaign)return;
-    const cancelledCount=allBatches.filter(b=>b.status==='CANCELLED').length;
-    if(cancelledCount===0){if(toastFn)toastFn('Nenhum pedido cancelado para excluir','info');return;}
-    if(!confirm(`Excluir todos os ${cancelledCount} pedido(s) cancelado(s) desta encomenda? Esta ação não pode ser desfeita.`))return;
-    try{
-      const r=await fetch('/api/admin-delete-batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({campaignId:selectedCampaign.id})});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      SFX.success();if(toastFn)toastFn(`${cancelledCount} pedido(s) cancelado(s) excluído(s)`,'success');loadOrders();
-    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao limpar cancelados: '+(e.message||String(e)),'error');}
-  }
 
   async function markBatchPaid(batchId){
     if(!confirm('Marcar este pedido como PAGO manualmente?'))return;
@@ -1668,16 +1645,6 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     setSaving(false);
   }
 
-  async function archiveCampaign(){
-    setArchiving(true);
-    try{
-      const r=await fetch('/api/archive-campaign',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({campaignId:selectedCampaign.id})});
-      const d=await r.json().catch(()=>({}));
-      if(!d.ok)throw new Error(d.error||`HTTP ${r.status}`);
-      SFX.success();setSelectedCampaign(null);setShowArchiveConfirm(false);loadCampaigns();if(onReload)onReload();
-    }catch(e){if(toastFn)toastFn('Erro ao arquivar: '+(e.message||String(e)),'error');}
-    setArchiving(false);
-  }
 
   async function createCampaign(){
     if(!newCamp.name.trim()){if(toastFn)toastFn('Nome obrigatório','error');return;}
@@ -1789,12 +1756,11 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         <Card style={{padding:'10px 14px'}}><div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>Total / Cancelados</div><div style={{fontSize:20,fontWeight:800,color:'rgba(255,255,255,0.5)'}}>{ordStats.total}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>{ordStats.cancelledCount} cancelados</div></Card>
       </div>
 
-      {/* Status Filter Pills + Limpar cancelados */}
+      {/* Status Filter Pills */}
       <div style={{display:'flex',gap:4,flexWrap:'wrap',alignItems:'center'}}>
         {[{key:'ALL',label:'Todos',color:'rgba(255,255,255,0.4)',count:ordStats.total},{key:'PAID',label:'Pagos',color:'#2ee59d',count:ordStats.paidCount},{key:'AWAITING_PAYMENT',label:'Pendentes',color:'#c9a96e',count:ordStats.pendingCount},{key:'CANCELLED',label:'Cancelados',color:'#ff6b7a',count:ordStats.cancelledCount}].map(f=>(
           <button key={f.key} onClick={()=>{SFX.toggle();setOrdStatusFilter(f.key);}} style={{display:'flex',alignItems:'center',gap:4,padding:'5px 10px',borderRadius:99,border:'1px solid '+(ordStatusFilter===f.key?f.color+'40':'rgba(255,255,255,0.06)'),background:ordStatusFilter===f.key?f.color+'15':'rgba(255,255,255,0.02)',color:ordStatusFilter===f.key?f.color:'rgba(255,255,255,0.3)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{f.label} <span style={{fontSize:9,opacity:.7}}>({f.count})</span></button>
         ))}
-        {ordStats.cancelledCount>0&&<button onClick={deleteAllCancelledBatches} style={{display:'flex',alignItems:'center',gap:4,padding:'5px 10px',borderRadius:99,border:'1px solid rgba(217,68,82,0.2)',background:'rgba(217,68,82,0.08)',color:'#ff6b7a',fontSize:10,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif",marginLeft:'auto'}}><Trash2 size={10}/> Limpar cancelados</button>}
       </div>
 
       {/* Search & Sort */}
@@ -1888,7 +1854,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
               {isDraft&&<Btn variant="success" onClick={e=>{e.stopPropagation();markBatchPaid(b.id);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><CheckCircle size={12}/> Marcar Pago</Btn>}
               {b.payment_method==='MERCADO_PAGO'&&!isCancelled&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();syncBatchMP(b.id);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><RefreshCw size={12}/> Sync MP</Btn>}
               {!isCancelled&&<Btn variant="danger" onClick={e=>{e.stopPropagation();cancelBatch(b.id,isPaid);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><X size={12}/> {isPaid?'Cancelar (reembolso manual)':'Cancelar'}</Btn>}
-              {isCancelled&&<Btn variant="danger" onClick={e=>{e.stopPropagation();deleteBatch(b.id);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><Trash2 size={12}/> Excluir</Btn>}
+
             </div>
           </div>}
         </Card>);
@@ -2024,20 +1990,6 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         <Btn full variant="success" onClick={saveCampaign} disabled={saving} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar encomenda</>}</Btn>
       </Card>}
 
-      {/* Arquivar / excluir */}
-      {selectedCampaign&&<>
-        {!isFinalized&&<Card style={{padding:16,marginTop:4}}>
-          <SectionTitle sub="Finaliza a encomenda e arquiva">Finalizar Encomenda</SectionTitle>
-          {!showArchiveConfirm?<Btn full variant="danger" onClick={()=>setShowArchiveConfirm(true)} sfx=""><Archive size={14}/> Arquivar encomenda</Btn>:<>
-            <div style={{fontSize:13,color:'rgba(255,255,255,0.55)',marginBottom:12,lineHeight:1.5}}>Isso marcará a campanha como DONE e excluirá todos os dados de pedidos e bônus. <b style={{color:'#ff6b7a'}}>Não pode ser desfeito.</b></div>
-            <div style={{display:'flex',gap:8}}>
-              <Btn variant="secondary" onClick={()=>setShowArchiveConfirm(false)} style={{flex:1}} sfx="">Cancelar</Btn>
-              <Btn variant="danger" onClick={archiveCampaign} disabled={archiving} style={{flex:1}} sfx="">{archiving?<Spin size={14}/>:'Sim, finalizar'}</Btn>
-            </div>
-          </>}
-        </Card>}
-        {isFinalized&&<Btn full variant="danger" onClick={deleteCampaign} style={{marginTop:4}} sfx=""><Trash2 size={14}/> Excluir encomenda permanentemente</Btn>}
-      </>}
     </>}
   </div>);
 }
