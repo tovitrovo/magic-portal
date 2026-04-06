@@ -770,7 +770,8 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
   const payViaBonusFlow = isFullBonus && shippingSkipped;
 
   useEffect(()=>{if(useJointShipping){setSelectedFrete({carrier:'Envio conjunto',price:0,deadline_days:0});setFreteOptions([]);}else{setSelectedFrete(null);setFreteOptions([]);}},[useJointShipping]);
-  useEffect(()=>{if(alreadyPaidShipping){setSelectedFrete(null);setFreteOptions([]);}else if(step==='address'&&profileHasSavedAddress&&!editingAddr&&cepClean.length===8&&!lF&&!useJointShipping){calcFrete();}},[alreadyPaidShipping]);
+  // Dep array intentionally only [alreadyPaidShipping]: effect runs on toggle change; closure vars are fresh from latest render at that point
+  useEffect(()=>{if(alreadyPaidShipping){setSelectedFrete(null);setFreteOptions([]);}else if(step==='address'&&profileHasSavedAddress&&!editingAddr&&cepClean.length===8&&!lF&&!useJointShipping){calcFrete();}},[alreadyPaidShipping]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(()=>{if(step==='address'&&profileHasSavedAddress&&!editingAddr&&cepClean.length===8&&freteOptions.length===0&&!lF&&!useJointShipping&&!alreadyPaidShipping)calcFrete();},[step]);
 
   async function calcFrete(){
