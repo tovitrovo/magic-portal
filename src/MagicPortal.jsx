@@ -770,7 +770,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
   const payViaBonusFlow = isFullBonus && shippingSkipped;
 
   useEffect(()=>{if(useJointShipping){setSelectedFrete({carrier:'Envio conjunto',price:0,deadline_days:0});setFreteOptions([]);}else{setSelectedFrete(null);setFreteOptions([]);}},[useJointShipping]);
-  useEffect(()=>{if(alreadyPaidShipping){setSelectedFrete(null);setFreteOptions([]);}},[alreadyPaidShipping]);
+  useEffect(()=>{if(alreadyPaidShipping){setSelectedFrete(null);setFreteOptions([]);}else if(step==='address'&&profileHasSavedAddress&&!editingAddr&&cepClean.length===8&&!lF&&!useJointShipping){calcFrete();}},[alreadyPaidShipping]);
   useEffect(()=>{if(step==='address'&&profileHasSavedAddress&&!editingAddr&&cepClean.length===8&&freteOptions.length===0&&!lF&&!useJointShipping&&!alreadyPaidShipping)calcFrete();},[step]);
 
   async function calcFrete(){
@@ -908,32 +908,6 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
     {step==='address'&&<Card style={{padding:16}}>
       <SectionTitle>Endereço de entrega</SectionTitle>
 
-      {/* Já paguei o frete — opção para informar que o frete já foi pago anteriormente */}
-      <div style={{marginBottom:14,padding:'12px 14px',borderRadius:12,background:alreadyPaidShipping?'rgba(46,229,157,0.06)':'rgba(255,255,255,0.03)',border:'1px solid '+(alreadyPaidShipping?'rgba(46,229,157,0.2)':'rgba(255,255,255,0.08)')}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
-          <div>
-            <div style={{fontSize:13,fontWeight:700,color:alreadyPaidShipping?'#2ee59d':'#fff',marginBottom:2,display:'flex',alignItems:'center',gap:6}}><CheckCircle size={14} style={{flexShrink:0,color:alreadyPaidShipping?'#2ee59d':'rgba(255,255,255,0.3)'}}/> Já paguei o frete</div>
-            <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',lineHeight:1.4}}>Marque se o frete deste envio já foi pago em um pedido anterior.</div>
-          </div>
-          <button onClick={()=>{SFX.toggle();setAlreadyPaidShipping(v=>!v);if(useJointShipping)setUseJointShipping(false);}} style={{flexShrink:0,width:44,height:26,borderRadius:13,border:'none',background:alreadyPaidShipping?'#2ee59d':'rgba(255,255,255,0.1)',cursor:'pointer',position:'relative',transition:'background .2s'}}>
-            <div style={{position:'absolute',top:3,left:alreadyPaidShipping?22:4,width:20,height:20,borderRadius:10,background:'#fff',transition:'left .2s',boxShadow:'0 1px 4px rgba(0,0,0,0.3)'}}/>
-          </button>
-        </div>
-      </div>
-
-      {/* Frete conjunto — aparece automaticamente se houver pedidos anteriores nesta encomenda */}
-      {hasPreviousOrders&&!alreadyPaidShipping&&<div style={{marginBottom:14,padding:'12px 14px',borderRadius:12,background:useJointShipping?'rgba(46,229,157,0.06)':'rgba(255,255,255,0.03)',border:'1px solid '+(useJointShipping?'rgba(46,229,157,0.2)':'rgba(255,255,255,0.08)')}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
-          <div>
-            <div style={{fontSize:13,fontWeight:700,color:useJointShipping?'#2ee59d':'#fff',marginBottom:2,display:'flex',alignItems:'center',gap:6}}><Truck size={14} style={{flexShrink:0}}/> Envio conjunto</div>
-            <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',lineHeight:1.4}}>Você já tem pedidos nesta encomenda. Envie tudo junto sem custo de frete adicional.</div>
-          </div>
-          <button onClick={()=>{SFX.toggle();setUseJointShipping(v=>!v);}} style={{flexShrink:0,width:44,height:26,borderRadius:13,border:'none',background:useJointShipping?'#2ee59d':'rgba(255,255,255,0.1)',cursor:'pointer',position:'relative',transition:'background .2s'}}>
-            <div style={{position:'absolute',top:3,left:useJointShipping?22:4,width:20,height:20,borderRadius:10,background:'#fff',transition:'left .2s',boxShadow:'0 1px 4px rgba(0,0,0,0.3)'}}/>
-          </button>
-        </div>
-      </div>}
-
       {!shippingSkipped&&(profileHasSavedAddress&&!editingAddr?<AddressDisplay address={addr} onEdit={()=>{setEditingAddr(true);setFreteOptions([]);setSelectedFrete(null);}}/>:<AddressForm address={addr} setAddress={(a)=>setAddr(a)}/>)}
       {!shippingSkipped&&(editingAddr||!profileHasSavedAddress)&&<Btn full variant="secondary" onClick={calcFrete} disabled={cepClean.length<8||lF} style={{marginTop:10}} sfx="click">{lF?<Spin size={14}/>:<><Truck size={15}/> Calcular frete</>}</Btn>}
       {!shippingSkipped&&profileHasSavedAddress&&!editingAddr&&lF&&<div style={{marginTop:10,textAlign:'center',color:'rgba(255,255,255,0.4)',fontSize:13,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><Spin size={14}/> Calculando frete...</div>}
@@ -951,6 +925,33 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
           <Btn variant={saveAddressChoice===false?'secondary':'ghost'} onClick={()=>setSaveAddressChoice(false)} style={{flex:1,padding:'8px 10px',fontSize:12}} sfx="">Não</Btn>
         </div>
       </div>}
+
+      {/* Frete conjunto — aparece automaticamente se houver pedidos anteriores nesta encomenda */}
+      {hasPreviousOrders&&!alreadyPaidShipping&&<div style={{marginTop:14,padding:'12px 14px',borderRadius:12,background:useJointShipping?'rgba(46,229,157,0.06)':'rgba(255,255,255,0.03)',border:'1px solid '+(useJointShipping?'rgba(46,229,157,0.2)':'rgba(255,255,255,0.08)')}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
+          <div>
+            <div style={{fontSize:13,fontWeight:700,color:useJointShipping?'#2ee59d':'#fff',marginBottom:2,display:'flex',alignItems:'center',gap:6}}><Truck size={14} style={{flexShrink:0}}/> Envio conjunto</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',lineHeight:1.4}}>Você já tem pedidos nesta encomenda. Envie tudo junto sem custo de frete adicional.</div>
+          </div>
+          <button onClick={()=>{SFX.toggle();setUseJointShipping(v=>!v);}} style={{flexShrink:0,width:44,height:26,borderRadius:13,border:'none',background:useJointShipping?'#2ee59d':'rgba(255,255,255,0.1)',cursor:'pointer',position:'relative',transition:'background .2s'}}>
+            <div style={{position:'absolute',top:3,left:useJointShipping?22:4,width:20,height:20,borderRadius:10,background:'#fff',transition:'left .2s',boxShadow:'0 1px 4px rgba(0,0,0,0.3)'}}/>
+          </button>
+        </div>
+      </div>}
+
+      {/* Já paguei o frete — exceção: aparece após o fluxo principal de frete */}
+      <div style={{marginTop:14,padding:'12px 14px',borderRadius:12,background:alreadyPaidShipping?'rgba(46,229,157,0.06)':'rgba(255,255,255,0.03)',border:'1px solid '+(alreadyPaidShipping?'rgba(46,229,157,0.2)':'rgba(255,255,255,0.08)')}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
+          <div>
+            <div style={{fontSize:13,fontWeight:700,color:alreadyPaidShipping?'#2ee59d':'rgba(255,255,255,0.5)',marginBottom:2,display:'flex',alignItems:'center',gap:6}}><CheckCircle size={14} style={{flexShrink:0,color:alreadyPaidShipping?'#2ee59d':'rgba(255,255,255,0.3)'}}/> Já paguei o frete</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',lineHeight:1.4}}>Marque se o frete deste envio já foi pago em um pedido anterior.</div>
+          </div>
+          <button onClick={()=>{SFX.toggle();setAlreadyPaidShipping(v=>!v);if(useJointShipping)setUseJointShipping(false);}} style={{flexShrink:0,width:44,height:26,borderRadius:13,border:'none',background:alreadyPaidShipping?'#2ee59d':'rgba(255,255,255,0.1)',cursor:'pointer',position:'relative',transition:'background .2s'}}>
+            <div style={{position:'absolute',top:3,left:alreadyPaidShipping?22:4,width:20,height:20,borderRadius:10,background:'#fff',transition:'left .2s',boxShadow:'0 1px 4px rgba(0,0,0,0.3)'}}/>
+          </button>
+        </div>
+      </div>
+
       <Btn full variant="ghost" onClick={()=>setStep('review')} style={{marginTop:10}} sfx="nav"><ChevronLeft size={14}/> Voltar para revisão</Btn>
     </Card>}
 
