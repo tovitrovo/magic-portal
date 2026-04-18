@@ -297,6 +297,34 @@ const EmptyState=({icon:Icon,title,sub})=><div style={{textAlign:'center',paddin
 const ManaOrb=({mana,selected,onClick,size=44})=>{const m=MANA_COLORS.find(c=>c.key===mana);return <button onClick={()=>{SFX.toggle();onClick&&onClick();}} style={{width:size,height:size,borderRadius:size,background:selected?m.color+'28':'rgba(255,255,255,0.03)',border:'2.5px solid '+(selected?m.color:'rgba(255,255,255,0.08)'),display:'grid',placeItems:'center',cursor:'pointer',fontSize:size*.4,transition:'all .2s',boxShadow:selected?'0 0 14px '+m.color+'35':'none'}}>{m.emoji}</button>;};
 const GuildBadge=({guild,size=22})=>{const t=GT[guild];if(!t)return null;return <div style={{width:size,height:size,borderRadius:size,background:'linear-gradient(135deg,'+t.primary+','+t.secondary+')',boxShadow:'0 0 '+size*.5+'px '+t.glow,flexShrink:0}}/>;};
 const Spin=({size=18,color})=><Loader size={size} style={{color:color||'var(--gp)',animation:'spin 1s linear infinite'}}/>;
+const CardImageModal=({card,onClose})=>{
+  const [imgLoad,setImgLoad]=useState(true);const [imgErr,setImgErr]=useState(false);
+  useEffect(()=>{const h=e=>{if(e.key==='Escape')onClose();};document.addEventListener('keydown',h);return()=>document.removeEventListener('keydown',h);},[onClose]);
+  if(!card)return null;
+  return(
+    <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:300,background:'rgba(0,0,0,0.78)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',padding:'20px',boxSizing:'border-box'}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:'linear-gradient(180deg,rgba(28,28,48,0.99)0%,rgba(12,12,22,0.99)100%)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:20,padding:20,width:'100%',maxWidth:320,display:'flex',flexDirection:'column',gap:14,boxShadow:'0 24px 64px rgba(0,0,0,0.7)'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
+          <div style={{minWidth:0}}>
+            <div style={{fontWeight:700,fontSize:15,color:'#e9edf7',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{card.name}</div>
+            {card.type&&<div style={{fontSize:11,color:TC[card.type]||'rgba(255,255,255,0.4)',fontWeight:700,marginTop:3}}>{card.type}</div>}
+          </div>
+          <button onClick={onClose} style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:10,padding:'6px 8px',cursor:'pointer',color:'rgba(255,255,255,0.6)',display:'flex',alignItems:'center',flexShrink:0}}><X size={16}/></button>
+        </div>
+        <div style={{position:'relative',display:'flex',justifyContent:'center',alignItems:'center',minHeight:180,background:'rgba(0,0,0,0.25)',borderRadius:12,overflow:'hidden'}}>
+          {imgLoad&&!imgErr&&<div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center'}}><Spin size={28}/></div>}
+          {imgErr?(
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,padding:'32px 20px',color:'rgba(255,255,255,0.3)'}}>
+              <AlertTriangle size={28}/><span style={{fontSize:12,textAlign:'center'}}>Imagem indisponível</span>
+            </div>
+          ):(
+            <img src={card.image_url} alt={card.name} onLoad={()=>setImgLoad(false)} onError={()=>{setImgLoad(false);setImgErr(true);}} style={{display:imgLoad?'none':'block',maxWidth:'100%',maxHeight:'60vh',borderRadius:10,objectFit:'contain'}}/>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 const Toast=({msg,type='info',onClose})=>{const bg=type==='error'?'rgba(217,68,82,0.15)':type==='success'?'rgba(46,229,157,0.15)':'rgba(74,144,217,0.15)';const c=type==='error'?'#ff6b7a':type==='success'?'#2ee59d':'#4a90d9';return <div style={{position:'fixed',top:16,left:'50%',transform:'translateX(-50%)',zIndex:200,padding:'10px 18px',borderRadius:14,background:bg,border:'1px solid '+c+'30',color:c,fontSize:13,fontWeight:600,display:'flex',alignItems:'center',gap:8,backdropFilter:'blur(12px)',maxWidth:'90%'}}>{type==='error'?<AlertTriangle size={15}/>:<Check size={15}/>}{msg}<button onClick={onClose} style={{background:'none',border:'none',color:c,cursor:'pointer',padding:2}}><X size={14}/></button></div>;};
 
 const AddressForm=({address,setAddress})=>{
@@ -544,7 +572,7 @@ function HomePage({pool,minCards,pricing,closeDate,theme,nav,wantsCount,cartCoun
 function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutStep,onTutNext}){
   const [search,setSearch]=useState('');const [typeF,setTypeF]=useState('Todos');const [tcgFilter,setTcgFilter]=useState('Magic');const [cards,setCards]=useState([]);const [total,setTotal]=useState(0);
   const [page,setPage]=useState(0);const [loading,setLoading]=useState(false);const [addQty,setAddQty]=useState({});
-  const [flyAnim,setFlyAnim]=useState(false);const PAGE_SIZE=20;
+  const [flyAnim,setFlyAnim]=useState(false);const [previewCard,setPreviewCard]=useState(null);const PAGE_SIZE=20;
   const currentTcg=TCG_LIST.find(t=>t.key===tcgFilter)||TCG_LIST[0];
   const firstAddBtnRef=useRef(null);const [handPos,setHandPos]=useState(null);
   useEffect(()=>{
@@ -604,6 +632,7 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutSte
                   {existsInWants&&<Tag color="#2ee59d" style={{fontSize:9,padding:'1px 6px'}}>{existsInWants.quantity} na wants</Tag>}
                 </div>
               </div>
+              {c.image_url&&<button onClick={()=>setPreviewCard({name:c.name,type:c.type,image_url:c.image_url})} title="Ver imagem" style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'8px 10px',cursor:'pointer',color:'rgba(255,255,255,0.45)',display:'flex',alignItems:'center'}}><Eye size={14}/></button>}
               <button ref={i===0?firstAddBtnRef:null} id={i===0?'tut-add-btn':undefined} onClick={()=>add(c,1)} style={{background:existsInWants?'rgba(46,229,157,0.15)':'var(--gp)',border:'none',borderRadius:10,padding:'8px 14px',cursor:'pointer',color:existsInWants?'#2ee59d':'#fff',display:'flex',alignItems:'center',gap:4,fontSize:12,fontWeight:600,fontFamily:"'Outfit',sans-serif"}}><Plus size={14}/></button>
             </div>
           </Card>);
@@ -617,6 +646,7 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutSte
       <Btn variant="secondary" disabled={(page+1)*PAGE_SIZE>=total} onClick={()=>setPage(p=>p+1)} style={{padding:'8px 14px',fontSize:12}} sfx="nav"><ChevronRight size={14}/></Btn>
     </div>}
     {tutStep===2&&handPos&&<div style={{position:'fixed',top:handPos.top,left:handPos.left,zIndex:200,pointerEvents:'none',fontSize:22,animation:'tutHandBounce 0.8s ease-in-out infinite',transform:'translateX(-50%)'}}>👆</div>}
+    <CardImageModal card={previewCard} onClose={()=>setPreviewCard(null)}/>
   </div>);
 }
 
@@ -625,7 +655,7 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutSte
 // ══════════════════════════════════════════════════════
 
 function WantsPage({wants,onMoveToCart,onMoveAllToCart,onRemoveWant,onUpdateWantQty,cartCount,bonusAvail,theme}){
-  const [searchW,setSearchW]=useState('');
+  const [searchW,setSearchW]=useState('');const [previewCard,setPreviewCard]=useState(null);
   const bonus=bonusAvail||0;
   const wantsUnits=wants.reduce((s,w)=>s+w.quantity,0);
   const fW=searchW?wants.filter(w=>w.card_name.toLowerCase().includes(searchW.toLowerCase())):wants;
@@ -659,6 +689,7 @@ function WantsPage({wants,onMoveToCart,onMoveAllToCart,onRemoveWant,onUpdateWant
                 <button onClick={()=>onUpdateWantQty(w.id,w.quantity+1)} style={{background:'none',border:'none',color:'#fff',padding:'6px 9px',cursor:'pointer'}}><Plus size={12}/></button>
               </div>
               <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                {w.card_image_url&&<button onClick={()=>setPreviewCard({name:w.card_name,type:w.card_type,image_url:w.card_image_url})} title="Ver imagem" style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'8px 10px',cursor:'pointer',color:'rgba(255,255,255,0.45)',display:'flex',alignItems:'center'}}><Eye size={14}/></button>}
                 <button onClick={()=>onMoveToCart(w)} style={{background:theme.primary+'18',border:'1px solid '+theme.primary+'30',borderRadius:10,padding:'8px 10px',cursor:'pointer',color:theme.primary,display:'flex',alignItems:'center'}}><ShoppingCart size={14}/></button>
                 <button onClick={()=>onRemoveWant(w.id)} style={{background:'rgba(217,68,82,0.08)',border:'1px solid rgba(217,68,82,0.15)',borderRadius:10,padding:'8px 10px',cursor:'pointer',color:'#ff6b7a',display:'flex',alignItems:'center'}}><Trash2 size={14}/></button>
               </div>
@@ -668,12 +699,14 @@ function WantsPage({wants,onMoveToCart,onMoveAllToCart,onRemoveWant,onUpdateWant
       </div>
     </>}
     {wants.length===0&&<EmptyState icon={ScrollText} title="Wants vazia" sub="Adicione cartas pelo catálogo"/>}
+    <CardImageModal card={previewCard} onClose={()=>setPreviewCard(null)}/>
   </div>);
 }
 
 const MIN_ORDER_CARDS = 15;
 
 function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onMoveToWants,onRemoveFromCart,onUpdateCartQty,token,orderId,campaignId,onOrderDone,toast,profile,previousPaidBatches}){
+  const [previewCard,setPreviewCard]=useState(null);
   const bonus=bonusAvail||0;
   let bL=bonus;
   const bd=cartItems.map(c=>{const bq=Math.min(c.quantity,bL);bL-=bq;return{...c,bonusQty:bq,paidQty:c.quantity-bq};});
@@ -715,6 +748,7 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onMoveT
                 <button onClick={()=>onUpdateCartQty(c.id,c.quantity+1)} style={{background:'none',border:'none',color:'#fff',padding:'6px 9px',cursor:'pointer'}}><Plus size={12}/></button>
               </div>
               <div style={{display:'flex',gap:6}}>
+                {c.card_image_url&&<button onClick={()=>setPreviewCard({name:c.card_name,type:c.card_type,image_url:c.card_image_url})} title="Ver imagem" style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'8px 10px',cursor:'pointer',color:'rgba(255,255,255,0.45)',display:'flex',alignItems:'center'}}><Eye size={14}/></button>}
                 <button onClick={()=>onMoveToWants(c)} title="Voltar para wants" style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'8px 10px',cursor:'pointer',color:'rgba(255,255,255,0.5)',display:'flex',alignItems:'center'}}><ArrowLeft size={14}/></button>
                 <button onClick={()=>onRemoveFromCart(c.id)} style={{background:'rgba(217,68,82,0.08)',border:'1px solid rgba(217,68,82,0.15)',borderRadius:10,padding:'8px 10px',cursor:'pointer',color:'#ff6b7a',display:'flex',alignItems:'center'}}><Trash2 size={14}/></button>
               </div>
@@ -730,6 +764,7 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onMoveT
     </>}
     {cartItems.length===0&&<><EmptyState icon={ShoppingCart} title="Carrinho vazio" sub="Mova cartas da sua lista de wants"/><div style={{textAlign:'center',marginTop:8}}><Btn variant="secondary" onClick={()=>nav('wants')} sfx="nav"><ScrollText size={15}/> Ir para Wants</Btn></div></>}
     {cartItems.length>0&&<Btn full variant="ghost" onClick={()=>nav('wants')} sfx="nav" style={{marginTop:4}}><ArrowLeft size={14}/> Voltar para Wants</Btn>}
+    <CardImageModal card={previewCard} onClose={()=>setPreviewCard(null)}/>
   </div>);
 }
 function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme,nav,profile,token,orderId,campaignId,campaignStatus,onOrderDone,toast,previousPaidBatches=[],onMoveToWants,onRemoveFromCart,onUpdateCartQty}){
@@ -2317,15 +2352,15 @@ export default function MagicPortal(){
           let items;
           const itemsFilter = `order_id=eq.${ord.id}&batch_id=is.null&is_bonus=not.eq.true`;
           try {
-            items = await sbGet('order_items', `${itemsFilter}&select=id,card_id,quantity,in_cart,cards(name,type)`, tkn);
+            items = await sbGet('order_items', `${itemsFilter}&select=id,card_id,quantity,in_cart,cards(name,type,image_url)`, tkn);
           } catch(eCart) {
             // Fallback if in_cart column does not exist in this DB yet
             console.warn('[loadAppData] order_items with in_cart failed, retrying without:', eCart);
-            items = (await sbGet('order_items', `${itemsFilter}&select=id,card_id,quantity,cards(name,type)`, tkn)).map(i=>({...i,in_cart:false}));
+            items = (await sbGet('order_items', `${itemsFilter}&select=id,card_id,quantity,cards(name,type,image_url)`, tkn)).map(i=>({...i,in_cart:false}));
           }
           const mapped = (items || [])
             .filter(i => i && i.id && i.card_id) // skip any invalid/incomplete rows
-            .map(i=>({...i, card_name:i.cards?.name||'?', card_type:i.cards?.type||'Normal'}));
+            .map(i=>({...i, card_name:i.cards?.name||'?', card_type:i.cards?.type||'Normal', card_image_url:i.cards?.image_url||null}));
           setWants(mapped.filter(i=>!i.in_cart));
           setCartItems(mapped.filter(i=>i.in_cart));
         } catch(e) { console.warn('[loadAppData] Failed to load order items:', e); }
@@ -2430,7 +2465,7 @@ export default function MagicPortal(){
         const created = await sbPost('order_items', { order_id: orderId, card_id: card.id, quantity: qty, is_bonus: false, unit_price_brl: 0 }, token);
         const item = Array.isArray(created) ? created[0] : created;
         if (item?.id) {
-          setWants(prev => [{ ...item, card_name: card.name, card_type: card.type || 'Normal' }, ...prev]);
+          setWants(prev => [{ ...item, card_name: card.name, card_type: card.type || 'Normal', card_image_url: card.image_url || null }, ...prev]);
         }
       }
       toast(qty+'x '+card.name+' adicionada!','success');
