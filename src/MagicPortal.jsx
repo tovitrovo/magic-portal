@@ -299,7 +299,7 @@ const GuildBadge=({guild,size=22})=>{const t=GT[guild];if(!t)return null;return 
 const Spin=({size=18,color})=><Loader size={size} style={{color:color||'var(--gp)',animation:'spin 1s linear infinite'}}/>;
 const CardImageModal=({card,onClose})=>{
   const [imgLoad,setImgLoad]=useState(true);const [imgErr,setImgErr]=useState(false);
-  useEffect(()=>{const h=e=>{if(e.key==='Escape')onClose();};document.addEventListener('keydown',h);return()=>document.removeEventListener('keydown',h);},[onClose]);
+  useEffect(()=>{if(!card)return;const h=e=>{if(e.key==='Escape')onClose();};document.addEventListener('keydown',h);return()=>document.removeEventListener('keydown',h);},[onClose,card]);
   if(!card)return null;
   return(
     <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:300,background:'rgba(0,0,0,0.78)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',padding:'20px',boxSizing:'border-box'}}>
