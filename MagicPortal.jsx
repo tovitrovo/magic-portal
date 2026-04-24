@@ -14,13 +14,13 @@ function sbH(token) {
 
 async function sbGet(table, query = '', token) {
   const r = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, { headers: sbH(token) });
-  if (!r.ok) { const t = await r.text(); throw new Error(`GET ${table}: ${t}`); }
+  if (!r.ok) { const t = await r.text(); if (r.status === 401 || r.status === 403) throw new AuthError(`GET ${table}: ${t}`); throw new Error(`GET ${table}: ${t}`); }
   return r.json();
 }
 
 async function sbPost(table, data, token) {
   const r = await fetch(`${SB_URL}/rest/v1/${table}`, { method: 'POST', headers: sbH(token), body: JSON.stringify(data) });
-  if (!r.ok) { const t = await r.text(); throw new Error(`POST ${table}: ${t}`); }
+  if (!r.ok) { const t = await r.text(); if (r.status === 401 || r.status === 403) throw new AuthError(`POST ${table}: ${t}`); throw new Error(`POST ${table}: ${t}`); }
   return r.json();
 }
 
@@ -33,14 +33,27 @@ async function sbUpsert(table, data, token) {
 
 async function sbPatch(table, query, data, token) {
   const r = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, { method: 'PATCH', headers: sbH(token), body: JSON.stringify(data) });
-  if (!r.ok) { const t = await r.text(); throw new Error(`PATCH ${table}: ${t}`); }
+  if (!r.ok) { const t = await r.text(); if (r.status === 401 || r.status === 403) throw new AuthError(`PATCH ${table}: ${t}`); throw new Error(`PATCH ${table}: ${t}`); }
   return r.json();
 }
 
 async function sbDelete(table, query, token) {
   const r = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, { method: 'DELETE', headers: sbH(token) });
-  if (!r.ok) { const t = await r.text(); throw new Error(`DEL ${table}: ${t}`); }
+  if (!r.ok) { const t = await r.text(); if (r.status === 401 || r.status === 403) throw new AuthError(`DEL ${table}: ${t}`); throw new Error(`DEL ${table}: ${t}`); }
   return r.status === 204 ? [] : r.json();
+}
+
+class AuthError extends Error {
+  constructor(msg) { super(msg); this.name = 'AuthError'; }
+}
+
+function isTokenExpired(token) {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return payload.exp * 1000 < Date.now();
+  } catch(e) { return true; }
 }
 
 async function sbAuthSignUp(email, password) {
@@ -537,7 +550,7 @@ function AddressDisplay({address,onEdit}){
 // CHECKOUT
 // ══════════════════════════════════════════════════════
 
-function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token,orderId,campaignId,onOrderDone,toast}){
+function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token,orderId,campaignId,onOrderDone,toast,onSessionExpired}){
   const [freteOptions,setFreteOptions]=useState([]);const [selectedFrete,setSelectedFrete]=useState(null);
   const [lF,setLF]=useState(false);const [submitting,setSubmitting]=useState(false);
   const [addr,setAddr]=useState({cep:profile?.cep||'',rua:profile?.rua||'',numero:profile?.numero||'',complemento:profile?.complemento||'',bairro:profile?.bairro||'',cidade:profile?.cidade||'',uf:profile?.uf||''});
@@ -598,7 +611,7 @@ function CheckoutPage({wants,cartIds,priceBRL,bonusAvail,theme,nav,profile,token
         else if(mpData.error){console.error('MP:',mpData.error);toast('Erro MP: '+mpData.error,'error');}
         nav('success');
       } else {nav('success');}
-    }catch(e){console.error(e);toast('Erro ao finalizar: '+e.message,'error');}
+    }catch(e){console.error(e);if(e instanceof AuthError){toast('Sessão expirada. Faça login novamente.','error');if(onSessionExpired)onSessionExpired();return;}toast('Erro ao finalizar: '+e.message,'error');}
     setSubmitting(false);
   }
 
@@ -1013,7 +1026,7 @@ function OnboardingPage({onComplete,theme}){
 
 const CAMPAIGN_STATUSES=['DRAFT','ACTIVE','LOCKED','ORDERING','ORDERED','RECEIVED','PACKING','SHIPPING','DONE','CANCELLED'];
 
-function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:campProp,theme,token,nav,onReload}){
+function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:campProp,theme,token,nav,onReload,onSessionExpired}){
   const [tab,setTab]=useState('orders');const [orders,setOrders]=useState([]);const [loading,setLoading]=useState(true);
   const [searchOrd,setSearchOrd]=useState('');const [expandedOrd,setExpandedOrd]=useState(null);
   // Editable copies
@@ -1024,12 +1037,14 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
   useEffect(()=>{fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL').then(r=>r.json()).then(d=>{if(d.USDBRL)setLiveUsd(parseFloat(d.USDBRL.bid));}).catch(()=>{});},[]);
   const tier=tiersProp.length>0?getTier(pool,tiersProp):null;
 
+  function handleAdminAuthError(e){ if(e instanceof AuthError){if(onSessionExpired)onSessionExpired();return true;}return false; }
+
   useEffect(()=>{
     (async()=>{
       try {
         const data = await sbGet('orders', `select=id,user_id,status,qty_paid,qty_bonus,created_at,profiles(name,whatsapp),order_batches(id,status,total_locked,payment_method,confirmed_at,qty_in_batch)&campaign_id=eq.${campProp?.id}&order=created_at.desc`, token);
         setOrders(data);
-      } catch(e) { console.error(e); }
+      } catch(e) { if(!handleAdminAuthError(e))console.error(e); }
       setLoading(false);
     })();
   },[token,campProp?.id]);
@@ -1039,7 +1054,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
       await sbPatch('order_batches','id=eq.'+(batchId),{status:'CONFIRMED',confirmed_at:new Date().toISOString()},token);
       setOrders(prev=>prev.map(o=>({...o,order_batches:o.order_batches?.map(b=>b.id===batchId?{...b,status:'CONFIRMED'}:b)})));
       SFX.success();
-    }catch(e){console.error(e);}
+    }catch(e){if(!handleAdminAuthError(e))console.error(e);}
   }
 
   async function saveTiers(){
@@ -1049,7 +1064,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
         await sbPatch('tiers','id=eq.'+(t.id),{usd_per_card:t.usd,label:t.label,min_qty:t.min,max_qty:t.max>999999?null:t.max,quest_text:t.quest},token);
       }
       SFX.success();if(onReload)onReload();
-    }catch(e){console.error(e);}
+    }catch(e){if(!handleAdminAuthError(e))console.error(e);}
     setSaving(false);
   }
 
@@ -1060,7 +1075,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
       delete rest.is_active;delete rest.created_at;delete rest.updated_at;
       await sbPatch('pricing_config','id=eq.'+(id),rest,token);
       SFX.success();if(onReload)onReload();
-    }catch(e){console.error(e);}
+    }catch(e){if(!handleAdminAuthError(e))console.error(e);}
     setSaving(false);
   }
 
@@ -1069,7 +1084,7 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
     try{
       await sbPatch('campaigns','id=eq.'+(editCamp.id),{name:editCamp.name,status:editCamp.status,close_at:editCamp.close_at,max_cards:editCamp.max_cards},token);
       SFX.success();if(onReload)onReload();
-    }catch(e){console.error(e);}
+    }catch(e){if(!handleAdminAuthError(e))console.error(e);}
     setSaving(false);
   }
 
@@ -1119,9 +1134,9 @@ function AdminPage({pool,tiers:tiersProp,priceBRL,pricing:pricingProp,campaign:c
               </div>
               {isPending&&<div style={{display:'flex',gap:4,marginTop:6}}>
                 <Btn variant="success" onClick={(e)=>{e.stopPropagation();confirmBatch(b.id);}} style={{flex:2,padding:'6px 10px',fontSize:10}} sfx=""><Check size={11}/> Confirmar</Btn>
-                <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();await sbPatch('order_batches','id=eq.'+(b.id),{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}} style={{flex:1,padding:'6px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar</Btn>
+                <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();try{await sbPatch('order_batches','id=eq.'+(b.id),{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}catch(e){if(!handleAdminAuthError(e))console.error(e);}}} style={{flex:1,padding:'6px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar</Btn>
               </div>}
-              {b.status==='CONFIRMED'&&<Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(confirm('Cancelar pedido pago? Reembolso deve ser feito no Mercado Pago.')){await sbPatch('order_batches','id=eq.'+(b.id),{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}}} style={{marginTop:6,padding:'5px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar (pago)</Btn>}
+              {b.status==='CONFIRMED'&&<Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(confirm('Cancelar pedido pago? Reembolso deve ser feito no Mercado Pago.')){try{await sbPatch('order_batches','id=eq.'+(b.id),{status:'CANCELLED'},token);if(onReload)onReload();SFX.click();}catch(e){if(!handleAdminAuthError(e))console.error(e);}}}} style={{marginTop:6,padding:'5px 10px',fontSize:10}} sfx=""><X size={11}/> Cancelar (pago)</Btn>}
             </div>
           );})}
           {o.profiles?.whatsapp&&<a href={'https://wa.me/55'+o.profiles.whatsapp} target="_blank" rel="noopener noreferrer" style={{display:'inline-flex',alignItems:'center',gap:4,marginTop:6,fontSize:11,color:'#25d366',textDecoration:'none'}}><MessageCircle size={12}/> WhatsApp</a>}
@@ -1215,7 +1230,23 @@ export default function MagicPortal(){
 
   // Auto-load on mount if session exists
   const didAutoLoad=useRef(false);
-  useEffect(()=>{if(session&&!profile&&!didAutoLoad.current){didAutoLoad.current=true;loadAppData(session.access_token,session.user.id).catch(()=>{setSession(null);});}},[session,profile]);
+  useEffect(()=>{
+    if(session&&!profile&&!didAutoLoad.current){
+      didAutoLoad.current=true;
+      if(isTokenExpired(session.access_token)){toast('Sessão expirada. Faça login novamente.','error');handleLogout();return;}
+      loadAppData(session.access_token,session.user.id).catch(()=>{handleLogout();});
+    }
+  },[session,profile]);
+
+  // Detect expired token when user returns to the tab after inactivity
+  useEffect(()=>{
+    if(!session)return;
+    function onVisible(){
+      if(document.visibilityState==='visible'&&isTokenExpired(session.access_token)){toast('Sessão expirada. Faça login novamente.','error');handleLogout();}
+    }
+    document.addEventListener('visibilitychange',onVisible);
+    return()=>document.removeEventListener('visibilitychange',onVisible);
+  },[session]);
 
   // Data state
   const [campaign,setCampaign]=useState(null);
@@ -1323,7 +1354,7 @@ export default function MagicPortal(){
       }
     } catch(e) {
       console.error('loadAppData', e);
-      if (e.message && (e.message.includes('JWT') || e.message.includes('401') || e.message.includes('token'))) {
+      if (e instanceof AuthError || (e.message && (e.message.includes('JWT') || e.message.includes('401') || e.message.includes('token')))) {
         toast('Sessão expirada. Faça login novamente.', 'error');
         handleLogout();
         return;
@@ -1367,10 +1398,15 @@ export default function MagicPortal(){
   // ─── Save profile ─────────────────────────────────
   async function handleSaveProfile(data) {
     if (!token || !profile) return;
-    await sbPatch('profiles', 'id=eq.'+(profile.id), data, token);
-    setProfile(p => ({ ...p, ...data }));
-    SFX.success();
-    toast('Perfil salvo!', 'success');
+    try {
+      await sbPatch('profiles', 'id=eq.'+(profile.id), data, token);
+      setProfile(p => ({ ...p, ...data }));
+      SFX.success();
+      toast('Perfil salvo!', 'success');
+    } catch(e) {
+      if (e instanceof AuthError) { toast('Sessão expirada. Faça login novamente.', 'error'); handleLogout(); return; }
+      toast('Erro ao salvar perfil', 'error');
+    }
   }
 
   // ─── Add want ─────────────────────────────────────
@@ -1389,6 +1425,7 @@ export default function MagicPortal(){
       toast(qty+'x '+card.name+' adicionada!','success');
     } catch(e) {
       console.error('addWant',e);
+      if (e instanceof AuthError) { toast('Sessão expirada. Faça login novamente.', 'error'); handleLogout(); return; }
       toast('Erro ao adicionar: '+e.message,'error');
     }
   }
@@ -1396,18 +1433,28 @@ export default function MagicPortal(){
   // ─── Remove want ──────────────────────────────────
   async function handleRemoveWant(itemId) {
     if (!token) return;
-    await sbDelete('order_items', 'id=eq.'+(itemId), token);
-    setWants(prev => prev.filter(w => w.id !== itemId));
-    setCartIds(prev => prev.filter(x => x !== itemId));
-    SFX.click();
+    try {
+      await sbDelete('order_items', 'id=eq.'+(itemId), token);
+      setWants(prev => prev.filter(w => w.id !== itemId));
+      setCartIds(prev => prev.filter(x => x !== itemId));
+      SFX.click();
+    } catch(e) {
+      if (e instanceof AuthError) { toast('Sessão expirada. Faça login novamente.', 'error'); handleLogout(); return; }
+      toast('Erro ao remover carta', 'error');
+    }
   }
 
   // ─── Update want qty ─────────────────────────────
   async function handleUpdateWantQty(itemId, newQty) {
     if (!token) return;
     if (newQty <= 0) { handleRemoveWant(itemId); return; }
-    await sbPatch('order_items', 'id=eq.'+(itemId), { quantity: newQty }, token);
-    setWants(prev => prev.map(w => w.id === itemId ? { ...w, quantity: newQty } : w));
+    try {
+      await sbPatch('order_items', 'id=eq.'+(itemId), { quantity: newQty }, token);
+      setWants(prev => prev.map(w => w.id === itemId ? { ...w, quantity: newQty } : w));
+    } catch(e) {
+      if (e instanceof AuthError) { toast('Sessão expirada. Faça login novamente.', 'error'); handleLogout(); return; }
+      toast('Erro ao atualizar quantidade', 'error');
+    }
   }
 
   // ─── Order done ───────────────────────────────────
@@ -1455,7 +1502,7 @@ export default function MagicPortal(){
     {session && !recoveryToken && !profile && !appLoading && <div style={{ padding: '60px 20px', textAlign: 'center' }}><Spin size={32} /><div style={{ marginTop: 12, fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>Carregando perfil...</div></div>}
 
     {/* Logged in */}
-    {session && !recoveryToken && <>
+    {session && !recoveryToken && (profile || appLoading) && <>
       {/* Loading overlay */}
       {appLoading && <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(8,8,15,0.92)', display: 'grid', placeItems: 'center' }}>
         <div style={{ textAlign: 'center' }}><Spin size={36} /><div style={{ marginTop: 12, fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>Carregando dados...</div></div>
@@ -1495,10 +1542,10 @@ export default function MagicPortal(){
         </div>)}
         {page === 'catalog' && <CatalogPage token={token} wants={wants} onAddWant={handleAddWant} priceBRL={priceBRL} theme={theme} />}
         {page === 'wants' && <WantsPage wants={wants} cartIds={cartIds} setCartIds={setCartIds} onRemoveWant={handleRemoveWant} onUpdateWantQty={handleUpdateWantQty} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} />}
-        {page === 'checkout' && <CheckoutPage wants={wants} cartIds={cartIds} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} />}
+        {page === 'checkout' && <CheckoutPage wants={wants} cartIds={cartIds} priceBRL={priceBRL} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} onSessionExpired={handleLogout} />}
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
         {page === 'profile' && <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} />}
-        {page === 'admin' && <AdminPage pool={pool} tiers={computedTiers} priceBRL={priceBRL} pricing={pricing} campaign={campaign} theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} />}
+        {page === 'admin' && <AdminPage pool={pool} tiers={computedTiers} priceBRL={priceBRL} pricing={pricing} campaign={campaign} theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} onSessionExpired={()=>{toast('Sessão expirada. Faça login novamente.','error');handleLogout();}} />}
         {page === 'onboarding' && <OnboardingPage onComplete={handleOnboardingComplete} theme={theme} />}
       </div>
     </>}
