@@ -48,9 +48,26 @@ function sbH(token) {
   return { 'apikey': SB_KEY, 'Authorization': `Bearer ${token || SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
 }
 
+function isAuthErrorMessage(msg = '') {
+  const lower = String(msg || '').toLowerCase();
+  return lower.includes('jwt') || lower.includes('token') || lower.includes('401') || lower.includes('unauthorized') || lower.includes('invalid claim');
+}
+
+async function sbReadError(response) {
+  const raw = await response.text();
+  const error = new Error(raw || `HTTP ${response.status}`);
+  error.status = response.status;
+  error.isAuth = response.status === 401 || response.status === 403 || isAuthErrorMessage(raw);
+  return error;
+}
+
 async function sbGet(table, query = '', token) {
   const r = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, { headers: sbH(token) });
-  if (!r.ok) { const t = await r.text(); throw new Error(`GET ${table}: ${t}`); }
+  if (!r.ok) {
+    const err = await sbReadError(r);
+    err.message = `GET ${table}: ${err.message}`;
+    throw err;
+  }
   return r.json();
 }
 
@@ -89,7 +106,11 @@ async function loadOrderCards(orderLike, token){
 
 async function sbPost(table, data, token) {
   const r = await fetch(`${SB_URL}/rest/v1/${table}`, { method: 'POST', headers: sbH(token), body: JSON.stringify(data) });
-  if (!r.ok) { const t = await r.text(); throw new Error(`POST ${table}: ${t}`); }
+  if (!r.ok) {
+    const err = await sbReadError(r);
+    err.message = `POST ${table}: ${err.message}`;
+    throw err;
+  }
   return r.json();
 }
 
@@ -102,13 +123,21 @@ async function sbUpsert(table, data, token) {
 
 async function sbPatch(table, query, data, token) {
   const r = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, { method: 'PATCH', headers: sbH(token), body: JSON.stringify(data) });
-  if (!r.ok) { const t = await r.text(); throw new Error(`PATCH ${table}: ${t}`); }
+  if (!r.ok) {
+    const err = await sbReadError(r);
+    err.message = `PATCH ${table}: ${err.message}`;
+    throw err;
+  }
   return r.json();
 }
 
 async function sbDelete(table, query, token) {
   const r = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, { method: 'DELETE', headers: sbH(token) });
-  if (!r.ok) { const t = await r.text(); throw new Error(`DEL ${table}: ${t}`); }
+  if (!r.ok) {
+    const err = await sbReadError(r);
+    err.message = `DEL ${table}: ${err.message}`;
+    throw err;
+  }
   return r.status === 204 ? [] : r.json();
 }
 
@@ -2176,6 +2205,7 @@ export default function MagicPortal(){
 
   // ─── Load data after login ─────────────────────────
   async function loadAppData(tkn, userId) {
+    const isAuthFailure = (err) => Boolean(err?.isAuth || isAuthErrorMessage(err?.message));
     console.log('[loadAppData] start, tkn:', tkn?'ok':'NULL', 'userId:', userId);
     setAppLoading(true);
     try {
@@ -2191,6 +2221,7 @@ export default function MagicPortal(){
         // Fallback mínimo para o UI sempre renderizar
         setProfile(prof || { id: userId, name: '', is_admin: false });
       } catch(eProf) { 
+        if (isAuthFailure(eProf)) throw eProf;
         console.warn('Profile load failed:', eProf);
         setProfile({ id: userId, name: '', is_admin: false });
       }
@@ -2201,7 +2232,10 @@ export default function MagicPortal(){
         const camps = await sbGet('campaigns', `status=not.in.(CANCELLED,DONE)&limit=1&order=created_at.desc`, tkn);
         camp = camps[0] || null;
         setCampaign(camp);
-      } catch(eCamp) { console.warn('Campaign load failed:', eCamp); }
+      } catch(eCamp) {
+        if (isAuthFailure(eCamp)) throw eCamp;
+        console.warn('Campaign load failed:', eCamp);
+      }
 
       // Tiers: removidos do novo modelo — preços são diretos por tipo de carta
 
@@ -2209,7 +2243,10 @@ export default function MagicPortal(){
       try {
         const [pc] = await sbGet('pricing_config', `is_active=eq.true&limit=1`, tkn);
         setPricing(pc);
-      } catch(ePrice) { console.warn('Pricing load failed:', ePrice); }
+      } catch(ePrice) {
+        if (isAuthFailure(ePrice)) throw ePrice;
+        console.warn('Pricing load failed:', ePrice);
+      }
 
       // Order (get or create DRAFT) — works with or without active campaign
       try {
@@ -2335,6 +2372,7 @@ export default function MagicPortal(){
         } catch(e) { console.warn('[loadAppData] Failed to load order items:', e); }
         setCartQtyByItem({});
       } catch(eOrder) {
+        if (isAuthFailure(eOrder)) throw eOrder;
         console.error('[loadAppData] Order block failed — orderId will be null:', eOrder);
       }
 
@@ -2348,18 +2386,24 @@ export default function MagicPortal(){
             const batches = await sbGet('order_batches', `order_id=in.(${ordIds})&select=id,status,total_locked,payment_method,created_at,qty_in_batch,mp_link,brl_unit_price_locked,subtotal_locked,order_id,order_items(quantity,cards(name,type))`, tkn);
             setMyOrders((batches||[]).map(b=>({ ...b, campaignStatus: ordCampStatus[b.order_id] || null, cards: Array.isArray(b.order_items) ? b.order_items.map(i=>({ name:i.cards?.name||'Carta', type:i.cards?.type||'', qty:Number(i.quantity||1) })) : undefined })));
           }
-        } catch(e) { console.warn('Failed to load order batches:', e); }
+        } catch(e) {
+          if (isAuthFailure(e)) throw e;
+          console.warn('Failed to load order batches:', e);
+        }
 
         // Bonus grants (only if active campaign) — tier-bonus API removido, só bônus manuais
         if (camp) {
           try {
             const bg = await sbGet('bonus_grants', `user_id=eq.${userId}&campaign_id=eq.${camp.id}&status=eq.AVAILABLE`, tkn);
             setBonusGrants(bg);
-          } catch(e) { console.warn('Failed to load bonus grants:', e); }
+          } catch(e) {
+            if (isAuthFailure(e)) throw e;
+            console.warn('Failed to load bonus grants:', e);
+          }
         }
     } catch(e) {
       console.error('loadAppData', e);
-      if (e.message && (e.message.includes('JWT') || e.message.includes('401') || e.message.includes('token'))) {
+      if (isAuthFailure(e)) {
         toast('Sessão expirada. Faça login novamente.', 'error');
         setAppLoading(false);
         handleLogout();
