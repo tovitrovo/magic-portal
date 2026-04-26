@@ -27,7 +27,7 @@ async function sbPost(table, data, token) {
 async function sbUpsert(table, data, token) {
   const h = { ...sbH(token), 'Prefer': 'return=representation,resolution=merge-duplicates' };
   const r = await fetch(`${SB_URL}/rest/v1/${table}`, { method: 'POST', headers: h, body: JSON.stringify(data) });
-  if (!r.ok) { const t = await r.text(); throw new Error('Erro ao criar conta. Tente novamente.'); }
+  if (!r.ok) { const t = await r.text(); if (r.status === 401 || r.status === 403) throw new AuthError(`UPSERT ${table}: ${t}`); throw new Error(`UPSERT ${table}: ${t}`); }
   return r.json();
 }
 
