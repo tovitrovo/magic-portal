@@ -80,7 +80,7 @@ export async function decrementPoolOnCancel(sbUrl, sbKey, batchId) {
     const batch = await getBatchInfo(sbUrl, sbKey, batchId);
     if (!batch?.order_id) return;
     // Only decrement if batch was PAID
-    if (batch.status !== "PAID" && batch.status !== "CONFIRMED") return;
+    if (batch.status !== "PAID" && batch.status !== "PAID_CONFIRMED") return;
     const qty = Number(batch.qty_in_batch || 0);
     if (qty <= 0) return;
 
