@@ -1,3 +1,5 @@
+import { syncCampaignPaidCardCount } from './_campaign-count-helper.js';
+
 export async function onRequest(context) {
   const CORS = {
     "Access-Control-Allow-Origin": "*",
@@ -45,11 +47,28 @@ export async function onRequest(context) {
       });
     }
     if (context.request.method === "GET") {
-      // Listar campanhas
+      // Listar campanhas e reconciliar o contador com a mesma fonte da Lista Final
       const url = `${SB_URL}/rest/v1/campaigns?select=*`;
       const res = await fetch(url, { headers });
       const data = await res.json();
-      return new Response(JSON.stringify(data), {
+      if (!res.ok) {
+        return new Response(JSON.stringify(data), {
+          status: res.status, headers: { ...CORS, "Content-Type":"application/json" }
+        });
+      }
+
+      const campaigns = Array.isArray(data) ? data : [];
+      const reconciled = await Promise.all(campaigns.map(async campaign => {
+        try {
+          const paidCardCount = await syncCampaignPaidCardCount(SB_URL, SB_SERVICE_ROLE_KEY, campaign.id);
+          return { ...campaign, pool_qty_confirmed: paidCardCount };
+        } catch (e) {
+          console.error(`campaigns: falha ao reconciliar contador da campanha ${campaign.id}:`, e);
+          return campaign;
+        }
+      }));
+
+      return new Response(JSON.stringify(reconciled), {
         status: 200, headers: { ...CORS, "Content-Type":"application/json" }
       });
     }

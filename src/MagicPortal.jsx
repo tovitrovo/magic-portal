@@ -1677,10 +1677,15 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         if(b.status==='PAID'||b.status==='PAID_CONFIRMED'){paidBatchIds.push(b.id);batchMeta[b.id]={userName:o.profiles?.name||'—',date:b.confirmed_at||b.created_at||o.created_at};}
       });});
       if(paidBatchIds.length===0){setFinalList([]);setListLoading(false);return;}
-      const r=await fetch('/api/admin-batch-items',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchIds:paidBatchIds})});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      const list=(json.items||[]).map(i=>{const m=batchMeta[i.batch_id]||{};return{name:i.cards?.name||'Carta',type:i.cards?.type||'',qty:Number(i.quantity||1),userName:m.userName||'—',date:m.date||''};});
+      const allItems=[];
+      for(let i=0;i<paidBatchIds.length;i+=75){
+        const batchIds=paidBatchIds.slice(i,i+75);
+        const r=await fetch('/api/admin-batch-items',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchIds})});
+        const json=await r.json().catch(()=>({}));
+        if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+        allItems.push(...(json.items||[]));
+      }
+      const list=allItems.map(i=>{const m=batchMeta[i.batch_id]||{};return{name:i.cards?.name||'Carta',type:i.cards?.type||'',qty:Number(i.quantity||1),userName:m.userName||'—',date:m.date||''};});
       list.sort((a,b)=>new Date(a.date)-new Date(b.date));
       setFinalList(list);
     }catch(e){console.error(e);if(toastFn)toastFn('Erro ao gerar lista: '+(e.message||String(e)),'error');}
@@ -2229,8 +2234,13 @@ export default function MagicPortal(){
       // Campaign
       let camp = null;
       try {
-        const camps = await sbGet('campaigns', `status=not.in.(CANCELLED,DONE)&limit=1&order=created_at.desc`, tkn);
-        camp = camps[0] || null;
+        const campRes = await fetch('/api/campaigns', { method: 'GET' });
+        const allCampaigns = await campRes.json().catch(() => []);
+        if (!campRes.ok) throw new Error(allCampaigns?.error || `HTTP ${campRes.status}`);
+        const openCampaigns = (Array.isArray(allCampaigns) ? allCampaigns : [])
+          .filter(c => c.status !== 'CANCELLED' && c.status !== 'DONE')
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        camp = openCampaigns[0] || null;
         setCampaign(camp);
       } catch(eCamp) {
         if (isAuthFailure(eCamp)) throw eCamp;

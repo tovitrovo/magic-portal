@@ -61,32 +61,43 @@ export async function onRequest(context) {
     // Query mínima de fallback (colunas essenciais que sempre existem)
     const safeSelect = "id,created_at,user_id,qty_paid,qty_bonus,status,profiles(name,whatsapp),order_batches(id,status,qty_in_batch,payment_status,confirmed_at,total_locked,shipping_locked,payment_method)";
 
-    const baseParams = `&campaign_id=eq.${encodeURIComponent(campaignId)}&order=created_at.desc&limit=100`;
+    const pageSize = 1000;
+    const baseParams = `&campaign_id=eq.${encodeURIComponent(campaignId)}&order=created_at.desc`;
 
-    let url = `${SB_URL}/rest/v1/orders?select=${encodeURIComponent(fullSelect)}${baseParams}`;
-    console.log('🔍 Query URL:', url);
-
-    let res = await fetch(url, { headers });
-    console.log('🔍 Response status:', res.status);
-
-    // Se a query completa falhar com 400/406 (coluna ou relação inexistente), tentar query mínima
-    if (res.status === 400 || res.status === 406) {
-      const errorText = await res.text().catch(() => '');
-      console.warn(`⚠️ Full query failed (${res.status}), retrying with safe select. Error:`, errorText);
-      url = `${SB_URL}/rest/v1/orders?select=${encodeURIComponent(safeSelect)}${baseParams}`;
-      res = await fetch(url, { headers }); // res is reassigned to a new response
-      console.log('🔍 Fallback response status:', res.status);
+    async function fetchOrdersPaged(selectClause) {
+      const rows = [];
+      for (let offset = 0; ; offset += pageSize) {
+        const url = `${SB_URL}/rest/v1/orders?select=${encodeURIComponent(selectClause)}${baseParams}&limit=${pageSize}&offset=${offset}`;
+        console.log('🔍 Query URL:', url);
+        const res = await fetch(url, { headers });
+        console.log('🔍 Response status:', res.status);
+        if (!res.ok) return { res, rows: null };
+        const page = await res.json().catch(() => []);
+        if (!Array.isArray(page) || page.length === 0) return { res, rows };
+        rows.push(...page);
+        if (page.length < pageSize) return { res, rows };
+      }
     }
 
-    if (!res.ok) {
-      const errorText = await res.text().catch(() => '');
-      console.error('❌ Supabase error:', res.status, errorText);
-      return new Response(JSON.stringify({ error: `Erro do banco: ${res.status}`, details: errorText }), {
+    let result = await fetchOrdersPaged(fullSelect);
+
+    // Se a query completa falhar com 400/406 (coluna ou relação inexistente), tentar query mínima
+    if (result.res.status === 400 || result.res.status === 406) {
+      const errorText = await result.res.text().catch(() => '');
+      console.warn(`⚠️ Full query failed (${result.res.status}), retrying with safe select. Error:`, errorText);
+      result = await fetchOrdersPaged(safeSelect);
+      console.log('🔍 Fallback response status:', result.res.status);
+    }
+
+    if (!result.res.ok) {
+      const errorText = await result.res.text().catch(() => '');
+      console.error('❌ Supabase error:', result.res.status, errorText);
+      return new Response(JSON.stringify({ error: `Erro do banco: ${result.res.status}`, details: errorText }), {
         status: 502, headers: { ...CORS, "Content-Type":"application/json" }
       });
     }
 
-    const data = await res.json().catch(() => []);
+    const data = result.rows || [];
     console.log('✅ Data fetched:', data.length, 'orders');
 
     return new Response(JSON.stringify({
