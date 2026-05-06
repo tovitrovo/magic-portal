@@ -13,6 +13,18 @@ async function getBatchInfo(sbUrl, sbKey, batchId) {
   return Array.isArray(arr) && arr.length ? arr[0] : null;
 }
 
+
+async function getBatchItemQty(sbUrl, sbKey, batchId) {
+  const headers = { apikey: sbKey, Authorization: `Bearer ${sbKey}` };
+  const res = await fetch(
+    `${sbUrl}/rest/v1/order_items?batch_id=eq.${encodeURIComponent(batchId)}&select=quantity`,
+    { headers }
+  );
+  const items = await res.json().catch(() => []);
+  if (!Array.isArray(items)) return 0;
+  return items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+}
+
 async function getCampaignId(sbUrl, sbKey, orderId) {
   const headers = { apikey: sbKey, Authorization: `Bearer ${sbKey}` };
   const res = await fetch(
@@ -58,7 +70,8 @@ export async function incrementPoolOnPaid(sbUrl, sbKey, batchId) {
     if (!batch?.order_id) return;
     // Avoid double-counting: only increment if batch is not already PAID
     if (batch.status === "PAID" || batch.status === "PAID_CONFIRMED") return;
-    const qty = Number(batch.qty_in_batch || 0);
+    const itemQty = await getBatchItemQty(sbUrl, sbKey, batchId);
+    const qty = itemQty > 0 ? itemQty : Number(batch.qty_in_batch || 0);
     if (qty <= 0) return;
 
     const campaignId = await getCampaignId(sbUrl, sbKey, batch.order_id);
@@ -81,7 +94,8 @@ export async function decrementPoolOnCancel(sbUrl, sbKey, batchId) {
     if (!batch?.order_id) return;
     // Only decrement if batch was PAID
     if (batch.status !== "PAID" && batch.status !== "PAID_CONFIRMED") return;
-    const qty = Number(batch.qty_in_batch || 0);
+    const itemQty = await getBatchItemQty(sbUrl, sbKey, batchId);
+    const qty = itemQty > 0 ? itemQty : Number(batch.qty_in_batch || 0);
     if (qty <= 0) return;
 
     const campaignId = await getCampaignId(sbUrl, sbKey, batch.order_id);
