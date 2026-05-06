@@ -820,7 +820,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
       try{d=JSON.parse(text);}catch(pe){toast('Frete retornou resposta inválida','error');setLF(false);return;}
       if(d.error){toast('Erro frete: '+d.error,'error');}
       else if(d.opcoes&&d.opcoes.length>0){
-        const opts=d.opcoes.map(o=>({carrier:o.nome,price:o.preco,deadline_days:o.prazo}));
+        const opts=d.opcoes.map(o=>({carrier:o.nome,service:o.nome,price:o.preco,deadline_days:o.prazo}));
         setFreteOptions(opts);setSelectedFrete(opts[0]);SFX.success();
       } else {
         toast('O MandaBem não retornou opções para este CEP. Tente outro ou entre em contato.','error');
@@ -842,6 +842,8 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
         qty_in_batch:totalQty,
         subtotal_locked:sub,
         shipping_locked:fV,
+        shipping_service:selectedFrete?.service||selectedFrete?.carrier||null,
+        shipping_address:{cep:addr.cep,rua:addr.rua,numero:addr.numero,complemento:addr.complemento,bairro:addr.bairro,cidade:addr.cidade,uf:addr.uf,name:profile?.name||''},
         shipping_already_paid:alreadyPaidShipping,
         total_locked:total,
         payment_method:payViaBonusFlow?'BONUS':'MERCADO_PAGO',
@@ -853,7 +855,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
         batch = Array.isArray(created) ? created[0] : created;
       } catch(eBatch) {
         console.warn('[finalize] batch POST with shipping_already_paid failed (column may not exist), retrying without it:', eBatch);
-        const {shipping_already_paid:_shippingAlreadyPaid,...batchFallback}=batchBaseData;
+        const {shipping_already_paid:_shippingAlreadyPaid,shipping_service:_shippingService,shipping_address:_shippingAddress,...batchFallback}=batchBaseData;
         const created = await sbPost('order_batches', batchFallback, token);
         batch = Array.isArray(created) ? created[0] : created;
       }
@@ -1488,6 +1490,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   const [ordSort,setOrdSort]=useState('date_desc');
   const [expandedOrdBatch,setExpandedOrdBatch]=useState(null);
   const [searchOrders,setSearchOrders]=useState('');
+  const [labelLoading,setLabelLoading]=useState({});
 
   const [finalList,setFinalList]=useState([]);
   const [listLoading,setListLoading]=useState(false);
@@ -1632,6 +1635,23 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       await mpSync(batchId);
       SFX.success();loadOrders();
     }catch(e){console.error('Sync error:',e);}
+  }
+
+
+  async function handleMandaBemLabel(batchId,action='generate',formaEnvio=''){
+    if(action==='generate'&&!String(formaEnvio||'').trim()){if(toastFn)toastFn('Informe o serviço de envio (PAC, SEDEX ou PACMINI)','error');return;}
+    if(action==='generate'&&!confirm('Gerar etiqueta/envio no MandaBem para este pedido?'))return;
+    setLabelLoading(prev=>({...prev,[batchId]:true}));
+    try{
+      const r=await fetch('/api/admin-mandabem-label',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId,action,formaEnvio})});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      SFX.success();
+      if(toastFn)toastFn(action==='refresh'?'Envio atualizado no MandaBem':'Etiqueta gerada no MandaBem','success');
+      await loadOrders();
+      if(onReload)onReload();
+    }catch(e){console.error('MandaBem label error:',e);if(toastFn)toastFn('Erro MandaBem: '+(e.message||String(e)),'error');}
+    setLabelLoading(prev=>({...prev,[batchId]:false}));
   }
 
   // Flat batch list for Orders tab
@@ -1889,6 +1909,8 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         const statusColor=isPaid?'#2ee59d':isCancelled?'#ff6b7a':'#c9a96e';
         const statusLabel=isPaid?'Pago':isCancelled?'Cancelado':'Pendente';
         const mpCode=b.mp_payment_id||b.mp_preference_id||'';
+        const labelBusy=!!labelLoading[b.id];
+        const canMandaBem=isPaid&&!isCancelled&&!b.shipping_already_paid&&ship>0;
 
         return(<Card key={b.id} style={{padding:0,marginBottom:4,borderLeft:'3px solid '+statusColor+'40'}}>
           <div onClick={async()=>{const next=isExp?null:b.id;setExpandedOrdBatch(next);if(next)await loadBatchCards(b.id);}} style={{padding:'10px 14px',cursor:'pointer'}}>
@@ -1925,6 +1947,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
                 <div style={{fontSize:13,fontWeight:700,color:b.shipping_already_paid?'#2ee59d':undefined}}>
                   {b.shipping_already_paid?'Já pago ✓':'R$ '+ship.toFixed(2)}
                 </div>
+                {!b.shipping_already_paid&&b.shipping_service&&<div style={{fontSize:9,color:'rgba(255,255,255,0.28)',marginTop:2}}>{b.shipping_service}</div>}
                 {b.shipping_already_paid&&<div style={{fontSize:9,color:'rgba(46,229,157,0.6)',marginTop:2}}>Cliente informou que já pagou</div>}
               </div>
               <div style={{padding:'8px 10px',borderRadius:10,background:'rgba(0,0,0,0.2)'}}><div style={{fontSize:9,color:'rgba(255,255,255,0.25)',marginBottom:2}}>Total</div><div style={{fontSize:13,fontWeight:800,color:theme.primary}}>R$ {total.toFixed(2)}</div></div>
@@ -1935,6 +1958,18 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
             {mpCode&&<div style={{padding:'6px 10px',borderRadius:8,background:'rgba(0,0,0,0.15)',marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <div><div style={{fontSize:9,color:'rgba(255,255,255,0.25)'}}>Código MP</div><div style={{fontSize:11,fontFamily:'monospace',color:'rgba(255,255,255,0.5)'}}>{mpCode}</div></div>
               <button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(mpCode);SFX.success();}} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,padding:'3px 6px',color:'rgba(255,255,255,0.4)',fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><Copy size={10}/></button>
+            </div>}
+
+            {/* MandaBem Label */}
+            {(b.mandabem_envio_id||b.mandabem_etiqueta||b.mandabem_status)&&<div style={{padding:'8px 10px',borderRadius:8,background:'rgba(46,229,157,0.06)',border:'1px solid rgba(46,229,157,0.14)',marginBottom:8}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
+                <div>
+                  <div style={{fontSize:9,color:'rgba(46,229,157,0.6)',marginBottom:2}}>MandaBem</div>
+                  {b.mandabem_etiqueta&&<div style={{fontSize:12,fontFamily:'monospace',fontWeight:800,color:'#2ee59d'}}>{b.mandabem_etiqueta}</div>}
+                  <div style={{fontSize:10,color:'rgba(255,255,255,0.35)'}}>{b.mandabem_status||'Envio gerado'}{b.mandabem_envio_id&&<span> · ID {b.mandabem_envio_id}</span>}</div>
+                </div>
+                {b.mandabem_etiqueta&&<button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(b.mandabem_etiqueta);SFX.success();}} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,padding:'4px 7px',color:'rgba(255,255,255,0.45)',fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><Copy size={10}/></button>}
+              </div>
             </div>}
 
             {/* Client Contact */}
@@ -1958,6 +1993,8 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
             <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
               {isDraft&&<Btn variant="success" onClick={e=>{e.stopPropagation();markBatchPaid(b.id);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><CheckCircle size={12}/> Marcar Pago</Btn>}
               {b.payment_method==='MERCADO_PAGO'&&!isCancelled&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();syncBatchMP(b.id);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><RefreshCw size={12}/> Sync MP</Btn>}
+              {canMandaBem&&!b.mandabem_envio_id&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleMandaBemLabel(b.id,'generate',b.shipping_service||prompt('Serviço de envio (PAC, SEDEX ou PACMINI):','PAC')||'');}} disabled={labelBusy} style={{padding:'6px 12px',fontSize:11}} sfx="">{labelBusy?<Spin size={12}/>:<><Truck size={12}/> Gerar etiqueta</>}</Btn>}
+              {canMandaBem&&b.mandabem_envio_id&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleMandaBemLabel(b.id,'refresh');}} disabled={labelBusy} style={{padding:'6px 12px',fontSize:11}} sfx="">{labelBusy?<Spin size={12}/>:<><RefreshCw size={12}/> Atualizar envio</>}</Btn>}
               {!isCancelled&&<Btn variant="danger" onClick={e=>{e.stopPropagation();cancelBatch(b.id,isPaid);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><X size={12}/> {isPaid?'Cancelar (reembolso manual)':'Cancelar'}</Btn>}
             </div>
           </div>}
