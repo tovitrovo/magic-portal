@@ -4,6 +4,7 @@ const DEFAULT_MANDABEM_ID = "68245";
 const DEFAULT_MANDABEM_KEY = "$2y$10$yrre6QlN25SlbnYtyNIHSOBA5jDsKe9nRixugJnYCQSmFZOztuS7.";
 const DEFAULT_ORIGIN_CEP = "05410010";
 const SERVICES = new Set(["PAC", "SEDEX", "PACMINI"]);
+const MAX_RAW_DEBUG_LENGTH = 2000;
 
 function json(data, status, CORS) {
   return new Response(JSON.stringify(data), {
@@ -40,7 +41,7 @@ async function readMandabemJson(res) {
   }
   try {
     const parsed = JSON.parse(text.slice(idx));
-    parsed.__raw = text.slice(idx, idx + 2000);
+    parsed.__raw = text.slice(idx, idx + MAX_RAW_DEBUG_LENGTH);
     return parsed;
   } catch (e) {
     const err = new Error(`Resposta inválida do MandaBem: ${String(e?.message || e)}`);

@@ -1664,14 +1664,15 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     if(group.hasLabel&&!force){if(!confirm('Este grupo já tem etiqueta gerada. Regerar mesmo assim?'))return;}
     const targetBatch=force?group.batches[0]:(group.batches.find(b=>!b.mandabem_envio_id)||group.batches[0]);
     if(!targetBatch)return;
-    const formaEnvio=targetBatch.shipping_service||'';
+    let formaEnvio=targetBatch.shipping_service||'';
     if(!formaEnvio&&!force){
       const svc=prompt('Serviço de envio para este grupo (PAC, SEDEX ou PACMINI):','PAC')||'';
       if(!svc.trim()){if(toastFn)toastFn('Informe o serviço de envio','error');return;}
+      formaEnvio=svc.trim().toUpperCase();
     }
     setLabelStatus(prev=>({...prev,[groupKey]:{status:'generating',message:''}}));
     try{
-      const r=await fetch('/api/admin-mandabem-label',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:targetBatch.id,action:'generate',formaEnvio:formaEnvio||targetBatch.shipping_service||'PAC',force})});
+      const r=await fetch('/api/admin-mandabem-label',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:targetBatch.id,action:'generate',formaEnvio:formaEnvio||'PAC',force})});
       const data=await r.json().catch(()=>({}));
       if(!r.ok||!data.ok)throw new Error(data.error||`HTTP ${r.status}`);
       SFX.success();
@@ -2168,8 +2169,8 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
 
       {/* Select/deselect pending */}
       {labelGroups.filter(g=>!g.hasLabel).length>0&&<div style={{marginBottom:6}}>
-        <button onClick={()=>{const pendingKeys=labelGroups.filter(g=>!g.hasLabel).map(g=>g.key);setLabelSelected(s=>s.size===pendingKeys.length?new Set():new Set(pendingKeys));}} style={{padding:'4px 10px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.4)',fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>
-          {labelSelected.size>0?'Desmarcar todos':'Selecionar todos pendentes'}
+        <button onClick={()=>{const pendingKeys=labelGroups.filter(g=>!g.hasLabel).map(g=>g.key);const allSelected=pendingKeys.every(k=>labelSelected.has(k));setLabelSelected(allSelected?new Set():new Set(pendingKeys));}} style={{padding:'4px 10px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.4)',fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>
+          {labelGroups.filter(g=>!g.hasLabel).every(g=>labelSelected.has(g.key))?'Desmarcar todos':'Selecionar todos pendentes'}
         </button>
       </div>}
 
