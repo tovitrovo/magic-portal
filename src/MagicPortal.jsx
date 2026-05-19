@@ -1389,6 +1389,7 @@ function RecoveryPage({token,onDone,theme}){
   const [pw,setPw]=useState('');const [pw2,setPw2]=useState('');
   const [showVK,setShowVK]=useState(false);const [vkTarget,setVkTarget]=useState('pw');
   const [loading,setLoading]=useState(false);const [err,setErr]=useState('');
+  const currentVKLen=vkTarget==='pw'?pw.length:pw2.length;
   function vkKey(k){if(vkTarget==='pw')setPw(p=>p.length<6?p+k:p);else setPw2(p=>p.length<6?p+k:p);}
   function vkBack(){if(vkTarget==='pw')setPw(p=>p.slice(0,-1));else setPw2(p=>p.slice(0,-1));}
   async function save(){
