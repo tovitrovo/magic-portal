@@ -1666,7 +1666,8 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     if(!targetBatch)return;
     let formaEnvio=targetBatch.shipping_service||'';
     if(!formaEnvio&&!force){
-      const svc=prompt('Serviço de envio para este grupo (PAC, SEDEX ou PACMINI):','PAC')||'';
+      const svc=prompt('Serviço de envio para este grupo (PAC, SEDEX ou PACMINI):','PAC');
+      if(svc===null)return; // user cancelled
       if(!svc.trim()){if(toastFn)toastFn('Informe o serviço de envio','error');return;}
       formaEnvio=svc.trim().toUpperCase();
     }
@@ -1684,6 +1685,12 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       setLabelStatus(prev=>({...prev,[groupKey]:{status:'error',message:e.message||String(e)}}));
       if(toastFn)toastFn('Erro ao gerar etiqueta: '+(e.message||String(e)),'error');
     }
+  }
+
+  function handleToggleAllPendingLabels(){
+    const pendingKeys=labelGroups.filter(g=>!g.hasLabel).map(g=>g.key);
+    const allSelected=pendingKeys.every(k=>labelSelected.has(k));
+    setLabelSelected(allSelected?new Set():new Set(pendingKeys));
   }
 
   async function handleBulkLabels(){
@@ -1709,7 +1716,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     const groups={};
     allBatches.forEach(b=>{
       const isPaid=b.status==='PAID'||b.status==='PAID_CONFIRMED';
-      if(!isPaid||b.status==='CANCELLED')return;
+      if(!isPaid)return;
       if(b.shipping_already_paid||Number(b.shipping_locked||0)<=0)return;
       const addr=b.shipping_address||{};
       const cep=normCep(addr.cep||'');
@@ -2169,7 +2176,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
 
       {/* Select/deselect pending */}
       {labelGroups.filter(g=>!g.hasLabel).length>0&&<div style={{marginBottom:6}}>
-        <button onClick={()=>{const pendingKeys=labelGroups.filter(g=>!g.hasLabel).map(g=>g.key);const allSelected=pendingKeys.every(k=>labelSelected.has(k));setLabelSelected(allSelected?new Set():new Set(pendingKeys));}} style={{padding:'4px 10px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.4)',fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>
+        <button onClick={handleToggleAllPendingLabels} style={{padding:'4px 10px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.4)',fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>
           {labelGroups.filter(g=>!g.hasLabel).every(g=>labelSelected.has(g.key))?'Desmarcar todos':'Selecionar todos pendentes'}
         </button>
       </div>}

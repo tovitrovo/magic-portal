@@ -6,6 +6,14 @@ const DEFAULT_ORIGIN_CEP = "05410010";
 const SERVICES = new Set(["PAC", "SEDEX", "PACMINI"]);
 const MAX_RAW_DEBUG_LENGTH = 2000;
 
+function safeStringify(value, maxLen = 500) {
+  try {
+    return JSON.stringify(value).slice(0, maxLen);
+  } catch (_) {
+    return String(value).slice(0, maxLen);
+  }
+}
+
 function json(data, status, CORS) {
   return new Response(JSON.stringify(data), {
     status,
@@ -68,8 +76,8 @@ function assertMandabemSuccess(payload) {
   const result = payload?.resultado;
   if (!result || String(result.sucesso).toLowerCase() !== "true") {
     const msg = extractMandabemError(payload);
-    const detail = msg || JSON.stringify(result || payload).slice(0, 300);
-    console.error("[MandaBem] Falha na resposta:", detail, "| Raw:", payload?.__raw || JSON.stringify(payload).slice(0, 500));
+    const detail = msg || safeStringify(result || payload, 300);
+    console.error("[MandaBem] Falha na resposta:", detail, "| Raw:", payload?.__raw || safeStringify(payload));
     throw new Error(detail || "MandaBem retornou erro sem mensagem");
   }
   return result;
@@ -84,7 +92,7 @@ async function postMandabem(endpoint, params) {
   const payload = await readMandabemJson(res);
   if (!res.ok) {
     const msg = extractMandabemError(payload);
-    console.error(`[MandaBem] HTTP ${res.status} em ${endpoint}:`, payload?.__raw || JSON.stringify(payload).slice(0, 500));
+    console.error(`[MandaBem] HTTP ${res.status} em ${endpoint}:`, payload?.__raw || safeStringify(payload));
     throw new Error(`MandaBem erro ${res.status}${msg ? ": " + msg : ""}`);
   }
   return payload;
