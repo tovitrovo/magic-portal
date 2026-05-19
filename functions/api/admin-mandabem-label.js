@@ -39,7 +39,9 @@ async function readMandabemJson(res) {
     throw err;
   }
   try {
-    return JSON.parse(text.slice(idx));
+    const parsed = JSON.parse(text.slice(idx));
+    parsed.__raw = text.slice(idx, idx + 2000);
+    return parsed;
   } catch (e) {
     const err = new Error(`Resposta inválida do MandaBem: ${String(e?.message || e)}`);
     err.raw = text;
@@ -47,10 +49,27 @@ async function readMandabemJson(res) {
   }
 }
 
+function extractMandabemError(payload) {
+  const result = payload?.resultado;
+  if (!result) {
+    return payload?.erro || payload?.mensagem || payload?.message || payload?.error || null;
+  }
+  if (result.erro) return result.erro;
+  if (result.mensagem) return result.mensagem;
+  if (result.message) return result.message;
+  if (result.error) return result.error;
+  if (Array.isArray(result.errors) && result.errors.length) return result.errors.join("; ");
+  if (Array.isArray(result.erros) && result.erros.length) return result.erros.join("; ");
+  return null;
+}
+
 function assertMandabemSuccess(payload) {
   const result = payload?.resultado;
   if (!result || String(result.sucesso).toLowerCase() !== "true") {
-    throw new Error(result?.erro || result?.mensagem || "MandaBem retornou erro");
+    const msg = extractMandabemError(payload);
+    const detail = msg || JSON.stringify(result || payload).slice(0, 300);
+    console.error("[MandaBem] Falha na resposta:", detail, "| Raw:", payload?.__raw || JSON.stringify(payload).slice(0, 500));
+    throw new Error(detail || "MandaBem retornou erro sem mensagem");
   }
   return result;
 }
@@ -62,7 +81,11 @@ async function postMandabem(endpoint, params) {
     body: params.toString(),
   });
   const payload = await readMandabemJson(res);
-  if (!res.ok) throw new Error(`MandaBem HTTP ${res.status}`);
+  if (!res.ok) {
+    const msg = extractMandabemError(payload);
+    console.error(`[MandaBem] HTTP ${res.status} em ${endpoint}:`, payload?.__raw || JSON.stringify(payload).slice(0, 500));
+    throw new Error(`MandaBem erro ${res.status}${msg ? ": " + msg : ""}`);
+  }
   return payload;
 }
 

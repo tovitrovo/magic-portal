@@ -1492,6 +1492,9 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   const [expandedOrdBatch,setExpandedOrdBatch]=useState(null);
   const [searchOrders,setSearchOrders]=useState('');
   const [labelLoading,setLabelLoading]=useState({});
+  const [labelSelected,setLabelSelected]=useState(()=>new Set());
+  const [labelStatus,setLabelStatus]=useState({});
+  const [labelExpanded,setLabelExpanded]=useState(null);
 
   const [finalList,setFinalList]=useState([]);
   const [listLoading,setListLoading]=useState(false);
@@ -1655,6 +1658,40 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     setLabelLoading(prev=>({...prev,[batchId]:false}));
   }
 
+  async function handleGroupLabel(groupKey,force=false){
+    const group=labelGroups.find(g=>g.key===groupKey);
+    if(!group)return;
+    if(group.hasLabel&&!force){if(!confirm('Este grupo já tem etiqueta gerada. Regerar mesmo assim?'))return;}
+    const targetBatch=force?group.batches[0]:(group.batches.find(b=>!b.mandabem_envio_id)||group.batches[0]);
+    if(!targetBatch)return;
+    const formaEnvio=targetBatch.shipping_service||'';
+    if(!formaEnvio&&!force){
+      const svc=prompt('Serviço de envio para este grupo (PAC, SEDEX ou PACMINI):','PAC')||'';
+      if(!svc.trim()){if(toastFn)toastFn('Informe o serviço de envio','error');return;}
+    }
+    setLabelStatus(prev=>({...prev,[groupKey]:{status:'generating',message:''}}));
+    try{
+      const r=await fetch('/api/admin-mandabem-label',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:targetBatch.id,action:'generate',formaEnvio:formaEnvio||targetBatch.shipping_service||'PAC',force})});
+      const data=await r.json().catch(()=>({}));
+      if(!r.ok||!data.ok)throw new Error(data.error||`HTTP ${r.status}`);
+      SFX.success();
+      setLabelStatus(prev=>({...prev,[groupKey]:{status:'done',message:'Etiqueta gerada com sucesso'}}));
+      await loadOrders();
+      if(onReload)onReload();
+    }catch(e){
+      console.error('handleGroupLabel error:',e);
+      setLabelStatus(prev=>({...prev,[groupKey]:{status:'error',message:e.message||String(e)}}));
+      if(toastFn)toastFn('Erro ao gerar etiqueta: '+(e.message||String(e)),'error');
+    }
+  }
+
+  async function handleBulkLabels(){
+    const pending=labelGroups.filter(g=>labelSelected.has(g.key)&&!g.hasLabel);
+    if(pending.length===0){if(toastFn)toastFn('Nenhum grupo selecionado com etiqueta pendente','error');return;}
+    for(const group of pending){await handleGroupLabel(group.key);}
+    if(toastFn)toastFn('Processamento em lote concluído','success');
+  }
+
   // Flat batch list for Orders tab
   const allBatches=useMemo(()=>{
     const list=[];
@@ -1663,6 +1700,45 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     });});
     return list;
   },[orders]);
+
+  // Label groups for Etiquetas tab — paid batches grouped by user + shipping address
+  const labelGroups=useMemo(()=>{
+    function normStr(s){return String(s||'').toLowerCase().replace(/\s+/g,' ').trim();}
+    function normCep(s){return String(s||'').replace(/\D/g,'');}
+    const groups={};
+    allBatches.forEach(b=>{
+      const isPaid=b.status==='PAID'||b.status==='PAID_CONFIRMED';
+      if(!isPaid||b.status==='CANCELLED')return;
+      if(b.shipping_already_paid||Number(b.shipping_locked||0)<=0)return;
+      const addr=b.shipping_address||{};
+      const cep=normCep(addr.cep||'');
+      const rua=normStr(addr.rua||'');
+      const addrKey=cep||rua?`${cep}||${rua}`:'noaddr';
+      const key=`${b.userId}||${addrKey}`;
+      const profileData=allProfiles.find(p=>p.id===b.userId)||{};
+      if(!groups[key]){
+        groups[key]={
+          key,
+          clientName:b.clientName||addr.name||'—',
+          email:addr.email||profileData.email||'',
+          whatsapp:b.clientWhatsapp||profileData.whatsapp||'',
+          userId:b.userId,
+          address:{cep:addr.cep||'',rua:addr.rua||'',numero:addr.numero||'',complemento:addr.complemento||'',bairro:addr.bairro||'',cidade:addr.cidade||'',uf:addr.uf||''},
+          batches:[],
+          totalValue:0,
+          hasLabel:true,
+        };
+      }
+      groups[key].batches.push(b);
+      groups[key].totalValue+=Number(b.total_locked||0);
+      if(!b.mandabem_envio_id)groups[key].hasLabel=false;
+    });
+    return Object.values(groups).sort((a,b)=>{
+      if(!a.hasLabel&&b.hasLabel)return -1;
+      if(a.hasLabel&&!b.hasLabel)return 1;
+      return a.clientName.localeCompare(b.clientName);
+    });
+  },[allBatches,allProfiles]);
 
   const ordStats=useMemo(()=>{
     const paid=allBatches.filter(b=>b.status==='PAID'||b.status==='PAID_CONFIRMED');
@@ -1803,7 +1879,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   const isFinalized=selectedCampaign?.status==='DONE'||selectedCampaign?.status==='CANCELLED';
   const activeCampaigns=campaigns.filter(c=>c.status!=='DONE'&&c.status!=='CANCELLED');
   const finalizedCampaigns=campaigns.filter(c=>c.status==='DONE'||c.status==='CANCELLED');
-  const adminTabs=[{key:'orders',icon:Package,label:'Pedidos'},{key:'clients',icon:User,label:'Clientes'},{key:'list',icon:ScrollText,label:'Lista Final'},{key:'config',icon:Settings,label:'Configurações'}];
+  const adminTabs=[{key:'orders',icon:Package,label:'Pedidos'},{key:'clients',icon:User,label:'Clientes'},{key:'labels',icon:Truck,label:'Etiquetas'},{key:'list',icon:ScrollText,label:'Lista Final'},{key:'config',icon:Settings,label:'Configurações'}];
 
   if(!selectedCampaign)return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
@@ -2075,6 +2151,113 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
             </div>
           </div>}
         </Card>);})}
+    </>}
+
+    {tab==='labels'&&<>
+      {/* Summary bar */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+        <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>
+          <span style={{color:'#c9a96e',fontWeight:700}}>{labelGroups.filter(g=>!g.hasLabel).length}</span> pendentes
+          {' · '}
+          <span style={{color:'#2ee59d',fontWeight:700}}>{labelGroups.filter(g=>g.hasLabel).length}</span> com etiqueta
+        </div>
+        <Btn variant="success" onClick={handleBulkLabels} disabled={labelSelected.size===0} style={{padding:'6px 12px',fontSize:11}} sfx="">
+          <Truck size={12}/> Gerar selecionadas ({labelSelected.size})
+        </Btn>
+      </div>
+
+      {/* Select/deselect pending */}
+      {labelGroups.filter(g=>!g.hasLabel).length>0&&<div style={{marginBottom:6}}>
+        <button onClick={()=>{const pendingKeys=labelGroups.filter(g=>!g.hasLabel).map(g=>g.key);setLabelSelected(s=>s.size===pendingKeys.length?new Set():new Set(pendingKeys));}} style={{padding:'4px 10px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.4)',fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>
+          {labelSelected.size>0?'Desmarcar todos':'Selecionar todos pendentes'}
+        </button>
+      </div>}
+
+      {ordersLoading?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:
+      labelGroups.length===0?<EmptyState icon={Truck} title="Nenhum pedido para etiqueta" sub="Pedidos pagos com frete cobrado pelo portal aparecerão aqui"/>:
+      labelGroups.map(group=>{
+        const gs=labelStatus[group.key]||{};
+        const isGroupExp=labelExpanded===group.key;
+        const isSelected=labelSelected.has(group.key);
+        const isGenerating=gs.status==='generating';
+        const isDone=gs.status==='done'||group.hasLabel;
+        const isError=gs.status==='error';
+        const statusColor=isDone?'#2ee59d':isError?'#ff6b7a':isGenerating?'#c9a96e':'rgba(255,255,255,0.2)';
+        const addr=group.address;
+        const addrLine=[addr.rua,addr.numero?'Nº '+addr.numero:'',addr.complemento,addr.bairro,addr.cidade&&addr.uf?addr.cidade+'/'+addr.uf:''].filter(Boolean).join(', ');
+
+        return(<Card key={group.key} style={{padding:0,marginBottom:4,borderLeft:'3px solid '+statusColor+'60'}}>
+          {/* Card header row */}
+          <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',cursor:'pointer'}} onClick={()=>setLabelExpanded(isGroupExp?null:group.key)}>
+            {/* Checkbox — only for groups without full label */}
+            {!group.hasLabel&&<input type="checkbox" checked={isSelected} onChange={e=>{e.stopPropagation();setLabelSelected(prev=>{const next=new Set(prev);next.has(group.key)?next.delete(group.key):next.add(group.key);return next;});}} onClick={e=>e.stopPropagation()} style={{width:14,height:14,cursor:'pointer',flexShrink:0}}/>}
+            {group.hasLabel&&<div style={{width:14,height:14,flexShrink:0}}/>}
+
+            {/* Status dot */}
+            <div style={{width:8,height:8,borderRadius:'50%',background:statusColor,flexShrink:0,boxShadow:isDone?'0 0 6px '+statusColor+'80':''}}/>
+
+            {/* Info */}
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{group.clientName}</div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,0.35)'}}>
+                {group.batches.length} pedido(s) · R$ {group.totalValue.toFixed(2)}
+                {isDone&&!isGenerating&&<span style={{color:'#2ee59d'}}> · Etiqueta gerada ✓</span>}
+                {isError&&<span style={{color:'#ff6b7a'}}> · Erro</span>}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
+              {isGenerating&&<Spin size={14}/>}
+              {!isDone&&!isGenerating&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleGroupLabel(group.key);}} style={{padding:'5px 9px',fontSize:10}} sfx=""><Truck size={10}/> Gerar</Btn>}
+              {isError&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleGroupLabel(group.key);}} style={{padding:'5px 9px',fontSize:10,background:'rgba(217,68,82,0.1)',border:'1px solid rgba(217,68,82,0.2)',color:'#ff6b7a'}} sfx=""><RefreshCw size={10}/> Tentar novamente</Btn>}
+              {isDone&&!isGenerating&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleGroupLabel(group.key,true);}} style={{padding:'5px 9px',fontSize:10,opacity:0.55}} sfx=""><RefreshCw size={10}/> Regerar</Btn>}
+              <ChevronRight size={12} style={{color:'rgba(255,255,255,0.15)',transform:isGroupExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
+            </div>
+          </div>
+
+          {/* Expanded detail */}
+          {isGroupExp&&<div style={{borderTop:'1px solid rgba(255,255,255,0.04)',padding:'10px 14px'}}>
+            {/* Contact + address */}
+            <div style={{display:'flex',flexDirection:'column',gap:3,marginBottom:10}}>
+              {group.email&&<div style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:'rgba(255,255,255,0.35)'}}><Mail size={10}/>{group.email}</div>}
+              {group.whatsapp&&<div style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:'rgba(255,255,255,0.35)'}}><Phone size={10}/>{group.whatsapp}</div>}
+              {addrLine&&<div style={{display:'flex',alignItems:'flex-start',gap:5,fontSize:11,color:'rgba(255,255,255,0.35)'}}><MapPin size={10} style={{marginTop:1,flexShrink:0}}/><span>{addrLine}{addr.cep?<span style={{color:'rgba(255,255,255,0.2)'}}> · CEP {addr.cep}</span>:null}</span></div>}
+            </div>
+
+            {/* Error message */}
+            {isError&&<div style={{padding:'7px 10px',borderRadius:8,background:'rgba(217,68,82,0.08)',border:'1px solid rgba(217,68,82,0.18)',marginBottom:10,fontSize:11,color:'#ff9090',lineHeight:1.5}}>
+              <b>Erro ao gerar etiqueta:</b> {gs.message}
+            </div>}
+
+            {/* Batches list */}
+            <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.3)',marginBottom:5}}>Pedidos incluídos:</div>
+            {group.batches.map(b=>{
+              const bSid=String(b.id).slice(0,8).toUpperCase();
+              return(<div key={b.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 0',fontSize:11,borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+                <span style={{fontFamily:'monospace',color:'rgba(255,255,255,0.5)'}}>#{bSid}</span>
+                <span style={{color:'rgba(255,255,255,0.35)'}}>{b.qty_in_batch} cartas</span>
+                <span style={{fontWeight:700,color:b.status==='PAID'||b.status==='PAID_CONFIRMED'?'#2ee59d':'rgba(255,255,255,0.4)'}}>R$ {Number(b.total_locked||0).toFixed(2)}</span>
+                {b.mandabem_envio_id?<Tag color="#2ee59d" style={{fontSize:8,padding:'2px 5px'}}>✓ etiqueta</Tag>:<Tag color="rgba(255,255,255,0.2)" style={{fontSize:8,padding:'2px 5px'}}>sem etiqueta</Tag>}
+              </div>);
+            })}
+
+            {/* Label info if already generated */}
+            {group.batches.some(b=>b.mandabem_etiqueta||b.mandabem_envio_id)&&<div style={{marginTop:10,padding:'8px 10px',borderRadius:8,background:'rgba(46,229,157,0.06)',border:'1px solid rgba(46,229,157,0.14)'}}>
+              <div style={{fontSize:9,color:'rgba(46,229,157,0.6)',marginBottom:4}}>MandaBem</div>
+              {group.batches.filter(b=>b.mandabem_etiqueta||b.mandabem_envio_id).map(b=>(
+                <div key={b.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:3}}>
+                  <div>
+                    {b.mandabem_etiqueta&&<div style={{fontSize:12,fontFamily:'monospace',fontWeight:800,color:'#2ee59d'}}>{b.mandabem_etiqueta}</div>}
+                    <div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>{b.mandabem_status||'Envio gerado'}{b.mandabem_envio_id&&<span> · ID {b.mandabem_envio_id}</span>}</div>
+                  </div>
+                  {b.mandabem_etiqueta&&<button onClick={()=>{navigator.clipboard.writeText(b.mandabem_etiqueta);SFX.success();}} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,padding:'3px 6px',color:'rgba(255,255,255,0.4)',fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><Copy size={10}/></button>}
+                </div>
+              ))}
+            </div>}
+          </div>}
+        </Card>);
+      })}
     </>}
 
     {tab==='list'&&<Card style={{padding:16}}>
