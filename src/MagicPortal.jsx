@@ -1723,7 +1723,11 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       const addr=b.shipping_address||{};
       const cep=normCep(addr.cep||'');
       const rua=normStr(addr.rua||'');
-      const addrKey=cep||rua?`${cep}||${rua}`:'noaddr';
+      const numero=normStr(addr.numero||'');
+      const complemento=normStr(addr.complemento||'');
+      const cidade=normStr(addr.cidade||'');
+      const uf=normStr(addr.uf||'');
+      const addrKey=cep||rua?`${cep}||${rua}||${numero}||${complemento}||${cidade}||${uf}`:'noaddr';
       const key=`${b.userId}||${addrKey}`;
       const profileData=allProfiles.find(p=>p.id===b.userId)||{};
       if(!groups[key]){
@@ -2211,6 +2215,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
               <div style={{fontSize:13,fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{group.clientName}</div>
               <div style={{fontSize:10,color:'rgba(255,255,255,0.35)'}}>
                 {group.batches.length} pedido(s) · R$ {group.totalValue.toFixed(2)}
+                {addr.cidade&&<span style={{color:'rgba(255,255,255,0.25)'}}> · {addr.cidade}{addr.uf?' / '+addr.uf:''}{addr.cep?' · CEP '+addr.cep:''}</span>}
                 {isDone&&!isGenerating&&<span style={{color:'#2ee59d'}}> · Etiqueta gerada ✓</span>}
                 {isError&&<span style={{color:'#ff6b7a'}}> · Erro</span>}
               </div>

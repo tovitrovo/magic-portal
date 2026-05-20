@@ -2,7 +2,7 @@ import { verifyAdmin } from './_admin-auth.js';
 
 const DEFAULT_MANDABEM_ID = "68245";
 const DEFAULT_MANDABEM_KEY = "$2y$10$yrre6QlN25SlbnYtyNIHSOBA5jDsKe9nRixugJnYCQSmFZOztuS7.";
-const DEFAULT_ORIGIN_CEP = "05410010";
+const DEFAULT_ORIGIN_CEP = "05412002";
 const SERVICES = new Set(["PAC", "SEDEX", "PACMINI"]);
 const MAX_RAW_DEBUG_LENGTH = 2000;
 
