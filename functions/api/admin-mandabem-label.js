@@ -4,6 +4,15 @@ const DEFAULT_MANDABEM_ID = "68245";
 const DEFAULT_MANDABEM_KEY = "$2y$10$yrre6QlN25SlbnYtyNIHSOBA5jDsKe9nRixugJnYCQSmFZOztuS7.";
 const DEFAULT_ORIGIN_CEP = "05410010";
 const SERVICES = new Set(["PAC", "SEDEX", "PACMINI"]);
+const MAX_RAW_DEBUG_LENGTH = 2000;
+
+function safeStringify(value, maxLen = 500) {
+  try {
+    return JSON.stringify(value).slice(0, maxLen);
+  } catch (_) {
+    return String(value).slice(0, maxLen);
+  }
+}
 
 function json(data, status, CORS) {
   return new Response(JSON.stringify(data), {
@@ -39,7 +48,9 @@ async function readMandabemJson(res) {
     throw err;
   }
   try {
-    return JSON.parse(text.slice(idx));
+    const parsed = JSON.parse(text.slice(idx));
+    parsed.__raw = text.slice(idx, idx + MAX_RAW_DEBUG_LENGTH);
+    return parsed;
   } catch (e) {
     const err = new Error(`Resposta inválida do MandaBem: ${String(e?.message || e)}`);
     err.raw = text;
@@ -47,10 +58,27 @@ async function readMandabemJson(res) {
   }
 }
 
+function extractMandabemError(payload) {
+  const result = payload?.resultado;
+  if (!result) {
+    return payload?.erro || payload?.mensagem || payload?.message || payload?.error || null;
+  }
+  if (result.erro) return result.erro;
+  if (result.mensagem) return result.mensagem;
+  if (result.message) return result.message;
+  if (result.error) return result.error;
+  if (Array.isArray(result.errors) && result.errors.length) return result.errors.join("; ");
+  if (Array.isArray(result.erros) && result.erros.length) return result.erros.join("; ");
+  return null;
+}
+
 function assertMandabemSuccess(payload) {
   const result = payload?.resultado;
   if (!result || String(result.sucesso).toLowerCase() !== "true") {
-    throw new Error(result?.erro || result?.mensagem || "MandaBem retornou erro");
+    const msg = extractMandabemError(payload);
+    const detail = msg || safeStringify(result || payload, 300);
+    console.error("[MandaBem] Falha na resposta:", detail, "| Raw:", payload?.__raw || safeStringify(payload));
+    throw new Error(detail || "MandaBem retornou erro sem mensagem");
   }
   return result;
 }
@@ -62,7 +90,11 @@ async function postMandabem(endpoint, params) {
     body: params.toString(),
   });
   const payload = await readMandabemJson(res);
-  if (!res.ok) throw new Error(`MandaBem HTTP ${res.status}`);
+  if (!res.ok) {
+    const msg = extractMandabemError(payload);
+    console.error(`[MandaBem] HTTP ${res.status} em ${endpoint}:`, payload?.__raw || safeStringify(payload));
+    throw new Error(`MandaBem erro ${res.status}${msg ? ": " + msg : ""}`);
+  }
   return payload;
 }
 
