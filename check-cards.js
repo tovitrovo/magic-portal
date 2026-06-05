@@ -2,13 +2,23 @@
 
 // Script para verificar e popular dados de teste no Supabase
 // Execute com: node check-cards.js
+// Use --seed para criar cartas de exemplo quando o catálogo estiver vazio.
 
-const { createClient } = require('@supabase/supabase-js');
+import { createClient } from '@supabase/supabase-js';
 
-const SB_URL = 'https://kjyqnlpiohoewmqmsuxp.supabase.co';
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqeXFubHBpb2hvZXdtcW1zdXhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyNTA5NDAsImV4cCI6MjA4NzgyNjk0MH0.1BjTAFgv7yfJ00uY6WNlwUOYd4c4YOqFTV78CLvLBk0';
+const SB_URL = process.env.SB_URL || 'https://kjyqnlpiohoewmqmsuxp.supabase.co';
+const SB_KEY = process.env.SB_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqeXFubHBpb2hvZXdtcW1zdXhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyNTA5NDAsImV4cCI6MjA4NzgyNjk0MH0.1BjTAFgv7yfJ00uY6WNlwUOYd4c4YOqFTV78CLvLBk0';
+const SHOULD_SEED = process.argv.includes('--seed');
 
 const supabase = createClient(SB_URL, SB_KEY);
+
+function groupByTcgAndType(cards) {
+  return cards.reduce((acc, card) => {
+    const key = `${card.tcg || '(sem tcg)'} / ${card.type || '(sem tipo)'}`;
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+}
 
 async function checkCards() {
   console.log('🔍 Verificando cartas no banco de dados...');
@@ -16,22 +26,36 @@ async function checkCards() {
   try {
     const { data, error } = await supabase
       .from('cards')
-      .select('id, name, type, is_active')
-      .limit(5);
+      .select('id, name, type, tcg, image_url, is_active, created_at')
+      .order('name', { ascending: true })
+      .limit(1000);
 
     if (error) {
       console.error('❌ Erro ao buscar cartas:', error.message);
       return;
     }
 
-    console.log(`✅ Encontradas ${data.length} cartas:`);
-    data.forEach(card => {
-      console.log(`  - ${card.name} (${card.type})`);
+    const cards = data || [];
+    const activeCards = cards.filter(card => card.is_active);
+    const inactiveCards = cards.filter(card => !card.is_active);
+    const missingImages = cards.filter(card => !card.image_url);
+
+    console.log(`✅ Encontradas ${cards.length} cartas (${activeCards.length} ativas, ${inactiveCards.length} inativas).`);
+    console.log('📊 Distribuição por TCG/tipo:', groupByTcgAndType(cards));
+    console.log(`🖼️  Cartas sem imagem: ${missingImages.length}`);
+
+    cards.slice(0, 10).forEach(card => {
+      const status = card.is_active ? 'ativa' : 'inativa';
+      console.log(`  - ${card.name} | ${card.tcg} | ${card.type} | ${status}`);
     });
 
-    if (data.length === 0) {
-      console.log('📝 Nenhuma carta encontrada. Criando dados de exemplo...');
-      await createSampleCards();
+    if (cards.length === 0) {
+      if (SHOULD_SEED) {
+        console.log('📝 Nenhuma carta encontrada. Criando dados de exemplo...');
+        await createSampleCards();
+      } else {
+        console.log('📝 Nenhuma carta encontrada. Rode `node check-cards.js --seed` se quiser criar dados de exemplo.');
+      }
     } else {
       console.log('🎉 Banco já tem cartas! O catálogo deve funcionar.');
     }
@@ -42,36 +66,36 @@ async function checkCards() {
 
 async function createSampleCards() {
   const sampleCards = [
-    { name: 'Lightning Bolt', type: 'Normal', is_active: true },
-    { name: 'Black Lotus', type: 'Normal', is_active: true },
-    { name: 'Mox Sapphire', type: 'Normal', is_active: true },
-    { name: 'Ancestral Recall', type: 'Normal', is_active: true },
-    { name: 'Brainstorm', type: 'Normal', is_active: true },
-    { name: 'Counterspell', type: 'Normal', is_active: true },
-    { name: 'Dark Ritual', type: 'Normal', is_active: true },
-    { name: 'Lightning Helix', type: 'Normal', is_active: true },
-    { name: 'Path to Exile', type: 'Normal', is_active: true },
-    { name: 'Swords to Plowshares', type: 'Normal', is_active: true },
-    { name: 'Lightning Bolt', type: 'Foil', is_active: true },
-    { name: 'Black Lotus', type: 'Foil', is_active: true },
-    { name: 'Mox Sapphire', type: 'Foil', is_active: true },
-    { name: 'Ancestral Recall', type: 'Foil', is_active: true },
-    { name: 'Brainstorm', type: 'Foil', is_active: true },
-    { name: 'Counterspell', type: 'Foil', is_active: true },
-    { name: 'Dark Ritual', type: 'Foil', is_active: true },
-    { name: 'Lightning Helix', type: 'Foil', is_active: true },
-    { name: 'Path to Exile', type: 'Foil', is_active: true },
-    { name: 'Swords to Plowshares', type: 'Foil', is_active: true },
-    { name: 'Lightning Bolt', type: 'Holo', is_active: true },
-    { name: 'Black Lotus', type: 'Holo', is_active: true },
-    { name: 'Mox Sapphire', type: 'Holo', is_active: true },
-    { name: 'Ancestral Recall', type: 'Holo', is_active: true },
-    { name: 'Brainstorm', type: 'Holo', is_active: true },
-    { name: 'Counterspell', type: 'Holo', is_active: true },
-    { name: 'Dark Ritual', type: 'Holo', is_active: true },
-    { name: 'Lightning Helix', type: 'Holo', is_active: true },
-    { name: 'Path to Exile', type: 'Holo', is_active: true },
-    { name: 'Swords to Plowshares', type: 'Holo', is_active: true }
+    { name: 'Lightning Bolt', type: 'Normal', tcg: 'Magic', is_active: true },
+    { name: 'Black Lotus', type: 'Normal', tcg: 'Magic', is_active: true },
+    { name: 'Mox Sapphire', type: 'Normal', tcg: 'Magic', is_active: true },
+    { name: 'Ancestral Recall', type: 'Normal', tcg: 'Magic', is_active: true },
+    { name: 'Brainstorm', type: 'Normal', tcg: 'Magic', is_active: true },
+    { name: 'Counterspell', type: 'Normal', tcg: 'Magic', is_active: true },
+    { name: 'Dark Ritual', type: 'Normal', tcg: 'Magic', is_active: true },
+    { name: 'Lightning Helix', type: 'Normal', tcg: 'Magic', is_active: true },
+    { name: 'Path to Exile', type: 'Normal', tcg: 'Magic', is_active: true },
+    { name: 'Swords to Plowshares', type: 'Normal', tcg: 'Magic', is_active: true },
+    { name: 'Lightning Bolt', type: 'Foil', tcg: 'Magic', is_active: true },
+    { name: 'Black Lotus', type: 'Foil', tcg: 'Magic', is_active: true },
+    { name: 'Mox Sapphire', type: 'Foil', tcg: 'Magic', is_active: true },
+    { name: 'Ancestral Recall', type: 'Foil', tcg: 'Magic', is_active: true },
+    { name: 'Brainstorm', type: 'Foil', tcg: 'Magic', is_active: true },
+    { name: 'Counterspell', type: 'Foil', tcg: 'Magic', is_active: true },
+    { name: 'Dark Ritual', type: 'Foil', tcg: 'Magic', is_active: true },
+    { name: 'Lightning Helix', type: 'Foil', tcg: 'Magic', is_active: true },
+    { name: 'Path to Exile', type: 'Foil', tcg: 'Magic', is_active: true },
+    { name: 'Swords to Plowshares', type: 'Foil', tcg: 'Magic', is_active: true },
+    { name: 'Lightning Bolt', type: 'Holo', tcg: 'Magic', is_active: true },
+    { name: 'Black Lotus', type: 'Holo', tcg: 'Magic', is_active: true },
+    { name: 'Mox Sapphire', type: 'Holo', tcg: 'Magic', is_active: true },
+    { name: 'Ancestral Recall', type: 'Holo', tcg: 'Magic', is_active: true },
+    { name: 'Brainstorm', type: 'Holo', tcg: 'Magic', is_active: true },
+    { name: 'Counterspell', type: 'Holo', tcg: 'Magic', is_active: true },
+    { name: 'Dark Ritual', type: 'Holo', tcg: 'Magic', is_active: true },
+    { name: 'Lightning Helix', type: 'Holo', tcg: 'Magic', is_active: true },
+    { name: 'Path to Exile', type: 'Holo', tcg: 'Magic', is_active: true },
+    { name: 'Swords to Plowshares', type: 'Holo', tcg: 'Magic', is_active: true }
   ];
 
   try {
@@ -91,10 +115,8 @@ async function createSampleCards() {
   }
 }
 
-// Executar se chamado diretamente
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   checkCards();
 }
 
-module.exports = { checkCards, createSampleCards };</content>
-<parameter name="filePath">c:\Users\afons\Desktop\CPJ\magic-portal\check-cards.js
+export { checkCards, createSampleCards, groupByTcgAndType };
