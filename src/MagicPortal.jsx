@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff, Archive } from 'lucide-react';
+import { buildCatalogQueries, buildLatestCardQuery, RECENT_CARDS_FILTER } from './catalogQuery';
 
 // ══════════════════════════════════════════════════════
 // SUPABASE REST CLIENT
@@ -576,7 +577,8 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutSte
   const [page,setPage]=useState(0);const [loading,setLoading]=useState(false);const [addQty,setAddQty]=useState({});
   const [flyAnim,setFlyAnim]=useState(false);const PAGE_SIZE=20;
   const currentTcg=TCG_LIST.find(t=>t.key===tcgFilter)||TCG_LIST[0];
-  const firstAddBtnRef=useRef(null);const [handPos,setHandPos]=useState(null);
+  const catalogFilters=['Todos',RECENT_CARDS_FILTER,...currentTcg.types.filter(t=>t!=='Todos')];
+  const firstAddBtnRef=useRef(null);const latestFetchRef=useRef(0);const [handPos,setHandPos]=useState(null);
   useEffect(()=>{
     if(tutStep!==2){setHandPos(null);return;}
     const update=()=>{if(firstAddBtnRef.current){const r=firstAddBtnRef.current.getBoundingClientRect();setHandPos({top:r.top-26,left:r.left+r.width/2});}};
@@ -587,24 +589,31 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutSte
   const campaignStatusText = campaignLabel(campaignStatus);
 
   const fetchCards = useCallback(async()=>{
+    const fetchId=++latestFetchRef.current;
     setLoading(true);
     try {
-      let q = `select=id,name,type,image_url&is_active=eq.true&order=name&tcg=eq.${encodeURIComponent(tcgFilter)}`;
-      if (search) q += `&name=ilike.*${encodeURIComponent(search)}*`;
-      if (typeF !== 'Todos') q += `&type=eq.${encodeURIComponent(typeF)}`;
-      q += `&limit=${PAGE_SIZE}&offset=${page*PAGE_SIZE}`;
-      const data = await sbGet('cards', q, token);
+      let latestCreatedAt;
+      if(typeF===RECENT_CARDS_FILTER){
+        const latestCards=await sbGet('cards',buildLatestCardQuery(tcgFilter),token);
+        if(fetchId!==latestFetchRef.current)return;
+        latestCreatedAt=latestCards[0]?.created_at;
+        if(!latestCreatedAt){setCards([]);setTotal(0);return;}
+      }
+
+      const {cardsQuery,countQuery}=buildCatalogQueries({tcg:tcgFilter,filter:typeF,search,page,pageSize:PAGE_SIZE,latestCreatedAt});
+      const [data,countData]=await Promise.all([
+        sbGet('cards',cardsQuery,token),
+        sbGet('cards',countQuery,token),
+      ]);
+      if(fetchId!==latestFetchRef.current)return;
       setCards(data);
-      // Get count
-      const countQ = `select=id&is_active=eq.true&tcg=eq.${encodeURIComponent(tcgFilter)}${search?'&name=ilike.*'+encodeURIComponent(search)+'*':''}${typeF!=='Todos'?'&type=eq.'+encodeURIComponent(typeF):''}`;
-      const countData = await sbGet('cards', countQ, token);
       setTotal(countData.length);
-    } catch(e) { console.error(e); }
-    setLoading(false);
+    } catch(e) { if(fetchId===latestFetchRef.current)console.error(e); }
+    finally { if(fetchId===latestFetchRef.current)setLoading(false); }
   },[search,typeF,tcgFilter,page,token]);
 
   useEffect(()=>{setPage(0);},[search,typeF,tcgFilter]);
-  useEffect(()=>{const t=setTimeout(fetchCards,300);return()=>clearTimeout(t);},[fetchCards,page]);
+  useEffect(()=>{const t=setTimeout(fetchCards,300);return()=>{clearTimeout(t);latestFetchRef.current++;};},[fetchCards,page]);
 
   const getQ=id=>addQty[id]||1;const setQ=(id,v)=>setAddQty(q=>({...q,[id]:Math.max(1,v)}));
   function add(card,qty){SFX.addCard();setFlyAnim(true);onAddWant(card,qty);setQ(card.id,1);if(tutStep===2&&onTutNext)onTutNext();}
@@ -613,13 +622,13 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutSte
     {!campaignOpen&&<Card style={{padding:14,borderColor:'rgba(201,169,110,0.25)',background:'rgba(201,169,110,0.08)'}}><div style={{fontSize:13,fontWeight:700,color:'#c9a96e'}}>Encomenda fechada no momento</div><div style={{fontSize:12,color:'rgba(255,255,255,0.55)',marginTop:4}}>{campaignStatusText}</div></Card>}
     <FlyingCard show={flyAnim} onDone={()=>setFlyAnim(false)}/>
     <div style={{display:'flex',gap:5,overflowX:'auto',WebkitOverflowScrolling:'touch',paddingBottom:2}}>
-      {TCG_LIST.map(t=>(<button key={t.key} onClick={()=>{SFX.toggle();setTcgFilter(t.key);setTypeF('Todos');}} style={{padding:'7px 12px',borderRadius:10,border:'none',background:tcgFilter===t.key?t.color+'22':'rgba(255,255,255,0.04)',color:tcgFilter===t.key?t.color:'rgba(255,255,255,0.3)',fontWeight:700,fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap',flexShrink:0,boxShadow:tcgFilter===t.key?`0 0 0 1.5px ${t.color}60`:'none'}}>{t.key}</button>))}
+      {TCG_LIST.map(t=>(<button key={t.key} onClick={()=>{SFX.toggle();setTcgFilter(t.key);setTypeF(current=>current===RECENT_CARDS_FILTER?current:'Todos');}} style={{padding:'7px 12px',borderRadius:10,border:'none',background:tcgFilter===t.key?t.color+'22':'rgba(255,255,255,0.04)',color:tcgFilter===t.key?t.color:'rgba(255,255,255,0.3)',fontWeight:700,fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap',flexShrink:0,boxShadow:tcgFilter===t.key?`0 0 0 1.5px ${t.color}60`:'none'}}>{t.key}</button>))}
     </div>
     <div id="tut-search-area" style={{display:'flex',flexDirection:'column',gap:8}}>
       <Input icon={Search} placeholder="Buscar carta..." value={search} onChange={e=>setSearch(e.target.value)}/>
-      {currentTcg.types.length>0&&<div style={{display:'flex',gap:5}}>
-        {currentTcg.types.map(t=>(<button key={t} onClick={()=>{SFX.toggle();setTypeF(t);}} style={{flex:1,padding:'7px 0',borderRadius:10,border:'none',background:typeF===t?currentTcg.color:'rgba(255,255,255,0.04)',color:typeF===t?'#fff':'rgba(255,255,255,0.3)',fontWeight:600,fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{t}</button>))}
-      </div>}
+      <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
+        {catalogFilters.map(t=>(<button key={t} onClick={()=>{SFX.toggle();setTypeF(t);}} style={{flex:'1 1 64px',minWidth:t===RECENT_CARDS_FILTER?96:64,padding:'7px 6px',borderRadius:10,border:'none',background:typeF===t?currentTcg.color:'rgba(255,255,255,0.04)',color:typeF===t?'#fff':'rgba(255,255,255,0.3)',fontWeight:600,fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap'}}>{t}</button>))}
+      </div>
     </div>
     {loading?<div style={{textAlign:'center',padding:40}}><Spin size={28}/></div>:(
       <div style={{display:'flex',flexDirection:'column',gap:5}}>
