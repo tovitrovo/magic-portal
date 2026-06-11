@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff, Archive } from 'lucide-react';
 import { buildCatalogQueries, buildLatestCardQuery, RECENT_CARDS_FILTER } from './catalogQuery';
 import { buildShippingGroups, SHIPPING_SERVICE_UNKNOWN } from '../shared/shipping-groups';
+import './responsive.css';
 
 // ══════════════════════════════════════════════════════
 // SUPABASE REST CLIENT
@@ -494,7 +495,7 @@ function HomePage({pool,minCards,pricing,closeDate,theme,nav,wantsCount,cartCoun
   const normalPrice=Number(pricing?.normal_price_brl)||16;
   const outerPrice=Number(pricing?.ouro_price_brl)||16;
   const foilPrice=Number(pricing?.foil_price_brl)||18;
-  return(<div style={{display:'flex',flexDirection:'column',gap:14}}>
+  return(<div className="portal-page portal-home" style={{display:'flex',flexDirection:'column',gap:14}}>
     <div style={{textAlign:'center',padding:'6px 0 0'}}>
       <div style={{fontSize:11,color:'rgba(255,255,255,0.28)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>
       <h1 style={{margin:'5px 0 0',fontSize:26,fontFamily:"'Cinzel',serif",background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Cartas para Jogar</h1>
@@ -619,7 +620,7 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutSte
   const getQ=id=>addQty[id]||1;const setQ=(id,v)=>setAddQty(q=>({...q,[id]:Math.max(1,v)}));
   function add(card,qty){SFX.addCard();setFlyAnim(true);onAddWant(card,qty);setQ(card.id,1);if(tutStep===2&&onTutNext)onTutNext();}
 
-  return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
+  return(<div className="portal-page portal-catalog" style={{display:'flex',flexDirection:'column',gap:12}}>
     {!campaignOpen&&<Card style={{padding:14,borderColor:'rgba(201,169,110,0.25)',background:'rgba(201,169,110,0.08)'}}><div style={{fontSize:13,fontWeight:700,color:'#c9a96e'}}>Encomenda fechada no momento</div><div style={{fontSize:12,color:'rgba(255,255,255,0.55)',marginTop:4}}>{campaignStatusText}</div></Card>}
     <FlyingCard show={flyAnim} onDone={()=>setFlyAnim(false)}/>
     <div style={{display:'flex',gap:5,overflowX:'auto',WebkitOverflowScrolling:'touch',paddingBottom:2}}>
@@ -632,7 +633,7 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutSte
       </div>
     </div>
     {loading?<div style={{textAlign:'center',padding:40}}><Spin size={28}/></div>:(
-      <div style={{display:'flex',flexDirection:'column',gap:5}}>
+      <div className="portal-card-grid portal-catalog-grid" style={{display:'flex',flexDirection:'column',gap:5}}>
         {cards.map((c,i)=>{
           const existsInWants=wants.find(w=>w.card_id===c.id);
           return(<Card key={c.id} style={{padding:'10px 12px'}}>
@@ -671,7 +672,7 @@ function WantsPage({wants,onMoveToCart,onMoveAllToCart,onRemoveWant,onUpdateWant
   const wantsUnits=wants.reduce((s,w)=>s+w.quantity,0);
   const fW=searchW?wants.filter(w=>w.card_name.toLowerCase().includes(searchW.toLowerCase())):wants;
 
-  return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
+  return(<div className="portal-page portal-wants" style={{display:'flex',flexDirection:'column',gap:12}}>
     <div id="tut-wants-tags" style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
       <Tag color={theme.primary}><ScrollText size={11}/> {wantsUnits} na wants</Tag>
       <Tag color="#c9a96e"><ShoppingCart size={11}/> {cartCount} no carrinho</Tag>
@@ -683,7 +684,7 @@ function WantsPage({wants,onMoveToCart,onMoveAllToCart,onRemoveWant,onUpdateWant
     </Card>}
     {wants.length>0&&<>
       {wants.length>3&&<Input icon={Search} placeholder="Buscar..." value={searchW} onChange={e=>setSearchW(e.target.value)}/>}
-      <div style={{display:'flex',flexDirection:'column',gap:5}}>
+      <div className="portal-card-grid portal-wants-grid" style={{display:'flex',flexDirection:'column',gap:5}}>
         {fW.map((w)=>(
           <Card key={w.id} style={{padding:'10px 12px'}}>
             <div style={{display:'flex',alignItems:'center',gap:8}}>
@@ -730,7 +731,7 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onMoveT
   const canCheckout=isFullBonus||totalPaid>=MIN_ORDER_CARDS||hasMetMinimumBefore;
   const missingCards=hasMetMinimumBefore?0:Math.max(0,MIN_ORDER_CARDS-totalPaid);
 
-  return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
+  return(<div className="portal-page portal-cart" style={{display:'flex',flexDirection:'column',gap:12}}>
     {!campaignOpen&&<Card style={{padding:12,borderColor:'rgba(201,169,110,0.25)',background:'rgba(201,169,110,0.06)'}}>
       <div style={{display:'flex',alignItems:'center',gap:8}}><AlertTriangle size={14} style={{color:'#c9a96e'}}/><div style={{fontSize:12,color:'#c9a96e',fontWeight:600}}>{campaignStatus?campaignLabel(campaignStatus):'Nenhuma encomenda ativa'}<div style={{fontSize:11,color:'rgba(255,255,255,0.35)',fontWeight:400,marginTop:2}}>Continue montando seu carrinho. O checkout estará disponível quando a encomenda abrir.</div></div></div>
     </Card>}
@@ -739,7 +740,7 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onMoveT
         <span style={{fontSize:12,color:'rgba(255,255,255,0.4)'}}>{totalQty} carta{totalQty!==1?'s':''}</span>
         <span style={{fontSize:14,fontWeight:800,color:theme.primary}}>≈ R$ {totalBRL.toFixed(2)}{totalBonus>0&&<span style={{fontSize:11,color:'#2ee59d',fontWeight:600,marginLeft:6}}>({totalBonus} bônus)</span>}</span>
       </div>
-      <div style={{display:'flex',flexDirection:'column',gap:5}}>
+      <div className="portal-card-grid portal-cart-grid" style={{display:'flex',flexDirection:'column',gap:5}}>
         {bd.map((c)=>{const itemPrice=getCardPrice(c.card_type,pricing);return(
           <Card key={c.id} style={{padding:'10px 12px'}}>
             <div style={{display:'flex',alignItems:'center',gap:8}}>
@@ -937,7 +938,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
     <div style={{textAlign:'center',marginTop:16}}><Btn onClick={()=>nav('cart')} sfx="nav"><ShoppingCart size={16}/> Voltar ao carrinho</Btn></div>
   </div>);
 
-  return(<div style={{display:'flex',flexDirection:'column',gap:14}}>
+  return(<div className="portal-page portal-checkout" style={{display:'flex',flexDirection:'column',gap:14}}>
     <Card id="tut-checkout-summary" style={{padding:18}}>
       <SectionTitle sub={totalQty+' cartas ('+totalBonus+' bônus + '+totalPaid+' pagas)'}>Resumo do pedido</SectionTitle>
       {totalBonus>0&&<><div style={{fontSize:11,fontWeight:700,color:'#2ee59d',marginBottom:6,display:'flex',alignItems:'center',gap:5}}><Gift size={12}/> Bônus (grátis)</div>
@@ -1132,7 +1133,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
   const campColor=campOpen?'#2ee59d':campaign?.status?'#c9a96e':'rgba(255,255,255,0.2)';
   const campLabel=campaign?.status?campaignLabel(campaign.status):'Sem encomenda ativa';
 
-  return(<div style={{display:'flex',flexDirection:'column',gap:10}}>
+  return(<div className="portal-page portal-profile" style={{display:'flex',flexDirection:'column',gap:10}}>
 
     {/* Hero card */}
     <div style={{borderRadius:20,padding:20,background:`linear-gradient(135deg,${gT?gT.primary+'22':'rgba(255,255,255,0.04)'} 0%,rgba(0,0,0,0) 100%)`,border:`1px solid ${gT?gT.primary+'30':'rgba(255,255,255,0.07)'}`,position:'relative',overflow:'hidden'}}>
@@ -1949,7 +1950,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     {campaigns.length===0&&!loading&&<EmptyState icon={Calendar} title="Nenhuma encomenda" sub=""/>}
   </div>);
 
-  return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
+  return(<div className="portal-page portal-admin" style={{display:'flex',flexDirection:'column',gap:12}}>
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
       <div style={{display:'flex',alignItems:'center',gap:8}}>
         <button onClick={()=>setSelectedCampaign(null)} style={{background:'none',border:'none',color:'#fff',cursor:'pointer',padding:2}}><ChevronLeft size={18}/></button>
@@ -2891,7 +2892,7 @@ export default function MagicPortal(){
   });
   const bottomTabs = [{ key: 'home', icon: Home, label: 'Início' }, { key: 'catalog', icon: BookOpen, label: 'Catálogo' }, { key: 'wants', icon: ScrollText, label: 'Wants' }, { key: 'cart', icon: ShoppingCart, label: 'Carrinho' }, { key: 'profile', icon: User, label: 'Perfil' }];
 
-  return (<div style={{ '--gp': theme.primary, '--gs': theme.secondary, '--gg': theme.glow, minHeight: '100vh', background: `radial-gradient(ellipse at 50% -20%,${theme.primary}12 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,${theme.secondary}08 0%,transparent 40%),#08080f`, color: '#e9edf7', fontFamily: "'Outfit',sans-serif", maxWidth: 480, margin: '0 auto', position: 'relative', paddingBottom: 78 }}>
+  return (<div className="portal-shell" data-page={page} style={{ '--gp': theme.primary, '--gs': theme.secondary, '--gg': theme.glow, minHeight: '100vh', background: `radial-gradient(ellipse at 50% -20%,${theme.primary}12 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,${theme.secondary}08 0%,transparent 40%),#08080f`, color: '#e9edf7', fontFamily: "'Outfit',sans-serif", maxWidth: 480, margin: '0 auto', position: 'relative', paddingBottom: 78 }}>
     <FloatingMana theme={theme}/>
     <style>{"@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');*{box-sizing:border-box;margin:0;padding:0}body{background:#08080f;margin:0}input:focus{border-color:var(--gp)!important;outline:none}button:active:not(:disabled){transform:scale(.97)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.07);border-radius:3px}@keyframes spin{to{transform:rotate(360deg)}}@keyframes tutPulse{0%,100%{opacity:1;box-shadow:0 0 0 9999px rgba(0,0,0,0.78),0 0 30px var(--gg)}50%{opacity:.85;box-shadow:0 0 0 9999px rgba(0,0,0,0.78),0 0 50px var(--gg)}}@keyframes tutArrowBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}@keyframes tutHandBounce{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-6px) scale(1.15)}}@keyframes manaFloat{0%{transform:translateY(0) translateX(0) rotate(0deg);opacity:0}10%{opacity:0.06}90%{opacity:0.03}100%{transform:translateY(-110vh) translateX(var(--drift,20px)) rotate(360deg);opacity:0}}@keyframes flyToWants{0%{transform:translate(-50%,-50%) scale(1);opacity:1}50%{transform:translate(calc(-50vw + 160px),-60vh) scale(0.6);opacity:0.8}100%{transform:translate(calc(-50vw + 160px),-80vh) scale(0.2);opacity:0}}"}</style>
 
@@ -2899,12 +2900,12 @@ export default function MagicPortal(){
     {showTutorial && <TutorialOverlay step={tutStep} steps={TUTORIAL_STEPS} onNext={tutNext} onSkip={tutSkip} theme={theme} onNavTo={p => setPage(p)} isFirstTime={isFirstTimeTut} />}
 
     {/* Password recovery mode */}
-    {recoveryToken && <div style={{ padding: '14px 20px' }}>
+    {recoveryToken && <div className="portal-auth-container" style={{ padding: '14px 20px' }}>
       <RecoveryPage token={recoveryToken} onDone={()=>{setRecoveryToken(null);toast('Senha alterada! Faça login.','success');}} theme={theme}/>
     </div>}
 
     {/* Not logged in */}
-    {!session && !recoveryToken && <div style={{ padding: '14px 20px' }}><AuthPage onLogin={handleLogin} theme={theme} /></div>}
+    {!session && !recoveryToken && <div className="portal-auth-container" style={{ padding: '14px 20px' }}><AuthPage onLogin={handleLogin} theme={theme} /></div>}
 
     {/* Session exists but still loading */}
     {session && !recoveryToken && !profile && !appLoading && <div style={{ padding: '60px 20px', textAlign: 'center' }}><div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div><div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 16 }}>Erro ao carregar perfil</div><Btn onClick={() => loadAppData(token, session?.user?.id)} sfx="click"><RefreshCw size={16}/> Tentar novamente</Btn></div>}
@@ -2916,8 +2917,29 @@ export default function MagicPortal(){
         <Spin size={14}/><span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Carregando...</span>
       </div>}
 
+      <aside className="portal-sidebar" aria-label="Navegação principal">
+        <div className="portal-sidebar-brand">
+          <div className="portal-sidebar-mark">NOZ</div>
+          <div><strong>Cartas para Jogar</strong><span>Portal de encomendas</span></div>
+        </div>
+        <nav className="portal-sidebar-nav">
+          {bottomTabs.map((t) => {
+            const active = page === t.key;
+            const badge = t.key === 'cart' && cartCount > 0;
+            return <button key={t.key} className={active ? 'is-active' : ''} onClick={() => nav(t.key)}>
+              <t.icon size={18}/><span>{t.label}</span>
+              {badge && <b>{cartCount}</b>}
+            </button>;
+          })}
+          {isAdmin && <button className={page === 'admin' ? 'is-active' : ''} onClick={() => nav('admin')}><Shield size={18}/><span>Admin</span></button>}
+        </nav>
+        <div className="portal-sidebar-footer">
+          <GuildBadge guild={profile?.guild} size={28}/><div><strong>{profile?.name || 'Minha conta'}</strong><span>{profile?.email || session?.user?.email || ''}</span></div>
+        </div>
+      </aside>
+
       {/* Header */}
-      {page !== 'onboarding' && <div style={{ padding: '13px 20px 11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.035)', position: 'sticky', top: 0, zIndex: 10, background: 'rgba(8,8,15,0.88)', backdropFilter: 'blur(20px)' }}>
+      {page !== 'onboarding' && <div className="portal-header" style={{ padding: '13px 20px 11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.035)', position: 'sticky', top: 0, zIndex: 10, background: 'rgba(8,8,15,0.88)', backdropFilter: 'blur(20px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {(page === 'success' || page === 'admin' || page === 'checkout') && <button onClick={() => nav(page === 'admin' ? 'profile' : page === 'checkout' ? 'cart' : 'home')} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 2 }}><ChevronLeft size={20} /></button>}
           <span style={{ fontFamily: "'Cinzel',serif", fontSize: 15, fontWeight: 700, letterSpacing: .3 }}>{({ home: 'Cartas para Jogar', catalog: 'Catálogo', wants: 'Wants', cart: 'Carrinho', checkout: 'Checkout', success: '', profile: 'Perfil', admin: 'Admin', onboarding: '' })[page] || ''}</span>
@@ -2928,7 +2950,7 @@ export default function MagicPortal(){
       </div>}
 
       {/* Bottom tabs */}
-      {page !== 'onboarding' && page !== 'success' && page !== 'admin' && page !== 'checkout' && <div id="tut-bottom-tabs" style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: 'rgba(8,8,15,0.94)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.04)', display: 'flex', justifyContent: 'space-around', padding: '5px 0 10px', zIndex: 20 }}>
+      {page !== 'onboarding' && page !== 'success' && page !== 'admin' && page !== 'checkout' && <div className="portal-bottom-tabs" id="tut-bottom-tabs" style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: 'rgba(8,8,15,0.94)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.04)', display: 'flex', justifyContent: 'space-around', padding: '5px 0 10px', zIndex: 20 }}>
         {bottomTabs.map((t, ti) => {
           const active = page === t.key; const badge = t.key === 'cart' && cartCount > 0;
           return (<button key={t.key} id={'tut-tab-' + ti} onClick={() => nav(t.key)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '4px 10px', borderRadius: 10, position: 'relative', color: active ? theme.primary : 'rgba(255,255,255,0.22)', transition: 'all .2s' }}>
@@ -2939,7 +2961,7 @@ export default function MagicPortal(){
       </div>}
 
       {/* Pages */}
-      <div style={{ padding: page === 'onboarding' ? '0 20px' : '14px 20px' }}>
+      <main className="portal-content" style={{ padding: page === 'onboarding' ? '0 20px' : '14px 20px' }}>
         {page === 'home' && (campaign ? <HomePage pool={pool} minCards={campaign?.min_cards||150} pricing={pricing} closeDate={campaign?.close_at} theme={theme} nav={nav} wantsCount={wantsCount} cartCount={cartCount} bonusAvail={bonusAvail} campaign_status={campaign?.status} /> : <div style={{display:'flex',flexDirection:'column',gap:14}}>
           <div style={{textAlign:'center',padding:'6px 0 0'}}>
             <div style={{fontSize:11,color:'rgba(255,255,255,0.28)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>
@@ -2961,7 +2983,7 @@ export default function MagicPortal(){
         {page === 'profile' && profile && (() => { try { return <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} campaign={campaign} />; } catch(e) { return <div style={{padding:20,color:'#ff6b7a',fontSize:12}}>Crash: {e.message}</div>; } })()}
         {page === 'admin' && <AdminPage pool={pool} pricing={pricing} campaign={campaign} theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} toast={toast} />}
         {page === 'onboarding' && <OnboardingPage onComplete={handleOnboardingComplete} theme={theme} />}
-      </div>
+      </main>
     </>}
   </div>);
 }
