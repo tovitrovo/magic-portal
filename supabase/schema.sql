@@ -138,6 +138,7 @@ CREATE TABLE IF NOT EXISTS public.order_batches (
   shipping_service      text,
   shipping_address      jsonb,
   shipping_already_paid boolean DEFAULT false,
+  shipping_group_id     uuid REFERENCES public.order_batches(id) ON DELETE SET NULL,
   mandabem_envio_id     text,
   mandabem_etiqueta     text,
   mandabem_status       text,

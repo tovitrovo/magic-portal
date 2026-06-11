@@ -1,33 +1,24 @@
 import { verifyAdmin } from './_admin-auth.js';
+import { identifyShippingService, normalizeShippingService, SHIPPING_SERVICE_UNKNOWN } from '../../shared/shipping-groups.js';
 
 const DEFAULT_MANDABEM_ID = "68245";
 const DEFAULT_MANDABEM_KEY = "$2y$10$yrre6QlN25SlbnYtyNIHSOBA5jDsKe9nRixugJnYCQSmFZOztuS7.";
 const DEFAULT_ORIGIN_CEP = "05412002";
+const DEFAULT_QUOTE_ORIGIN_CEP = "05410010";
 const SERVICES = new Set(["PAC", "SEDEX", "PACMINI"]);
 const MAX_RAW_DEBUG_LENGTH = 2000;
 
 function safeStringify(value, maxLen = 500) {
-  try {
-    return JSON.stringify(value).slice(0, maxLen);
-  } catch (_) {
-    return String(value).slice(0, maxLen);
-  }
+  try { return JSON.stringify(value).slice(0, maxLen); }
+  catch (_) { return String(value).slice(0, maxLen); }
 }
 
 function json(data, status, CORS) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...CORS, "Content-Type": "application/json" },
-  });
+  return new Response(JSON.stringify(data), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 }
 
-function onlyDigits(value = "") {
-  return String(value || "").replace(/\D/g, "");
-}
-
-function clampText(value, max) {
-  return String(value || "").trim().slice(0, max);
-}
+function onlyDigits(value = "") { return String(value || "").replace(/\D/g, ""); }
+function clampText(value, max) { return String(value || "").trim().slice(0, max); }
 
 function packageForQuantity(quantity) {
   const qty = Math.max(Number(quantity || 0), 1);
@@ -42,41 +33,28 @@ function packageForQuantity(quantity) {
 async function readMandabemJson(res) {
   const text = await res.text();
   const idx = text.indexOf("{");
-  if (idx < 0) {
-    const err = new Error(text.slice(0, 200) || `HTTP ${res.status}`);
-    err.raw = text;
-    throw err;
-  }
+  if (idx < 0) throw new Error(text.slice(0, 200) || `HTTP ${res.status}`);
   try {
     const parsed = JSON.parse(text.slice(idx));
     parsed.__raw = text.slice(idx, idx + MAX_RAW_DEBUG_LENGTH);
     return parsed;
   } catch (e) {
-    const err = new Error(`Resposta inválida do MandaBem: ${String(e?.message || e)}`);
-    err.raw = text;
-    throw err;
+    throw new Error(`Resposta inválida do MandaBem: ${String(e?.message || e)}`);
   }
 }
 
 function extractMandabemError(payload) {
   const result = payload?.resultado;
-  if (!result) {
-    return payload?.erro || payload?.mensagem || payload?.message || payload?.error || null;
-  }
-  if (result.erro) return result.erro;
-  if (result.mensagem) return result.mensagem;
-  if (result.message) return result.message;
-  if (result.error) return result.error;
-  if (Array.isArray(result.errors) && result.errors.length) return result.errors.join("; ");
-  if (Array.isArray(result.erros) && result.erros.length) return result.erros.join("; ");
-  return null;
+  if (!result) return payload?.erro || payload?.mensagem || payload?.message || payload?.error || null;
+  return result.erro || result.mensagem || result.message || result.error
+    || (Array.isArray(result.errors) ? result.errors.join("; ") : null)
+    || (Array.isArray(result.erros) ? result.erros.join("; ") : null);
 }
 
 function assertMandabemSuccess(payload) {
   const result = payload?.resultado;
   if (!result || String(result.sucesso).toLowerCase() !== "true") {
-    const msg = extractMandabemError(payload);
-    const detail = msg || safeStringify(result || payload, 300);
+    const detail = extractMandabemError(payload) || safeStringify(result || payload, 300);
     console.error("[MandaBem] Falha na resposta:", detail, "| Raw:", payload?.__raw || safeStringify(payload));
     throw new Error(detail || "MandaBem retornou erro sem mensagem");
   }
@@ -90,11 +68,7 @@ async function postMandabem(endpoint, params) {
     body: params.toString(),
   });
   const payload = await readMandabemJson(res);
-  if (!res.ok) {
-    const msg = extractMandabemError(payload);
-    console.error(`[MandaBem] HTTP ${res.status} em ${endpoint}:`, payload?.__raw || safeStringify(payload));
-    throw new Error(`MandaBem erro ${res.status}${msg ? ": " + msg : ""}`);
-  }
+  if (!res.ok) throw new Error(`MandaBem erro ${res.status}${extractMandabemError(payload) ? `: ${extractMandabemError(payload)}` : ""}`);
   return payload;
 }
 
@@ -109,22 +83,67 @@ async function queryShipment(env, envioId, refId) {
   if (envioId) params.set("id", String(envioId));
   else params.set("ref_id", String(refId));
   const payload = await postMandabem("envio", params);
-  const result = assertMandabemSuccess(payload);
-  return { payload, data: result.dados || {} };
+  return { payload, data: assertMandabemSuccess(payload).dados || {} };
 }
 
-async function patchBatch(SB_URL, headers, batchId, data) {
-  const res = await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(batchId)}`, {
+async function patchBatches(SB_URL, headers, batchIds, data) {
+  const ids = batchIds.map(id => String(id)).filter(Boolean);
+  const filter = ids.length === 1 ? `id=eq.${encodeURIComponent(ids[0])}` : `id=in.(${ids.map(encodeURIComponent).join(",")})`;
+  const res = await fetch(`${SB_URL}/rest/v1/order_batches?${filter}`, {
     method: "PATCH",
     headers: { ...headers, Prefer: "return=representation" },
     body: JSON.stringify(data),
   });
   if (!res.ok) {
-    const t = await res.text().catch(() => "");
-    throw new Error(`Supabase PATCH falhou: ${res.status} ${t.slice(0, 240)}`);
+    const text = await res.text().catch(() => "");
+    throw new Error(`Supabase PATCH falhou: ${res.status} ${text.slice(0, 240)}`);
   }
-  const rows = await res.json().catch(() => []);
-  return Array.isArray(rows) ? rows[0] : rows;
+  return res.json().catch(() => []);
+}
+
+async function quoteService(env, cepDestino, quantity, service) {
+  const pkg = packageForQuantity(quantity);
+  const params = new URLSearchParams();
+  addCredentials(params, env);
+  params.set("cep_origem", onlyDigits(env.MANDABEM_CEP_COTACAO_ORIGEM || DEFAULT_QUOTE_ORIGIN_CEP));
+  params.set("cep_destino", cepDestino);
+  params.set("servico", service);
+  params.set("peso", pkg.peso);
+  params.set("altura", pkg.altura);
+  params.set("largura", pkg.largura);
+  params.set("comprimento", pkg.comprimento);
+  params.set("valor_seguro", "0");
+  try {
+    const payload = await postMandabem("valor_envio", params);
+    const result = assertMandabemSuccess(payload);
+    const raw = result?.[service]?.valor;
+    if (!raw) return null;
+    let price = Number(String(raw).replace(/\./g, "").replace(",", "."));
+    if (!Number.isFinite(price) || price <= 0) return null;
+    if (price > 300) price /= 100;
+    return { service, price: Math.round((price + 1.2) * 100) / 100 };
+  } catch (error) {
+    console.warn(`[MandaBem] Cotação ${service} falhou:`, error?.message || error);
+    return null;
+  }
+}
+
+function destinationFor(batch) {
+  const savedAddress = batch.shipping_address || {};
+  const profile = batch.orders?.profiles || {};
+  return { ...profile, ...savedAddress, name: savedAddress.name || profile.name, email: savedAddress.email || profile.email };
+}
+
+function validateDestination(destination) {
+  const missing = [];
+  if (!destination.name) missing.push("nome");
+  if (onlyDigits(destination.cep).length !== 8) missing.push("CEP");
+  if (!destination.rua) missing.push("logradouro");
+  if (!destination.numero) missing.push("número");
+  if (!destination.bairro) missing.push("bairro");
+  if (!destination.cidade) missing.push("cidade");
+  if (!destination.uf) missing.push("UF");
+  return missing;
 }
 
 export async function onRequest(context) {
@@ -137,86 +156,85 @@ export async function onRequest(context) {
 
   try {
     const { SB_URL, SB_SERVICE_ROLE_KEY } = context.env;
-    if (!SB_URL || !SB_SERVICE_ROLE_KEY) {
-      return json({ ok: false, error: "SB_URL/SB_SERVICE_ROLE_KEY não configurado" }, 500, CORS);
-    }
-
+    if (!SB_URL || !SB_SERVICE_ROLE_KEY) return json({ ok: false, error: "SB_URL/SB_SERVICE_ROLE_KEY não configurado" }, 500, CORS);
     const admin = await verifyAdmin(context, SB_URL, SB_SERVICE_ROLE_KEY);
     if (!admin.ok) return json({ ok: false, error: admin.error }, admin.status || 403, CORS);
 
     const body = await context.request.json().catch(() => ({}));
-    const batchId = String(body.batchId || "").trim();
-    const refreshOnly = body.action === "refresh";
+    const requestedIds = Array.isArray(body.batchIds) ? body.batchIds : [body.batchId];
+    const batchIds = [...new Set(requestedIds.map(id => String(id || "").trim()).filter(Boolean))];
+    const action = String(body.action || "generate");
     const forceGenerate = body.force === true;
-    const formaEnvioOverride = String(body.formaEnvio || "").trim().toUpperCase();
-    if (!batchId) return json({ ok: false, error: "batchId ausente" }, 400, CORS);
+    const override = normalizeShippingService(body.formaEnvio);
+    if (!batchIds.length) return json({ ok: false, error: "batchId ausente" }, 400, CORS);
 
     const headers = {
       apikey: SB_SERVICE_ROLE_KEY,
       Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}`,
       "Content-Type": "application/json",
     };
-
-    const select = "id,order_id,status,qty_in_batch,shipping_locked,shipping_already_paid,shipping_service,shipping_address,mandabem_envio_id,mandabem_etiqueta,mandabem_status,orders(id,user_id,profiles(name,email,cep,rua,numero,complemento,bairro,cidade,uf))";
-    const batchRes = await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(batchId)}&select=${encodeURIComponent(select)}&limit=1`, { headers });
+    const select = "id,order_id,status,payment_status,created_at,qty_in_batch,shipping_locked,shipping_already_paid,shipping_group_id,shipping_service,shipping_address,mandabem_envio_id,mandabem_etiqueta,mandabem_status,orders(id,user_id,profiles(name,email,cep,rua,numero,complemento,bairro,cidade,uf))";
+    const batchFilter = batchIds.length === 1 ? `id=eq.${encodeURIComponent(batchIds[0])}` : `id=in.(${batchIds.map(encodeURIComponent).join(",")})`;
+    const batchRes = await fetch(`${SB_URL}/rest/v1/order_batches?${batchFilter}&select=${encodeURIComponent(select)}`, { headers });
     if (!batchRes.ok) {
-      const t = await batchRes.text().catch(() => "");
-      return json({ ok: false, error: `Falha ao buscar lote: ${batchRes.status} ${t.slice(0, 200)}` }, 502, CORS);
+      const text = await batchRes.text().catch(() => "");
+      return json({ ok: false, error: `Falha ao buscar lotes: ${batchRes.status} ${text.slice(0, 200)}` }, 502, CORS);
     }
     const batches = await batchRes.json().catch(() => []);
-    const batch = Array.isArray(batches) ? batches[0] : null;
-    if (!batch) return json({ ok: false, error: "Lote não encontrado" }, 404, CORS);
+    if (!Array.isArray(batches) || batches.length !== batchIds.length) return json({ ok: false, error: "Um ou mais lotes não foram encontrados" }, 404, CORS);
+    if (new Set(batches.map(batch => batch.orders?.user_id)).size !== 1) return json({ ok: false, error: "Os lotes do grupo pertencem a clientes diferentes" }, 400, CORS);
 
-    const currentEnvioId = batch.mandabem_envio_id;
-    if ((refreshOnly || (currentEnvioId && !forceGenerate)) && currentEnvioId) {
-      const info = await queryShipment(context.env, currentEnvioId, batchId);
+    const paidShippingBatches = batches.filter(batch => !batch.shipping_already_paid && Number(batch.shipping_locked || 0) > 0);
+    if (paidShippingBatches.length > 1) return json({ ok: false, error: "O grupo contém mais de um frete pago" }, 400, CORS);
+    const rootBatch = batches.find(batch => String(batch.id) === String(body.rootBatchId || "")) || paidShippingBatches[0];
+    if (!rootBatch || !paidShippingBatches.some(batch => batch.id === rootBatch.id)) return json({ ok: false, error: "Grupo sem pedido original com frete pago" }, 400, CORS);
+    const groupId = String(rootBatch.shipping_group_id || rootBatch.id);
+    const destination = destinationFor(rootBatch);
+    const missing = validateDestination(destination);
+    if (missing.length) return json({ ok: false, error: `Endereço incompleto do cliente: ${missing.join(", ")}` }, 400, CORS);
+    const totalQuantity = batches.reduce((sum, batch) => sum + Number(batch.qty_in_batch || 0), 0);
+
+    if (action === "identify") {
+      const quoteResults = await Promise.all(["PACMINI", "SEDEX", "PAC"].map(service => quoteService(context.env, onlyDigits(destination.cep), totalQuantity, service)));
+      const quotes = quoteResults.filter(Boolean);
+      const service = identifyShippingService(rootBatch.shipping_locked, quotes);
+      const updated = await patchBatches(SB_URL, headers, batchIds, { shipping_group_id: groupId, shipping_service: service });
+      return json({ ok: true, service, quotes, identified: service !== SHIPPING_SERVICE_UNKNOWN, batches: updated }, 200, CORS);
+    }
+
+    const existing = batches.find(batch => batch.mandabem_envio_id);
+    if ((action === "refresh" || (existing && !forceGenerate)) && existing?.mandabem_envio_id) {
+      const info = await queryShipment(context.env, existing.mandabem_envio_id, groupId);
       const shipment = info.data || {};
-      const updated = await patchBatch(SB_URL, headers, batchId, {
-        mandabem_etiqueta: shipment.etiqueta || batch.mandabem_etiqueta || null,
-        mandabem_status: shipment.status || batch.mandabem_status || null,
+      const updated = await patchBatches(SB_URL, headers, batchIds, {
+        shipping_group_id: groupId,
+        shipping_service: override || normalizeShippingService(rootBatch.shipping_service) || normalizeShippingService(existing.shipping_service) || SHIPPING_SERVICE_UNKNOWN,
+        mandabem_envio_id: String(existing.mandabem_envio_id),
+        mandabem_etiqueta: shipment.etiqueta || existing.mandabem_etiqueta || null,
+        mandabem_status: shipment.status || existing.mandabem_status || null,
         mandabem_payload: info.payload,
         mandabem_updated_at: new Date().toISOString(),
       });
-      return json({ ok: true, generated: false, batch: updated, shipment }, 200, CORS);
+      return json({ ok: true, generated: false, batches: updated, shipment }, 200, CORS);
     }
 
-    if (batch.status === "CANCELLED") return json({ ok: false, error: "Não é possível gerar etiqueta para pedido cancelado" }, 400, CORS);
-    if (batch.shipping_already_paid || Number(batch.shipping_locked || 0) <= 0) {
-      return json({ ok: false, error: "Este lote não possui frete cobrado pelo portal" }, 400, CORS);
-    }
+    if (batches.some(batch => String(batch.status).toUpperCase() === "CANCELLED")) return json({ ok: false, error: "Não é possível gerar etiqueta para pedido cancelado" }, 400, CORS);
+    const service = override || normalizeShippingService(rootBatch.shipping_service);
+    if (!SERVICES.has(service)) return json({ ok: false, error: "Serviço de envio ausente ou inválido. Selecione PAC, SEDEX ou PACMINI." }, 400, CORS);
 
-    const formaEnvio = formaEnvioOverride || String(batch.shipping_service || "").trim().toUpperCase();
-    if (!SERVICES.has(formaEnvio)) {
-      return json({ ok: false, error: "Serviço de envio ausente ou inválido. Selecione PAC, SEDEX ou PACMINI." }, 400, CORS);
-    }
-
-    const savedAddress = batch.shipping_address || {};
-    const profile = batch.orders?.profiles || {};
-    const destination = { ...profile, ...savedAddress, name: savedAddress.name || profile.name, email: savedAddress.email || profile.email };
-    const cep = onlyDigits(destination.cep);
-    const missing = [];
-    if (!destination.name) missing.push("nome");
-    if (cep.length !== 8) missing.push("CEP");
-    if (!destination.rua) missing.push("logradouro");
-    if (!destination.numero) missing.push("número");
-    if (!destination.bairro) missing.push("bairro");
-    if (!destination.cidade) missing.push("cidade");
-    if (!destination.uf) missing.push("UF");
-    if (missing.length) return json({ ok: false, error: `Endereço incompleto do cliente: ${missing.join(", ")}` }, 400, CORS);
-
-    const itemsRes = await fetch(`${SB_URL}/rest/v1/order_items?batch_id=eq.${encodeURIComponent(batchId)}&select=${encodeURIComponent("quantity,unit_price_brl,cards(name,type)")}`, { headers });
+    const itemFilter = batchIds.length === 1 ? `batch_id=eq.${encodeURIComponent(batchIds[0])}` : `batch_id=in.(${batchIds.map(encodeURIComponent).join(",")})`;
+    const itemsRes = await fetch(`${SB_URL}/rest/v1/order_items?${itemFilter}&select=${encodeURIComponent("batch_id,quantity,unit_price_brl,cards(name,type)")}`, { headers });
     if (!itemsRes.ok) {
-      const t = await itemsRes.text().catch(() => "");
-      return json({ ok: false, error: `Falha ao buscar itens: ${itemsRes.status} ${t.slice(0, 200)}` }, 502, CORS);
+      const text = await itemsRes.text().catch(() => "");
+      return json({ ok: false, error: `Falha ao buscar itens: ${itemsRes.status} ${text.slice(0, 200)}` }, 502, CORS);
     }
     const items = await itemsRes.json().catch(() => []);
-    const pkg = packageForQuantity(batch.qty_in_batch || items.reduce((s, i) => s + Number(i.quantity || 0), 0));
-
+    const pkg = packageForQuantity(items.reduce((sum, item) => sum + Number(item.quantity || 0), 0) || totalQuantity);
     const params = new URLSearchParams();
     addCredentials(params, context.env);
-    params.set("forma_envio", formaEnvio);
+    params.set("forma_envio", service);
     params.set("destinatario", clampText(destination.name, 40));
-    params.set("cep", cep);
+    params.set("cep", onlyDigits(destination.cep));
     params.set("logradouro", clampText(destination.rua, 60));
     params.set("numero", clampText(destination.numero, 6));
     if (destination.complemento) params.set("complemento", clampText(destination.complemento, 30));
@@ -228,11 +246,10 @@ export async function onRequest(context) {
     params.set("largura", pkg.largura);
     params.set("comprimento", pkg.comprimento);
     params.set("valor_seguro", "0");
-    params.set("ref_id", batchId);
+    params.set("ref_id", groupId);
     params.set("integration", "MagicPortal");
     if (destination.email) params.set("email", clampText(destination.email, 120));
     params.set("cep_origem", onlyDigits(context.env.MANDABEM_CEP_ORIGEM || DEFAULT_ORIGIN_CEP));
-
     items.forEach((item, index) => {
       const name = `${item.cards?.name || "Carta"}${item.cards?.type ? ` (${item.cards.type})` : ""}`;
       params.append(`produtos[${index}][nome]`, clampText(name, 80));
@@ -244,19 +261,18 @@ export async function onRequest(context) {
     const generated = assertMandabemSuccess(generatedPayload);
     const envioId = generated.envio_id;
     if (!envioId) throw new Error(generated.mensagem || "MandaBem não retornou envio_id");
-
     let shipment = {};
     let finalPayload = generatedPayload;
     try {
-      const info = await queryShipment(context.env, envioId, batchId);
+      const info = await queryShipment(context.env, envioId, groupId);
       shipment = info.data || {};
       finalPayload = { generated: generatedPayload, shipment: info.payload };
-    } catch (e) {
-      finalPayload = { generated: generatedPayload, shipment_error: String(e?.message || e) };
+    } catch (error) {
+      finalPayload = { generated: generatedPayload, shipment_error: String(error?.message || error) };
     }
-
-    const updated = await patchBatch(SB_URL, headers, batchId, {
-      shipping_service: formaEnvio,
+    const updated = await patchBatches(SB_URL, headers, batchIds, {
+      shipping_group_id: groupId,
+      shipping_service: service,
       mandabem_envio_id: String(envioId),
       mandabem_etiqueta: shipment.etiqueta || null,
       mandabem_status: shipment.status || generated.mensagem || "Envio gerado",
@@ -264,9 +280,8 @@ export async function onRequest(context) {
       mandabem_generated_at: new Date().toISOString(),
       mandabem_updated_at: new Date().toISOString(),
     });
-
-    return json({ ok: true, generated: true, batch: updated, envio_id: envioId, shipment }, 200, CORS);
-  } catch (e) {
-    return json({ ok: false, error: String(e?.message || e) }, 500, CORS);
+    return json({ ok: true, generated: true, batches: updated, envio_id: envioId, shipment }, 200, CORS);
+  } catch (error) {
+    return json({ ok: false, error: String(error?.message || error) }, 500, CORS);
   }
 }
