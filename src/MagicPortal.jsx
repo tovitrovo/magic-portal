@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff, Archive } from 'lucide-react';
 import { buildCatalogQueries, buildLatestCardQuery, RECENT_CARDS_FILTER } from './catalogQuery';
+import { buildShippingGroups, SHIPPING_SERVICE_UNKNOWN } from '../shared/shipping-groups';
 
 // ══════════════════════════════════════════════════════
 // SUPABASE REST CLIENT
@@ -784,6 +785,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
   // Já paguei o frete: true = cliente informa que o frete já foi pago anteriormente
   const [alreadyPaidShipping,setAlreadyPaidShipping]=useState(false);
   const hasPreviousOrders=previousPaidBatches.length>0;
+  const shippingAnchor=[...(previousPaidBatches||[])].sort((a,b)=>Date.parse(b.created_at||0)-Date.parse(a.created_at||0))[0]||null;
   const [addr,setAddr]=useState({cep:profile?.cep||'',rua:profile?.rua||'',numero:profile?.numero||'',complemento:profile?.complemento||'',bairro:profile?.bairro||'',cidade:profile?.cidade||'',uf:profile?.uf||''});
   const profileHasSavedAddress=Boolean(profile?.cep&&(profile.cep||'').replace(/\D/g,'').length===8&&profile?.rua);
   const [editingAddr,setEditingAddr]=useState(!profileHasSavedAddress);
@@ -852,9 +854,10 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
         qty_in_batch:totalQty,
         subtotal_locked:sub,
         shipping_locked:fV,
-        shipping_service:selectedFrete?.service||selectedFrete?.carrier||null,
+        shipping_service:shippingSkipped?(shippingAnchor?.shipping_service||null):(selectedFrete?.service||selectedFrete?.carrier||null),
         shipping_address:{cep:addr.cep,rua:addr.rua,numero:addr.numero,complemento:addr.complemento,bairro:addr.bairro,cidade:addr.cidade,uf:addr.uf,name:profile?.name||''},
-        shipping_already_paid:alreadyPaidShipping,
+        shipping_already_paid:shippingSkipped,
+        shipping_group_id:shippingSkipped?(shippingAnchor?.shipping_group_id||shippingAnchor?.id||null):null,
         total_locked:total,
         payment_method:payViaBonusFlow?'BONUS':'MERCADO_PAGO',
       };
@@ -865,7 +868,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
         batch = Array.isArray(created) ? created[0] : created;
       } catch(eBatch) {
         console.warn('[finalize] batch POST with shipping_already_paid failed (column may not exist), retrying without it:', eBatch);
-        const {shipping_already_paid:_shippingAlreadyPaid,shipping_service:_shippingService,shipping_address:_shippingAddress,...batchFallback}=batchBaseData;
+        const {shipping_already_paid:_shippingAlreadyPaid,shipping_group_id:_shippingGroupId,shipping_service:_shippingService,shipping_address:_shippingAddress,...batchFallback}=batchBaseData;
         const created = await sbPost('order_batches', batchFallback, token);
         batch = Array.isArray(created) ? created[0] : created;
       }
@@ -1654,11 +1657,13 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
 
 
   async function handleMandaBemLabel(batchId,action='generate',formaEnvio=''){
+    const group=labelGroups.find(item=>item.batches.some(batch=>batch.id===batchId));
+    if(action==='generate'&&group)return handleGroupLabel(group.key);
     if(action==='generate'&&!String(formaEnvio||'').trim()){if(toastFn)toastFn('Informe o serviço de envio (PAC, SEDEX ou PACMINI)','error');return;}
     if(action==='generate'&&!confirm('Gerar etiqueta/envio no MandaBem para este pedido?'))return;
     setLabelLoading(prev=>({...prev,[batchId]:true}));
     try{
-      const r=await fetch('/api/admin-mandabem-label',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId,action,formaEnvio})});
+      const r=await fetch('/api/admin-mandabem-label',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify(group?{rootBatchId:group.rootId,batchIds:group.batches.map(batch=>batch.id),action,formaEnvio}:{batchId,action,formaEnvio})});
       const json=await r.json().catch(()=>({}));
       if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
       SFX.success();
@@ -1673,18 +1678,18 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     const group=labelGroups.find(g=>g.key===groupKey);
     if(!group)return;
     if(group.hasLabel&&!force){if(!confirm('Este grupo já tem etiqueta gerada. Regerar mesmo assim?'))return;}
-    const targetBatch=force?group.batches[0]:(group.batches.find(b=>!b.mandabem_envio_id)||group.batches[0]);
+    const targetBatch=group.rootBatch||group.batches[0];
     if(!targetBatch)return;
-    let formaEnvio=targetBatch.shipping_service||'';
-    if(!formaEnvio&&!force){
-      const svc=prompt('Serviço de envio para este grupo (PAC, SEDEX ou PACMINI):','PAC');
-      if(svc===null)return; // user cancelled
-      if(!svc.trim()){if(toastFn)toastFn('Informe o serviço de envio','error');return;}
-      formaEnvio=svc.trim().toUpperCase();
+    let formaEnvio=group.shippingService||targetBatch.shipping_service||'';
+    if(!formaEnvio||formaEnvio===SHIPPING_SERVICE_UNKNOWN){
+      const svc=prompt('Serviço não identificado. Selecione PAC, SEDEX ou PACMINI:','PACMINI');
+      if(svc===null)return;
+      formaEnvio=svc.trim().toUpperCase().replace(/[\s_-]+/g,'');
+      if(!['PAC','SEDEX','PACMINI'].includes(formaEnvio)){if(toastFn)toastFn('Serviço inválido. Use PAC, SEDEX ou PACMINI.','error');return;}
     }
     setLabelStatus(prev=>({...prev,[groupKey]:{status:'generating',message:''}}));
     try{
-      const r=await fetch('/api/admin-mandabem-label',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:targetBatch.id,action:'generate',formaEnvio:formaEnvio||'PAC',force})});
+      const r=await fetch('/api/admin-mandabem-label',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({rootBatchId:targetBatch.id,batchIds:group.batches.map(batch=>batch.id),action:'generate',formaEnvio,force})});
       const data=await r.json().catch(()=>({}));
       if(!r.ok||!data.ok)throw new Error(data.error||`HTTP ${r.status}`);
       SFX.success();
@@ -1720,48 +1725,48 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     return list;
   },[orders]);
 
-  // Label groups for Etiquetas tab — paid batches grouped by user + shipping address
+  // Label groups for Etiquetas tab — one item per paid shipping group.
+  // Legacy batches without shipping_group_id are attached to the latest previous
+  // batch from the same client that actually paid shipping.
   const labelGroups=useMemo(()=>{
-    function normStr(s){return String(s||'').toLowerCase().replace(/\s+/g,' ').trim();}
-    function normCep(s){return String(s||'').replace(/\D/g,'');}
-    const groups={};
-    allBatches.forEach(b=>{
-      const isPaid=b.status==='PAID'||b.status==='PAID_CONFIRMED';
-      if(!isPaid)return;
-      if(b.shipping_already_paid||Number(b.shipping_locked||0)<=0)return;
-      const addr=b.shipping_address||{};
-      const cep=normCep(addr.cep||'');
-      const rua=normStr(addr.rua||'');
-      const numero=normStr(addr.numero||'');
-      const complemento=normStr(addr.complemento||'');
-      const cidade=normStr(addr.cidade||'');
-      const uf=normStr(addr.uf||'');
-      const addrKey=cep||rua?`${cep}||${rua}||${numero}||${complemento}||${cidade}||${uf}`:'noaddr';
-      const key=`${b.userId}||${addrKey}`;
-      const profileData=allProfiles.find(p=>p.id===b.userId)||{};
-      if(!groups[key]){
-        groups[key]={
-          key,
-          clientName:b.clientName||addr.name||'—',
-          email:addr.email||profileData.email||'',
-          whatsapp:b.clientWhatsapp||profileData.whatsapp||'',
-          userId:b.userId,
-          address:{cep:addr.cep||'',rua:addr.rua||'',numero:addr.numero||'',complemento:addr.complemento||'',bairro:addr.bairro||'',cidade:addr.cidade||'',uf:addr.uf||''},
-          batches:[],
-          totalValue:0,
-          hasLabel:true,
-        };
-      }
-      groups[key].batches.push(b);
-      groups[key].totalValue+=Number(b.total_locked||0);
-      if(!b.mandabem_envio_id)groups[key].hasLabel=false;
-    });
-    return Object.values(groups).sort((a,b)=>{
+    return buildShippingGroups(allBatches).map(group=>{
+      const root=group.rootBatch||{};
+      const addr=root.shipping_address||{};
+      const profileData=allProfiles.find(p=>p.id===root.userId)||{};
+      return {
+        ...group,
+        clientName:root.clientName||addr.name||'—',
+        email:addr.email||profileData.email||'',
+        whatsapp:root.clientWhatsapp||profileData.whatsapp||'',
+        userId:root.userId,
+        address:{cep:addr.cep||'',rua:addr.rua||'',numero:addr.numero||'',complemento:addr.complemento||'',bairro:addr.bairro||'',cidade:addr.cidade||'',uf:addr.uf||''},
+      };
+    }).sort((a,b)=>{
       if(!a.hasLabel&&b.hasLabel)return -1;
       if(a.hasLabel&&!b.hasLabel)return 1;
       return a.clientName.localeCompare(b.clientName);
     });
   },[allBatches,allProfiles]);
+
+  const identifyingLabelGroups=useRef(new Set());
+  useEffect(()=>{
+    if(tab!=='labels')return;
+    const pending=labelGroups.filter(group=>(!group.shippingService||(group.hasLabel&&!group.hasCompleteLabel))&&!identifyingLabelGroups.current.has(group.key));
+    if(!pending.length)return;
+    pending.forEach(async group=>{
+      identifyingLabelGroups.current.add(group.key);
+      try{
+        const response=await fetch('/api/admin-mandabem-label',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({action:group.hasLabel?'refresh':'identify',rootBatchId:group.rootId,batchIds:group.batches.map(batch=>batch.id)})});
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||!data.ok)throw new Error(data.error||`HTTP ${response.status}`);
+        await loadOrders();
+      }catch(error){
+        console.error('Shipping service identification error:',error);
+      }finally{
+        identifyingLabelGroups.current.delete(group.key);
+      }
+    });
+  },[tab,labelGroups,token]);
 
   const ordStats=useMemo(()=>{
     const paid=allBatches.filter(b=>b.status==='PAID'||b.status==='PAID_CONFIRMED');
@@ -2093,7 +2098,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
             <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
               {isDraft&&<Btn variant="success" onClick={e=>{e.stopPropagation();markBatchPaid(b.id);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><CheckCircle size={12}/> Marcar Pago</Btn>}
               {b.payment_method==='MERCADO_PAGO'&&!isCancelled&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();syncBatchMP(b.id);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><RefreshCw size={12}/> Sync MP</Btn>}
-              {canMandaBem&&!b.mandabem_envio_id&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleMandaBemLabel(b.id,'generate',b.shipping_service||prompt('Serviço de envio (PAC, SEDEX ou PACMINI):','PAC')||'');}} disabled={labelBusy} style={{padding:'6px 12px',fontSize:11}} sfx="">{labelBusy?<Spin size={12}/>:<><Truck size={12}/> Gerar etiqueta</>}</Btn>}
+              {canMandaBem&&!b.mandabem_envio_id&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleMandaBemLabel(b.id,'generate');}} disabled={labelBusy} style={{padding:'6px 12px',fontSize:11}} sfx="">{labelBusy?<Spin size={12}/>:<><Truck size={12}/> Gerar etiqueta</>}</Btn>}
               {canMandaBem&&b.mandabem_envio_id&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleMandaBemLabel(b.id,'refresh');}} disabled={labelBusy} style={{padding:'6px 12px',fontSize:11}} sfx="">{labelBusy?<Spin size={12}/>:<><RefreshCw size={12}/> Atualizar envio</>}</Btn>}
               {!isCancelled&&<Btn variant="danger" onClick={e=>{e.stopPropagation();cancelBatch(b.id,isPaid);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><X size={12}/> {isPaid?'Cancelar (reembolso manual)':'Cancelar'}</Btn>}
             </div>
@@ -2208,6 +2213,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         const statusColor=isDone?'#2ee59d':isError?'#ff6b7a':isGenerating?'#c9a96e':'rgba(255,255,255,0.2)';
         const addr=group.address;
         const addrLine=[addr.rua,addr.numero?'Nº '+addr.numero:'',addr.complemento,addr.bairro,addr.cidade&&addr.uf?addr.cidade+'/'+addr.uf:''].filter(Boolean).join(', ');
+        const labeledBatch=group.batches.find(b=>b.mandabem_etiqueta||b.mandabem_envio_id);
 
         return(<Card key={group.key} style={{padding:0,marginBottom:4,borderLeft:'3px solid '+statusColor+'60'}}>
           {/* Card header row */}
@@ -2223,7 +2229,8 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:13,fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{group.clientName}</div>
               <div style={{fontSize:10,color:'rgba(255,255,255,0.35)'}}>
-                {group.batches.length} pedido(s) · R$ {group.totalValue.toFixed(2)}
+                {group.batches.length===1?'1 pedido':`${group.batches.length} pedidos agrupados`} · R$ {group.totalValue.toFixed(2)}
+                <span style={{color:group.shippingService===SHIPPING_SERVICE_UNKNOWN?'#c9a96e':'rgba(255,255,255,0.5)'}}> · {group.shippingService==='PACMINI'?'PAC Mini':group.shippingService==='SEDEX'?'Sedex':group.shippingService==='PAC'?'PAC':group.shippingService===SHIPPING_SERVICE_UNKNOWN?'Serviço não identificado':'Identificando serviço...'}</span>
                 {addr.cidade&&<span style={{color:'rgba(255,255,255,0.25)'}}> · {addr.cidade}{addr.uf?' / '+addr.uf:''}{addr.cep?' · CEP '+addr.cep:''}</span>}
                 {isDone&&!isGenerating&&<span style={{color:'#2ee59d'}}> · Etiqueta gerada ✓</span>}
                 {isError&&<span style={{color:'#ff6b7a'}}> · Erro</span>}
@@ -2267,9 +2274,9 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
             })}
 
             {/* Label info if already generated */}
-            {group.batches.some(b=>b.mandabem_etiqueta||b.mandabem_envio_id)&&<div style={{marginTop:10,padding:'8px 10px',borderRadius:8,background:'rgba(46,229,157,0.06)',border:'1px solid rgba(46,229,157,0.14)'}}>
+            {labeledBatch&&<div style={{marginTop:10,padding:'8px 10px',borderRadius:8,background:'rgba(46,229,157,0.06)',border:'1px solid rgba(46,229,157,0.14)'}}>
               <div style={{fontSize:9,color:'rgba(46,229,157,0.6)',marginBottom:4}}>MandaBem</div>
-              {group.batches.filter(b=>b.mandabem_etiqueta||b.mandabem_envio_id).map(b=>(
+              {[labeledBatch].map(b=>(
                 <div key={b.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:3}}>
                   <div>
                     {b.mandabem_etiqueta&&<div style={{fontSize:12,fontFamily:'monospace',fontWeight:800,color:'#2ee59d'}}>{b.mandabem_etiqueta}</div>}
@@ -2638,7 +2645,7 @@ export default function MagicPortal(){
             const ordCampStatus = {};
             allOrds.forEach(o => { ordCampStatus[o.id] = o.campaigns?.status || null; });
             const ordIds = allOrds.map(o=>o.id).join(',');
-            const batches = await sbGet('order_batches', `order_id=in.(${ordIds})&select=id,status,total_locked,payment_method,created_at,qty_in_batch,mp_link,brl_unit_price_locked,subtotal_locked,order_id,order_items(quantity,cards(name,type))`, tkn);
+            const batches = await sbGet('order_batches', `order_id=in.(${ordIds})&select=id,status,payment_status,total_locked,payment_method,created_at,qty_in_batch,shipping_locked,shipping_service,shipping_already_paid,shipping_group_id,mp_link,brl_unit_price_locked,subtotal_locked,order_id,order_items(quantity,cards(name,type))`, tkn);
             setMyOrders((batches||[]).map(b=>({ ...b, campaignStatus: ordCampStatus[b.order_id] || null, cards: Array.isArray(b.order_items) ? b.order_items.map(i=>({ name:i.cards?.name||'Carta', type:i.cards?.type||'', qty:Number(i.quantity||1) })) : undefined })));
           }
         } catch(e) {
