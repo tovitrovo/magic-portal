@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff, Archive } from 'lucide-react';
 import { buildCatalogQueries, buildLatestCardQuery, RECENT_CARDS_FILTER } from './catalogQuery';
 import { buildShippingGroups, SHIPPING_SERVICE_UNKNOWN } from '../shared/shipping-groups';
+import { DEFAULT_WHATSAPP_MESSAGES, WHATSAPP_AUDIENCES, buildWhatsAppUrl, getWhatsAppRecipients } from './whatsappCommunication';
 import './responsive.css';
 
 // ══════════════════════════════════════════════════════
@@ -1519,6 +1520,9 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   const [bonusLoading,setBonusLoading]=useState(false);
   const [bonusForm,setBonusForm]=useState({userId:null,qty:1});
   const [clientActiveFilter,setClientActiveFilter]=useState(false);
+  const [whatsappAudience,setWhatsappAudience]=useState(WHATSAPP_AUDIENCES.BUYERS);
+  const [whatsappMessages,setWhatsappMessages]=useState(DEFAULT_WHATSAPP_MESSAGES);
+  const [whatsappContacted,setWhatsappContacted]=useState(()=>new Set());
 
   async function loadBonusGrants(){
     if(!selectedCampaign)return;
@@ -1597,15 +1601,16 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       const allBatches=(o.order_batches||[]);
       if(allBatches.length===0)return;
       const key=o.user_id;
-      if(!groups[key]){groups[key]={userId:o.user_id,name:o.profiles?.name||'—',whatsapp:o.profiles?.whatsapp||'',email:o.profiles?.email||'',orders:[],totalCards:0,hasOrder:true,hasActiveOrder:false};}
+      if(!groups[key]){groups[key]={userId:o.user_id,name:o.profiles?.name||'—',whatsapp:o.profiles?.whatsapp||'',email:o.profiles?.email||'',orders:[],totalCards:0,hasOrder:true,hasActiveOrder:false,hasPaidOrder:false};}
       groups[key].orders.push({...o,order_batches:allBatches});
       groups[key].totalCards+=allBatches.reduce((s,b)=>s+(b.qty_in_batch||0),0);
       if(allBatches.some(b=>b.status&&b.status!=='CANCELLED'))groups[key].hasActiveOrder=true;
+      if(allBatches.some(b=>b.status==='PAID'||b.status==='PAID_CONFIRMED'))groups[key].hasPaidOrder=true;
     });
     // Adiciona profiles sem pedido
     allProfiles.forEach(p=>{
       if(!groups[p.id]&&!p.is_admin){
-        groups[p.id]={userId:p.id,name:p.name||'—',whatsapp:p.whatsapp||'',email:p.email||'',orders:[],totalCards:0,hasOrder:false,hasActiveOrder:false};
+        groups[p.id]={userId:p.id,name:p.name||'—',whatsapp:p.whatsapp||'',email:p.email||'',orders:[],totalCards:0,hasOrder:false,hasActiveOrder:false,hasPaidOrder:false};
       }
     });
     return Object.values(groups).sort((a,b)=>b.hasActiveOrder-a.hasActiveOrder||b.hasOrder-a.hasOrder||a.name.localeCompare(b.name));
@@ -1617,6 +1622,28 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     if(searchOrd){const q=searchOrd.toLowerCase();list=list.filter(c=>c.name.toLowerCase().includes(q)||c.whatsapp.toLowerCase().includes(q)||c.orders.some(o=>String(o.id).toLowerCase().includes(q)||o.order_batches?.some(b=>String(b.id).slice(0,8).toUpperCase().includes(q.toUpperCase()))));}
     return list;
   },[clientGroups,clientActiveFilter,searchOrd]);
+
+  const whatsappRecipients=useMemo(()=>getWhatsAppRecipients(clientGroups,whatsappAudience),[clientGroups,whatsappAudience]);
+  const whatsappMissingCount=useMemo(()=>{
+    const audienceClients=whatsappAudience===WHATSAPP_AUDIENCES.BUYERS?clientGroups.filter(c=>c.hasPaidOrder):clientGroups;
+    return audienceClients.filter(c=>!c.whatsapp).length;
+  },[clientGroups,whatsappAudience]);
+  const whatsappContactKey=client=>`${selectedCampaign?.id||'campaign'}:${whatsappAudience}:${client.userId}`;
+  const nextWhatsappRecipient=whatsappRecipients.find(client=>!whatsappContacted.has(whatsappContactKey(client)));
+
+  function openWhatsAppFor(client){
+    const url=buildWhatsAppUrl(client,whatsappMessages[whatsappAudience],selectedCampaign?.name);
+    if(!url)return;
+    window.open(url,'_blank','noopener,noreferrer');
+    setWhatsappContacted(prev=>new Set(prev).add(whatsappContactKey(client)));
+  }
+
+  async function copyWhatsAppMessage(){
+    try{
+      await navigator.clipboard.writeText(whatsappMessages[whatsappAudience]);
+      SFX.success();if(toastFn)toastFn('Mensagem copiada!','success');
+    }catch(e){if(toastFn)toastFn('Não foi possível copiar a mensagem','error');}
+  }
 
   async function loadBatchCards(batchId){
     if(batchCards[batchId])return;
@@ -2109,6 +2136,23 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     </>}
 
     {tab==='clients'&&<>
+      <Card style={{padding:14,border:'1px solid rgba(37,211,102,0.18)'}}>
+        <SectionTitle sub="Abra as conversas uma a uma com a mensagem já preenchida">Comunicação por WhatsApp</SectionTitle>
+        <div style={{display:'flex',gap:6,marginBottom:10}}>
+          {[{key:WHATSAPP_AUDIENCES.BUYERS,label:'Compradores pagos'},{key:WHATSAPP_AUDIENCES.ALL,label:'Todos os clientes'}].map(option=><button key={option.key} onClick={()=>setWhatsappAudience(option.key)} style={{flex:1,padding:'7px 8px',borderRadius:9,border:'1px solid '+(whatsappAudience===option.key?'rgba(37,211,102,0.35)':'rgba(255,255,255,0.06)'),background:whatsappAudience===option.key?'rgba(37,211,102,0.12)':'rgba(255,255,255,0.025)',color:whatsappAudience===option.key?'#25d366':'rgba(255,255,255,0.38)',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{option.label}</button>)}
+        </div>
+        <textarea value={whatsappMessages[whatsappAudience]} onChange={e=>setWhatsappMessages(messages=>({...messages,[whatsappAudience]:e.target.value}))} rows={5} style={{width:'100%',boxSizing:'border-box',resize:'vertical',padding:'10px 12px',borderRadius:10,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.28)',color:'#fff',fontSize:12,lineHeight:1.5,fontFamily:"'Outfit',sans-serif",outline:'none'}}/>
+        <div style={{fontSize:10,color:'rgba(255,255,255,0.28)',marginTop:5}}>Use <b style={{color:'rgba(255,255,255,0.5)'}}>{'{nome}'}</b> para o primeiro nome e <b style={{color:'rgba(255,255,255,0.5)'}}>{'{encomenda}'}</b> para o nome da encomenda.</div>
+        <div style={{display:'flex',justifyContent:'space-between',gap:8,alignItems:'center',marginTop:10,flexWrap:'wrap'}}>
+          <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}><b style={{color:'#25d366'}}>{whatsappRecipients.length}</b> contatos com WhatsApp{whatsappMissingCount>0&&<span> · {whatsappMissingCount} sem número</span>}</div>
+          <div style={{display:'flex',gap:6}}>
+            <Btn variant="secondary" onClick={copyWhatsAppMessage} style={{padding:'7px 10px',fontSize:10}} sfx=""><Copy size={11}/> Copiar</Btn>
+            <Btn variant="success" onClick={()=>nextWhatsappRecipient&&openWhatsAppFor(nextWhatsappRecipient)} disabled={!nextWhatsappRecipient||!whatsappMessages[whatsappAudience].trim()} style={{padding:'7px 10px',fontSize:10}} sfx=""><MessageCircle size={11}/> {nextWhatsappRecipient?'Abrir próximo':'Concluído'}</Btn>
+          </div>
+        </div>
+        {nextWhatsappRecipient&&<div style={{marginTop:8,padding:'7px 9px',borderRadius:8,background:'rgba(37,211,102,0.06)',fontSize:10,color:'rgba(255,255,255,0.38)'}}>Próximo: <b style={{color:'rgba(255,255,255,0.65)'}}>{nextWhatsappRecipient.name}</b>. Ao voltar do WhatsApp, clique novamente para seguir para o próximo contato.</div>}
+        <div style={{fontSize:10,color:'rgba(255,255,255,0.22)',marginTop:8,lineHeight:1.4}}>O portal não envia mensagens automaticamente: cada conversa é aberta para você revisar e enviar, respeitando as regras do WhatsApp.</div>
+      </Card>
       <Input icon={Search} placeholder="Buscar por nome, email ou pedido..." value={searchOrd} onChange={e=>setSearchOrd(e.target.value)}/>
       <div style={{display:'flex',gap:6,marginBottom:4}}>
         <button onClick={()=>setClientActiveFilter(false)} style={{padding:'5px 12px',borderRadius:8,border:'none',background:!clientActiveFilter?theme.primary+'20':'rgba(255,255,255,0.04)',color:!clientActiveFilter?theme.primary:'rgba(255,255,255,0.35)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Todos ({clientGroups.length})</button>
@@ -2160,7 +2204,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
                 </div>}
               </div>);
             }))}
-            {client.whatsapp&&<a href={'https://wa.me/55'+client.whatsapp} target="_blank" rel="noopener noreferrer" style={{display:'inline-flex',alignItems:'center',gap:4,margin:'6px 14px 10px',fontSize:11,color:'#25d366',textDecoration:'none'}}><MessageCircle size={12}/> WhatsApp</a>}
+            {client.whatsapp&&<button onClick={()=>openWhatsAppFor(client)} style={{display:'inline-flex',alignItems:'center',gap:4,margin:'6px 14px 10px',padding:0,border:'none',background:'none',fontSize:11,color:'#25d366',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={12}/> WhatsApp com mensagem</button>}
             <div style={{padding:'8px 14px',borderTop:'1px solid rgba(255,255,255,0.04)'}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
                 <span style={{fontSize:11,fontWeight:700,color:'#2ee59d'}}><Gift size={11}/> Bônus</span>
