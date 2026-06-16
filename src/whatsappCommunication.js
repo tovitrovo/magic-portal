@@ -8,6 +8,8 @@ export const DEFAULT_WHATSAPP_MESSAGES = {
   [WHATSAPP_AUDIENCES.ALL]: 'Oi, {nome}! Está aberta uma nova encomenda no Magic Portal. Se quiser participar, já pode acessar o portal e montar seu pedido.',
 };
 
+export const DEFAULT_SHIPMENT_WHATSAPP_MESSAGE = 'Oi, {nome}! Sua encomenda {encomenda} foi postada. Código de rastreamento MandaBem: {rastreamento}';
+
 export function normalizeWhatsAppNumber(value) {
   const digits = String(value || '').replace(/\D/g, '');
   if (!digits) return '';
@@ -16,18 +18,24 @@ export function normalizeWhatsAppNumber(value) {
   return '';
 }
 
-export function personalizeWhatsAppMessage(template, client, campaignName = '') {
+export function personalizeWhatsAppMessage(template, client, campaignName = '', trackingCode = '') {
   const firstName = String(client?.name || 'cliente').trim().split(/\s+/)[0] || 'cliente';
   return String(template || '')
     .replaceAll('{nome}', firstName)
-    .replaceAll('{encomenda}', String(campaignName || ''));
+    .replaceAll('{encomenda}', String(campaignName || ''))
+    .replaceAll('{rastreamento}', String(trackingCode || ''));
 }
 
-export function buildWhatsAppUrl(client, template, campaignName = '') {
+export function buildWhatsAppUrl(client, template, campaignName = '', trackingCode = '') {
   const phone = normalizeWhatsAppNumber(client?.whatsapp);
   if (!phone) return '';
-  const message = personalizeWhatsAppMessage(template, client, campaignName);
+  const message = personalizeWhatsAppMessage(template, client, campaignName, trackingCode);
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
+
+export function buildShipmentWhatsAppUrl(client, campaignName = '', trackingCode = '', template = DEFAULT_SHIPMENT_WHATSAPP_MESSAGE) {
+  if (!trackingCode) return '';
+  return buildWhatsAppUrl(client, template, campaignName, trackingCode);
 }
 
 export function getWhatsAppRecipients(clients, audience) {

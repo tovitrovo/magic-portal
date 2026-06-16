@@ -141,6 +141,7 @@ CREATE TABLE IF NOT EXISTS public.order_batches (
   shipping_group_id     uuid REFERENCES public.order_batches(id) ON DELETE SET NULL,
   mandabem_envio_id     text,
   mandabem_etiqueta     text,
+  mandabem_rastreamento text,
   mandabem_status       text,
   mandabem_payload      jsonb,
   mandabem_generated_at timestamptz,
