@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff, Archive } from 'lucide-react';
 import { buildCatalogQueries, buildLatestCardQuery, RECENT_CARDS_FILTER } from './catalogQuery';
 import { buildShippingGroups, SHIPPING_SERVICE_UNKNOWN } from '../shared/shipping-groups';
-import { DEFAULT_WHATSAPP_MESSAGES, WHATSAPP_AUDIENCES, buildWhatsAppUrl, getWhatsAppRecipients } from './whatsappCommunication';
+import { DEFAULT_WHATSAPP_MESSAGES, WHATSAPP_AUDIENCES, buildShipmentWhatsAppUrl, buildWhatsAppUrl, getWhatsAppRecipients } from './whatsappCommunication';
 import './responsive.css';
 
 // ══════════════════════════════════════════════════════
@@ -1638,6 +1638,13 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     setWhatsappContacted(prev=>new Set(prev).add(whatsappContactKey(client)));
   }
 
+  function openShipmentWhatsAppFor(batch){
+    const trackingCode=batch?.mandabem_rastreamento||batch?.mandabem_etiqueta||'';
+    const url=buildShipmentWhatsAppUrl({name:batch?.clientName,whatsapp:batch?.clientWhatsapp},selectedCampaign?.name,trackingCode);
+    if(!url){if(toastFn)toastFn(!trackingCode?'Pedido sem código de rastreamento MandaBem':'Cliente sem WhatsApp válido','error');return;}
+    window.open(url,'_blank','noopener,noreferrer');
+  }
+
   async function copyWhatsAppMessage(){
     try{
       await navigator.clipboard.writeText(whatsappMessages[whatsappAudience]);
@@ -1748,7 +1755,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   const allBatches=useMemo(()=>{
     const list=[];
     orders.forEach(o=>{(o.order_batches||[]).forEach(b=>{
-      list.push({...b,orderId:o.id,userId:o.user_id,clientName:o.profiles?.name||'—',clientWhatsapp:o.profiles?.whatsapp||'',qtyPaid:o.qty_paid||0,qtyBonus:o.qty_bonus||0,orderCreatedAt:o.created_at,shippingPriceLocked:o.shipping_price_brl_locked});
+      list.push({...b,orderId:o.id,userId:o.user_id,clientName:o.profiles?.name||'—',clientWhatsapp:o.profiles?.whatsapp||'',clientEmail:o.profiles?.email||'',qtyPaid:o.qty_paid||0,qtyBonus:o.qty_bonus||0,orderCreatedAt:o.created_at,shippingPriceLocked:o.shipping_price_brl_locked});
     });});
     return list;
   },[orders]);
@@ -2094,21 +2101,25 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
             </div>}
 
             {/* MandaBem Label */}
-            {(b.mandabem_envio_id||b.mandabem_etiqueta||b.mandabem_status)&&<div style={{padding:'8px 10px',borderRadius:8,background:'rgba(46,229,157,0.06)',border:'1px solid rgba(46,229,157,0.14)',marginBottom:8}}>
+            {(b.mandabem_envio_id||b.mandabem_etiqueta||b.mandabem_rastreamento||b.mandabem_status)&&<div style={{padding:'8px 10px',borderRadius:8,background:'rgba(46,229,157,0.06)',border:'1px solid rgba(46,229,157,0.14)',marginBottom:8}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
                 <div>
-                  <div style={{fontSize:9,color:'rgba(46,229,157,0.6)',marginBottom:2}}>MandaBem</div>
-                  {b.mandabem_etiqueta&&<div style={{fontSize:12,fontFamily:'monospace',fontWeight:800,color:'#2ee59d'}}>{b.mandabem_etiqueta}</div>}
+                  <div style={{fontSize:9,color:'rgba(46,229,157,0.6)',marginBottom:2}}>MandaBem · Código de rastreamento</div>
+                  {(b.mandabem_rastreamento||b.mandabem_etiqueta)&&<div style={{fontSize:12,fontFamily:'monospace',fontWeight:800,color:'#2ee59d'}}>{b.mandabem_rastreamento||b.mandabem_etiqueta}</div>}
                   <div style={{fontSize:10,color:'rgba(255,255,255,0.35)'}}>{b.mandabem_status||'Envio gerado'}{b.mandabem_envio_id&&<span> · ID {b.mandabem_envio_id}</span>}</div>
                 </div>
-                {b.mandabem_etiqueta&&<button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(b.mandabem_etiqueta);SFX.success();}} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,padding:'4px 7px',color:'rgba(255,255,255,0.45)',fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><Copy size={10}/></button>}
+                {(b.mandabem_rastreamento||b.mandabem_etiqueta)&&<div style={{display:'flex',gap:5,flexShrink:0}}>
+                  <button title="Copiar rastreamento" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(b.mandabem_rastreamento||b.mandabem_etiqueta);SFX.success();}} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,padding:'4px 7px',color:'rgba(255,255,255,0.45)',fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><Copy size={10}/></button>
+                  {b.clientWhatsapp&&<button title="Enviar rastreamento no WhatsApp" onClick={e=>{e.stopPropagation();openShipmentWhatsAppFor(b);}} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(37,211,102,0.08)',border:'1px solid rgba(37,211,102,0.18)',borderRadius:6,padding:'4px 7px',color:'#25d366',fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={10}/> Enviar</button>}
+                </div>}
               </div>
             </div>}
 
             {/* Client Contact */}
             <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10,flexWrap:'wrap'}}>
               {b.clientEmail&&<span style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'flex',alignItems:'center',gap:3}}><Mail size={10}/>{b.clientEmail}</span>}
-              {b.clientWhatsapp&&<a href={'https://wa.me/55'+b.clientWhatsapp} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:'#25d366',textDecoration:'none',display:'flex',alignItems:'center',gap:3}}><MessageCircle size={10}/> WhatsApp</a>}
+              {b.clientWhatsapp&&<a href={buildWhatsAppUrl({name:b.clientName,whatsapp:b.clientWhatsapp},whatsappMessages[whatsappAudience],selectedCampaign?.name)} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:'#25d366',textDecoration:'none',display:'flex',alignItems:'center',gap:3}}><MessageCircle size={10}/> WhatsApp</a>}
+              {b.clientWhatsapp&&(b.mandabem_rastreamento||b.mandabem_etiqueta)&&<button onClick={e=>{e.stopPropagation();openShipmentWhatsAppFor(b);}} style={{display:'flex',alignItems:'center',gap:3,padding:0,border:'none',background:'none',fontSize:11,color:'#25d366',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><Truck size={10}/> Enviar rastreamento</button>}
             </div>
 
             {/* Card Items */}
@@ -2258,7 +2269,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         const statusColor=isDone?'#2ee59d':isError?'#ff6b7a':isGenerating?'#c9a96e':'rgba(255,255,255,0.2)';
         const addr=group.address;
         const addrLine=[addr.rua,addr.numero?'Nº '+addr.numero:'',addr.complemento,addr.bairro,addr.cidade&&addr.uf?addr.cidade+'/'+addr.uf:''].filter(Boolean).join(', ');
-        const labeledBatch=group.batches.find(b=>b.mandabem_etiqueta||b.mandabem_envio_id);
+        const labeledBatch=group.batches.find(b=>b.mandabem_rastreamento||b.mandabem_etiqueta||b.mandabem_envio_id);
 
         return(<Card key={group.key} style={{padding:0,marginBottom:4,borderLeft:'3px solid '+statusColor+'60'}}>
           {/* Card header row */}
@@ -2320,14 +2331,17 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
 
             {/* Label info if already generated */}
             {labeledBatch&&<div style={{marginTop:10,padding:'8px 10px',borderRadius:8,background:'rgba(46,229,157,0.06)',border:'1px solid rgba(46,229,157,0.14)'}}>
-              <div style={{fontSize:9,color:'rgba(46,229,157,0.6)',marginBottom:4}}>MandaBem</div>
+              <div style={{fontSize:9,color:'rgba(46,229,157,0.6)',marginBottom:4}}>MandaBem · Código de rastreamento</div>
               {[labeledBatch].map(b=>(
                 <div key={b.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:3}}>
                   <div>
-                    {b.mandabem_etiqueta&&<div style={{fontSize:12,fontFamily:'monospace',fontWeight:800,color:'#2ee59d'}}>{b.mandabem_etiqueta}</div>}
+                    {(b.mandabem_rastreamento||b.mandabem_etiqueta)&&<div style={{fontSize:12,fontFamily:'monospace',fontWeight:800,color:'#2ee59d'}}>{b.mandabem_rastreamento||b.mandabem_etiqueta}</div>}
                     <div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>{b.mandabem_status||'Envio gerado'}{b.mandabem_envio_id&&<span> · ID {b.mandabem_envio_id}</span>}</div>
                   </div>
-                  {b.mandabem_etiqueta&&<button onClick={()=>{navigator.clipboard.writeText(b.mandabem_etiqueta);SFX.success();}} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,padding:'3px 6px',color:'rgba(255,255,255,0.4)',fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><Copy size={10}/></button>}
+                  {(b.mandabem_rastreamento||b.mandabem_etiqueta)&&<div style={{display:'flex',gap:5,flexShrink:0}}>
+                    <button title="Copiar rastreamento" onClick={()=>{navigator.clipboard.writeText(b.mandabem_rastreamento||b.mandabem_etiqueta);SFX.success();}} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,padding:'3px 6px',color:'rgba(255,255,255,0.4)',fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><Copy size={10}/></button>
+                    {group.whatsapp&&<button title="Enviar rastreamento no WhatsApp" onClick={()=>openShipmentWhatsAppFor({...b,clientName:group.clientName,clientWhatsapp:group.whatsapp})} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(37,211,102,0.08)',border:'1px solid rgba(37,211,102,0.18)',borderRadius:6,padding:'3px 6px',color:'#25d366',fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={10}/> Enviar</button>}
+                  </div>}
                 </div>
               ))}
             </div>}

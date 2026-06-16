@@ -56,10 +56,9 @@ export async function onRequest(context) {
     }
 
     // Query completa com todos os campos necessários para o admin
-    // NOTA: profiles não tem coluna email — o email fica em auth.users
-    const fullSelect = "id,created_at,user_id,qty_paid,qty_bonus,status,campaign_id,shipping_price_brl_locked,profiles(name,whatsapp),order_batches(id,status,qty_in_batch,payment_status,confirmed_at,total_locked,subtotal_locked,shipping_locked,shipping_service,shipping_address,shipping_already_paid,shipping_group_id,mandabem_envio_id,mandabem_etiqueta,mandabem_status,mandabem_generated_at,mandabem_updated_at,payment_method,mp_link,mp_payment_id,mp_preference_id,payment_amount,mp_payload,created_at)";
+    const fullSelect = "id,created_at,user_id,qty_paid,qty_bonus,status,campaign_id,shipping_price_brl_locked,profiles(name,whatsapp,email),order_batches(id,status,qty_in_batch,payment_status,confirmed_at,total_locked,subtotal_locked,shipping_locked,shipping_service,shipping_address,shipping_already_paid,shipping_group_id,mandabem_envio_id,mandabem_etiqueta,mandabem_rastreamento,mandabem_status,mandabem_generated_at,mandabem_updated_at,payment_method,mp_link,mp_payment_id,mp_preference_id,payment_amount,mp_payload,created_at)";
     // Query mínima de fallback (colunas essenciais que sempre existem)
-    const safeSelect = "id,created_at,user_id,qty_paid,qty_bonus,status,profiles(name,whatsapp),order_batches(id,status,qty_in_batch,payment_status,confirmed_at,total_locked,shipping_locked,payment_method)";
+    const safeSelect = "id,created_at,user_id,qty_paid,qty_bonus,status,profiles(name,whatsapp,email),order_batches(id,status,qty_in_batch,payment_status,confirmed_at,total_locked,shipping_locked,payment_method)";
 
     const pageSize = 1000;
     const baseParams = `&campaign_id=eq.${encodeURIComponent(campaignId)}&order=created_at.desc`;

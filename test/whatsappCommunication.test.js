@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  DEFAULT_SHIPMENT_WHATSAPP_MESSAGE,
   WHATSAPP_AUDIENCES,
+  buildShipmentWhatsAppUrl,
   buildWhatsAppUrl,
   getWhatsAppRecipients,
   normalizeWhatsAppNumber,
@@ -17,8 +19,8 @@ test('normalizes Brazilian WhatsApp numbers without duplicating country code', (
 
 test('personalizes supported placeholders using the first name', () => {
   assert.equal(
-    personalizeWhatsAppMessage('Oi, {nome}! A {encomenda} chegou.', { name: 'Maria Silva' }, 'Encomenda Junho'),
-    'Oi, Maria! A Encomenda Junho chegou.',
+    personalizeWhatsAppMessage('Oi, {nome}! A {encomenda} chegou. Rastreio: {rastreamento}', { name: 'Maria Silva' }, 'Encomenda Junho', 'MB123'),
+    'Oi, Maria! A Encomenda Junho chegou. Rastreio: MB123',
   );
 });
 
@@ -27,6 +29,14 @@ test('builds an encoded wa.me URL', () => {
     buildWhatsAppUrl({ name: 'João', whatsapp: '11999998888' }, 'Oi, {nome}!', 'Junho'),
     'https://wa.me/5511999998888?text=Oi%2C%20Jo%C3%A3o!',
   );
+});
+
+test('builds a shipment WhatsApp URL with MandaBem tracking code', () => {
+  assert.equal(
+    buildShipmentWhatsAppUrl({ name: 'João', whatsapp: '11999998888' }, 'Junho', 'MB123'),
+    `https://wa.me/5511999998888?text=${encodeURIComponent(DEFAULT_SHIPMENT_WHATSAPP_MESSAGE.replace('{nome}', 'João').replace('{encomenda}', 'Junho').replace('{rastreamento}', 'MB123'))}`,
+  );
+  assert.equal(buildShipmentWhatsAppUrl({ name: 'João', whatsapp: '11999998888' }, 'Junho', ''), '');
 });
 
 test('selects paid buyers or every registered client with WhatsApp', () => {

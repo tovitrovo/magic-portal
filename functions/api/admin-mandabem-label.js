@@ -20,6 +20,52 @@ function json(data, status, CORS) {
 function onlyDigits(value = "") { return String(value || "").replace(/\D/g, ""); }
 function clampText(value, max) { return String(value || "").trim().slice(0, max); }
 
+function extractMandaBemTracking(...sources) {
+  const trackingKeys = new Set([
+    "rastreamento",
+    "rastreio",
+    "codigorastreamento",
+    "codigorastreio",
+    "codrastreamento",
+    "codrastreio",
+    "tracking",
+    "trackingcode",
+    "objeto",
+  ]);
+  const seen = new Set();
+  const normalizeKey = key => String(key || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+
+  function visit(value) {
+    if (!value || typeof value !== "object") return "";
+    if (seen.has(value)) return "";
+    seen.add(value);
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const found = visit(item);
+        if (found) return found;
+      }
+      return "";
+    }
+    for (const [key, raw] of Object.entries(value)) {
+      if (trackingKeys.has(normalizeKey(key)) && raw != null && typeof raw !== "object") {
+        const tracking = clampText(raw, 80);
+        if (tracking) return tracking;
+      }
+    }
+    for (const raw of Object.values(value)) {
+      const found = visit(raw);
+      if (found) return found;
+    }
+    return "";
+  }
+
+  for (const source of sources) {
+    const found = visit(source);
+    if (found) return found;
+  }
+  return "";
+}
+
 function packageForQuantity(quantity) {
   const qty = Math.max(Number(quantity || 0), 1);
   return {
@@ -173,7 +219,7 @@ export async function onRequest(context) {
       Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}`,
       "Content-Type": "application/json",
     };
-    const select = "id,order_id,status,payment_status,created_at,qty_in_batch,shipping_locked,shipping_already_paid,shipping_group_id,shipping_service,shipping_address,mandabem_envio_id,mandabem_etiqueta,mandabem_status,orders(id,user_id,profiles(name,email,cep,rua,numero,complemento,bairro,cidade,uf))";
+    const select = "id,order_id,status,payment_status,created_at,qty_in_batch,shipping_locked,shipping_already_paid,shipping_group_id,shipping_service,shipping_address,mandabem_envio_id,mandabem_etiqueta,mandabem_rastreamento,mandabem_status,orders(id,user_id,profiles(name,email,cep,rua,numero,complemento,bairro,cidade,uf))";
     const batchFilter = batchIds.length === 1 ? `id=eq.${encodeURIComponent(batchIds[0])}` : `id=in.(${batchIds.map(encodeURIComponent).join(",")})`;
     const batchRes = await fetch(`${SB_URL}/rest/v1/order_batches?${batchFilter}&select=${encodeURIComponent(select)}`, { headers });
     if (!batchRes.ok) {
@@ -211,6 +257,7 @@ export async function onRequest(context) {
         shipping_service: override || normalizeShippingService(rootBatch.shipping_service) || normalizeShippingService(existing.shipping_service) || SHIPPING_SERVICE_UNKNOWN,
         mandabem_envio_id: String(existing.mandabem_envio_id),
         mandabem_etiqueta: shipment.etiqueta || existing.mandabem_etiqueta || null,
+        mandabem_rastreamento: extractMandaBemTracking(shipment, info.payload) || existing.mandabem_rastreamento || null,
         mandabem_status: shipment.status || existing.mandabem_status || null,
         mandabem_payload: info.payload,
         mandabem_updated_at: new Date().toISOString(),
@@ -275,6 +322,7 @@ export async function onRequest(context) {
       shipping_service: service,
       mandabem_envio_id: String(envioId),
       mandabem_etiqueta: shipment.etiqueta || null,
+      mandabem_rastreamento: extractMandaBemTracking(shipment, finalPayload, generated) || null,
       mandabem_status: shipment.status || generated.mensagem || "Envio gerado",
       mandabem_payload: finalPayload,
       mandabem_generated_at: new Date().toISOString(),
