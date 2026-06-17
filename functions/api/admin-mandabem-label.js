@@ -39,6 +39,13 @@ export function extractMandaBemTrackingCode(shipment, ...fallbackSources) {
   return clampText(shipment?.etiqueta, 80) || extractMandaBemTracking(...fallbackSources);
 }
 
+function getMandaBemTrackingDetails(shipment, fallbackStatus = '', ...fallbackSources) {
+  return {
+    code: extractMandaBemTrackingCode(shipment, ...fallbackSources) || null,
+    status: clampText(shipment?.status, 120) || fallbackStatus || null,
+  };
+}
+
 function extractMandaBemTracking(...sources) {
   const trackingKeys = new Set([
     "rastreamento",
@@ -272,8 +279,9 @@ export async function onRequest(context) {
     if ((action === "refresh" || (existing && !forceGenerate)) && existing?.mandabem_envio_id) {
       const info = await queryShipment(context.env, existing.mandabem_envio_id, groupId);
       const shipment = info.data || {};
-      const trackingCode = extractMandaBemTrackingCode(shipment, info.payload) || existing.mandabem_rastreamento || existing.mandabem_etiqueta || null;
-      const trackingStatus = clampText(shipment.status, 120) || existing.mandabem_status || null;
+      const trackingInfo = getMandaBemTrackingDetails(shipment, existing.mandabem_status, info.payload);
+      const trackingCode = trackingInfo.code || existing.mandabem_rastreamento || existing.mandabem_etiqueta || null;
+      const trackingStatus = trackingInfo.status;
       const updated = await patchBatches(SB_URL, headers, batchIds, {
         shipping_group_id: groupId,
         shipping_service: override || normalizeShippingService(rootBatch.shipping_service) || normalizeShippingService(existing.shipping_service) || SHIPPING_SERVICE_UNKNOWN,
@@ -339,8 +347,9 @@ export async function onRequest(context) {
     } catch (error) {
       finalPayload = { generated: generatedPayload, shipment_error: String(error?.message || error) };
     }
-    const trackingCode = extractMandaBemTrackingCode(shipment, finalPayload, generated) || null;
-    const trackingStatus = clampText(shipment.status, 120) || generated.mensagem || "Envio gerado";
+    const trackingInfo = getMandaBemTrackingDetails(shipment, generated.mensagem || "Envio gerado", finalPayload, generated);
+    const trackingCode = trackingInfo.code;
+    const trackingStatus = trackingInfo.status || "Envio gerado";
     const updated = await patchBatches(SB_URL, headers, batchIds, {
       shipping_group_id: groupId,
       shipping_service: service,
