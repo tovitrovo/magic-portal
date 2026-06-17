@@ -34,9 +34,12 @@ test('builds an encoded wa.me URL', () => {
 test('builds a shipment WhatsApp URL with MandaBem tracking code', () => {
   assert.equal(
     buildShipmentWhatsAppUrl({ name: 'João', whatsapp: '11999998888' }, 'Junho', 'MB123'),
-    `https://wa.me/5511999998888?text=${encodeURIComponent(DEFAULT_SHIPMENT_WHATSAPP_MESSAGE.replace('{nome}', 'João').replace('{encomenda}', 'Junho').replace('{rastreamento}', 'MB123'))}`,
+    `https://wa.me/5511999998888?text=${encodeURIComponent(DEFAULT_SHIPMENT_WHATSAPP_MESSAGE.replace('{nome}', 'João').replace('{tracking_code}', 'MB123').replace('{tracking_status}', 'Envio gerado'))}`,
   );
-  assert.equal(buildShipmentWhatsAppUrl({ name: 'João', whatsapp: '11999998888' }, 'Junho', ''), '');
+  assert.equal(
+    decodeURIComponent(buildShipmentWhatsAppUrl({ name: 'João', whatsapp: '11999998888' }, 'Junho', '', 'Postado')),
+    'https://wa.me/5511999998888?text=Oi, João! Sua carta foi postada 💌\n\nCódigo de rastreio: ainda aguardando geração\nStatus atual: Postado\n\nVocê pode acompanhar a entrega usando esse código.',
+  );
 });
 
 test('selects paid buyers or every registered client with WhatsApp', () => {
