@@ -96,7 +96,14 @@ export async function onRequest(context) {
       });
     }
 
-    const data = result.rows || [];
+    const data = (result.rows || []).map(order => ({
+      ...order,
+      order_batches: (order.order_batches || []).map(batch => ({
+        ...batch,
+        tracking_code: String(batch.mandabem_rastreamento || batch.mandabem_etiqueta || '').trim() || null,
+        tracking_status: String(batch.mandabem_status || '').trim() || null,
+      })),
+    }));
     console.log('✅ Data fetched:', data.length, 'orders');
 
     return new Response(JSON.stringify({

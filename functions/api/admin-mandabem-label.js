@@ -20,6 +20,32 @@ function json(data, status, CORS) {
 function onlyDigits(value = "") { return String(value || "").replace(/\D/g, ""); }
 function clampText(value, max) { return String(value || "").trim().slice(0, max); }
 
+
+export function normalizeMandaBemShipmentData(dados, envioId = '', refId = '') {
+  if (!dados || typeof dados !== "object") return {};
+  const candidates = Array.isArray(dados) ? dados : Object.values(dados).every(value => value && typeof value === "object") ? Object.values(dados) : [dados];
+  const wantedEnvioId = String(envioId || "");
+  const wantedRefId = String(refId || "");
+  return candidates.find(item => {
+    if (!item || typeof item !== "object") return false;
+    const itemEnvioId = String(item.envio_id || item.id || "");
+    const itemRefId = String(item.ref_id || "");
+    return (wantedEnvioId && itemEnvioId === wantedEnvioId) || (wantedRefId && itemRefId === wantedRefId);
+  }) || candidates.find(item => item && typeof item === "object") || {};
+}
+
+export function extractMandaBemTrackingCode(shipment, ...fallbackSources) {
+  // MandaBem API /ws/envio documents resultado.dados.etiqueta as the shipment tracking code.
+  return clampText(shipment?.etiqueta, 80) || extractMandaBemTracking(...fallbackSources);
+}
+
+function getMandaBemTrackingDetails(shipment, fallbackStatus = '', ...fallbackSources) {
+  return {
+    code: extractMandaBemTrackingCode(shipment, ...fallbackSources) || null,
+    status: clampText(shipment?.status, 120) || fallbackStatus || null,
+  };
+}
+
 function extractMandaBemTracking(...sources) {
   const trackingKeys = new Set([
     "rastreamento",
@@ -129,7 +155,8 @@ async function queryShipment(env, envioId, refId) {
   if (envioId) params.set("id", String(envioId));
   else params.set("ref_id", String(refId));
   const payload = await postMandabem("envio", params);
-  return { payload, data: assertMandabemSuccess(payload).dados || {} };
+  const result = assertMandabemSuccess(payload);
+  return { payload, data: normalizeMandaBemShipmentData(result.dados, envioId, refId) };
 }
 
 async function patchBatches(SB_URL, headers, batchIds, data) {
@@ -252,17 +279,20 @@ export async function onRequest(context) {
     if ((action === "refresh" || (existing && !forceGenerate)) && existing?.mandabem_envio_id) {
       const info = await queryShipment(context.env, existing.mandabem_envio_id, groupId);
       const shipment = info.data || {};
+      const trackingInfo = getMandaBemTrackingDetails(shipment, existing.mandabem_status, info.payload);
+      const trackingCode = trackingInfo.code || existing.mandabem_rastreamento || existing.mandabem_etiqueta || null;
+      const trackingStatus = trackingInfo.status;
       const updated = await patchBatches(SB_URL, headers, batchIds, {
         shipping_group_id: groupId,
         shipping_service: override || normalizeShippingService(rootBatch.shipping_service) || normalizeShippingService(existing.shipping_service) || SHIPPING_SERVICE_UNKNOWN,
         mandabem_envio_id: String(existing.mandabem_envio_id),
-        mandabem_etiqueta: shipment.etiqueta || existing.mandabem_etiqueta || null,
-        mandabem_rastreamento: shipment.etiqueta || extractMandaBemTracking(shipment, info.payload) || existing.mandabem_rastreamento || null,
-        mandabem_status: shipment.status || existing.mandabem_status || null,
+        mandabem_etiqueta: trackingCode,
+        mandabem_rastreamento: trackingCode,
+        mandabem_status: trackingStatus,
         mandabem_payload: info.payload,
         mandabem_updated_at: new Date().toISOString(),
       });
-      return json({ ok: true, generated: false, batches: updated, shipment }, 200, CORS);
+      return json({ ok: true, generated: false, batches: updated, shipment, tracking_code: trackingCode, tracking_status: trackingStatus }, 200, CORS);
     }
 
     if (batches.some(batch => String(batch.status).toUpperCase() === "CANCELLED")) return json({ ok: false, error: "Não é possível gerar etiqueta para pedido cancelado" }, 400, CORS);
@@ -317,18 +347,21 @@ export async function onRequest(context) {
     } catch (error) {
       finalPayload = { generated: generatedPayload, shipment_error: String(error?.message || error) };
     }
+    const trackingInfo = getMandaBemTrackingDetails(shipment, generated.mensagem || "Envio gerado", finalPayload, generated);
+    const trackingCode = trackingInfo.code;
+    const trackingStatus = trackingInfo.status || "Envio gerado";
     const updated = await patchBatches(SB_URL, headers, batchIds, {
       shipping_group_id: groupId,
       shipping_service: service,
       mandabem_envio_id: String(envioId),
-      mandabem_etiqueta: shipment.etiqueta || null,
-      mandabem_rastreamento: shipment.etiqueta || extractMandaBemTracking(shipment, finalPayload, generated) || null,
-      mandabem_status: shipment.status || generated.mensagem || "Envio gerado",
+      mandabem_etiqueta: trackingCode,
+      mandabem_rastreamento: trackingCode,
+      mandabem_status: trackingStatus,
       mandabem_payload: finalPayload,
       mandabem_generated_at: new Date().toISOString(),
       mandabem_updated_at: new Date().toISOString(),
     });
-    return json({ ok: true, generated: true, batches: updated, envio_id: envioId, shipment }, 200, CORS);
+    return json({ ok: true, generated: true, batches: updated, envio_id: envioId, shipment, tracking_code: trackingCode, tracking_status: trackingStatus }, 200, CORS);
   } catch (error) {
     return json({ ok: false, error: String(error?.message || error) }, 500, CORS);
   }
