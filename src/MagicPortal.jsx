@@ -1640,8 +1640,9 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
 
   function openShipmentWhatsAppFor(batch){
     const trackingCode=batch?.mandabem_rastreamento||batch?.mandabem_etiqueta||'';
-    const url=buildShipmentWhatsAppUrl({name:batch?.clientName,whatsapp:batch?.clientWhatsapp},selectedCampaign?.name,trackingCode);
-    if(!url){if(toastFn)toastFn(!trackingCode?'Pedido sem código de rastreamento MandaBem':'Cliente sem WhatsApp válido','error');return;}
+    const trackingStatus=batch?.mandabem_status||'';
+    const url=buildShipmentWhatsAppUrl({name:batch?.clientName,whatsapp:batch?.clientWhatsapp},selectedCampaign?.name,trackingCode,trackingStatus);
+    if(!url){if(toastFn)toastFn('Cliente sem WhatsApp válido','error');return;}
     window.open(url,'_blank','noopener,noreferrer');
   }
 
@@ -2119,7 +2120,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
             <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10,flexWrap:'wrap'}}>
               {b.clientEmail&&<span style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'flex',alignItems:'center',gap:3}}><Mail size={10}/>{b.clientEmail}</span>}
               {b.clientWhatsapp&&<a href={buildWhatsAppUrl({name:b.clientName,whatsapp:b.clientWhatsapp},whatsappMessages[whatsappAudience],selectedCampaign?.name)} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:'#25d366',textDecoration:'none',display:'flex',alignItems:'center',gap:3}}><MessageCircle size={10}/> WhatsApp</a>}
-              {b.clientWhatsapp&&(b.mandabem_rastreamento||b.mandabem_etiqueta)&&<button onClick={e=>{e.stopPropagation();openShipmentWhatsAppFor(b);}} style={{display:'flex',alignItems:'center',gap:3,padding:0,border:'none',background:'none',fontSize:11,color:'#25d366',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><Truck size={10}/> Enviar rastreamento</button>}
+              {b.clientWhatsapp&&(b.mandabem_rastreamento||b.mandabem_etiqueta||b.mandabem_status)&&<button onClick={e=>{e.stopPropagation();openShipmentWhatsAppFor(b);}} style={{display:'flex',alignItems:'center',gap:3,padding:0,border:'none',background:'none',fontSize:11,color:'#25d366',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><Truck size={10}/> Enviar rastreamento</button>}
             </div>
 
             {/* Card Items */}
