@@ -21,7 +21,7 @@ function onlyDigits(value = "") { return String(value || "").replace(/\D/g, "");
 function clampText(value, max) { return String(value || "").trim().slice(0, max); }
 
 
-function normalizeMandaBemShipmentData(dados, envioId = '', refId = '') {
+export function normalizeMandaBemShipmentData(dados, envioId = '', refId = '') {
   if (!dados || typeof dados !== "object") return {};
   const candidates = Array.isArray(dados) ? dados : Object.values(dados).every(value => value && typeof value === "object") ? Object.values(dados) : [dados];
   const wantedEnvioId = String(envioId || "");
@@ -34,7 +34,7 @@ function normalizeMandaBemShipmentData(dados, envioId = '', refId = '') {
   }) || candidates.find(item => item && typeof item === "object") || {};
 }
 
-function extractMandaBemTrackingCode(shipment, ...fallbackSources) {
+export function extractMandaBemTrackingCode(shipment, ...fallbackSources) {
   // MandaBem API /ws/envio documents resultado.dados.etiqueta as the shipment tracking code.
   return clampText(shipment?.etiqueta, 80) || extractMandaBemTracking(...fallbackSources);
 }
