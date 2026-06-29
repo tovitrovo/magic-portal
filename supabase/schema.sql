@@ -109,7 +109,10 @@ CREATE TABLE IF NOT EXISTS public.cards (
   import_ref        text,           -- chave estável do CSV (basename de image_file) p/ upsert
   created_at  timestamptz DEFAULT now()
 );
-CREATE UNIQUE INDEX IF NOT EXISTS idx_cards_import_ref ON public.cards(import_ref) WHERE import_ref IS NOT NULL;
+-- Índice unique completo (sem WHERE) para que o upsert da importação de CSV
+-- com ON CONFLICT (import_ref) consiga inferi-lo. NULLs continuam permitidos em
+-- múltiplas linhas, pois NULLs são tratados como distintos.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cards_import_ref ON public.cards(import_ref);
 
 -- ──────────────────────────────────────────────
 -- 6. ORDERS (pedidos — 1 por usuário por campanha)
