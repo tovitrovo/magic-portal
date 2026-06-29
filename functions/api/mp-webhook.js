@@ -41,7 +41,7 @@ export async function onRequest(context) {
       refunded: "CANCELLED",
       charged_back: "CANCELLED",
     };
-    const batchStatus = statusMap[status] || "AWAITING_PAYMENT";
+    let batchStatus = statusMap[status] || "AWAITING_PAYMENT";
 
     if (SB_URL && SB_SERVICE_ROLE_KEY && orderId) {
       const headers = {
@@ -50,6 +50,27 @@ export async function onRequest(context) {
         "Content-Type": "application/json",
         Prefer: "return=minimal",
       };
+
+      // SEGURANÇA: antes de confirmar, valida que o valor pago cobre o total
+      // travado do batch. Evita confirmar pagamentos de valor menor.
+      if (batchStatus === "PAID") {
+        try {
+          const bRes = await fetch(
+            `${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(orderId)}&select=total_locked&limit=1`,
+            { headers: { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}` } }
+          );
+          const bArr = await bRes.json().catch(() => []);
+          const expected = Array.isArray(bArr) && bArr.length ? Number(bArr[0]?.total_locked || 0) : 0;
+          const paid = Number(amount || 0);
+          // Tolerância de 1 centavo para arredondamentos.
+          if (expected > 0 && paid + 0.01 < expected) {
+            console.error(`Webhook: valor pago (${paid}) menor que total (${expected}) no batch ${orderId}. Não confirmado.`);
+            batchStatus = "AWAITING_PAYMENT";
+          }
+        } catch (e) {
+          console.error("Webhook: falha ao validar valor do pagamento:", e);
+        }
+      }
 
       // Incrementa pool ANTES de marcar como PAID (para detectar a transição)
       if (batchStatus === "PAID") {

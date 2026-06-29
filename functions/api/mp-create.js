@@ -16,11 +16,40 @@ export async function onRequest(context) {
 
     const body = await context.request.json().catch(() => ({}));
     const orderId = String(body.orderId || "").trim(); // aqui é o batch.id
-    const total = Number(body.total || 0);
     const descricao = String(body.descricao || "Pedido");
 
-    if (!orderId || !Number.isFinite(total) || total <= 0) {
+    if (!orderId) {
       return new Response(JSON.stringify({ error: "Parâmetros inválidos" }), {
+        status: 400, headers: { ...CORS, "Content-Type": "application/json" }
+      });
+    }
+
+    // SEGURANÇA: o valor cobrado NÃO vem do cliente. Lemos o total travado
+    // (total_locked) persistido no batch para evitar adulteração de preço.
+    if (!SB_URL || !SB_SERVICE_ROLE_KEY) {
+      return new Response(JSON.stringify({ error: "Config do servidor incompleta" }), {
+        status: 500, headers: { ...CORS, "Content-Type": "application/json" }
+      });
+    }
+    const batchRes = await fetch(
+      `${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(orderId)}&select=total_locked,status&limit=1`,
+      { headers: { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}` } }
+    );
+    const batchArr = await batchRes.json().catch(() => []);
+    const batch = Array.isArray(batchArr) && batchArr.length ? batchArr[0] : null;
+    if (!batch) {
+      return new Response(JSON.stringify({ error: "Pedido não encontrado" }), {
+        status: 404, headers: { ...CORS, "Content-Type": "application/json" }
+      });
+    }
+    if (batch.status === "PAID" || batch.status === "PAID_CONFIRMED") {
+      return new Response(JSON.stringify({ error: "Pedido já está pago" }), {
+        status: 409, headers: { ...CORS, "Content-Type": "application/json" }
+      });
+    }
+    const total = Number(batch.total_locked || 0);
+    if (!Number.isFinite(total) || total <= 0) {
+      return new Response(JSON.stringify({ error: "Valor do pedido inválido" }), {
         status: 400, headers: { ...CORS, "Content-Type": "application/json" }
       });
     }

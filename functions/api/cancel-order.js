@@ -1,9 +1,10 @@
 import { decrementPoolOnCancel } from './_pool-helper.js';
+import { verifyUser } from './_admin-auth.js';
 
 export async function onRequest(context) {
   const CORS = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "content-type",
+    "Access-Control-Allow-Headers": "content-type, authorization",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
   if (context.request.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -15,6 +16,12 @@ export async function onRequest(context) {
         status: 500, headers: { ...CORS, "Content-Type":"application/json" }
       });
     }
+
+    const auth = await verifyUser(context, SB_URL, SB_SERVICE_ROLE_KEY);
+    if (!auth.ok) return new Response(JSON.stringify({ ok:false, error: auth.error }), {
+      status: auth.status, headers: { ...CORS, "Content-Type":"application/json" }
+    });
+    const userId = auth.userId;
 
     const body = await context.request.json().catch(() => ({}));
     const batchId = String(body.batchId || body.id || "").trim();
@@ -31,6 +38,31 @@ export async function onRequest(context) {
       "Content-Type": "application/json",
       Prefer: "return=minimal",
     };
+    const readHeaders = { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}` };
+
+    // SEGURANÇA: verifica posse e bloqueia cancelamento de pedidos pagos.
+    const ownsOrder = async (oid) => {
+      const r = await fetch(`${SB_URL}/rest/v1/orders?id=eq.${encodeURIComponent(oid)}&select=user_id&limit=1`, { headers: readHeaders });
+      const arr = await r.json().catch(() => []);
+      return Array.isArray(arr) && arr.length ? arr[0].user_id === userId : false;
+    };
+
+    if (batchId) {
+      const r = await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(batchId)}&select=order_id,status&limit=1`, { headers: readHeaders });
+      const arr = await r.json().catch(() => []);
+      const b = Array.isArray(arr) && arr.length ? arr[0] : null;
+      if (!b) return new Response(JSON.stringify({ ok:false, error:"Pedido não encontrado" }), { status:404, headers:{...CORS,"Content-Type":"application/json"}});
+      if (b.status === "PAID" || b.status === "PAID_CONFIRMED") {
+        return new Response(JSON.stringify({ ok:false, error:"Pedido pago não pode ser cancelado aqui" }), { status:409, headers:{...CORS,"Content-Type":"application/json"}});
+      }
+      if (!(await ownsOrder(b.order_id))) {
+        return new Response(JSON.stringify({ ok:false, error:"Acesso negado" }), { status:403, headers:{...CORS,"Content-Type":"application/json"}});
+      }
+    } else if (orderId) {
+      if (!(await ownsOrder(orderId))) {
+        return new Response(JSON.stringify({ ok:false, error:"Acesso negado" }), { status:403, headers:{...CORS,"Content-Type":"application/json"}});
+      }
+    }
 
     const del = async (table, filter) => {
       await fetch(`${SB_URL}/rest/v1/${table}?${filter}`, { method:"DELETE", headers });

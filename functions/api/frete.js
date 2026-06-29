@@ -25,8 +25,11 @@ export async function onRequest(context) {
     const pesoKg = Math.max((quantidade * 2 + 50) / 1000, 0.3);
     const altura = Math.min(Math.max(Math.ceil(quantidade / 50), 2), 4);
 
-    const plataforma_id = "68245";
-    const plataforma_chave = "$2y$10$yrre6QlN25SlbnYtyNIHSOBA5jDsKe9nRixugJnYCQSmFZOztuS7.";
+    // Credenciais do MandaBem. Preferir variáveis de ambiente (configurar no
+    // Cloudflare Pages). O fallback mantém o frete funcionando até a migração,
+    // mas esta chave está exposta no histórico do git e DEVE ser rotacionada.
+    const plataforma_id = context.env?.MANDABEM_PLATAFORMA_ID || "68245";
+    const plataforma_chave = context.env?.MANDABEM_PLATAFORMA_CHAVE || "$2y$10$yrre6QlN25SlbnYtyNIHSOBA5jDsKe9nRixugJnYCQSmFZOztuS7.";
 
     const arred = (n) => Math.round(n * 100) / 100;
 

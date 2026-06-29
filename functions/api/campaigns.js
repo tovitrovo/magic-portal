@@ -1,9 +1,10 @@
 import { syncCampaignPaidCardCount } from './_campaign-count-helper.js';
+import { verifyAdmin } from './_admin-auth.js';
 
 export async function onRequest(context) {
   const CORS = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "content-type",
+    "Access-Control-Allow-Headers": "content-type, authorization",
     "Access-Control-Allow-Methods": "POST, GET, PUT, DELETE, OPTIONS",
   };
   if (context.request.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -12,6 +13,14 @@ export async function onRequest(context) {
   if (!SB_URL || !SB_SERVICE_ROLE_KEY) {
     return new Response(JSON.stringify({ error: "Configuração do servidor incompleta" }), {
       status: 500, headers: { ...CORS, "Content-Type":"application/json" }
+    });
+  }
+
+  // GET é público (catálogo). Mutações (POST/PUT/DELETE) exigem admin.
+  if (context.request.method !== "GET") {
+    const auth = await verifyAdmin(context, SB_URL, SB_SERVICE_ROLE_KEY);
+    if (!auth.ok) return new Response(JSON.stringify({ error: auth.error }), {
+      status: auth.status, headers: { ...CORS, "Content-Type":"application/json" }
     });
   }
 

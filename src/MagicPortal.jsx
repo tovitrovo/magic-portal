@@ -1290,7 +1290,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
             {showActions&&isPending&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginTop:10}}>
               <Btn variant="warn" onClick={(e)=>{e.stopPropagation();pagarAgoraPedido(o,toastFn);}} style={{width:'100%',fontSize:11,whiteSpace:'nowrap',justifyContent:'center'}} sfx="nav"><CreditCard size={12}/> Pagar</Btn>
               <Btn variant="ghost" onClick={async(e)=>{e.stopPropagation();try{await mpSync(o.id);onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:11,justifyContent:'center'}} sfx=""><RefreshCw size={12}/></Btn>
-              <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(!confirm('Cancelar este pedido?'))return;try{const res=await fetch('/api/cancel-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batchId:String(o.id),orderId:String(o.order_id||'')})});const j=await res.json().catch(()=>({}));if(!res.ok||!j.ok)throw new Error(j.error||'Falha');toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:11,justifyContent:'center'}} sfx=""><X size={12}/> Cancelar</Btn>
+              <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(!confirm('Cancelar este pedido?'))return;try{const res=await fetch('/api/cancel-order',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:String(o.id),orderId:String(o.order_id||'')})});const j=await res.json().catch(()=>({}));if(!res.ok||!j.ok)throw new Error(j.error||'Falha');toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:11,justifyContent:'center'}} sfx=""><X size={12}/> Cancelar</Btn>
             </div>}
           </div>}
         </div>);
@@ -1651,7 +1651,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     if(!selectedCampaign)return;
     setOrdersLoading(true);
     try{
-      const r=await fetch('/api/admin-orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({campaignId:selectedCampaign.id})});
+      const r=await fetch('/api/admin-orders',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({campaignId:selectedCampaign.id})});
       const json=await r.json().catch(()=>({}));
       if(!r.ok)throw new Error(json.error||`HTTP ${r.status}`);
       setOrders(json.orders||[]);
@@ -1746,7 +1746,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     const msg=isPaid?'Cancelar pedido pago? O reembolso deve ser feito manualmente no Mercado Pago.':'Cancelar este pedido pendente?';
     if(!confirm(msg))return;
     try{
-      const r=await fetch('/api/admin-cancel-batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batchId})});
+      const r=await fetch('/api/admin-cancel-batch',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId})});
       const json=await r.json().catch(()=>({}));
       if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
       SFX.success();loadOrders();if(onReload)onReload();
@@ -1756,7 +1756,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   async function markBatchPaid(batchId){
     if(!confirm('Marcar este pedido como PAGO manualmente?'))return;
     try{
-      const r=await fetch('/api/admin-mark-paid',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batchId})});
+      const r=await fetch('/api/admin-mark-paid',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId})});
       const json=await r.json().catch(()=>({}));
       if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
       SFX.success();loadOrders();if(onReload)onReload();
@@ -2030,7 +2030,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     if(!newCamp.name.trim()){if(toastFn)toastFn('Nome obrigatório','error');return;}
     setCreating(true);
     try{
-      const r=await fetch('/api/campaigns',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:newCamp.name,status:newCamp.status,close_at:newCamp.close_at||null,max_cards:newCamp.max_cards||null,min_cards:newCamp.min_cards||150})});
+      const r=await fetch('/api/campaigns',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({name:newCamp.name,status:newCamp.status,close_at:newCamp.close_at||null,max_cards:newCamp.max_cards||null,min_cards:newCamp.min_cards||150})});
       const d=await r.json().catch(()=>({}));
       if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);
       SFX.success();setShowCreateForm(false);setNewCamp({name:'',status:'DRAFT',close_at:'',max_cards:1000});if(Array.isArray(d)&&d[0])setSelectedCampaign(d[0]);loadCampaigns();if(onReload)onReload();
@@ -2041,7 +2041,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   async function saveCampaign(){
     setSaving(true);
     try{
-      const r=await fetch('/api/campaigns',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:editCamp.id,name:editCamp.name,status:editCamp.status,close_at:editCamp.close_at||null,max_cards:editCamp.max_cards||null,min_cards:editCamp.min_cards||150})});
+      const r=await fetch('/api/campaigns',{method:'PUT',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({id:editCamp.id,name:editCamp.name,status:editCamp.status,close_at:editCamp.close_at||null,max_cards:editCamp.max_cards||null,min_cards:editCamp.min_cards||150})});
       const data=await r.json().catch(()=>({}));
       if(!r.ok)throw new Error(data.error||`HTTP ${r.status}`);
       SFX.success();setSelectedCampaign(prev=>({...prev,...editCamp}));if(onReload)onReload();loadCampaigns();
@@ -2052,7 +2052,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   async function deleteCampaign(){
     if(!confirm('Excluir esta encomenda finalizada? Todos os dados serão perdidos.'))return;
     try{
-      const r=await fetch('/api/campaigns',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:selectedCampaign.id})});
+      const r=await fetch('/api/campaigns',{method:'DELETE',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({id:selectedCampaign.id})});
       const data=await r.json();
       if(data.success){SFX.success();setSelectedCampaign(null);loadCampaigns();if(onReload)onReload();}
     }catch(e){console.error(e);}
@@ -2098,7 +2098,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
           <div><div style={{fontWeight:700,fontSize:14}}>{c.name}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>{new Date(c.created_at).toLocaleDateString('pt-BR')}</div></div>
           <div style={{display:'flex',alignItems:'center',gap:6}}>
             <Tag color="rgba(255,255,255,0.3)" style={{fontSize:10}}>{c.status}</Tag>
-            <button onClick={async(e)=>{e.stopPropagation();if(!confirm(`Excluir "${c.name}"? Todos os dados serão perdidos.`))return;try{const r=await fetch('/api/campaigns',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:c.id})});const d=await r.json();if(d.success){SFX.success();loadCampaigns();if(onReload)onReload();}}catch(err){console.error(err);}}} style={{background:'rgba(217,68,82,0.1)',border:'1px solid rgba(217,68,82,0.15)',borderRadius:8,padding:'5px 7px',cursor:'pointer',color:'#ff6b7a',display:'grid',placeItems:'center',flexShrink:0}}><Trash2 size={13}/></button>
+            <button onClick={async(e)=>{e.stopPropagation();if(!confirm(`Excluir "${c.name}"? Todos os dados serão perdidos.`))return;try{const r=await fetch('/api/campaigns',{method:'DELETE',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({id:c.id})});const d=await r.json();if(d.success){SFX.success();loadCampaigns();if(onReload)onReload();}}catch(err){console.error(err);}}} style={{background:'rgba(217,68,82,0.1)',border:'1px solid rgba(217,68,82,0.15)',borderRadius:8,padding:'5px 7px',cursor:'pointer',color:'#ff6b7a',display:'grid',placeItems:'center',flexShrink:0}}><Trash2 size={13}/></button>
           </div>
         </div>
       </Card>))}</>}

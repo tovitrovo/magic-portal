@@ -11,6 +11,8 @@
  * Body: { all: true, campaignId }   → mesmo que campaignId
  */
 
+import { verifyAdmin } from "./_admin-auth.js";
+
 export async function onRequest(context) {
   const CORS = {
     "Access-Control-Allow-Origin": "*",
@@ -26,6 +28,11 @@ export async function onRequest(context) {
         status: 500, headers: { ...CORS, "Content-Type": "application/json" }
       });
     }
+
+    const auth = await verifyAdmin(context, SB_URL, SB_SERVICE_ROLE_KEY);
+    if (!auth.ok) return new Response(JSON.stringify({ ok: false, error: auth.error }), {
+      status: auth.status, headers: { ...CORS, "Content-Type": "application/json" }
+    });
 
     const body = await context.request.json().catch(() => ({}));
     const { batchId, orderId, campaignId } = body;

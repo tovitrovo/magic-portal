@@ -1,7 +1,9 @@
+import { verifyAdmin } from "./_admin-auth.js";
+
 export async function onRequest(context) {
   const CORS = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "content-type",
+    "Access-Control-Allow-Headers": "content-type, authorization",
     "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
   };
   if (context.request.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -12,6 +14,12 @@ export async function onRequest(context) {
       status: 500, headers: { ...CORS, "Content-Type":"application/json" }
     });
   }
+
+  // Endpoint administrativo: cria/lista pedidos com a service role (ignora RLS).
+  const auth = await verifyAdmin(context, SB_URL, SB_SERVICE_ROLE_KEY);
+  if (!auth.ok) return new Response(JSON.stringify({ error: auth.error }), {
+    status: auth.status, headers: { ...CORS, "Content-Type":"application/json" }
+  });
 
   const headers = {
     apikey: SB_SERVICE_ROLE_KEY,
