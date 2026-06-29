@@ -1,13 +1,49 @@
 import { incrementPoolOnPaid } from './_pool-helper.js';
 import { grantTierBonusToAll } from './_tier-bonus-helper.js';
+import { authoritativeBatchTotal } from './_campaign-helper.js';
+
+// Verificação da assinatura do webhook do Mercado Pago (x-signature).
+// Manifesto: id:<data.id>;request-id:<x-request-id>;ts:<ts>;  (HMAC-SHA256)
+async function verifyMpSignature(request, url, secret) {
+  const xSig = request.headers.get("x-signature") || "";
+  const xReqId = request.headers.get("x-request-id") || "";
+  const parts = {};
+  for (const seg of xSig.split(",")) {
+    const i = seg.indexOf("=");
+    if (i > 0) parts[seg.slice(0, i).trim()] = seg.slice(i + 1).trim();
+  }
+  const ts = parts.ts, v1 = parts.v1;
+  const dataId = (url.searchParams.get("data.id") || "").toLowerCase();
+  if (!ts || !v1 || !dataId) return false;
+  const manifest = `id:${dataId};request-id:${xReqId};ts:${ts};`;
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const mac = await crypto.subtle.sign("HMAC", key, enc.encode(manifest));
+  const hex = [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  if (hex.length !== v1.length) return false;
+  let diff = 0;
+  for (let i = 0; i < hex.length; i++) diff |= hex.charCodeAt(i) ^ v1.charCodeAt(i);
+  return diff === 0;
+}
 
 export async function onRequest(context) {
   // Webhook server-to-server: responder 200 rápido sempre.
   try {
-    const { MP_ACCESS_TOKEN, SB_URL, SB_SERVICE_ROLE_KEY } = context.env;
+    const { MP_ACCESS_TOKEN, SB_URL, SB_SERVICE_ROLE_KEY, MP_WEBHOOK_SECRET } = context.env;
     if (!MP_ACCESS_TOKEN) return new Response("ok", { status: 200 });
 
     const url = new URL(context.request.url);
+
+    // SEGURANÇA: se o segredo do webhook estiver configurado, exige assinatura
+    // válida. Chamadas forjadas são ignoradas (não processadas).
+    if (MP_WEBHOOK_SECRET) {
+      const valid = await verifyMpSignature(context.request, url, MP_WEBHOOK_SECRET).catch(() => false);
+      if (!valid) {
+        console.error("Webhook: assinatura inválida — ignorado.");
+        return new Response("ok", { status: 200 });
+      }
+    }
+
     const body = await context.request.json().catch(() => ({}));
 
     const paymentId =
@@ -41,7 +77,7 @@ export async function onRequest(context) {
       refunded: "CANCELLED",
       charged_back: "CANCELLED",
     };
-    const batchStatus = statusMap[status] || "AWAITING_PAYMENT";
+    let batchStatus = statusMap[status] || "AWAITING_PAYMENT";
 
     if (SB_URL && SB_SERVICE_ROLE_KEY && orderId) {
       const headers = {
@@ -50,6 +86,24 @@ export async function onRequest(context) {
         "Content-Type": "application/json",
         Prefer: "return=minimal",
       };
+
+      // SEGURANÇA: antes de confirmar, valida que o valor pago cobre o total
+      // AUTORITATIVO do batch (recalculado no servidor). Evita confirmar
+      // pagamentos de valor menor, mesmo com total_locked adulterado.
+      if (batchStatus === "PAID") {
+        try {
+          const auth = await authoritativeBatchTotal(SB_URL, SB_SERVICE_ROLE_KEY, orderId);
+          const expected = auth?.ok ? Number(auth.total || 0) : 0;
+          const paid = Number(amount || 0);
+          // Tolerância de 1 centavo para arredondamentos.
+          if (expected > 0 && paid + 0.01 < expected) {
+            console.error(`Webhook: valor pago (${paid}) menor que total (${expected}) no batch ${orderId}. Não confirmado.`);
+            batchStatus = "AWAITING_PAYMENT";
+          }
+        } catch (e) {
+          console.error("Webhook: falha ao validar valor do pagamento:", e);
+        }
+      }
 
       // Incrementa pool ANTES de marcar como PAID (para detectar a transição)
       if (batchStatus === "PAID") {

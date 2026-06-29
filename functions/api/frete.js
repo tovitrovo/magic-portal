@@ -25,8 +25,16 @@ export async function onRequest(context) {
     const pesoKg = Math.max((quantidade * 2 + 50) / 1000, 0.3);
     const altura = Math.min(Math.max(Math.ceil(quantidade / 50), 2), 4);
 
-    const plataforma_id = "68245";
-    const plataforma_chave = "$2y$10$yrre6QlN25SlbnYtyNIHSOBA5jDsKe9nRixugJnYCQSmFZOztuS7.";
+    // Credenciais do MandaBem lidas exclusivamente das variáveis de ambiente
+    // do Cloudflare Pages (MANDA_BEM_API_ID / MANDA_BEM_API_TOKEN).
+    const plataforma_id = context.env?.MANDA_BEM_API_ID;
+    const plataforma_chave = context.env?.MANDA_BEM_API_TOKEN;
+    if (!plataforma_id || !plataforma_chave) {
+      return new Response(JSON.stringify({ opcoes: [], error: "Credenciais do MandaBem não configuradas" }), {
+        status: 500,
+        headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
 
     const arred = (n) => Math.round(n * 100) / 100;
 

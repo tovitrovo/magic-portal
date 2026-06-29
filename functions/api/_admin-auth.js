@@ -1,3 +1,25 @@
+/**
+ * Resolve o usuário autenticado a partir do token Bearer (sem exigir admin).
+ * Retorna { ok, userId } ou { ok:false, status, error }.
+ */
+export async function verifyUser(context, SB_URL, SB_SERVICE_ROLE_KEY) {
+  const authHeader = context.request.headers.get("Authorization") || "";
+  const userToken = authHeader.replace("Bearer ", "").trim();
+  if (!userToken) return { ok: false, status: 401, error: "Token de autenticação ausente" };
+
+  try {
+    const meRes = await fetch(`${SB_URL}/auth/v1/user`, {
+      headers: { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${userToken}` },
+    });
+    if (!meRes.ok) return { ok: false, status: 401, error: "Token inválido" };
+    const me = await meRes.json();
+    if (!me?.id) return { ok: false, status: 401, error: "Token inválido" };
+    return { ok: true, userId: me.id };
+  } catch (e) {
+    return { ok: false, status: 500, error: String(e?.message || e) };
+  }
+}
+
 export async function verifyAdmin(context, SB_URL, SB_SERVICE_ROLE_KEY) {
   const authHeader = context.request.headers.get("Authorization") || "";
   const userToken = authHeader.replace("Bearer ", "").trim();

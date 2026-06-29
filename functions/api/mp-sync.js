@@ -1,5 +1,6 @@
 import { incrementPoolOnPaid } from './_pool-helper.js';
 import { grantTierBonusToAll } from './_tier-bonus-helper.js';
+import { authoritativeBatchTotal } from './_campaign-helper.js';
 
 export async function onRequest(context) {
   const CORS = {
@@ -94,6 +95,7 @@ export async function onRequest(context) {
     const status = String(payment.status || "");
     const statusDetail = String(payment.status_detail || "");
     const paymentId = String(payment.id || "");
+    const amount = payment.transaction_amount ?? null;
 
     const statusMap = {
       approved: "PAID",
@@ -106,7 +108,22 @@ export async function onRequest(context) {
       charged_back: "CANCELLED",
     };
 
-    const batchStatus = statusMap[status] || "AWAITING_PAYMENT";
+    let batchStatus = statusMap[status] || "AWAITING_PAYMENT";
+
+    // SEGURANÇA: só confirma se o valor pago cobrir o total autoritativo.
+    if (batchStatus === "PAID") {
+      try {
+        const auth = await authoritativeBatchTotal(SB_URL, SB_SERVICE_ROLE_KEY, batchId);
+        const expected = auth?.ok ? Number(auth.total || 0) : 0;
+        const paid = Number(amount || 0);
+        if (expected > 0 && paid + 0.01 < expected) {
+          console.error(`mp-sync: valor pago (${paid}) menor que total (${expected}) no batch ${batchId}. Não confirmado.`);
+          batchStatus = "AWAITING_PAYMENT";
+        }
+      } catch (e) {
+        console.error("mp-sync: falha ao validar valor:", e);
+      }
+    }
 
     // Incrementa pool ANTES de marcar como PAID (para detectar a transição)
     if (batchStatus === "PAID") {
