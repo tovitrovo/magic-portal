@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff, Archive } from 'lucide-react';
 import { buildCatalogQueries, buildLatestCardQuery, RECENT_CARDS_FILTER } from './catalogQuery';
 import { buildShippingGroups, SHIPPING_SERVICE_UNKNOWN } from '../shared/shipping-groups';
+import { buildCardsFromCsv } from '../shared/cardImport';
+import { pricePerCard as indivPricePerCard } from '../shared/individualPricing';
 import { DEFAULT_WHATSAPP_MESSAGES, WHATSAPP_AUDIENCES, buildShipmentWhatsAppUrl, buildWhatsAppUrl, getWhatsAppRecipients } from './whatsappCommunication';
 import './responsive.css';
 
@@ -290,6 +292,15 @@ function getCardPrice(cardType, pricing) {
   if (type === 'foil') return Number(pricing.foil_price_brl) || 18;
   if (type === 'holo') return Number(pricing.ouro_price_brl) || 16;
   return Number(pricing.normal_price_brl) || 16;
+}
+
+// Preço unitário conforme o modo de pedido.
+// CAMPAIGN → preço fixo por tipo. INDIVIDUAL → faixa por volume (depende da qtd total) com piso por tipo.
+function unitPriceFor(cardType, totalQty, mode, pricing, indiv) {
+  if (mode === 'INDIVIDUAL' && indiv && Array.isArray(indiv.tiers) && indiv.tiers.length) {
+    return indivPricePerCard({ qty: totalQty, type: cardType, tiers: indiv.tiers, pricing: indiv.pricing, fxRate: indiv.fx && indiv.fx.rate });
+  }
+  return getCardPrice(cardType, pricing);
 }
 
 // ══════════════════════════════════════════════════════
@@ -717,23 +728,26 @@ function WantsPage({wants,onMoveToCart,onMoveAllToCart,onRemoveWant,onUpdateWant
 
 const MIN_ORDER_CARDS = 15;
 
-function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onMoveToWants,onRemoveFromCart,onUpdateCartQty,token,orderId,campaignId,onOrderDone,toast,profile,previousPaidBatches}){
-  const bonus=bonusAvail||0;
+function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onMoveToWants,onRemoveFromCart,onUpdateCartQty,token,orderId,campaignId,onOrderDone,toast,profile,previousPaidBatches,orderMode='CAMPAIGN',indiv=null}){
+  const isIndividual=orderMode==='INDIVIDUAL';
+  const totalQty=cartItems.reduce((s,c)=>s+c.quantity,0);
+  const bonus=isIndividual?0:(bonusAvail||0); // pedido individual não usa bônus
   let bL=bonus;
   const bd=cartItems.map(c=>{const bq=Math.min(c.quantity,bL);bL-=bq;return{...c,bonusQty:bq,paidQty:c.quantity-bq};});
   const totalBonus=bd.reduce((s,c)=>s+c.bonusQty,0);
   const totalPaid=bd.reduce((s,c)=>s+c.paidQty,0);
-  const totalQty=cartItems.reduce((s,c)=>s+c.quantity,0);
-  const totalBRL=bd.reduce((s,c)=>s+c.paidQty*getCardPrice(c.card_type,pricing),0);
+  const totalBRL=bd.reduce((s,c)=>s+c.paidQty*unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv),0);
   const campaignOpen=campaignCanOrder(campaignStatus);
+  const minCards=isIndividual?(Number(indiv?.pricing?.min_cards)||MIN_ORDER_CARDS):MIN_ORDER_CARDS;
   const isFullBonus=totalPaid===0&&totalBonus>0;
   const previousPaidCards=(previousPaidBatches||[]).reduce((s,b)=>s+(b.qty_in_batch||0),0);
-  const hasMetMinimumBefore=previousPaidCards>=MIN_ORDER_CARDS;
-  const canCheckout=isFullBonus||totalPaid>=MIN_ORDER_CARDS||hasMetMinimumBefore;
-  const missingCards=hasMetMinimumBefore?0:Math.max(0,MIN_ORDER_CARDS-totalPaid);
+  const hasMetMinimumBefore=!isIndividual&&previousPaidCards>=MIN_ORDER_CARDS;
+  const canCheckout=isIndividual?(totalQty>=minCards):(isFullBonus||totalPaid>=MIN_ORDER_CARDS||hasMetMinimumBefore);
+  const missingCards=hasMetMinimumBefore?0:Math.max(0,minCards-(isIndividual?totalQty:totalPaid));
+  const canGoCheckout=isIndividual||campaignOpen;
 
   return(<div className="portal-page portal-cart" style={{display:'flex',flexDirection:'column',gap:12}}>
-    {!campaignOpen&&<Card style={{padding:12,borderColor:'rgba(201,169,110,0.25)',background:'rgba(201,169,110,0.06)'}}>
+    {!isIndividual&&!campaignOpen&&<Card style={{padding:12,borderColor:'rgba(201,169,110,0.25)',background:'rgba(201,169,110,0.06)'}}>
       <div style={{display:'flex',alignItems:'center',gap:8}}><AlertTriangle size={14} style={{color:'#c9a96e'}}/><div style={{fontSize:12,color:'#c9a96e',fontWeight:600}}>{campaignStatus?campaignLabel(campaignStatus):'Nenhuma encomenda ativa'}<div style={{fontSize:11,color:'rgba(255,255,255,0.35)',fontWeight:400,marginTop:2}}>Continue montando seu carrinho. O checkout estará disponível quando a encomenda abrir.</div></div></div>
     </Card>}
     {cartItems.length>0&&<>
@@ -742,7 +756,7 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onMoveT
         <span style={{fontSize:14,fontWeight:800,color:theme.primary}}>≈ R$ {totalBRL.toFixed(2)}{totalBonus>0&&<span style={{fontSize:11,color:'#2ee59d',fontWeight:600,marginLeft:6}}>({totalBonus} bônus)</span>}</span>
       </div>
       <div className="portal-card-grid portal-cart-grid" style={{display:'flex',flexDirection:'column',gap:5}}>
-        {bd.map((c)=>{const itemPrice=getCardPrice(c.card_type,pricing);return(
+        {bd.map((c)=>{const itemPrice=unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv);return(
           <Card key={c.id} style={{padding:'10px 12px'}}>
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <div style={{flex:1,minWidth:0}}>
@@ -768,16 +782,17 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onMoveT
         );})}
       </div>
       {/* Aviso de mínimo de cartas */}
-      {campaignOpen&&!canCheckout&&!isFullBonus&&<Card style={{padding:'10px 14px',borderColor:'rgba(201,169,110,0.3)',background:'rgba(201,169,110,0.06)'}}>
-        <div style={{display:'flex',alignItems:'center',gap:8}}><AlertTriangle size={14} style={{color:'#c9a96e',flexShrink:0}}/><div style={{fontSize:12,color:'#c9a96e',fontWeight:600}}>Mínimo de {MIN_ORDER_CARDS} cartas pagas por pedido<div style={{fontSize:11,fontWeight:400,color:'rgba(255,255,255,0.35)',marginTop:2}}>Adicione mais {missingCards} carta{missingCards!==1?'s':''} ao carrinho para continuar.</div></div></div>
+      {canGoCheckout&&!canCheckout&&!isFullBonus&&<Card style={{padding:'10px 14px',borderColor:'rgba(201,169,110,0.3)',background:'rgba(201,169,110,0.06)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}><AlertTriangle size={14} style={{color:'#c9a96e',flexShrink:0}}/><div style={{fontSize:12,color:'#c9a96e',fontWeight:600}}>Mínimo de {minCards} cartas{isIndividual?'':' pagas'} por pedido<div style={{fontSize:11,fontWeight:400,color:'rgba(255,255,255,0.35)',marginTop:2}}>Adicione mais {missingCards} carta{missingCards!==1?'s':''} ao carrinho para continuar.</div></div></div>
       </Card>}
-      {campaignOpen&&<Btn full onClick={()=>nav('checkout')} disabled={!canCheckout} sfx="nav" style={{marginTop:4}}><CreditCard size={15}/> {canCheckout?'Ir para checkout':'Mínimo: '+MIN_ORDER_CARDS+' cartas (faltam '+missingCards+')'}</Btn>}
+      {canGoCheckout&&<Btn full onClick={()=>nav('checkout')} disabled={!canCheckout} sfx="nav" style={{marginTop:4}}><CreditCard size={15}/> {canCheckout?'Ir para checkout':'Mínimo: '+minCards+' cartas (faltam '+missingCards+')'}</Btn>}
     </>}
     {cartItems.length===0&&<><EmptyState icon={ShoppingCart} title="Carrinho vazio" sub="Mova cartas da sua lista de wants"/><div style={{textAlign:'center',marginTop:8}}><Btn variant="secondary" onClick={()=>nav('wants')} sfx="nav"><ScrollText size={15}/> Ir para Wants</Btn></div></>}
     {cartItems.length>0&&<Btn full variant="ghost" onClick={()=>nav('wants')} sfx="nav" style={{marginTop:4}}><ArrowLeft size={14}/> Voltar para Wants</Btn>}
   </div>);
 }
-function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme,nav,profile,token,orderId,campaignId,campaignStatus,onOrderDone,toast,previousPaidBatches=[],onMoveToWants,onRemoveFromCart,onUpdateCartQty}){
+function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme,nav,profile,token,orderId,campaignId,campaignStatus,onOrderDone,toast,previousPaidBatches=[],onMoveToWants,onRemoveFromCart,onUpdateCartQty,orderMode='CAMPAIGN',indiv=null}){
+  const isIndividual=orderMode==='INDIVIDUAL';
   const [freteOptions,setFreteOptions]=useState([]);const [selectedFrete,setSelectedFrete]=useState(null);
   const [lF,setLF]=useState(false);const [submitting,setSubmitting]=useState(false);
   const [step,setStep]=useState('review');
@@ -792,7 +807,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
   const profileHasSavedAddress=Boolean(profile?.cep&&(profile.cep||'').replace(/\D/g,'').length===8&&profile?.rua);
   const [editingAddr,setEditingAddr]=useState(!profileHasSavedAddress);
   const cart=cartItems.length>0?cartItems:wants.map(w=>{const q=Math.min(w.quantity,Math.max(0,cartQtyByItem[w.id]||0));return q>0?{...w,quantity:q,fullQty:w.quantity}:null;}).filter(Boolean);
-  const bonus=bonusAvail||0;
+  const bonus=isIndividual?0:(bonusAvail||0); // pedido individual não usa bônus
   let bL=bonus;
   const bd=cart.map(c=>{const bq=Math.min(c.quantity,bL);bL-=bq;return{...c,bonusQty:bq,paidQty:c.quantity-bq};});
   const totalQty=cart.reduce((s,c)=>s+c.quantity,0);
@@ -801,11 +816,12 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
   const campaignStatusText = campaignLabel(campaignStatus);
   const isFullBonus=totalPaid===0&&totalBonus>0;
   const previousPaidCards=(previousPaidBatches||[]).reduce((s,b)=>s+(b.qty_in_batch||0),0);
-  const hasMetMinimumBefore=previousPaidCards>=MIN_ORDER_CARDS;
-  const canCheckout=isFullBonus||totalPaid>=MIN_ORDER_CARDS||hasMetMinimumBefore;
-  const missingCards=hasMetMinimumBefore?0:Math.max(0,MIN_ORDER_CARDS-totalPaid);
-  // Subtotal com preço por tipo de carta
-  const sub=bd.reduce((s,c)=>s+c.paidQty*getCardPrice(c.card_type,pricing),0);
+  const minCards=isIndividual?(Number(indiv?.pricing?.min_cards)||MIN_ORDER_CARDS):MIN_ORDER_CARDS;
+  const hasMetMinimumBefore=!isIndividual&&previousPaidCards>=MIN_ORDER_CARDS;
+  const canCheckout=isIndividual?(totalQty>=minCards):(isFullBonus||totalPaid>=MIN_ORDER_CARDS||hasMetMinimumBefore);
+  const missingCards=hasMetMinimumBefore?0:Math.max(0,minCards-(isIndividual?totalQty:totalPaid));
+  // Subtotal: preço por tipo (campanha) ou por faixa de volume (individual)
+  const sub=bd.reduce((s,c)=>s+c.paidQty*unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv),0);
   // Frete: 0 se "já paguei" ou frete conjunto, senão valor da opção selecionada
   const shippingSkipped = alreadyPaidShipping || useJointShipping;
   const fV=shippingSkipped?0:(selectedFrete?selectedFrete.price:0);
@@ -843,7 +859,40 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
     setLF(false);
   }
 
+  async function finalizeIndividual(){
+    if(!canCheckout){toast(`Mínimo de ${minCards} cartas por pedido. Adicione mais ${missingCards}.`,'error');return;}
+    if(!shippingSkipped&&!selectedFrete){toast('Selecione uma opção de frete para continuar','error');return;}
+    setSubmitting(true);
+    try {
+      const items=bd.map(c=>({card_id:c.card_id,quantity:c.quantity}));
+      const shipping={
+        service:shippingSkipped?(shippingAnchor?.shipping_service||null):(selectedFrete?.service||selectedFrete?.carrier||null),
+        price:fV,
+        address:{cep:addr.cep,rua:addr.rua,numero:addr.numero,complemento:addr.complemento,bairro:addr.bairro,cidade:addr.cidade,uf:addr.uf,name:profile?.name||''},
+        already_paid:shippingSkipped,
+        group_id:shippingSkipped?(shippingAnchor?.shipping_group_id||shippingAnchor?.id||null):null,
+      };
+      const r=await fetch('/api/individual-checkout',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({items,shipping})});
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok||!d.ok)throw new Error(d.error||`HTTP ${r.status}`);
+      if(saveAddressChoice===true&&addr.rua)await sbPatch('profiles','id=eq.'+(profile.id),{cep:addr.cep,rua:addr.rua,numero:addr.numero,complemento:addr.complemento,bairro:addr.bairro,cidade:addr.cidade,uf:addr.uf},token).catch(()=>{});
+      // Esvazia o carrinho-rascunho (os itens do pedido foram criados no servidor); volta os itens para wants
+      for(const c of cart){ if(c.id) await sbPatch('order_items','id=eq.'+c.id,{in_cart:false},token).catch(()=>{}); }
+      SFX.confirm();
+      onOrderDone({method:'mp',totalPaid:d.totalQty,totalBonus:0,pricing,isFullBonus:false,alreadyPaidShipping:shippingSkipped,batchId:d.batchId,shortId:d.shortId,cards:cart.map(c=>({name:c.card_name,type:c.card_type,qty:c.quantity}))});
+      toast('Gerando link de pagamento...','info');
+      const mpRes=await fetch(`/api/mp-create`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderId:String(d.batchId),total:Number(d.total.toFixed(2)),descricao:`Pedido individual #${d.shortId} - ${d.totalQty} cartas`})});
+      const mpData=await mpRes.json();
+      const mpLink=mpData?.mpLink||mpData?.init_point||mpData?.sandbox_init_point;
+      if(mpLink){window.location.href=mpLink;return;}
+      if(mpData.error){console.error('MP:',mpData.error);toast('Erro MP: '+mpData.error,'error');}
+      nav('success');
+    }catch(e){console.error('[finalizeIndividual]',e);toast('Erro ao finalizar: '+e.message,'error');}
+    setSubmitting(false);
+  }
+
   async function finalize(){
+    if(isIndividual)return finalizeIndividual();
     if(!campaignOpen){toast('Encomenda fechada no momento','error');return;}
     if(!canCheckout){toast(`Mínimo de ${MIN_ORDER_CARDS} cartas pagas por pedido. Adicione mais ${missingCards} carta${missingCards!==1?'s':''}.`,'error');return;}
     if(!shippingSkipped&&!selectedFrete){toast('Selecione uma opção de frete para continuar','error');return;}
@@ -917,7 +966,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
     setSubmitting(false);
   }
 
-  if(!campaignOpen)return(<div style={{paddingTop:40}}>
+  if(!isIndividual&&!campaignOpen)return(<div style={{paddingTop:40}}>
     <Card style={{padding:20,textAlign:'center',borderColor:'rgba(201,169,110,0.25)',background:'rgba(201,169,110,0.08)'}}>
       <AlertTriangle size={32} style={{color:'#c9a96e',marginBottom:8}}/>
       <div style={{fontWeight:700,fontSize:16,color:'#c9a96e',marginBottom:6}}>Encomenda fechada</div>
@@ -933,7 +982,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
     <Card style={{padding:20,textAlign:'center',borderColor:'rgba(201,169,110,0.3)',background:'rgba(201,169,110,0.06)'}}>
       <AlertTriangle size={32} style={{color:'#c9a96e',marginBottom:8}}/>
       <div style={{fontWeight:700,fontSize:16,color:'#c9a96e',marginBottom:6}}>Mínimo não atingido</div>
-      <div style={{fontSize:13,color:'rgba(255,255,255,0.4)',lineHeight:1.5}}>Cada pedido precisa ter pelo menos <b style={{color:'#c9a96e'}}>{MIN_ORDER_CARDS} cartas pagas</b>.<br/>Seu carrinho tem {totalPaid} carta{totalPaid!==1?'s':''} paga{totalPaid!==1?'s':''}. Adicione mais <b style={{color:'#c9a96e'}}>{missingCards}</b>.</div>
+      <div style={{fontSize:13,color:'rgba(255,255,255,0.4)',lineHeight:1.5}}>Cada pedido precisa ter pelo menos <b style={{color:'#c9a96e'}}>{minCards} cartas{isIndividual?'':' pagas'}</b>.<br/>Seu carrinho tem {isIndividual?totalQty:totalPaid} carta{(isIndividual?totalQty:totalPaid)!==1?'s':''}{isIndividual?'':' paga'+(totalPaid!==1?'s':'')}. Adicione mais <b style={{color:'#c9a96e'}}>{missingCards}</b>.</div>
       {totalBonus>0&&<div style={{fontSize:12,color:'rgba(255,255,255,0.3)',marginTop:6}}>Cartas bônus não contam para o mínimo.</div>}
     </Card>
     <div style={{textAlign:'center',marginTop:16}}><Btn onClick={()=>nav('cart')} sfx="nav"><ShoppingCart size={16}/> Voltar ao carrinho</Btn></div>
@@ -945,7 +994,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
       {totalBonus>0&&<><div style={{fontSize:11,fontWeight:700,color:'#2ee59d',marginBottom:6,display:'flex',alignItems:'center',gap:5}}><Gift size={12}/> Bônus (grátis)</div>
         {bd.filter(c=>c.bonusQty>0).map((c,i)=>(<div key={'b'+i} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(46,229,157,0.08)'}}><span style={{color:'rgba(255,255,255,0.6)'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.bonusQty}</span><span style={{fontWeight:700,color:'#2ee59d'}}>R$ 0,00</span></div>))}</>}
       {totalPaid>0&&<><div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.4)',marginTop:totalBonus>0?12:0,marginBottom:6,display:'flex',alignItems:'center',gap:5}}><CreditCard size={12}/> Pagas</div>
-        {bd.filter(c=>c.paidQty>0).map((c,i)=>{const ip=getCardPrice(c.card_type,pricing);return(<div key={'p'+i} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(255,255,255,0.03)'}}><span style={{color:'rgba(255,255,255,0.6)'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.paidQty}</span><span style={{fontWeight:700}}>R$ {(c.paidQty*ip).toFixed(2)}</span></div>);})}</>}
+        {bd.filter(c=>c.paidQty>0).map((c,i)=>{const ip=unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv);return(<div key={'p'+i} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(255,255,255,0.03)'}}><span style={{color:'rgba(255,255,255,0.6)'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.paidQty}</span><span style={{fontWeight:700}}>R$ {(c.paidQty*ip).toFixed(2)}</span></div>);})}</>}
       <div style={{marginTop:14,display:'flex',flexDirection:'column',gap:5}}>
         {totalPaid>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'rgba(255,255,255,0.4)'}}><span>Subtotal</span><span style={{color:'#fff',fontWeight:600}}>R$ {sub.toFixed(2)}</span></div>}
         <div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'rgba(255,255,255,0.4)'}}><span>Frete</span><span style={{color:alreadyPaidShipping?'#2ee59d':'#fff',fontWeight:600}}>{alreadyPaidShipping?'Já pago ✓':useJointShipping?'Envio conjunto (R$ 0,00)':selectedFrete?'R$ '+fV.toFixed(2):lF?'Calculando...':'—'}</span></div>
@@ -1493,6 +1542,30 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   const [newCamp,setNewCamp]=useState({name:'',status:'DRAFT',close_at:'',max_cards:null,min_cards:150});
   const [creating,setCreating]=useState(false);
 
+  // Importação de catálogo via CSV do fornecedor
+  const [importCsv,setImportCsv]=useState('');
+  const [importFileName,setImportFileName]=useState('');
+  const [importPreview,setImportPreview]=useState(null);
+  const [importDeactivate,setImportDeactivate]=useState(true);
+  const [importing,setImporting]=useState(false);
+  const [importResult,setImportResult]=useState(null);
+
+  // Precificação do pedido individual
+  const [indivCfg,setIndivCfg]=useState(null);
+  const [indivTiers,setIndivTiers]=useState([]);
+  const [indivFx,setIndivFx]=useState(null);
+  const [savingIndiv,setSavingIndiv]=useState(false);
+  useEffect(()=>{
+    let alive=true;
+    fetch('/api/pricing-individual',{method:'GET'}).then(r=>r.json()).then(d=>{
+      if(!alive||!d||!d.ok)return;
+      setIndivCfg(d.pricing||{});
+      setIndivTiers((d.tiers||[]).slice().sort((a,b)=>Number(a.min_qty)-Number(b.min_qty)));
+      setIndivFx(d.fx||null);
+    }).catch(e=>console.warn('admin pricing-individual:',e));
+    return ()=>{alive=false;};
+  },[]);
+
   const [editPricing,setEditPricing]=useState(pricingProp?{...pricingProp}:{});
   const [editCamp,setEditCamp]=useState(campProp?{...campProp}:{});
 
@@ -1899,6 +1972,47 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       SFX.success();if(onReload)onReload();
     }catch(e){console.error(e);if(toastFn)toastFn('Erro ao salvar taxas: '+(e.message||String(e)),'error');}
     setSaving(false);
+  }
+
+  function onImportFile(e){
+    const file=e.target.files&&e.target.files[0];
+    setImportResult(null);
+    if(!file){setImportCsv('');setImportFileName('');setImportPreview(null);return;}
+    const reader=new FileReader();
+    reader.onload=()=>{
+      const text=String(reader.result||'');
+      setImportCsv(text);setImportFileName(file.name);
+      try{
+        const {cards,skipped,total}=buildCardsFromCsv(text);
+        const types=cards.reduce((a,c)=>{a[c.type]=(a[c.type]||0)+1;return a;},{});
+        setImportPreview({valid:cards.length,skipped,total,types});
+      }catch(err){setImportPreview({error:String(err&&err.message||err)});}
+    };
+    reader.readAsText(file);
+  }
+
+  async function importCards(){
+    if(!importCsv.trim())return;
+    setImporting(true);setImportResult(null);
+    try{
+      const r=await fetch('/api/admin-import-cards',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({csv:importCsv,deactivatePrevious:importDeactivate})});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      setImportResult(json);SFX.success();if(onReload)onReload();
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao importar catálogo: '+(e.message||String(e)),'error');}
+    setImporting(false);
+  }
+
+  async function saveIndividualPricing(){
+    setSavingIndiv(true);
+    try{
+      const tiers=indivTiers.map(t=>({min_qty:t.min_qty,max_qty:t.max_qty,usd_per_card:t.usd_per_card}));
+      const r=await fetch('/api/admin-save-individual-pricing',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({pricing:indivCfg,tiers})});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      SFX.success();if(toastFn)toastFn('Precificação individual salva!','success');
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao salvar: '+(e.message||String(e)),'error');}
+    setSavingIndiv(false);
   }
 
   async function archiveCampaign(){
@@ -2375,6 +2489,29 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     </Card>}
 
     {tab==='config'&&<>
+      {/* Importar catálogo de Magic via CSV do fornecedor */}
+      <Card style={{padding:16}}>
+        <SectionTitle sub="Substitui o catálogo de cartas de Magic a partir do CSV do fornecedor">Importar Catálogo (CSV)</SectionTitle>
+        <div style={{fontSize:12,color:'rgba(255,255,255,0.3)',marginBottom:12,lineHeight:1.5}}>O CSV deve ter as colunas <b>name, price, original_price, category, image_file</b>. As imagens devem estar no bucket <b>cards</b> com o mesmo nome do <b>image_file</b>. Re-enviar o mesmo CSV atualiza preços/imagens (não duplica).</div>
+        <label style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'12px',borderRadius:10,border:'1px dashed rgba(255,255,255,0.15)',background:'rgba(255,255,255,0.02)',color:'rgba(255,255,255,0.5)',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>
+          <Upload size={15}/>{importFileName||'Escolher arquivo CSV'}
+          <input type="file" accept=".csv,text/csv" onChange={onImportFile} style={{display:'none'}}/>
+        </label>
+        {importPreview&&!importPreview.error&&<div style={{marginTop:12,padding:'10px 12px',borderRadius:10,background:'rgba(255,255,255,0.03)',fontSize:12,color:'rgba(255,255,255,0.55)',lineHeight:1.6}}>
+          <div><b style={{color:theme.primary}}>{importPreview.valid}</b> cartas válidas de {importPreview.total} linhas{importPreview.skipped>0?<> · <span style={{color:'#d9a452'}}>{importPreview.skipped} ignoradas</span></>:null}</div>
+          <div style={{fontSize:11,color:'rgba(255,255,255,0.35)'}}>Normal: {importPreview.types.Normal||0} · Holo: {importPreview.types.Holo||0} · Foil: {importPreview.types.Foil||0}</div>
+        </div>}
+        {importPreview&&importPreview.error&&<div style={{marginTop:12,fontSize:12,color:'#ff6b7a'}}>Erro ao ler CSV: {importPreview.error}</div>}
+        <label style={{display:'flex',alignItems:'center',gap:8,marginTop:12,fontSize:12,color:'rgba(255,255,255,0.5)',cursor:'pointer'}}>
+          <input type="checkbox" checked={importDeactivate} onChange={e=>setImportDeactivate(e.target.checked)}/>
+          Desativar catálogo Magic anterior (cartas fora deste CSV ficam ocultas)
+        </label>
+        <Btn full variant="success" onClick={importCards} disabled={importing||!importPreview||!!(importPreview&&importPreview.error)||!(importPreview&&importPreview.valid>0)} style={{marginTop:12}} sfx="">{importing?<Spin size={14}/>:<><Upload size={14}/> Importar catálogo</>}</Btn>
+        {importResult&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:10,background:'rgba(74,222,128,0.08)',border:'1px solid rgba(74,222,128,0.2)',fontSize:12,color:'rgba(255,255,255,0.7)',lineHeight:1.6}}>
+          <Check size={13} style={{verticalAlign:'middle',color:'#4ade80'}}/> Importado: <b>{importResult.upserted}</b> cartas{importResult.deactivated>0?<> · {importResult.deactivated} antigas desativadas</>:null}{importResult.skipped>0?<> · {importResult.skipped} ignoradas</>:null}
+        </div>}
+      </Card>
+
       {/* Preços por Tipo de Carta — nova lógica simplificada */}
       <Card style={{padding:16}}>
         <SectionTitle sub="Preço fixo em R$ por tipo de carta">Preços por Tipo de Carta</SectionTitle>
@@ -2392,6 +2529,37 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         </div>))}
         <Btn full variant="success" onClick={savePricing} disabled={saving} style={{marginTop:12}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar preços</>}</Btn>
       </Card>
+
+      {/* Precificação do Pedido Individual */}
+      {indivCfg&&<Card style={{padding:16}}>
+        <SectionTitle sub="Desconto por volume — preço/carta = custo × multiplicador × dólar, com piso por tipo">Pedido Individual</SectionTitle>
+        <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginBottom:12}}>Dólar do dia em uso: <b style={{color:theme.primary}}>R$ {indivFx?Number(indivFx.rate).toFixed(2):'—'}</b>{indivFx?<span style={{opacity:0.6}}> ({indivFx.source})</span>:null}</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
+          {[
+            {k:'multiplier',l:'Multiplicador',step:'0.1'},
+            {k:'min_cards',l:'Mínimo de cartas',step:'1'},
+            {k:'normal_floor_brl',l:'Piso Normal (R$)',step:'0.5'},
+            {k:'holo_floor_brl',l:'Piso Holo (R$)',step:'0.5'},
+            {k:'foil_floor_brl',l:'Piso Foil (R$)',step:'0.5'},
+            {k:'fx_fallback_rate',l:'Dólar fallback',step:'0.01'},
+          ].map(({k,l,step})=>(<div key={k}>
+            <label style={{fontSize:10,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>{l}</label>
+            <input type="number" step={step} min="0" value={indivCfg[k]??''} onChange={e=>setIndivCfg(c=>({...c,[k]:e.target.value===''?'':Number(e.target.value)}))} style={{width:'100%',padding:'8px 10px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontWeight:700,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/>
+          </div>))}
+        </div>
+        <div style={{fontSize:11,color:'rgba(255,255,255,0.4)',fontWeight:700,margin:'6px 0 4px'}}>Faixas de volume (custo USD/carta)</div>
+        <div style={{display:'flex',flexDirection:'column',gap:4}}>
+          <div style={{display:'flex',gap:6,fontSize:9,color:'rgba(255,255,255,0.25)',padding:'0 2px'}}><span style={{flex:1}}>Mín</span><span style={{flex:1}}>Máx (vazio=∞)</span><span style={{flex:1}}>USD/carta</span><span style={{width:28}}/></div>
+          {indivTiers.map((t,idx)=>(<div key={idx} style={{display:'flex',gap:6,alignItems:'center'}}>
+            {['min_qty','max_qty','usd_per_card'].map(field=>(
+              <input key={field} type="number" step={field==='usd_per_card'?'0.01':'1'} value={t[field]??''} onChange={e=>{const v=e.target.value;setIndivTiers(ts=>ts.map((x,i)=>i===idx?{...x,[field]:v===''?(field==='max_qty'?null:''):Number(v)}:x));}} style={{flex:1,minWidth:0,padding:'6px 8px',borderRadius:7,border:'1px solid rgba(255,255,255,0.07)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:12,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/>
+            ))}
+            <button onClick={()=>setIndivTiers(ts=>ts.filter((_,i)=>i!==idx))} title="Remover" style={{width:28,height:28,flexShrink:0,borderRadius:7,border:'1px solid rgba(217,68,82,0.15)',background:'rgba(217,68,82,0.08)',color:'#ff6b7a',cursor:'pointer',display:'grid',placeItems:'center'}}><Trash2 size={12}/></button>
+          </div>))}
+        </div>
+        <Btn full variant="ghost" onClick={()=>setIndivTiers(ts=>[...ts,{min_qty:'',max_qty:null,usd_per_card:''}])} style={{marginTop:8}} sfx=""><Plus size={13}/> Adicionar faixa</Btn>
+        <Btn full variant="success" onClick={saveIndividualPricing} disabled={savingIndiv} style={{marginTop:8}} sfx="">{savingIndiv?<Spin size={14}/>:<><Check size={14}/> Salvar pedido individual</>}</Btn>
+      </Card>}
 
       {/* Configuração da encomenda ativa */}
       {selectedCampaign&&!isFinalized&&<Card style={{padding:16}}>
@@ -2469,6 +2637,9 @@ export default function MagicPortal(){
   const [bonusGrants,setBonusGrants]=useState([]);
   const [lastOrder,setLastOrder]=useState(null);
   const [myOrders,setMyOrders]=useState([]);
+  // Pedido individual: modo escolhido na Início + dados de preço (faixas/config/dólar)
+  const [orderMode,setOrderMode]=useState('CAMPAIGN'); // 'CAMPAIGN' | 'INDIVIDUAL'
+  const [indivPricing,setIndivPricing]=useState(null); // { tiers, pricing, fx }
   const [statusOverrides,setStatusOverrides]=useState({});
 
   // UI state
@@ -2510,6 +2681,16 @@ export default function MagicPortal(){
   const theme = GT[guild] || GT.Izzet;
   const isAdmin = profile?.is_admin || false;
   const nav = useCallback(p=>{SFX.nav();setPage(p);if(p==='profile'&&!profile&&token&&session?.user?.id){loadAppData(token,session.user.id);};},[profile,token,session]);
+
+  // Carrega faixas/config/dólar do pedido individual (preço ao vivo)
+  useEffect(()=>{
+    if(!session)return;
+    let alive=true;
+    fetch('/api/pricing-individual',{method:'GET'})
+      .then(r=>r.json()).then(d=>{if(alive&&d&&d.ok)setIndivPricing(d);})
+      .catch(e=>console.warn('pricing-individual:',e));
+    return ()=>{alive=false;};
+  },[session]);
 
   // Recarrega bônus disponíveis ao entrar na home
   useEffect(()=>{
@@ -3027,7 +3208,28 @@ export default function MagicPortal(){
 
       {/* Pages */}
       <main className="portal-content" style={{ padding: page === 'onboarding' ? '0 20px' : '14px 20px' }}>
-        {page === 'home' && (campaign ? <HomePage pool={pool} minCards={campaign?.min_cards||150} pricing={pricing} closeDate={campaign?.close_at} theme={theme} nav={nav} wantsCount={wantsCount} cartCount={cartCount} bonusAvail={bonusAvail} campaign_status={campaign?.status} /> : <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        {page === 'home' && <>
+          {/* Seletor de modo de pedido */}
+          <div style={{display:'flex',gap:8,marginBottom:14}}>
+            <button onClick={()=>{SFX.toggle();setOrderMode('CAMPAIGN');}} disabled={!campaign} style={{flex:1,padding:'12px 10px',borderRadius:14,border:'1px solid '+(orderMode==='CAMPAIGN'?theme.primary+'55':'rgba(255,255,255,0.06)'),background:orderMode==='CAMPAIGN'?theme.primary+'18':'rgba(255,255,255,0.02)',color:campaign?(orderMode==='CAMPAIGN'?theme.primary:'rgba(255,255,255,0.5)'):'rgba(255,255,255,0.18)',cursor:campaign?'pointer':'not-allowed',fontFamily:"'Outfit',sans-serif",textAlign:'left'}}>
+              <div style={{fontSize:13,fontWeight:700}}>🛒 Encomenda Coletiva</div>
+              <div style={{fontSize:10,opacity:0.7,marginTop:2}}>{campaign?'Preço fixo por tipo':'Nenhuma campanha aberta'}</div>
+            </button>
+            <button onClick={()=>{SFX.toggle();setOrderMode('INDIVIDUAL');}} style={{flex:1,padding:'12px 10px',borderRadius:14,border:'1px solid '+(orderMode==='INDIVIDUAL'?theme.primary+'55':'rgba(255,255,255,0.06)'),background:orderMode==='INDIVIDUAL'?theme.primary+'18':'rgba(255,255,255,0.02)',color:orderMode==='INDIVIDUAL'?theme.primary:'rgba(255,255,255,0.5)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",textAlign:'left'}}>
+              <div style={{fontSize:13,fontWeight:700}}>👤 Pedido Individual</div>
+              <div style={{fontSize:10,opacity:0.7,marginTop:2}}>Desconto por volume</div>
+            </button>
+          </div>
+          {orderMode==='INDIVIDUAL'
+            ? <div style={{display:'flex',flexDirection:'column',gap:14}}>
+                <Card style={{padding:20}}>
+                  <div style={{fontSize:11,color:'rgba(255,255,255,0.28)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif",textAlign:'center'}}>Pedido Individual</div>
+                  <h1 style={{margin:'5px 0 10px',fontSize:24,fontFamily:"'Cinzel',serif",textAlign:'center',background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Quanto mais cartas, menor o preço</h1>
+                  <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',lineHeight:1.5,textAlign:'center'}}>O valor por carta reajusta conforme a quantidade no carrinho. Mínimo de {indivPricing?.pricing?.min_cards||MIN_ORDER_CARDS} cartas.{indivPricing?.fx?.rate?` · Dólar do dia: R$ ${Number(indivPricing.fx.rate).toFixed(2)}`:''}</div>
+                  <Btn full onClick={()=>nav('catalog')} sfx="nav" style={{marginTop:14}}><BookOpen size={16}/> Montar meu pedido</Btn>
+                </Card>
+              </div>
+            : (campaign ? <HomePage pool={pool} minCards={campaign?.min_cards||150} pricing={pricing} closeDate={campaign?.close_at} theme={theme} nav={nav} wantsCount={wantsCount} cartCount={cartCount} bonusAvail={bonusAvail} campaign_status={campaign?.status} /> : <div style={{display:'flex',flexDirection:'column',gap:14}}>
           <div style={{textAlign:'center',padding:'6px 0 0'}}>
             <div style={{fontSize:11,color:'rgba(255,255,255,0.28)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>
             <h1 style={{margin:'5px 0 0',fontSize:26,fontFamily:"'Cinzel',serif",background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Cartas para Jogar</h1>
@@ -3037,12 +3239,12 @@ export default function MagicPortal(){
             : <Card style={{padding:20,textAlign:'center'}}><div style={{fontSize:32,marginBottom:8}}>🔮</div><div style={{fontSize:14,fontWeight:700,marginBottom:4}}>Nenhuma encomenda ativa</div><div style={{fontSize:12,color:'rgba(255,255,255,0.35)'}}>Aguarde a próxima encomenda ser aberta.</div></Card>
           }
           <Btn full variant="secondary" onClick={()=>{loadAppData(token,session?.user?.id);}} sfx="click"><RefreshCw size={16}/> Recarregar</Btn>
-        </div>)}
+        </div>)}</>}
         {page === 'catalog' && <CatalogPage token={token} wants={wants} onAddWant={handleAddWant} priceBRL={priceBRL} theme={theme} campaignStatus={campaign?.status} tutStep={showTutorial?tutStep:-1} onTutNext={tutNext} />}
         {page === 'wants' && <WantsPage wants={wants} onMoveToCart={handleMoveToCart} onMoveAllToCart={handleMoveAllToCart} onRemoveWant={handleRemoveWant} onUpdateWantQty={handleUpdateWantQty} cartCount={cartCount} bonusAvail={bonusAvail} theme={theme} />}
-        {page === 'cart' && <CartPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} campaignStatus={campaign?.status} theme={theme} nav={nav} onMoveToWants={handleMoveToWants} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} profile={profile} previousPaidBatches={previousPaidBatches} />}
-        {page === 'checkout' && campaignCanOrder(campaign?.status) && <CheckoutPage cartItems={cartItems} wants={wants} cartQtyByItem={cartQtyByItem} pricing={pricing} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} campaignStatus={campaign?.status} onOrderDone={handleOrderDone} toast={toast} previousPaidBatches={previousPaidBatches} onMoveToWants={handleMoveToWants} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} />}
-        {page === 'checkout' && !campaignCanOrder(campaign?.status) && <CartPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} campaignStatus={campaign?.status} theme={theme} nav={nav} onMoveToWants={handleMoveToWants} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} profile={profile} previousPaidBatches={previousPaidBatches} />}
+        {page === 'cart' && <CartPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} campaignStatus={campaign?.status} theme={theme} nav={nav} onMoveToWants={handleMoveToWants} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} profile={profile} previousPaidBatches={previousPaidBatches} orderMode={orderMode} indiv={indivPricing} />}
+        {page === 'checkout' && (orderMode==='INDIVIDUAL' || campaignCanOrder(campaign?.status)) && <CheckoutPage cartItems={cartItems} wants={wants} cartQtyByItem={cartQtyByItem} pricing={pricing} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} campaignStatus={campaign?.status} onOrderDone={handleOrderDone} toast={toast} previousPaidBatches={previousPaidBatches} onMoveToWants={handleMoveToWants} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} orderMode={orderMode} indiv={indivPricing} />}
+        {page === 'checkout' && orderMode!=='INDIVIDUAL' && !campaignCanOrder(campaign?.status) && <CartPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} campaignStatus={campaign?.status} theme={theme} nav={nav} onMoveToWants={handleMoveToWants} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} profile={profile} previousPaidBatches={previousPaidBatches} orderMode={orderMode} indiv={indivPricing} />}
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
         {page === 'profile' && !profile && <div style={{padding:20,color:'#ff6b7a',fontSize:12}}><div>profile: null</div><div>token: {token?'ok':'null'}</div><div>appLoading: {String(appLoading)}</div><Btn onClick={()=>loadAppData(token,session?.user?.id)} sfx="click"><RefreshCw size={14}/> Recarregar</Btn></div>}
         {page === 'profile' && profile && (() => { try { return <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} campaign={campaign} />; } catch(e) { return <div style={{padding:20,color:'#ff6b7a',fontSize:12}}>Crash: {e.message}</div>; } })()}

@@ -104,8 +104,12 @@ CREATE TABLE IF NOT EXISTS public.cards (
   tcg         text NOT NULL DEFAULT 'Magic',
   image_url   text,
   is_active   boolean DEFAULT true,
+  cost_usd          numeric(10,2),  -- custo USD do fornecedor (importação CSV)
+  cost_original_usd numeric(10,2),  -- custo USD original (sem desconto)
+  import_ref        text,           -- chave estável do CSV (basename de image_file) p/ upsert
   created_at  timestamptz DEFAULT now()
 );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cards_import_ref ON public.cards(import_ref) WHERE import_ref IS NOT NULL;
 
 -- ──────────────────────────────────────────────
 -- 6. ORDERS (pedidos — 1 por usuário por campanha)
