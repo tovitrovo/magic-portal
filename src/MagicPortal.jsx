@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff, Archive } from 'lucide-react';
 import { buildCatalogQueries, buildLatestCardQuery, RECENT_CARDS_FILTER } from './catalogQuery';
 import { buildShippingGroups, SHIPPING_SERVICE_UNKNOWN } from '../shared/shipping-groups';
+import { buildCardsFromCsv } from '../shared/cardImport';
 import { DEFAULT_WHATSAPP_MESSAGES, WHATSAPP_AUDIENCES, buildShipmentWhatsAppUrl, buildWhatsAppUrl, getWhatsAppRecipients } from './whatsappCommunication';
 import './responsive.css';
 
@@ -1493,6 +1494,14 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   const [newCamp,setNewCamp]=useState({name:'',status:'DRAFT',close_at:'',max_cards:null,min_cards:150});
   const [creating,setCreating]=useState(false);
 
+  // Importação de catálogo via CSV do fornecedor
+  const [importCsv,setImportCsv]=useState('');
+  const [importFileName,setImportFileName]=useState('');
+  const [importPreview,setImportPreview]=useState(null);
+  const [importDeactivate,setImportDeactivate]=useState(true);
+  const [importing,setImporting]=useState(false);
+  const [importResult,setImportResult]=useState(null);
+
   const [editPricing,setEditPricing]=useState(pricingProp?{...pricingProp}:{});
   const [editCamp,setEditCamp]=useState(campProp?{...campProp}:{});
 
@@ -1899,6 +1908,35 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       SFX.success();if(onReload)onReload();
     }catch(e){console.error(e);if(toastFn)toastFn('Erro ao salvar taxas: '+(e.message||String(e)),'error');}
     setSaving(false);
+  }
+
+  function onImportFile(e){
+    const file=e.target.files&&e.target.files[0];
+    setImportResult(null);
+    if(!file){setImportCsv('');setImportFileName('');setImportPreview(null);return;}
+    const reader=new FileReader();
+    reader.onload=()=>{
+      const text=String(reader.result||'');
+      setImportCsv(text);setImportFileName(file.name);
+      try{
+        const {cards,skipped,total}=buildCardsFromCsv(text);
+        const types=cards.reduce((a,c)=>{a[c.type]=(a[c.type]||0)+1;return a;},{});
+        setImportPreview({valid:cards.length,skipped,total,types});
+      }catch(err){setImportPreview({error:String(err&&err.message||err)});}
+    };
+    reader.readAsText(file);
+  }
+
+  async function importCards(){
+    if(!importCsv.trim())return;
+    setImporting(true);setImportResult(null);
+    try{
+      const r=await fetch('/api/admin-import-cards',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({csv:importCsv,deactivatePrevious:importDeactivate})});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      setImportResult(json);SFX.success();if(onReload)onReload();
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao importar catálogo: '+(e.message||String(e)),'error');}
+    setImporting(false);
   }
 
   async function archiveCampaign(){
@@ -2375,6 +2413,29 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     </Card>}
 
     {tab==='config'&&<>
+      {/* Importar catálogo de Magic via CSV do fornecedor */}
+      <Card style={{padding:16}}>
+        <SectionTitle sub="Substitui o catálogo de cartas de Magic a partir do CSV do fornecedor">Importar Catálogo (CSV)</SectionTitle>
+        <div style={{fontSize:12,color:'rgba(255,255,255,0.3)',marginBottom:12,lineHeight:1.5}}>O CSV deve ter as colunas <b>name, price, original_price, category, image_file</b>. As imagens devem estar no bucket <b>cards</b> com o mesmo nome do <b>image_file</b>. Re-enviar o mesmo CSV atualiza preços/imagens (não duplica).</div>
+        <label style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'12px',borderRadius:10,border:'1px dashed rgba(255,255,255,0.15)',background:'rgba(255,255,255,0.02)',color:'rgba(255,255,255,0.5)',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>
+          <Upload size={15}/>{importFileName||'Escolher arquivo CSV'}
+          <input type="file" accept=".csv,text/csv" onChange={onImportFile} style={{display:'none'}}/>
+        </label>
+        {importPreview&&!importPreview.error&&<div style={{marginTop:12,padding:'10px 12px',borderRadius:10,background:'rgba(255,255,255,0.03)',fontSize:12,color:'rgba(255,255,255,0.55)',lineHeight:1.6}}>
+          <div><b style={{color:theme.primary}}>{importPreview.valid}</b> cartas válidas de {importPreview.total} linhas{importPreview.skipped>0?<> · <span style={{color:'#d9a452'}}>{importPreview.skipped} ignoradas</span></>:null}</div>
+          <div style={{fontSize:11,color:'rgba(255,255,255,0.35)'}}>Normal: {importPreview.types.Normal||0} · Holo: {importPreview.types.Holo||0} · Foil: {importPreview.types.Foil||0}</div>
+        </div>}
+        {importPreview&&importPreview.error&&<div style={{marginTop:12,fontSize:12,color:'#ff6b7a'}}>Erro ao ler CSV: {importPreview.error}</div>}
+        <label style={{display:'flex',alignItems:'center',gap:8,marginTop:12,fontSize:12,color:'rgba(255,255,255,0.5)',cursor:'pointer'}}>
+          <input type="checkbox" checked={importDeactivate} onChange={e=>setImportDeactivate(e.target.checked)}/>
+          Desativar catálogo Magic anterior (cartas fora deste CSV ficam ocultas)
+        </label>
+        <Btn full variant="success" onClick={importCards} disabled={importing||!importPreview||!!(importPreview&&importPreview.error)||!(importPreview&&importPreview.valid>0)} style={{marginTop:12}} sfx="">{importing?<Spin size={14}/>:<><Upload size={14}/> Importar catálogo</>}</Btn>
+        {importResult&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:10,background:'rgba(74,222,128,0.08)',border:'1px solid rgba(74,222,128,0.2)',fontSize:12,color:'rgba(255,255,255,0.7)',lineHeight:1.6}}>
+          <Check size={13} style={{verticalAlign:'middle',color:'#4ade80'}}/> Importado: <b>{importResult.upserted}</b> cartas{importResult.deactivated>0?<> · {importResult.deactivated} antigas desativadas</>:null}{importResult.skipped>0?<> · {importResult.skipped} ignoradas</>:null}
+        </div>}
+      </Card>
+
       {/* Preços por Tipo de Carta — nova lógica simplificada */}
       <Card style={{padding:16}}>
         <SectionTitle sub="Preço fixo em R$ por tipo de carta">Preços por Tipo de Carta</SectionTitle>
