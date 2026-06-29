@@ -26,7 +26,7 @@ export async function quoteItems(SB_URL, SB_KEY, items, inputs = null) {
   const list = Array.isArray(items) ? items.filter(i => i && i.card_id) : [];
   const { tiers, pricing, fx } = inputs || await loadPricingInputs(SB_URL, SB_KEY);
 
-  if (!list.length) return { totalQty: 0, subtotal: 0, lines: [], tier: null, fx };
+  if (!list.length) return { totalQty: 0, subtotal: 0, lines: [], tier: null, fx, pricing };
 
   // Relê os tipos reais das cartas
   const ids = [...new Set(list.map(i => i.card_id))];
@@ -44,5 +44,5 @@ export async function quoteItems(SB_URL, SB_KEY, items, inputs = null) {
   }));
 
   const quote = quoteCart({ items: cartItems, tiers, pricing, fxRate: fx.rate });
-  return { ...quote, fx };
+  return { ...quote, fx, pricing };
 }
