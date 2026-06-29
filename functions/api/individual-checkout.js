@@ -1,11 +1,5 @@
 import { quoteItems } from "./_individual-helper.js";
-
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type, authorization",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-const json = (b, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
+import { corsHeaders } from "./_cors.js";
 
 // Identifica o usuário pelo token (sem exigir admin).
 async function getUserId(context, SB_URL, SB_KEY) {
@@ -23,6 +17,8 @@ async function getUserId(context, SB_URL, SB_KEY) {
 // body: { items:[{card_id,quantity}], shipping:{ service, price, address, already_paid, group_id } }
 // Cria um pedido INDIVIDUAL com preços travados no servidor e devolve o batch p/ Mercado Pago.
 export async function onRequest(context) {
+  const CORS = corsHeaders(context, "POST, OPTIONS");
+  const json = (b, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
   if (context.request.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (context.request.method !== "POST") return json({ ok: false, error: "Método não permitido" }, 405);
 

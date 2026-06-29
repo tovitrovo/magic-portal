@@ -1,9 +1,8 @@
+import { authoritativeBatchTotal } from "./_campaign-helper.js";
+import { corsHeaders } from "./_cors.js";
+
 export async function onRequest(context) {
-  const CORS = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "content-type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-  };
+  const CORS = corsHeaders(context, "POST, OPTIONS");
   if (context.request.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   try {
@@ -24,30 +23,26 @@ export async function onRequest(context) {
       });
     }
 
-    // SEGURANÇA: o valor cobrado NÃO vem do cliente. Lemos o total travado
-    // (total_locked) persistido no batch para evitar adulteração de preço.
+    // SEGURANÇA: o valor cobrado NÃO vem do cliente. É recalculado de forma
+    // autoritativa no servidor (preços de pricing_config + itens do banco),
+    // evitando adulteração de preço mesmo via REST direto do Supabase.
     if (!SB_URL || !SB_SERVICE_ROLE_KEY) {
       return new Response(JSON.stringify({ error: "Config do servidor incompleta" }), {
         status: 500, headers: { ...CORS, "Content-Type": "application/json" }
       });
     }
-    const batchRes = await fetch(
-      `${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(orderId)}&select=total_locked,status&limit=1`,
-      { headers: { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}` } }
-    );
-    const batchArr = await batchRes.json().catch(() => []);
-    const batch = Array.isArray(batchArr) && batchArr.length ? batchArr[0] : null;
-    if (!batch) {
+    const authTotal = await authoritativeBatchTotal(SB_URL, SB_SERVICE_ROLE_KEY, orderId);
+    if (!authTotal.ok) {
       return new Response(JSON.stringify({ error: "Pedido não encontrado" }), {
         status: 404, headers: { ...CORS, "Content-Type": "application/json" }
       });
     }
-    if (batch.status === "PAID" || batch.status === "PAID_CONFIRMED") {
+    if (authTotal.status === "PAID" || authTotal.status === "PAID_CONFIRMED") {
       return new Response(JSON.stringify({ error: "Pedido já está pago" }), {
         status: 409, headers: { ...CORS, "Content-Type": "application/json" }
       });
     }
-    const total = Number(batch.total_locked || 0);
+    const total = Number(authTotal.total || 0);
     if (!Number.isFinite(total) || total <= 0) {
       return new Response(JSON.stringify({ error: "Valor do pedido inválido" }), {
         status: 400, headers: { ...CORS, "Content-Type": "application/json" }
@@ -98,6 +93,8 @@ export async function onRequest(context) {
             mp_link: mpLink,
             mp_preference_id: data?.id || null,
             payment_method: "MERCADO_PAGO",
+            // Persiste o total autoritativo para manter admin/webhook consistentes
+            total_locked: Number(total.toFixed(2)),
             status: "PENDING_PAYMENT"
           }),
         });

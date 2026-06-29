@@ -1,11 +1,8 @@
 import { verifyAdmin } from "./_admin-auth.js";
+import { corsHeaders } from "./_cors.js";
 
 export async function onRequest(context) {
-  const CORS = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "content-type, authorization",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-  };
+  const CORS = corsHeaders(context, "POST, OPTIONS");
   if (context.request.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   try {
