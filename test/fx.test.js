@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseAwesomeApiRate, isStale } from '../shared/fx.js';
+import { parseAwesomeApiRate, parseRatesBrl, parseAwesomeApiMid, isStale } from '../shared/fx.js';
 
 test('parseAwesomeApiRate lê o campo ask por padrão', () => {
   const json = { USDBRL: { code: 'USD', codein: 'BRL', bid: '5.45', ask: '5.46', high: '5.50' } };
@@ -16,6 +16,20 @@ test('parseAwesomeApiRate retorna null em resposta inválida', () => {
   assert.equal(parseAwesomeApiRate(null), null);
   assert.equal(parseAwesomeApiRate({ USDBRL: { ask: '0' } }), null);
   assert.equal(parseAwesomeApiRate({ USDBRL: { ask: 'abc' } }), null);
+});
+
+test('parseRatesBrl lê rates.BRL (open.er-api / exchangerate.host)', () => {
+  assert.equal(parseRatesBrl({ result: 'success', rates: { BRL: 5.43 } }), 5.43);
+  assert.equal(parseRatesBrl({ rates: { BRL: 0 } }), null);
+  assert.equal(parseRatesBrl({ rates: {} }), null);
+  assert.equal(parseRatesBrl({}), null);
+  assert.equal(parseRatesBrl(null), null);
+});
+
+test('parseAwesomeApiMid: média de bid/ask', () => {
+  assert.equal(parseAwesomeApiMid({ USDBRL: { bid: '5.40', ask: '5.50' } }), 5.45);
+  assert.equal(parseAwesomeApiMid({ USDBRL: { bid: '5.40' } }), 5.40); // só bid
+  assert.equal(parseAwesomeApiMid({}), null);
 });
 
 test('isStale: cotação recente não é velha', () => {

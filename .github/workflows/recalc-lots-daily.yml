@@ -1,0 +1,37 @@
+name: Recalcular preços dos lotes (diário)
+
+# Agendador "de verdade": roda todo dia independente de acesso ao site.
+# Chama o endpoint protegido /api/cron-recalc-lots, que busca o dólar base
+# (spot/~Google) ao vivo e reprecifica os lotes (cards.is_lot).
+#
+# Segredos necessários no repositório (Settings → Secrets and variables → Actions):
+#   CRON_SECRET → mesmo valor configurado nas env vars do Cloudflare Pages
+#   SITE_URL    → URL de produção, ex.: https://magic-portal.pages.dev (sem barra final)
+
+on:
+  schedule:
+    - cron: "0 9 * * *" # 09:00 UTC ≈ 06:00 BRT, todo dia
+  workflow_dispatch: {} # permite rodar manualmente pelo botão "Run workflow"
+
+jobs:
+  recalc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST /api/cron-recalc-lots
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ secrets.SITE_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$SITE_URL" ]; then
+            echo "::error::Configure os secrets CRON_SECRET e SITE_URL no repositório."
+            exit 1
+          fi
+          code=$(curl -sS -o /tmp/resp.json -w "%{http_code}" \
+            --retry 3 --retry-delay 5 --max-time 60 \
+            -X POST \
+            -H "x-cron-secret: $CRON_SECRET" \
+            "$SITE_URL/api/cron-recalc-lots")
+          echo "HTTP $code"
+          cat /tmp/resp.json || true
+          echo
+          test "$code" = "200"

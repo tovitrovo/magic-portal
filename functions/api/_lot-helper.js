@@ -1,15 +1,16 @@
-import { getUsdBrlRate } from "./_fx-helper.js";
+import { getBaseUsdBrlRate } from "./_fx-base-helper.js";
 import { computeLotPrice, LOT_DEFAULTS } from "../../shared/lotPricing.js";
 
 /**
  * Recalcula o price_brl de todos os lotes (cards.is_lot = true) a partir do
- * cost_original_usd, do dólar do dia (cacheado ~diário) e da config de lote
+ * cost_original_usd, do dólar BASE/spot (~Google) e da config de lote
  * (lot_cost_factor / lot_margin_percent em pricing_config).
  *
- * Idempotente. Roda na importação de catálogo, sob demanda (admin) e quando o
- * dólar do dia é renovado (fx-rate). Retorna { ok, updated, rate, skipped }.
+ * Idempotente. Roda no cron diário, na importação de catálogo, sob demanda
+ * (admin) e quando o dólar do dia é renovado (fx-rate). opts.force força a
+ * busca ao vivo do dólar base (usado pelo cron). Retorna { ok, updated, rate, skipped }.
  */
-export async function recalcLotPrices(SB_URL, SB_KEY) {
+export async function recalcLotPrices(SB_URL, SB_KEY, opts = {}) {
   const headers = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` };
 
   // Config de lote (fator + margem) do pricing_config ativo.
@@ -27,8 +28,8 @@ export async function recalcLotPrices(SB_URL, SB_KEY) {
     }
   } catch { /* usa defaults */ }
 
-  // Dólar do dia (mesma fonte/cache do resto do app).
-  const fx = await getUsdBrlRate(SB_URL, SB_KEY);
+  // Dólar BASE (spot / ~Google). O spread já está no lot_cost_factor (PayPal).
+  const fx = await getBaseUsdBrlRate(SB_URL, SB_KEY, { force: opts.force === true });
   const rate = Number(fx.rate);
   if (!Number.isFinite(rate) || rate <= 0) return { ok: false, error: "dólar indisponível", updated: 0 };
 

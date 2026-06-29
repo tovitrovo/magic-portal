@@ -16,6 +16,21 @@ export function parseAwesomeApiRate(json, field = 'ask') {
   return null;
 }
 
+// Dólar BASE (spot / mid-market, ~o que o Google mostra) a partir de APIs que
+// retornam { rates: { BRL: x } } — ex.: open.er-api.com, exchangerate.host.
+export function parseRatesBrl(json) {
+  const v = Number(json && json.rates && json.rates.BRL);
+  return Number.isFinite(v) && v > 0 ? v : null;
+}
+
+// Mid da AwesomeAPI = média de bid/ask (fallback p/ o dólar base).
+export function parseAwesomeApiMid(json) {
+  const bid = parseAwesomeApiRate(json, 'bid');
+  const ask = parseAwesomeApiRate(json, 'ask');
+  if (Number.isFinite(bid) && Number.isFinite(ask) && bid > 0 && ask > 0) return (bid + ask) / 2;
+  return bid || ask || null;
+}
+
 // True se a cotação está velha (ou inválida) para o limite de horas dado.
 export function isStale(fetchedAt, maxAgeHours = 12) {
   const t = new Date(fetchedAt).getTime();
