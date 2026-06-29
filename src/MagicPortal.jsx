@@ -1550,6 +1550,22 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   const [importing,setImporting]=useState(false);
   const [importResult,setImportResult]=useState(null);
 
+  // Precificação do pedido individual
+  const [indivCfg,setIndivCfg]=useState(null);
+  const [indivTiers,setIndivTiers]=useState([]);
+  const [indivFx,setIndivFx]=useState(null);
+  const [savingIndiv,setSavingIndiv]=useState(false);
+  useEffect(()=>{
+    let alive=true;
+    fetch('/api/pricing-individual',{method:'GET'}).then(r=>r.json()).then(d=>{
+      if(!alive||!d||!d.ok)return;
+      setIndivCfg(d.pricing||{});
+      setIndivTiers((d.tiers||[]).slice().sort((a,b)=>Number(a.min_qty)-Number(b.min_qty)));
+      setIndivFx(d.fx||null);
+    }).catch(e=>console.warn('admin pricing-individual:',e));
+    return ()=>{alive=false;};
+  },[]);
+
   const [editPricing,setEditPricing]=useState(pricingProp?{...pricingProp}:{});
   const [editCamp,setEditCamp]=useState(campProp?{...campProp}:{});
 
@@ -1985,6 +2001,18 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       setImportResult(json);SFX.success();if(onReload)onReload();
     }catch(e){console.error(e);if(toastFn)toastFn('Erro ao importar catálogo: '+(e.message||String(e)),'error');}
     setImporting(false);
+  }
+
+  async function saveIndividualPricing(){
+    setSavingIndiv(true);
+    try{
+      const tiers=indivTiers.map(t=>({min_qty:t.min_qty,max_qty:t.max_qty,usd_per_card:t.usd_per_card}));
+      const r=await fetch('/api/admin-save-individual-pricing',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({pricing:indivCfg,tiers})});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      SFX.success();if(toastFn)toastFn('Precificação individual salva!','success');
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao salvar: '+(e.message||String(e)),'error');}
+    setSavingIndiv(false);
   }
 
   async function archiveCampaign(){
@@ -2501,6 +2529,37 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         </div>))}
         <Btn full variant="success" onClick={savePricing} disabled={saving} style={{marginTop:12}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar preços</>}</Btn>
       </Card>
+
+      {/* Precificação do Pedido Individual */}
+      {indivCfg&&<Card style={{padding:16}}>
+        <SectionTitle sub="Desconto por volume — preço/carta = custo × multiplicador × dólar, com piso por tipo">Pedido Individual</SectionTitle>
+        <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginBottom:12}}>Dólar do dia em uso: <b style={{color:theme.primary}}>R$ {indivFx?Number(indivFx.rate).toFixed(2):'—'}</b>{indivFx?<span style={{opacity:0.6}}> ({indivFx.source})</span>:null}</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
+          {[
+            {k:'multiplier',l:'Multiplicador',step:'0.1'},
+            {k:'min_cards',l:'Mínimo de cartas',step:'1'},
+            {k:'normal_floor_brl',l:'Piso Normal (R$)',step:'0.5'},
+            {k:'holo_floor_brl',l:'Piso Holo (R$)',step:'0.5'},
+            {k:'foil_floor_brl',l:'Piso Foil (R$)',step:'0.5'},
+            {k:'fx_fallback_rate',l:'Dólar fallback',step:'0.01'},
+          ].map(({k,l,step})=>(<div key={k}>
+            <label style={{fontSize:10,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>{l}</label>
+            <input type="number" step={step} min="0" value={indivCfg[k]??''} onChange={e=>setIndivCfg(c=>({...c,[k]:e.target.value===''?'':Number(e.target.value)}))} style={{width:'100%',padding:'8px 10px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontWeight:700,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/>
+          </div>))}
+        </div>
+        <div style={{fontSize:11,color:'rgba(255,255,255,0.4)',fontWeight:700,margin:'6px 0 4px'}}>Faixas de volume (custo USD/carta)</div>
+        <div style={{display:'flex',flexDirection:'column',gap:4}}>
+          <div style={{display:'flex',gap:6,fontSize:9,color:'rgba(255,255,255,0.25)',padding:'0 2px'}}><span style={{flex:1}}>Mín</span><span style={{flex:1}}>Máx (vazio=∞)</span><span style={{flex:1}}>USD/carta</span><span style={{width:28}}/></div>
+          {indivTiers.map((t,idx)=>(<div key={idx} style={{display:'flex',gap:6,alignItems:'center'}}>
+            {['min_qty','max_qty','usd_per_card'].map(field=>(
+              <input key={field} type="number" step={field==='usd_per_card'?'0.01':'1'} value={t[field]??''} onChange={e=>{const v=e.target.value;setIndivTiers(ts=>ts.map((x,i)=>i===idx?{...x,[field]:v===''?(field==='max_qty'?null:''):Number(v)}:x));}} style={{flex:1,minWidth:0,padding:'6px 8px',borderRadius:7,border:'1px solid rgba(255,255,255,0.07)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:12,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/>
+            ))}
+            <button onClick={()=>setIndivTiers(ts=>ts.filter((_,i)=>i!==idx))} title="Remover" style={{width:28,height:28,flexShrink:0,borderRadius:7,border:'1px solid rgba(217,68,82,0.15)',background:'rgba(217,68,82,0.08)',color:'#ff6b7a',cursor:'pointer',display:'grid',placeItems:'center'}}><Trash2 size={12}/></button>
+          </div>))}
+        </div>
+        <Btn full variant="ghost" onClick={()=>setIndivTiers(ts=>[...ts,{min_qty:'',max_qty:null,usd_per_card:''}])} style={{marginTop:8}} sfx=""><Plus size={13}/> Adicionar faixa</Btn>
+        <Btn full variant="success" onClick={saveIndividualPricing} disabled={savingIndiv} style={{marginTop:8}} sfx="">{savingIndiv?<Spin size={14}/>:<><Check size={14}/> Salvar pedido individual</>}</Btn>
+      </Card>}
 
       {/* Configuração da encomenda ativa */}
       {selectedCampaign&&!isFinalized&&<Card style={{padding:16}}>
