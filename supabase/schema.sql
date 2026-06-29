@@ -90,6 +90,9 @@ CREATE TABLE IF NOT EXISTS public.pricing_config (
   tax_percent       numeric(6,4) DEFAULT 0,
   markup_percent    numeric(6,4) DEFAULT 0,
   profit_fixed_brl  numeric(10,2) DEFAULT 0,
+  -- Lotes: preço = teto(cost_original_usd × dólar × lot_cost_factor × (1+lot_margin_percent/100))
+  lot_cost_factor    numeric(8,4) NOT NULL DEFAULT 1.082, -- PayPal: spread 4,5% × IOF 3,5%
+  lot_margin_percent numeric(8,4) NOT NULL DEFAULT 15,     -- lucro + taxa Mercado Pago
   created_at        timestamptz DEFAULT now(),
   updated_at        timestamptz DEFAULT now()
 );
@@ -107,6 +110,8 @@ CREATE TABLE IF NOT EXISTS public.cards (
   cost_usd          numeric(10,2),  -- custo USD do fornecedor (importação CSV)
   cost_original_usd numeric(10,2),  -- custo USD original (sem desconto)
   import_ref        text,           -- chave estável do CSV (basename de image_file) p/ upsert
+  is_lot            boolean NOT NULL DEFAULT false,  -- produto é um lote (set/uncut sheet)
+  price_brl         numeric(10,2),  -- override de preço de venda (lotes); recalculado por dia
   created_at  timestamptz DEFAULT now()
 );
 -- Índice unique completo (sem WHERE) para que o upsert da importação de CSV

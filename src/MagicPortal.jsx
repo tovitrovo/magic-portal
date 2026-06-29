@@ -296,7 +296,10 @@ function getCardPrice(cardType, pricing) {
 
 // Preço unitário conforme o modo de pedido.
 // CAMPAIGN → preço fixo por tipo. INDIVIDUAL → faixa por volume (depende da qtd total) com piso por tipo.
-function unitPriceFor(cardType, totalQty, mode, pricing, indiv) {
+function unitPriceFor(cardType, totalQty, mode, pricing, indiv, priceOverride = null) {
+  // Lote com preço travado (price_brl): vale nos dois modos, ignora tipo/faixa.
+  const ov = Number(priceOverride);
+  if (Number.isFinite(ov) && ov > 0) return ov;
   if (mode === 'INDIVIDUAL' && indiv && Array.isArray(indiv.tiers) && indiv.tiers.length) {
     return indivPricePerCard({ qty: totalQty, type: cardType, tiers: indiv.tiers, pricing: indiv.pricing, fxRate: indiv.fx && indiv.fx.rate });
   }
@@ -654,6 +657,7 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutSte
                 <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</div>
                 <div style={{display:'flex',gap:6,alignItems:'center',marginTop:2}}>
                   <span style={{fontSize:10,color:TC[c.type],fontWeight:700}}>{c.type}</span>
+                  {c.is_lot&&Number(c.price_brl)>0&&<Tag color="#c9a96e" style={{fontSize:9,padding:'1px 6px'}}>Lote · R$ {Number(c.price_brl).toFixed(2)}</Tag>}
                   {existsInWants&&<Tag color="#2ee59d" style={{fontSize:9,padding:'1px 6px'}}>{existsInWants.quantity} na wants</Tag>}
                 </div>
               </div>
@@ -736,7 +740,7 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onMoveT
   const bd=cartItems.map(c=>{const bq=Math.min(c.quantity,bL);bL-=bq;return{...c,bonusQty:bq,paidQty:c.quantity-bq};});
   const totalBonus=bd.reduce((s,c)=>s+c.bonusQty,0);
   const totalPaid=bd.reduce((s,c)=>s+c.paidQty,0);
-  const totalBRL=bd.reduce((s,c)=>s+c.paidQty*unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv),0);
+  const totalBRL=bd.reduce((s,c)=>s+c.paidQty*unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv,c.card_price_brl),0);
   const campaignOpen=campaignCanOrder(campaignStatus);
   const minCards=isIndividual?(Number(indiv?.pricing?.min_cards)||MIN_ORDER_CARDS):MIN_ORDER_CARDS;
   const isFullBonus=totalPaid===0&&totalBonus>0;
@@ -756,7 +760,7 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onMoveT
         <span style={{fontSize:14,fontWeight:800,color:theme.primary}}>≈ R$ {totalBRL.toFixed(2)}{totalBonus>0&&<span style={{fontSize:11,color:'#2ee59d',fontWeight:600,marginLeft:6}}>({totalBonus} bônus)</span>}</span>
       </div>
       <div className="portal-card-grid portal-cart-grid" style={{display:'flex',flexDirection:'column',gap:5}}>
-        {bd.map((c)=>{const itemPrice=unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv);return(
+        {bd.map((c)=>{const itemPrice=unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv,c.card_price_brl);return(
           <Card key={c.id} style={{padding:'10px 12px'}}>
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <div style={{flex:1,minWidth:0}}>
@@ -821,7 +825,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
   const canCheckout=isIndividual?(totalQty>=minCards):(isFullBonus||totalPaid>=MIN_ORDER_CARDS||hasMetMinimumBefore);
   const missingCards=hasMetMinimumBefore?0:Math.max(0,minCards-(isIndividual?totalQty:totalPaid));
   // Subtotal: preço por tipo (campanha) ou por faixa de volume (individual)
-  const sub=bd.reduce((s,c)=>s+c.paidQty*unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv),0);
+  const sub=bd.reduce((s,c)=>s+c.paidQty*unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv,c.card_price_brl),0);
   // Frete: 0 se "já paguei" ou frete conjunto, senão valor da opção selecionada
   const shippingSkipped = alreadyPaidShipping || useJointShipping;
   const fV=shippingSkipped?0:(selectedFrete?selectedFrete.price:0);
@@ -1549,6 +1553,8 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   const [importDeactivate,setImportDeactivate]=useState(true);
   const [importing,setImporting]=useState(false);
   const [importResult,setImportResult]=useState(null);
+  const [recalcingLots,setRecalcingLots]=useState(false);
+  const [lotResult,setLotResult]=useState(null);
 
   // Precificação do pedido individual
   const [indivCfg,setIndivCfg]=useState(null);
@@ -1972,6 +1978,17 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       SFX.success();if(onReload)onReload();
     }catch(e){console.error(e);if(toastFn)toastFn('Erro ao salvar taxas: '+(e.message||String(e)),'error');}
     setSaving(false);
+  }
+
+  async function recalcLots(){
+    setRecalcingLots(true);setLotResult(null);
+    try{
+      const r=await fetch('/api/admin-recalc-lots',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`}});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      setLotResult(json);SFX.success();if(onReload)onReload();
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao recalcular lotes: '+(e.message||String(e)),'error');}
+    setRecalcingLots(false);
   }
 
   function onImportFile(e){
@@ -2530,6 +2547,26 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         <Btn full variant="success" onClick={savePricing} disabled={saving} style={{marginTop:12}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar preços</>}</Btn>
       </Card>
 
+      {/* Lotes (sets / uncut sheets) — preço = custo original × dólar × fator × margem */}
+      <Card style={{padding:16}}>
+        <SectionTitle sub="Lotes: preço = custo original (USD) × dólar do dia × fator PayPal × (1 + margem)">Lotes / Sets</SectionTitle>
+        <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginBottom:12,lineHeight:1.5}}>O fator PayPal cobre spread (~4,5%) + IOF (3,5%) = <b>1,082</b> (pagamento no cartão de crédito BR). A margem cobre seu lucro + a taxa de recebimento do Mercado Pago. O preço é recalculado por dia, na importação e ao clicar abaixo.</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
+          {[
+            {k:'lot_cost_factor',l:'Fator PayPal',step:'0.001',def:1.082},
+            {k:'lot_margin_percent',l:'Margem (%)',step:'1',def:15},
+          ].map(({k,l,step,def})=>(<div key={k}>
+            <label style={{fontSize:10,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>{l}</label>
+            <input type="number" step={step} min="0" value={editPricing[k]??def} onChange={e=>setEditPricing(p=>({...p,[k]:parseFloat(e.target.value)||0}))} style={{width:'100%',padding:'8px 10px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontWeight:700,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/>
+          </div>))}
+        </div>
+        <Btn full variant="success" onClick={savePricing} disabled={saving} style={{marginBottom:8}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar fator/margem</>}</Btn>
+        <Btn full onClick={recalcLots} disabled={recalcingLots} sfx="">{recalcingLots?<Spin size={14}/>:<><RefreshCw size={14}/> Recalcular preços dos lotes</>}</Btn>
+        {lotResult&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:10,background:'rgba(74,222,128,0.08)',border:'1px solid rgba(74,222,128,0.2)',fontSize:12,color:'rgba(255,255,255,0.7)',lineHeight:1.6}}>
+          <Check size={13} style={{verticalAlign:'middle',color:'#4ade80'}}/> {lotResult.updated} lote(s) reprecificado(s) · dólar R$ {Number(lotResult.rate).toFixed(2)} ({lotResult.source}){lotResult.skipped>0?<> · {lotResult.skipped} ignorado(s)</>:null}
+        </div>}
+      </Card>
+
       {/* Precificação do Pedido Individual */}
       {indivCfg&&<Card style={{padding:16}}>
         <SectionTitle sub="Desconto por volume — preço/carta = custo × multiplicador × dólar, com piso por tipo">Pedido Individual</SectionTitle>
@@ -2867,15 +2904,15 @@ export default function MagicPortal(){
           let items;
           const itemsFilter = `order_id=eq.${ord.id}&batch_id=is.null&is_bonus=not.eq.true`;
           try {
-            items = await sbGet('order_items', `${itemsFilter}&select=id,card_id,quantity,in_cart,cards(name,type,image_url)`, tkn);
+            items = await sbGet('order_items', `${itemsFilter}&select=id,card_id,quantity,in_cart,cards(name,type,image_url,price_brl)`, tkn);
           } catch(eCart) {
             // Fallback if in_cart column does not exist in this DB yet
             console.warn('[loadAppData] order_items with in_cart failed, retrying without:', eCart);
-            items = (await sbGet('order_items', `${itemsFilter}&select=id,card_id,quantity,cards(name,type,image_url)`, tkn)).map(i=>({...i,in_cart:false}));
+            items = (await sbGet('order_items', `${itemsFilter}&select=id,card_id,quantity,cards(name,type,image_url,price_brl)`, tkn)).map(i=>({...i,in_cart:false}));
           }
           const mapped = (items || [])
             .filter(i => i && i.id && i.card_id) // skip any invalid/incomplete rows
-            .map(i=>({...i, card_name:i.cards?.name||'?', card_type:i.cards?.type||'Normal', card_image_url:i.cards?.image_url||null}));
+            .map(i=>({...i, card_name:i.cards?.name||'?', card_type:i.cards?.type||'Normal', card_image_url:i.cards?.image_url||null, card_price_brl:(Number(i.cards?.price_brl)>0?Number(i.cards.price_brl):null)}));
           setWants(mapped.filter(i=>!i.in_cart));
           setCartItems(mapped.filter(i=>i.in_cart));
         } catch(e) { console.warn('[loadAppData] Failed to load order items:', e); }
@@ -2987,7 +3024,7 @@ export default function MagicPortal(){
         const created = await sbPost('order_items', { order_id: orderId, card_id: card.id, quantity: qty, is_bonus: false, unit_price_brl: 0 }, token);
         const item = Array.isArray(created) ? created[0] : created;
         if (item?.id) {
-          setWants(prev => [{ ...item, card_name: card.name, card_type: card.type || 'Normal', card_image_url: card.image_url || null }, ...prev]);
+          setWants(prev => [{ ...item, card_name: card.name, card_type: card.type || 'Normal', card_image_url: card.image_url || null, card_price_brl: (Number(card.price_brl)>0?Number(card.price_brl):null) }, ...prev]);
         }
       }
       toast(qty+'x '+card.name+' adicionada!','success');

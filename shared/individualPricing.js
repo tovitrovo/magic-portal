@@ -45,7 +45,10 @@ export function floorForType(type, pricing = {}) {
 function round2(n) { return Math.round((Number(n) + Number.EPSILON) * 100) / 100; }
 
 // Preço de UMA carta (R$), dada a quantidade total do carrinho e o tipo.
-export function pricePerCard({ qty, type, tiers, pricing = {}, fxRate }) {
+// priceOverride (ex.: price_brl de um lote) tem prioridade e ignora faixa/piso.
+export function pricePerCard({ qty, type, tiers, pricing = {}, fxRate, priceOverride = null }) {
+  const ov = Number(priceOverride);
+  if (Number.isFinite(ov) && ov > 0) return round2(ov);
   const tier = pickTier(qty, tiers);
   if (!tier) return floorForType(type, pricing);
   const multiplier = Number(pricing.multiplier ?? DEFAULTS.multiplier);
@@ -60,7 +63,7 @@ export function quoteCart({ items, tiers, pricing = {}, fxRate }) {
   const list = Array.isArray(items) ? items : [];
   const totalQty = list.reduce((s, i) => s + Math.max(0, Math.floor(Number(i.quantity) || 0)), 0);
   const lines = list.map((i) => {
-    const unit = pricePerCard({ qty: totalQty, type: i.type, tiers, pricing, fxRate });
+    const unit = pricePerCard({ qty: totalQty, type: i.type, tiers, pricing, fxRate, priceOverride: i.price_brl });
     const quantity = Math.max(0, Math.floor(Number(i.quantity) || 0));
     return { ...i, quantity, unit_price_brl: unit, line_total_brl: round2(unit * quantity) };
   });

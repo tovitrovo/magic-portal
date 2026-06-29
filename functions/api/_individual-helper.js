@@ -31,15 +31,18 @@ export async function quoteItems(SB_URL, SB_KEY, items, inputs = null) {
   // Relê os tipos reais das cartas
   const ids = [...new Set(list.map(i => i.card_id))];
   const inList = ids.map(id => `"${id}"`).join(",");
-  const r = await fetch(`${SB_URL}/rest/v1/cards?id=in.(${inList})&select=id,type,name`, { headers });
+  const r = await fetch(`${SB_URL}/rest/v1/cards?id=in.(${inList})&select=id,type,name,price_brl`, { headers });
   const cards = await r.json().catch(() => []);
-  const typeById = new Map((Array.isArray(cards) ? cards : []).map(c => [c.id, c.type]));
-  const nameById = new Map((Array.isArray(cards) ? cards : []).map(c => [c.id, c.name]));
+  const arr = Array.isArray(cards) ? cards : [];
+  const typeById = new Map(arr.map(c => [c.id, c.type]));
+  const nameById = new Map(arr.map(c => [c.id, c.name]));
+  const priceById = new Map(arr.filter(c => Number(c.price_brl) > 0).map(c => [c.id, Number(c.price_brl)]));
 
   const cartItems = list.map(i => ({
     card_id: i.card_id,
     name: nameById.get(i.card_id) || null,
     type: typeById.get(i.card_id) || "Normal",
+    price_brl: priceById.get(i.card_id) ?? null,
     quantity: Math.max(0, Math.floor(Number(i.quantity) || 0)),
   }));
 

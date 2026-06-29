@@ -30,14 +30,20 @@ export function cardPriceBRL(cardType, pricing) {
  * @param shipping    número (shipping_locked do batch)
  * @param grantedBonus saldo de bônus AVAILABLE do usuário na campanha
  */
-export function computeCampaignTotal({ items, typeById, pricing, shipping = 0, grantedBonus = 0 }) {
+export function computeCampaignTotal({ items, typeById, pricing, shipping = 0, grantedBonus = 0, priceById = null }) {
   const map = typeById instanceof Map ? typeById : new Map(Object.entries(typeById || {}));
+  const overrides = priceById instanceof Map ? priceById : new Map(Object.entries(priceById || {}));
+  // Preço unitário: lote com price_brl travado tem prioridade; senão, preço por tipo.
+  const unitFor = (cardId) => {
+    const ov = Number(overrides.get(cardId));
+    return Number.isFinite(ov) && ov > 0 ? ov : cardPriceBRL(map.get(cardId), pricing);
+  };
   let paidSubtotal = 0, paidQty = 0, bonusQty = 0;
   for (const it of (Array.isArray(items) ? items : [])) {
     const qty = Math.max(0, Math.floor(Number(it?.quantity) || 0));
     if (qty <= 0) continue;
     if (it.is_bonus) { bonusQty += qty; continue; }
-    paidSubtotal += cardPriceBRL(map.get(it.card_id), pricing) * qty;
+    paidSubtotal += unitFor(it.card_id) * qty;
     paidQty += qty;
   }
   // Bônus reivindicado acima do saldo concedido é cobrado (nunca de graça).
@@ -75,11 +81,14 @@ async function quoteCampaignBatch(SB_URL, SB_KEY, batch, order) {
   // Tipos reais das cartas (ignora o que o cliente possa ter gravado)
   const ids = [...new Set(list.map((i) => i.card_id).filter(Boolean))];
   let typeById = new Map();
+  let priceById = new Map();
   if (ids.length) {
     const inList = ids.map((id) => `"${id}"`).join(",");
-    const cRes = await fetch(`${SB_URL}/rest/v1/cards?id=in.(${inList})&select=id,type`, { headers });
+    const cRes = await fetch(`${SB_URL}/rest/v1/cards?id=in.(${inList})&select=id,type,price_brl`, { headers });
     const cards = await cRes.json().catch(() => []);
-    typeById = new Map((Array.isArray(cards) ? cards : []).map((c) => [c.id, c.type]));
+    const arr = Array.isArray(cards) ? cards : [];
+    typeById = new Map(arr.map((c) => [c.id, c.type]));
+    priceById = new Map(arr.filter((c) => Number(c.price_brl) > 0).map((c) => [c.id, Number(c.price_brl)]));
   }
 
   // Config de preços ativa
@@ -105,6 +114,7 @@ async function quoteCampaignBatch(SB_URL, SB_KEY, batch, order) {
   return computeCampaignTotal({
     items: list,
     typeById,
+    priceById,
     pricing,
     shipping: Number(batch.shipping_locked || 0),
     grantedBonus,

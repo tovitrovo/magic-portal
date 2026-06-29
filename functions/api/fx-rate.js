@@ -1,4 +1,5 @@
 import { getUsdBrlRate } from "./_fx-helper.js";
+import { recalcLotPrices } from "./_lot-helper.js";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -29,6 +30,13 @@ export async function onRequest(context) {
   } catch { /* usa 5.5 */ }
 
   const result = await getUsdBrlRate(SB_URL, SB_SERVICE_ROLE_KEY, { fallback });
+
+  // Quando o dólar do dia é renovado ao vivo, reprecifica os lotes em segundo
+  // plano (não bloqueia a resposta) — é o gatilho "por dia" automático.
+  if (result.source === "live" && typeof context.waitUntil === "function") {
+    context.waitUntil(recalcLotPrices(SB_URL, SB_SERVICE_ROLE_KEY).catch(() => {}));
+  }
+
   return new Response(JSON.stringify({ ok: true, ...result }), {
     status: 200,
     headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "public, max-age=3600" },

@@ -42,7 +42,7 @@ export function buildCatalogQueries({ tcg, filter, search, page, pageSize, lates
   }
 
   return {
-    cardsQuery: `select=id,name,type,image_url,created_at&${filters}&order=${order}&limit=${pageSize}&offset=${page * pageSize}`,
+    cardsQuery: `select=id,name,type,image_url,created_at,is_lot,price_brl&${filters}&order=${order}&limit=${pageSize}&offset=${page * pageSize}`,
     countQuery: `select=id&${filters}`,
   };
 }

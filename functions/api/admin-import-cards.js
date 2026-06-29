@@ -1,5 +1,6 @@
 import { verifyAdmin } from "./_admin-auth.js";
 import { buildCardsFromCsv } from "../../shared/cardImport.js";
+import { recalcLotPrices } from "./_lot-helper.js";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -84,5 +85,9 @@ export async function onRequest(context) {
     upserted += chunk.length;
   }
 
-  return json({ ok: true, total, upserted, skipped, deactivated });
+  // Reprecifica os lotes: re-uploads podem mudar o cost_original_usd.
+  let lots = null;
+  try { lots = await recalcLotPrices(SB_URL, SB_SERVICE_ROLE_KEY); } catch { /* não bloqueia o import */ }
+
+  return json({ ok: true, total, upserted, skipped, deactivated, lots });
 }
