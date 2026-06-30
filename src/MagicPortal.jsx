@@ -303,6 +303,15 @@ function unitPriceFor(cardType, totalQty, mode, pricing, indiv) {
   return getCardPrice(cardType, pricing);
 }
 
+// Preço unitário "cheio" (faixa mais cara / menor volume), sem o desconto por volume.
+// Serve de referência para mostrar a economia ao cliente. CAMPAIGN não tem faixas → mesmo preço.
+function baseUnitPriceFor(cardType, mode, pricing, indiv) {
+  if (mode === 'INDIVIDUAL' && indiv && Array.isArray(indiv.tiers) && indiv.tiers.length) {
+    return Math.max(...indiv.tiers.map(t => indivPricePerCard({ qty: Number(t.min_qty) || 0, type: cardType, tiers: indiv.tiers, pricing: indiv.pricing, fxRate: indiv.fx && indiv.fx.rate })));
+  }
+  return getCardPrice(cardType, pricing);
+}
+
 // ══════════════════════════════════════════════════════
 // FLOATING MANA BACKGROUND
 // ══════════════════════════════════════════════════════
@@ -684,9 +693,8 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutSte
             </div>
             <div style={{padding:'9px 3px 2px'}}>
               <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</div>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6,marginTop:5}}>
+              <div style={{display:'flex',alignItems:'center',marginTop:5}}>
                 <span style={{fontSize:10,color:TC[c.type],fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.type}</span>
-                <span style={{fontSize:13,fontWeight:800,color:'#fff',whiteSpace:'nowrap'}}>R$ {priceBRL.toFixed(2).replace('.',',')}</span>
               </div>
             </div>
           </Card>);
@@ -721,10 +729,9 @@ function CardDetailModal({card,priceBRL,existing,campaignOpen,onClose,onAdd}){
       <div style={{marginTop:16}}>
         <div style={{fontSize:11,letterSpacing:1.5,textTransform:'uppercase',color:tc,fontWeight:700}}>{card.type}</div>
         <div style={{fontFamily:"'Cinzel',serif",fontSize:22,color:'#fff',marginTop:3,lineHeight:1.15}}>{card.name}</div>
-        <div style={{display:'flex',alignItems:'center',gap:10,marginTop:10}}>
-          <span style={{fontSize:23,fontWeight:800,color:'#fff'}}>R$ {priceBRL.toFixed(2).replace('.',',')}</span>
-          {existing&&<Tag color="#2ee59d" style={{fontSize:11}}>{existing.quantity} nos wants</Tag>}
-        </div>
+        {existing&&<div style={{display:'flex',alignItems:'center',gap:10,marginTop:10}}>
+          <Tag color="#2ee59d" style={{fontSize:11}}>{existing.quantity} nos wants</Tag>
+        </div>}
       </div>
       <div style={{display:'flex',gap:10,alignItems:'stretch',marginTop:20}}>
         <div style={{display:'flex',alignItems:'center',gap:14,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:14,padding:'0 14px'}}>
@@ -804,6 +811,9 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onMoveT
   const totalBonus=bd.reduce((s,c)=>s+c.bonusQty,0);
   const totalPaid=bd.reduce((s,c)=>s+c.paidQty,0);
   const totalBRL=bd.reduce((s,c)=>s+c.paidQty*unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv),0);
+  // Economia por volume: diferença entre o preço cheio (faixa mais cara) e o preço atual.
+  const baseBRL=bd.reduce((s,c)=>s+c.paidQty*baseUnitPriceFor(c.card_type,orderMode,pricing,indiv),0);
+  const volumeDiscount=Math.max(0,baseBRL-totalBRL);
   const campaignOpen=campaignCanOrder(campaignStatus);
   const minCards=isIndividual?(Number(indiv?.pricing?.min_cards)||MIN_ORDER_CARDS):MIN_ORDER_CARDS;
   const isFullBonus=totalPaid===0&&totalBonus>0;
@@ -820,7 +830,7 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onMoveT
     </Card>}
     {cartItems.length>0&&<>
       <div className="portal-card-grid portal-cart-grid" style={{display:'flex',flexDirection:'column',gap:8}}>
-        {bd.map((c)=>{const itemPrice=unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv);return(
+        {bd.map((c)=>{const itemPrice=unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv);const baseItemPrice=baseUnitPriceFor(c.card_type,orderMode,pricing,indiv);return(
           <Card key={c.id} style={{padding:9}}>
             <div style={{display:'flex',alignItems:'center',gap:11}}>
               <div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:54,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={9}/></div>
@@ -836,7 +846,12 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onMoveT
                     <span style={{minWidth:18,textAlign:'center',fontSize:13,fontWeight:700}}>{c.quantity}</span>
                     <button onClick={()=>onUpdateCartQty(c.id,c.quantity+1)} style={{background:'none',border:'none',color:'#fff',padding:'5px 11px',cursor:'pointer'}}><Plus size={12}/></button>
                   </div>
-                  <span style={{fontSize:13,fontWeight:800,color:'#fff',whiteSpace:'nowrap'}}>{c.paidQty>0?`R$ ${(c.paidQty*itemPrice).toFixed(2).replace('.',',')}`:<span style={{color:'#2ee59d'}}>Grátis</span>}</span>
+                  {c.paidQty>0
+                    ?<div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:1}}>
+                      <span style={{fontSize:13,fontWeight:800,color:'#fff',whiteSpace:'nowrap'}}>R$ {(c.paidQty*itemPrice).toFixed(2).replace('.',',')}</span>
+                      <span style={{fontSize:10,color:'rgba(255,255,255,0.4)',whiteSpace:'nowrap'}}>{baseItemPrice>itemPrice&&<span style={{textDecoration:'line-through',marginRight:4,color:'rgba(255,255,255,0.25)'}}>R$ {baseItemPrice.toFixed(2).replace('.',',')}</span>}<span style={{color:baseItemPrice>itemPrice?'#2ee59d':'rgba(255,255,255,0.4)',fontWeight:baseItemPrice>itemPrice?700:400}}>R$ {itemPrice.toFixed(2).replace('.',',')}</span> /un</span>
+                    </div>
+                    :<span style={{fontSize:13,fontWeight:800,color:'#2ee59d',whiteSpace:'nowrap'}}>Grátis</span>}
                 </div>
               </div>
               <div style={{display:'flex',flexDirection:'column',gap:6}}>
@@ -852,7 +867,7 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onMoveT
       <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:480,background:'rgba(13,13,23,0.97)',backdropFilter:'blur(20px)',borderTop:'1px solid rgba(255,255,255,0.08)',borderRadius:'20px 20px 0 0',padding:'13px 16px calc(12px + env(safe-area-inset-bottom))',zIndex:25,boxShadow:'0 -10px 30px rgba(0,0,0,0.4)'}}>
         {canGoCheckout&&!canCheckout&&!isFullBonus&&<div style={{display:'flex',alignItems:'center',gap:7,marginBottom:10,padding:'8px 10px',borderRadius:11,background:'rgba(201,169,110,0.08)',border:'1px solid rgba(201,169,110,0.2)'}}><AlertTriangle size={13} style={{color:'#c9a96e',flexShrink:0}}/><span style={{fontSize:11.5,color:'#c9a96e',fontWeight:600}}>Faltam {missingCards} carta{missingCards!==1?'s':''} para o mínimo de {minCards}{isIndividual?'':' pagas'}</span></div>}
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:11}}>
-          <div><div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{totalQty} carta{totalQty!==1?'s':''}{totalBonus>0?` · ${totalBonus} bônus`:''}</div><div style={{fontSize:22,fontWeight:800,color:'#fff',marginTop:1}}>≈ R$ {totalBRL.toFixed(2).replace('.',',')}</div></div>
+          <div><div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{totalQty} carta{totalQty!==1?'s':''}{totalBonus>0?` · ${totalBonus} bônus`:''}</div>{volumeDiscount>0&&<div style={{fontSize:11,color:'#2ee59d',fontWeight:700,marginTop:2,display:'flex',alignItems:'center',gap:4}}><Gift size={11}/> Desconto por volume −R$ {volumeDiscount.toFixed(2).replace('.',',')}</div>}<div style={{fontSize:22,fontWeight:800,color:'#fff',marginTop:1}}>≈ R$ {totalBRL.toFixed(2).replace('.',',')}</div></div>
           {totalBonus>0&&<Tag color="#2ee59d"><Gift size={12}/> {totalBonus} grátis</Tag>}
         </div>
         {canGoCheckout&&<Btn full onClick={()=>nav('checkout')} disabled={!canCheckout} sfx="nav"><CreditCard size={15}/> {canCheckout?'Ir para checkout':`Mínimo ${minCards} (faltam ${missingCards})`}</Btn>}
@@ -874,6 +889,9 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
   // Já paguei o frete: true = cliente informa que o frete já foi pago anteriormente
   const [alreadyPaidShipping,setAlreadyPaidShipping]=useState(false);
   const hasPreviousOrders=previousPaidBatches.length>0;
+  // "Já paguei o frete" só faz sentido se há um pedido pago nesta encomenda que ainda
+  // não foi enviado (sem etiqueta/envio gerado) — é nele que este pedido vai pegar carona.
+  const hasUnshippedPaidOrder=(previousPaidBatches||[]).some(b=>!(b.mandabem_envio_id||b.mandabem_rastreamento));
   const shippingAnchor=[...(previousPaidBatches||[])].sort((a,b)=>Date.parse(b.created_at||0)-Date.parse(a.created_at||0))[0]||null;
   const [addr,setAddr]=useState({cep:profile?.cep||'',rua:profile?.rua||'',numero:profile?.numero||'',complemento:profile?.complemento||'',bairro:profile?.bairro||'',cidade:profile?.cidade||'',uf:profile?.uf||''});
   const profileHasSavedAddress=Boolean(profile?.cep&&(profile.cep||'').replace(/\D/g,'').length===8&&profile?.rua);
@@ -894,6 +912,9 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
   const missingCards=hasMetMinimumBefore?0:Math.max(0,minCards-(isIndividual?totalQty:totalPaid));
   // Subtotal: preço por tipo (campanha) ou por faixa de volume (individual)
   const sub=bd.reduce((s,c)=>s+c.paidQty*unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv),0);
+  // Economia por volume: preço cheio (faixa mais cara) menos o preço atual aplicado.
+  const baseSub=bd.reduce((s,c)=>s+c.paidQty*baseUnitPriceFor(c.card_type,orderMode,pricing,indiv),0);
+  const volumeDiscount=Math.max(0,baseSub-sub);
   // Frete: 0 se "já paguei" ou frete conjunto, senão valor da opção selecionada
   const shippingSkipped = alreadyPaidShipping || useJointShipping;
   const fV=shippingSkipped?0:(selectedFrete?selectedFrete.price:0);
@@ -1066,8 +1087,10 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
       {totalBonus>0&&<><div style={{fontSize:11,fontWeight:700,color:'#2ee59d',marginBottom:6,display:'flex',alignItems:'center',gap:5}}><Gift size={12}/> Bônus (grátis)</div>
         {bd.filter(c=>c.bonusQty>0).map((c,i)=>(<div key={'b'+i} style={{display:'flex',alignItems:'center',gap:9,padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(46,229,157,0.08)'}}><div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:30,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={6}/></div><span style={{flex:1,minWidth:0,color:'rgba(255,255,255,0.6)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.bonusQty}</span><span style={{fontWeight:700,color:'#2ee59d'}}>R$ 0,00</span></div>))}</>}
       {totalPaid>0&&<><div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.4)',marginTop:totalBonus>0?12:0,marginBottom:6,display:'flex',alignItems:'center',gap:5}}><CreditCard size={12}/> Pagas</div>
-        {bd.filter(c=>c.paidQty>0).map((c,i)=>{const ip=unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv);return(<div key={'p'+i} style={{display:'flex',alignItems:'center',gap:9,padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(255,255,255,0.03)'}}><div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:30,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={6}/></div><span style={{flex:1,minWidth:0,color:'rgba(255,255,255,0.6)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.paidQty}</span><span style={{fontWeight:700,whiteSpace:'nowrap'}}>R$ {(c.paidQty*ip).toFixed(2)}</span></div>);})}</>}
+        {bd.filter(c=>c.paidQty>0).map((c,i)=>{const ip=unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv);return(<div key={'p'+i} style={{display:'flex',alignItems:'center',gap:9,padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(255,255,255,0.03)'}}><div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:30,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={6}/></div><span style={{flex:1,minWidth:0,color:'rgba(255,255,255,0.6)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.paidQty}<span style={{color:'rgba(255,255,255,0.3)',fontSize:11}}> · R$ {ip.toFixed(2).replace('.',',')}/un</span></span><span style={{fontWeight:700,whiteSpace:'nowrap'}}>R$ {(c.paidQty*ip).toFixed(2)}</span></div>);})}</>}
       <div style={{marginTop:14,display:'flex',flexDirection:'column',gap:5}}>
+        {totalPaid>0&&volumeDiscount>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'rgba(255,255,255,0.4)'}}><span>Subtotal (sem desconto)</span><span style={{color:'rgba(255,255,255,0.35)',textDecoration:'line-through'}}>R$ {baseSub.toFixed(2)}</span></div>}
+        {totalPaid>0&&volumeDiscount>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'#2ee59d',fontWeight:700}}><span>Desconto por volume</span><span>−R$ {volumeDiscount.toFixed(2)}</span></div>}
         {totalPaid>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'rgba(255,255,255,0.4)'}}><span>Subtotal</span><span style={{color:'#fff',fontWeight:600}}>R$ {sub.toFixed(2)}</span></div>}
         <div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'rgba(255,255,255,0.4)'}}><span>Frete</span><span style={{color:alreadyPaidShipping?'#2ee59d':'#fff',fontWeight:600}}>{alreadyPaidShipping?'Já pago ✓':useJointShipping?'Envio conjunto (R$ 0,00)':selectedFrete?'R$ '+fV.toFixed(2):lF?'Calculando...':'—'}</span></div>
         <div style={{height:1,background:'rgba(255,255,255,0.06)',margin:'3px 0'}}/>
@@ -1110,8 +1133,8 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
         </div>
       </div>}
 
-      {/* Já paguei o frete — exceção: aparece após o fluxo principal de frete */}
-      <div style={{marginTop:14,padding:'12px 14px',borderRadius:12,background:alreadyPaidShipping?'rgba(46,229,157,0.06)':'rgba(255,255,255,0.03)',border:'1px solid '+(alreadyPaidShipping?'rgba(46,229,157,0.2)':'rgba(255,255,255,0.08)')}}>
+      {/* Já paguei o frete — só aparece se há uma compra ativa nesta encomenda ainda não enviada */}
+      {hasUnshippedPaidOrder&&<div style={{marginTop:14,padding:'12px 14px',borderRadius:12,background:alreadyPaidShipping?'rgba(46,229,157,0.06)':'rgba(255,255,255,0.03)',border:'1px solid '+(alreadyPaidShipping?'rgba(46,229,157,0.2)':'rgba(255,255,255,0.08)')}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
           <div>
             <div style={{fontSize:13,fontWeight:700,color:alreadyPaidShipping?'#2ee59d':'rgba(255,255,255,0.5)',marginBottom:2,display:'flex',alignItems:'center',gap:6}}><CheckCircle size={14} style={{flexShrink:0,color:alreadyPaidShipping?'#2ee59d':'rgba(255,255,255,0.3)'}}/> Já paguei o frete</div>
@@ -1121,7 +1144,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
             <div style={{position:'absolute',top:3,left:alreadyPaidShipping?22:4,width:20,height:20,borderRadius:10,background:'#fff',transition:'left .2s',boxShadow:'0 1px 4px rgba(0,0,0,0.3)'}}/>
           </button>
         </div>
-      </div>
+      </div>}
 
       <Btn full variant="ghost" onClick={()=>setStep('review')} style={{marginTop:10}} sfx="nav"><ChevronLeft size={14}/> Voltar para revisão</Btn>
     </Card>}
@@ -2970,7 +2993,7 @@ export default function MagicPortal(){
             const ordCampStatus = {};
             allOrds.forEach(o => { ordCampStatus[o.id] = o.campaigns?.status || null; });
             const ordIds = allOrds.map(o=>o.id).join(',');
-            const batches = await sbGet('order_batches', `order_id=in.(${ordIds})&select=id,status,payment_status,total_locked,payment_method,created_at,qty_in_batch,shipping_locked,shipping_service,shipping_already_paid,shipping_group_id,mp_link,brl_unit_price_locked,subtotal_locked,order_id,order_items(quantity,cards(name,type))`, tkn);
+            const batches = await sbGet('order_batches', `order_id=in.(${ordIds})&select=id,status,payment_status,total_locked,payment_method,created_at,qty_in_batch,shipping_locked,shipping_service,shipping_already_paid,shipping_group_id,mandabem_envio_id,mandabem_rastreamento,mp_link,brl_unit_price_locked,subtotal_locked,order_id,order_items(quantity,cards(name,type))`, tkn);
             setMyOrders((batches||[]).map(b=>({ ...b, campaignStatus: ordCampStatus[b.order_id] || null, cards: Array.isArray(b.order_items) ? b.order_items.map(i=>({ name:i.cards?.name||'Carta', type:i.cards?.type||'', qty:Number(i.quantity||1) })) : undefined })));
           }
         } catch(e) {
