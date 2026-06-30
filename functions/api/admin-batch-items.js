@@ -36,7 +36,7 @@ export async function onRequest(context) {
     };
 
     const idsParam = batchIds.map(id => encodeURIComponent(id)).join(",");
-    const select = "id,quantity,batch_id,order_id,cards(name,type)";
+    const select = "id,quantity,batch_id,order_id,cards(name,type,image_url)";
     const url = `${SB_URL}/rest/v1/order_items?batch_id=in.(${idsParam})&select=${encodeURIComponent(select)}`;
 
     const r = await fetch(url, { headers });
