@@ -1,6 +1,14 @@
 /* Responsive layout layer. Mobile rules intentionally preserve the original inline layout. */
 .portal-sidebar { display: none; }
 
+/* Image-first catalog grid (mobile base; desktop columns handled in media queries below). */
+.portal-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
 @media (min-width: 700px) {
   .portal-shell {
     max-width: 860px !important;

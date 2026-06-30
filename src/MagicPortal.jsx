@@ -586,9 +586,26 @@ function HomePage({pool,minCards,pricing,closeDate,theme,nav,wantsCount,cartCoun
 // CATALOG — Supabase powered, server-side search/filter
 // ══════════════════════════════════════════════════════
 
+// Card image with graceful fallback when image_url is missing/broken.
+function CardThumb({card,radius=12,style}){
+  const [err,setErr]=useState(false);
+  const tc=TC[card.type]||'rgba(255,255,255,0.4)';
+  const showImg=card.image_url&&!err;
+  return(<div style={{position:'relative',width:'100%',aspectRatio:'0.72',borderRadius:radius,overflow:'hidden',background:'linear-gradient(150deg,rgba(255,255,255,0.07),rgba(255,255,255,0.02))',border:'1px solid rgba(255,255,255,0.06)',...style}}>
+    {showImg
+      ? <img src={card.image_url} alt={card.name} loading="lazy" onError={()=>setErr(true)} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+      : <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:7,padding:10,textAlign:'center'}}>
+          <div style={{fontSize:28,opacity:.45}}>🃏</div>
+          <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.62)',lineHeight:1.15,wordBreak:'break-word'}}>{card.name}</div>
+          <div style={{fontSize:9,fontWeight:700,color:tc,textTransform:'uppercase',letterSpacing:.4}}>{card.type}</div>
+        </div>}
+  </div>);
+}
+
 function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutStep,onTutNext}){
   const [search,setSearch]=useState('');const [typeF,setTypeF]=useState('Todos');const [tcgFilter,setTcgFilter]=useState('Magic');const [cards,setCards]=useState([]);const [total,setTotal]=useState(0);
   const [page,setPage]=useState(0);const [loading,setLoading]=useState(false);const [addQty,setAddQty]=useState({});
+  const [detail,setDetail]=useState(null);
   const [flyAnim,setFlyAnim]=useState(false);const PAGE_SIZE=20;
   const currentTcg=TCG_LIST.find(t=>t.key===tcgFilter)||TCG_LIST[0];
   const catalogFilters=['Todos',RECENT_CARDS_FILTER,...currentTcg.types.filter(t=>t!=='Todos')];
@@ -645,24 +662,25 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutSte
       </div>
     </div>
     {loading?<div style={{textAlign:'center',padding:40}}><Spin size={28}/></div>:(
-      <div className="portal-card-grid portal-catalog-grid" style={{display:'flex',flexDirection:'column',gap:5}}>
+      <div className="portal-card-grid portal-catalog-grid">
         {cards.map((c,i)=>{
           const existsInWants=wants.find(w=>w.card_id===c.id);
-          return(<Card key={c.id} style={{padding:'10px 12px'}}>
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</div>
-                <div style={{display:'flex',gap:6,alignItems:'center',marginTop:2}}>
-                  <span style={{fontSize:10,color:TC[c.type],fontWeight:700}}>{c.type}</span>
-                  {existsInWants&&<Tag color="#2ee59d" style={{fontSize:9,padding:'1px 6px'}}>{existsInWants.quantity} na wants</Tag>}
-                </div>
+          return(<Card key={c.id} onClick={()=>{SFX.nav();setDetail(c);}} style={{padding:8}}>
+            <div style={{position:'relative'}}>
+              <CardThumb card={c}/>
+              {existsInWants&&<div style={{position:'absolute',top:7,left:7}}><Tag color="#2ee59d" style={{fontSize:9,padding:'2px 7px'}}>{existsInWants.quantity}</Tag></div>}
+              <button ref={i===0?firstAddBtnRef:null} id={i===0?'tut-add-btn':undefined} title="Adicionar aos wants" onClick={e=>{e.stopPropagation();add(c,1);}} style={{position:'absolute',right:7,bottom:7,width:36,height:36,border:'none',borderRadius:12,background:existsInWants?'rgba(46,229,157,0.92)':'var(--gp)',color:'#1a1407',display:'grid',placeItems:'center',cursor:'pointer',boxShadow:'0 6px 16px var(--gg)'}}><Plus size={18}/></button>
+            </div>
+            <div style={{padding:'9px 3px 2px'}}>
+              <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</div>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6,marginTop:5}}>
+                <span style={{fontSize:10,color:TC[c.type],fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.type}</span>
+                <span style={{fontSize:13,fontWeight:800,color:'#fff',whiteSpace:'nowrap'}}>R$ {priceBRL.toFixed(2).replace('.',',')}</span>
               </div>
-              {c.image_url&&<button onClick={e=>{e.stopPropagation();window.open(c.image_url,'_blank','noopener,noreferrer');}} title="Ver imagem" style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'8px 10px',cursor:'pointer',color:'rgba(255,255,255,0.45)',display:'flex',alignItems:'center'}}><Eye size={14}/></button>}
-              <button ref={i===0?firstAddBtnRef:null} id={i===0?'tut-add-btn':undefined} onClick={()=>add(c,1)} style={{background:existsInWants?'rgba(46,229,157,0.15)':'var(--gp)',border:'none',borderRadius:10,padding:'8px 14px',cursor:'pointer',color:existsInWants?'#2ee59d':'#fff',display:'flex',alignItems:'center',gap:4,fontSize:12,fontWeight:600,fontFamily:"'Outfit',sans-serif"}}><Plus size={14}/></button>
             </div>
           </Card>);
         })}
-        {cards.length===0&&!loading&&<EmptyState icon={Search} title="Nenhuma carta encontrada" sub="Tente outro termo"/>}
+        {cards.length===0&&!loading&&<div style={{gridColumn:'1 / -1'}}><EmptyState icon={Search} title="Nenhuma carta encontrada" sub="Tente outro termo"/></div>}
       </div>
     )}
     {total>PAGE_SIZE&&<div style={{display:'flex',justifyContent:'center',gap:8,padding:'8px 0'}}>
@@ -671,6 +689,44 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutSte
       <Btn variant="secondary" disabled={(page+1)*PAGE_SIZE>=total} onClick={()=>setPage(p=>p+1)} style={{padding:'8px 14px',fontSize:12}} sfx="nav"><ChevronRight size={14}/></Btn>
     </div>}
     {tutStep===2&&handPos&&<div style={{position:'fixed',top:handPos.top,left:handPos.left,zIndex:200,pointerEvents:'none',fontSize:22,animation:'tutHandBounce 0.8s ease-in-out infinite',transform:'translateX(-50%)'}}>👆</div>}
+    {detail&&<CardDetailModal card={detail} priceBRL={priceBRL} existing={wants.find(w=>w.card_id===detail.id)} campaignOpen={campaignOpen} onClose={()=>setDetail(null)} onAdd={(c,q)=>add(c,q)}/>}
+  </div>);
+}
+
+// In-app card detail sheet — replaces opening the image in a new browser tab.
+function CardDetailModal({card,priceBRL,existing,campaignOpen,onClose,onAdd}){
+  const [qty,setQty]=useState(1);
+  const [zoom,setZoom]=useState(false);
+  const tc=TC[card.type]||'rgba(255,255,255,0.4)';
+  return(<div role="dialog" style={{position:'fixed',inset:0,zIndex:120,display:'flex',alignItems:'flex-end',justifyContent:'center',animation:'fadeIn .15s ease'}}>
+    <div onClick={onClose} style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.72)',backdropFilter:'blur(6px)'}}/>
+    <div className="portal-modal" style={{position:'relative',width:'100%',maxWidth:480,maxHeight:'92vh',overflowY:'auto',background:'#0f0f17',borderRadius:'24px 24px 0 0',border:'1px solid rgba(255,255,255,0.08)',padding:'12px 18px 24px',animation:'sheetUp .22s ease'}}>
+      <div style={{display:'flex',justifyContent:'center',marginBottom:6}}><div style={{width:40,height:5,borderRadius:99,background:'rgba(255,255,255,0.14)'}}/></div>
+      <button onClick={onClose} title="Fechar" style={{position:'absolute',top:14,right:14,width:34,height:34,borderRadius:11,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(255,255,255,0.05)',color:'rgba(255,255,255,0.6)',display:'grid',placeItems:'center',cursor:'pointer'}}><X size={16}/></button>
+      <div style={{maxWidth:230,margin:'2px auto 0',position:'relative',cursor:card.image_url?'zoom-in':'default'}} onClick={()=>card.image_url&&setZoom(true)}>
+        <CardThumb card={card} radius={18}/>
+        {card.image_url&&<div style={{position:'absolute',right:8,bottom:8,width:32,height:32,borderRadius:10,background:'rgba(8,8,12,0.6)',backdropFilter:'blur(6px)',border:'1px solid rgba(255,255,255,0.15)',display:'grid',placeItems:'center',color:'#fff'}}><Search size={14}/></div>}
+      </div>
+      <div style={{marginTop:16}}>
+        <div style={{fontSize:11,letterSpacing:1.5,textTransform:'uppercase',color:tc,fontWeight:700}}>{card.type}</div>
+        <div style={{fontFamily:"'Cinzel',serif",fontSize:22,color:'#fff',marginTop:3,lineHeight:1.15}}>{card.name}</div>
+        <div style={{display:'flex',alignItems:'center',gap:10,marginTop:10}}>
+          <span style={{fontSize:23,fontWeight:800,color:'#fff'}}>R$ {priceBRL.toFixed(2).replace('.',',')}</span>
+          {existing&&<Tag color="#2ee59d" style={{fontSize:11}}>{existing.quantity} nos wants</Tag>}
+        </div>
+      </div>
+      <div style={{display:'flex',gap:10,alignItems:'stretch',marginTop:20}}>
+        <div style={{display:'flex',alignItems:'center',gap:14,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:14,padding:'0 14px'}}>
+          <button onClick={()=>{SFX.toggle();setQty(q=>Math.max(1,q-1));}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.6)',cursor:'pointer',display:'grid',padding:6}}><Minus size={16}/></button>
+          <span style={{minWidth:18,textAlign:'center',fontWeight:700,fontSize:15,color:'#fff'}}>{qty}</span>
+          <button onClick={()=>{SFX.toggle();setQty(q=>q+1);}} style={{background:'none',border:'none',color:'#fff',cursor:'pointer',display:'grid',padding:6}}><Plus size={16}/></button>
+        </div>
+        <Btn full disabled={!campaignOpen} sfx={null} onClick={()=>{onAdd(card,qty);onClose();}} style={{flex:1}}><Plus size={16}/> {campaignOpen?'Adicionar aos Wants':'Encomenda fechada'}</Btn>
+      </div>
+    </div>
+    {zoom&&<div onClick={()=>setZoom(false)} style={{position:'fixed',inset:0,zIndex:140,background:'rgba(0,0,0,0.93)',display:'grid',placeItems:'center',cursor:'zoom-out',padding:20,animation:'fadeIn .15s ease'}}>
+      <img src={card.image_url} alt={card.name} style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',borderRadius:12}}/>
+    </div>}
   </div>);
 }
 
@@ -3140,7 +3196,7 @@ export default function MagicPortal(){
 
   return (<div className="portal-shell" data-page={page} style={{ '--gp': theme.primary, '--gs': theme.secondary, '--gg': theme.glow, minHeight: '100vh', background: `radial-gradient(ellipse at 50% -20%,${theme.primary}12 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,${theme.secondary}08 0%,transparent 40%),#08080f`, color: '#e9edf7', fontFamily: "'Outfit',sans-serif", maxWidth: 480, margin: '0 auto', position: 'relative', paddingBottom: 78 }}>
     <FloatingMana theme={theme}/>
-    <style>{"@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');*{box-sizing:border-box;margin:0;padding:0}body{background:#08080f;margin:0}input:focus{border-color:var(--gp)!important;outline:none}button:active:not(:disabled){transform:scale(.97)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.07);border-radius:3px}@keyframes spin{to{transform:rotate(360deg)}}@keyframes tutPulse{0%,100%{opacity:1;box-shadow:0 0 0 9999px rgba(0,0,0,0.78),0 0 30px var(--gg)}50%{opacity:.85;box-shadow:0 0 0 9999px rgba(0,0,0,0.78),0 0 50px var(--gg)}}@keyframes tutArrowBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}@keyframes tutHandBounce{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-6px) scale(1.15)}}@keyframes manaFloat{0%{transform:translateY(0) translateX(0) rotate(0deg);opacity:0}10%{opacity:0.06}90%{opacity:0.03}100%{transform:translateY(-110vh) translateX(var(--drift,20px)) rotate(360deg);opacity:0}}@keyframes flyToWants{0%{transform:translate(-50%,-50%) scale(1);opacity:1}50%{transform:translate(calc(-50vw + 160px),-60vh) scale(0.6);opacity:0.8}100%{transform:translate(calc(-50vw + 160px),-80vh) scale(0.2);opacity:0}}"}</style>
+    <style>{"@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');*{box-sizing:border-box;margin:0;padding:0}body{background:#08080f;margin:0}input:focus{border-color:var(--gp)!important;outline:none}button:active:not(:disabled){transform:scale(.97)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.07);border-radius:3px}@keyframes spin{to{transform:rotate(360deg)}}@keyframes tutPulse{0%,100%{opacity:1;box-shadow:0 0 0 9999px rgba(0,0,0,0.78),0 0 30px var(--gg)}50%{opacity:.85;box-shadow:0 0 0 9999px rgba(0,0,0,0.78),0 0 50px var(--gg)}}@keyframes tutArrowBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}@keyframes tutHandBounce{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-6px) scale(1.15)}}@keyframes manaFloat{0%{transform:translateY(0) translateX(0) rotate(0deg);opacity:0}10%{opacity:0.06}90%{opacity:0.03}100%{transform:translateY(-110vh) translateX(var(--drift,20px)) rotate(360deg);opacity:0}}@keyframes flyToWants{0%{transform:translate(-50%,-50%) scale(1);opacity:1}50%{transform:translate(calc(-50vw + 160px),-60vh) scale(0.6);opacity:0.8}100%{transform:translate(calc(-50vw + 160px),-80vh) scale(0.2);opacity:0}}@keyframes sheetUp{from{transform:translateY(48px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}"}</style>
 
     {toastMsg && <Toast msg={toastMsg.msg} type={toastMsg.type} onClose={() => setToastMsg(null)} />}
     {showTutorial && <TutorialOverlay step={tutStep} steps={TUTORIAL_STEPS} onNext={tutNext} onSkip={tutSkip} theme={theme} onNavTo={p => setPage(p)} isFirstTime={isFirstTimeTut} />}
