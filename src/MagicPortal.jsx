@@ -867,6 +867,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
   const [freteOptions,setFreteOptions]=useState([]);const [selectedFrete,setSelectedFrete]=useState(null);
   const [lF,setLF]=useState(false);const [submitting,setSubmitting]=useState(false);
   const [step,setStep]=useState('review');
+  const [zoomSrc,setZoomSrc]=useState(null);
   const [saveAddressChoice,setSaveAddressChoice]=useState(null);
   // Frete conjunto: true = enviar junto com pedidos anteriores desta encomenda (sem novo frete)
   const [useJointShipping,setUseJointShipping]=useState(false);
@@ -1063,9 +1064,9 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
     <Card id="tut-checkout-summary" style={{padding:18}}>
       <SectionTitle sub={totalQty+' cartas ('+totalBonus+' bônus + '+totalPaid+' pagas)'}>Resumo do pedido</SectionTitle>
       {totalBonus>0&&<><div style={{fontSize:11,fontWeight:700,color:'#2ee59d',marginBottom:6,display:'flex',alignItems:'center',gap:5}}><Gift size={12}/> Bônus (grátis)</div>
-        {bd.filter(c=>c.bonusQty>0).map((c,i)=>(<div key={'b'+i} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(46,229,157,0.08)'}}><span style={{color:'rgba(255,255,255,0.6)'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.bonusQty}</span><span style={{fontWeight:700,color:'#2ee59d'}}>R$ 0,00</span></div>))}</>}
+        {bd.filter(c=>c.bonusQty>0).map((c,i)=>(<div key={'b'+i} style={{display:'flex',alignItems:'center',gap:9,padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(46,229,157,0.08)'}}><div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:30,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={6}/></div><span style={{flex:1,minWidth:0,color:'rgba(255,255,255,0.6)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.bonusQty}</span><span style={{fontWeight:700,color:'#2ee59d'}}>R$ 0,00</span></div>))}</>}
       {totalPaid>0&&<><div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.4)',marginTop:totalBonus>0?12:0,marginBottom:6,display:'flex',alignItems:'center',gap:5}}><CreditCard size={12}/> Pagas</div>
-        {bd.filter(c=>c.paidQty>0).map((c,i)=>{const ip=unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv);return(<div key={'p'+i} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(255,255,255,0.03)'}}><span style={{color:'rgba(255,255,255,0.6)'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.paidQty}</span><span style={{fontWeight:700}}>R$ {(c.paidQty*ip).toFixed(2)}</span></div>);})}</>}
+        {bd.filter(c=>c.paidQty>0).map((c,i)=>{const ip=unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv);return(<div key={'p'+i} style={{display:'flex',alignItems:'center',gap:9,padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(255,255,255,0.03)'}}><div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:30,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={6}/></div><span style={{flex:1,minWidth:0,color:'rgba(255,255,255,0.6)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.paidQty}</span><span style={{fontWeight:700,whiteSpace:'nowrap'}}>R$ {(c.paidQty*ip).toFixed(2)}</span></div>);})}</>}
       <div style={{marginTop:14,display:'flex',flexDirection:'column',gap:5}}>
         {totalPaid>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'rgba(255,255,255,0.4)'}}><span>Subtotal</span><span style={{color:'#fff',fontWeight:600}}>R$ {sub.toFixed(2)}</span></div>}
         <div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'rgba(255,255,255,0.4)'}}><span>Frete</span><span style={{color:alreadyPaidShipping?'#2ee59d':'#fff',fontWeight:600}}>{alreadyPaidShipping?'Já pago ✓':useJointShipping?'Envio conjunto (R$ 0,00)':selectedFrete?'R$ '+fV.toFixed(2):lF?'Calculando...':'—'}</span></div>
@@ -1130,6 +1131,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
       <><SectionTitle sub={isFullBonus?'Pagamento do frete via Mercado Pago':'Pagamento seguro via Mercado Pago'}>Pagamento</SectionTitle>
       <Btn full onClick={finalize} disabled={submitting||!campaignOpen||(!shippingSkipped&&!selectedFrete)} sfx="">{submitting?<Spin size={16}/>:<><CreditCard size={18}/> Pagar R$ {total.toFixed(2)}</>}</Btn></>}
     </Card>
+    <ImageLightbox src={zoomSrc} onClose={()=>setZoomSrc(null)}/>
   </div>);
 }
 
@@ -1659,6 +1661,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   const [finalList,setFinalList]=useState([]);
   const [listLoading,setListLoading]=useState(false);
   const [copied,setCopied]=useState(false);
+  const [zoomSrc,setZoomSrc]=useState(null);
 
   const [adminBonusGrants,setAdminBonusGrants]=useState([]);
   const [bonusLoading,setBonusLoading]=useState(false);
@@ -1809,7 +1812,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       const r=await fetch('/api/admin-batch-items',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchIds:[batchId]})});
       const json=await r.json().catch(()=>({}));
       if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      setBatchCards(prev=>({...prev,[batchId]:(json.items||[]).map(i=>({name:i.cards?.name||'Carta',type:i.cards?.type||'',qty:Number(i.quantity||1)}))}));
+      setBatchCards(prev=>({...prev,[batchId]:(json.items||[]).map(i=>({name:i.cards?.name||'Carta',type:i.cards?.type||'',qty:Number(i.quantity||1),image_url:i.cards?.image_url||null}))}));
     }catch(e){console.error(e);if(toastFn)toastFn('Erro ao carregar itens: '+(e.message||String(e)),'error');}
   }
 
@@ -1996,7 +1999,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
         allItems.push(...(json.items||[]));
       }
-      const list=allItems.map(i=>{const m=batchMeta[i.batch_id]||{};return{name:i.cards?.name||'Carta',type:i.cards?.type||'',qty:Number(i.quantity||1),userName:m.userName||'—',date:m.date||''};});
+      const list=allItems.map(i=>{const m=batchMeta[i.batch_id]||{};return{name:i.cards?.name||'Carta',type:i.cards?.type||'',qty:Number(i.quantity||1),image_url:i.cards?.image_url||null,userName:m.userName||'—',date:m.date||''};});
       list.sort((a,b)=>new Date(a.date)-new Date(b.date));
       setFinalList(list);
     }catch(e){console.error(e);if(toastFn)toastFn('Erro ao gerar lista: '+(e.message||String(e)),'error');}
@@ -2318,8 +2321,9 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
             <div style={{marginBottom:10}}>
               <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.3)',marginBottom:4}}>Itens do pedido</div>
               {(batchCards[b.id]||[]).length>0?batchCards[b.id].map((c,ci)=>(
-                <div key={ci} style={{display:'flex',justifyContent:'space-between',padding:'3px 0',fontSize:12,borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
-                  <span style={{color:'rgba(255,255,255,0.5)'}}>{c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
+                <div key={ci} style={{display:'flex',alignItems:'center',gap:8,padding:'3px 0',fontSize:12,borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
+                  <div onClick={e=>{e.stopPropagation();c.image_url&&setZoomSrc(c.image_url);}} style={{width:26,flexShrink:0,cursor:c.image_url?'zoom-in':'default'}}><CardThumb card={c} radius={5}/></div>
+                  <span style={{flex:1,minWidth:0,color:'rgba(255,255,255,0.5)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
                   <span style={{fontWeight:700}}>x{c.qty}</span>
                 </div>
               )):<div style={{fontSize:11,color:'rgba(255,255,255,0.2)'}}>Carregando itens...</div>}
@@ -2398,8 +2402,9 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
                   {b.shipping_already_paid&&<div style={{fontSize:11,color:'#2ee59d',marginBottom:8,display:'flex',alignItems:'center',gap:4}}><CheckCircle size={11}/> Frete marcado como já pago pelo cliente</div>}
                   {!b.shipping_already_paid&&ship===0&&b.payment_method==='BONUS'&&<div style={{fontSize:11,color:'rgba(46,229,157,0.6)',marginBottom:8}}>Pedido bônus — frete cobrado normalmente</div>}
                   <div style={{marginBottom:8}}>{(batchCards[b.id]||[]).length>0?batchCards[b.id].map((c,ci)=>(
-                    <div key={ci} style={{display:'flex',justifyContent:'space-between',padding:'3px 0',fontSize:12,borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
-                      <span style={{color:'rgba(255,255,255,0.5)'}}>{c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
+                    <div key={ci} style={{display:'flex',alignItems:'center',gap:8,padding:'3px 0',fontSize:12,borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
+                      <div onClick={e=>{e.stopPropagation();c.image_url&&setZoomSrc(c.image_url);}} style={{width:26,flexShrink:0,cursor:c.image_url?'zoom-in':'default'}}><CardThumb card={c} radius={5}/></div>
+                      <span style={{flex:1,minWidth:0,color:'rgba(255,255,255,0.5)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
                       <span style={{fontWeight:700}}>x{c.qty}</span>
                     </div>
                   )):<div style={{fontSize:11,color:'rgba(255,255,255,0.2)'}}>Carregando itens...</div>}</div>
@@ -2550,9 +2555,10 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       {finalList.length>0?<>
         <div style={{fontSize:14,fontWeight:800,color:theme.primary,marginBottom:8}}>{finalList.reduce((s,c)=>s+c.qty,0)} cartas no total</div>
         <div style={{maxHeight:400,overflowY:'auto',marginBottom:10}}>{finalList.map((c,i)=>(
-          <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:12,borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
-            <span style={{color:'rgba(255,255,255,0.5)'}}>{c.qty}x {c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
-            <span style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>{c.userName}</span>
+          <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'4px 0',fontSize:12,borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
+            <div onClick={()=>c.image_url&&setZoomSrc(c.image_url)} style={{width:26,flexShrink:0,cursor:c.image_url?'zoom-in':'default'}}><CardThumb card={c} radius={5}/></div>
+            <span style={{flex:1,minWidth:0,color:'rgba(255,255,255,0.5)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.qty}x {c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
+            <span style={{fontSize:10,color:'rgba(255,255,255,0.2)',whiteSpace:'nowrap'}}>{c.userName}</span>
           </div>
         ))}</div>
         <Btn full variant="success" onClick={copyFinalList} sfx="">{copied?<><Check size={14}/> Copiado!</>:<><Copy size={14}/> Copiar lista</>}</Btn>
@@ -2668,6 +2674,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         {isFinalized&&<Btn full variant="danger" onClick={deleteCampaign} style={{marginTop:4}} sfx=""><Trash2 size={14}/> Excluir encomenda permanentemente</Btn>}
       </>}
     </>}
+    <ImageLightbox src={zoomSrc} onClose={()=>setZoomSrc(null)}/>
   </div>);
 }
 
