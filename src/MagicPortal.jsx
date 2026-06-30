@@ -586,19 +586,30 @@ function HomePage({pool,minCards,pricing,closeDate,theme,nav,wantsCount,cartCoun
 // CATALOG — Supabase powered, server-side search/filter
 // ══════════════════════════════════════════════════════
 
-// Card image with graceful fallback when image_url is missing/broken.
+// Card image with graceful fallback. Accepts both catalog cards
+// (name/type/image_url) and order items (card_name/card_type/card_image_url).
 function CardThumb({card,radius=12,style}){
   const [err,setErr]=useState(false);
-  const tc=TC[card.type]||'rgba(255,255,255,0.4)';
-  const showImg=card.image_url&&!err;
+  const name=card.name||card.card_name||'';
+  const type=card.type||card.card_type||'Normal';
+  const img=card.image_url||card.card_image_url;
+  const tc=TC[type]||'rgba(255,255,255,0.4)';
   return(<div style={{position:'relative',width:'100%',aspectRatio:'0.72',borderRadius:radius,overflow:'hidden',background:'linear-gradient(150deg,rgba(255,255,255,0.07),rgba(255,255,255,0.02))',border:'1px solid rgba(255,255,255,0.06)',...style}}>
-    {showImg
-      ? <img src={card.image_url} alt={card.name} loading="lazy" onError={()=>setErr(true)} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
-      : <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:7,padding:10,textAlign:'center'}}>
-          <div style={{fontSize:28,opacity:.45}}>🃏</div>
-          <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.62)',lineHeight:1.15,wordBreak:'break-word'}}>{card.name}</div>
-          <div style={{fontSize:9,fontWeight:700,color:tc,textTransform:'uppercase',letterSpacing:.4}}>{card.type}</div>
+    {img&&!err
+      ? <img src={img} alt={name} loading="lazy" onError={()=>setErr(true)} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+      : <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:6,padding:8,textAlign:'center'}}>
+          <div style={{fontSize:24,opacity:.45}}>🃏</div>
+          <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.62)',lineHeight:1.15,wordBreak:'break-word'}}>{name}</div>
+          <div style={{fontSize:8,fontWeight:700,color:tc,textTransform:'uppercase',letterSpacing:.4}}>{type}</div>
         </div>}
+  </div>);
+}
+
+// Fullscreen image zoom — replaces opening card images in a new browser tab.
+function ImageLightbox({src,alt,onClose}){
+  if(!src)return null;
+  return(<div onClick={onClose} style={{position:'fixed',inset:0,zIndex:140,background:'rgba(0,0,0,0.93)',display:'grid',placeItems:'center',cursor:'zoom-out',padding:20,animation:'fadeIn .15s ease'}}>
+    <img src={src} alt={alt||''} style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',borderRadius:12}}/>
   </div>);
 }
 
@@ -724,9 +735,7 @@ function CardDetailModal({card,priceBRL,existing,campaignOpen,onClose,onAdd}){
         <Btn full disabled={!campaignOpen} sfx={null} onClick={()=>{onAdd(card,qty);onClose();}} style={{flex:1}}><Plus size={16}/> {campaignOpen?'Adicionar aos Wants':'Encomenda fechada'}</Btn>
       </div>
     </div>
-    {zoom&&<div onClick={()=>setZoom(false)} style={{position:'fixed',inset:0,zIndex:140,background:'rgba(0,0,0,0.93)',display:'grid',placeItems:'center',cursor:'zoom-out',padding:20,animation:'fadeIn .15s ease'}}>
-      <img src={card.image_url} alt={card.name} style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',borderRadius:12}}/>
-    </div>}
+    {zoom&&<ImageLightbox src={card.image_url} alt={card.name} onClose={()=>setZoom(false)}/>}
   </div>);
 }
 
@@ -734,51 +743,53 @@ function CardDetailModal({card,priceBRL,existing,campaignOpen,onClose,onAdd}){
 // WANTS — reads order_items, cart is local toggle
 // ══════════════════════════════════════════════════════
 
-function WantsPage({wants,onMoveToCart,onMoveAllToCart,onRemoveWant,onUpdateWantQty,cartCount,bonusAvail,theme}){
+function WantsPage({wants,onMoveToCart,onMoveAllToCart,onRemoveWant,onUpdateWantQty,cartCount,bonusAvail,theme,nav}){
   const [searchW,setSearchW]=useState('');
+  const [zoomSrc,setZoomSrc]=useState(null);
   const bonus=bonusAvail||0;
   const wantsUnits=wants.reduce((s,w)=>s+w.quantity,0);
   const fW=searchW?wants.filter(w=>w.card_name.toLowerCase().includes(searchW.toLowerCase())):wants;
 
-  return(<div className="portal-page portal-wants" style={{display:'flex',flexDirection:'column',gap:12}}>
+  return(<div className="portal-page portal-wants" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:wants.length>0?86:0}}>
     <div id="tut-wants-tags" style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
       <Tag color={theme.primary}><ScrollText size={11}/> {wantsUnits} na wants</Tag>
       <Tag color="#c9a96e"><ShoppingCart size={11}/> {cartCount} no carrinho</Tag>
       {bonus>0&&<Tag color="#2ee59d"><Gift size={11}/> {bonus} bônus</Tag>}
-      {wants.length>0&&<button onClick={onMoveAllToCart} style={{background:theme.primary+'15',border:'1px solid '+theme.primary+'30',borderRadius:99,padding:'4px 10px',color:theme.primary,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif",display:'flex',alignItems:'center',gap:4}}><CheckCircle size={11}/> Tudo pro carrinho</button>}
     </div>
     {bonus>0&&<Card id="tut-bonus-card" glow="rgba(46,229,157,0.12)" style={{padding:12,background:'rgba(46,229,157,0.03)'}}>
       <div style={{display:'flex',alignItems:'center',gap:8}}><Gift size={16} style={{color:'#2ee59d'}}/><div style={{fontSize:13}}><span style={{fontWeight:700,color:'#2ee59d'}}>{bonus} carta(s) bônus</span><div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginTop:2}}>Primeiras do carrinho saem grátis!</div></div></div>
     </Card>}
     {wants.length>0&&<>
       {wants.length>3&&<Input icon={Search} placeholder="Buscar..." value={searchW} onChange={e=>setSearchW(e.target.value)}/>}
-      <div className="portal-card-grid portal-wants-grid" style={{display:'flex',flexDirection:'column',gap:5}}>
-        {fW.map((w)=>(
-          <Card key={w.id} style={{padding:'10px 12px'}}>
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
+      <div className="portal-card-grid portal-wants-grid" style={{display:'flex',flexDirection:'column',gap:8}}>
+        {fW.map((w)=>{const img=w.card_image_url;return(
+          <Card key={w.id} style={{padding:9}}>
+            <div style={{display:'flex',alignItems:'center',gap:11}}>
+              <div onClick={()=>img&&setZoomSrc(img)} style={{width:54,flexShrink:0,cursor:img?'zoom-in':'default'}}><CardThumb card={w} radius={9}/></div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{w.card_name}</div>
-                <div style={{display:'flex',gap:6,alignItems:'center',marginTop:1}}>
-                  <span style={{fontSize:10,color:TC[w.card_type],fontWeight:700}}>{w.card_type}</span>
-                  <span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>{w.quantity}x</span>
+                <span style={{fontSize:10,color:TC[w.card_type],fontWeight:700}}>{w.card_type}</span>
+                <div style={{display:'flex',alignItems:'center',gap:0,background:'rgba(0,0,0,0.3)',borderRadius:10,border:'1px solid rgba(255,255,255,0.05)',width:'fit-content',marginTop:7}}>
+                  <button onClick={()=>onUpdateWantQty(w.id,w.quantity-1)} style={{background:'none',border:'none',color:'#fff',padding:'5px 11px',cursor:'pointer'}}><Minus size={12}/></button>
+                  <span style={{minWidth:18,textAlign:'center',fontSize:13,fontWeight:700}}>{w.quantity}</span>
+                  <button onClick={()=>onUpdateWantQty(w.id,w.quantity+1)} style={{background:'none',border:'none',color:'#fff',padding:'5px 11px',cursor:'pointer'}}><Plus size={12}/></button>
                 </div>
               </div>
-              <div style={{display:'flex',alignItems:'center',background:'rgba(0,0,0,0.3)',borderRadius:10,border:'1px solid rgba(255,255,255,0.05)'}}>
-                <button onClick={()=>onUpdateWantQty(w.id,w.quantity-1)} style={{background:'none',border:'none',color:'#fff',padding:'6px 9px',cursor:'pointer'}}><Minus size={12}/></button>
-                <span style={{minWidth:20,textAlign:'center',fontSize:13,fontWeight:700}}>{w.quantity}</span>
-                <button onClick={()=>onUpdateWantQty(w.id,w.quantity+1)} style={{background:'none',border:'none',color:'#fff',padding:'6px 9px',cursor:'pointer'}}><Plus size={12}/></button>
-              </div>
-              <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                {w.card_image_url&&<button onClick={e=>{e.stopPropagation();window.open(w.card_image_url,'_blank','noopener,noreferrer');}} title="Ver imagem" style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'8px 10px',cursor:'pointer',color:'rgba(255,255,255,0.45)',display:'flex',alignItems:'center'}}><Eye size={14}/></button>}
-                <button onClick={()=>onMoveToCart(w)} style={{background:theme.primary+'18',border:'1px solid '+theme.primary+'30',borderRadius:10,padding:'8px 10px',cursor:'pointer',color:theme.primary,display:'flex',alignItems:'center'}}><ShoppingCart size={14}/></button>
-                <button onClick={()=>onRemoveWant(w.id)} style={{background:'rgba(217,68,82,0.08)',border:'1px solid rgba(217,68,82,0.15)',borderRadius:10,padding:'8px 10px',cursor:'pointer',color:'#ff6b7a',display:'flex',alignItems:'center'}}><Trash2 size={14}/></button>
+              <div style={{display:'flex',flexDirection:'column',gap:6,alignItems:'stretch'}}>
+                <button onClick={()=>onMoveToCart(w)} title="Mover para o carrinho" style={{background:'var(--gp)',border:'none',borderRadius:11,padding:'9px 13px',cursor:'pointer',color:'#1a1407',display:'flex',alignItems:'center',gap:5,fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",boxShadow:'0 4px 14px var(--gg)'}}><ShoppingCart size={14}/></button>
+                <button onClick={()=>onRemoveWant(w.id)} title="Remover" style={{background:'rgba(217,68,82,0.08)',border:'1px solid rgba(217,68,82,0.15)',borderRadius:11,padding:'8px 13px',cursor:'pointer',color:'#ff6b7a',display:'flex',alignItems:'center',justifyContent:'center'}}><Trash2 size={13}/></button>
               </div>
             </div>
           </Card>
-        ))}
+        );})}
       </div>
     </>}
     {wants.length===0&&<EmptyState icon={ScrollText} title="Wants vazia" sub="Adicione cartas pelo catálogo"/>}
+    {wants.length>0&&<div style={{position:'fixed',bottom:78,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:480,padding:'10px 16px 12px',background:'linear-gradient(180deg,transparent,#08080f 32%)',zIndex:15,display:'flex',gap:9}}>
+      <Btn variant="secondary" onClick={onMoveAllToCart} sfx="addCard" style={{flex:'0 0 auto',padding:'13px 14px'}}><CheckCircle size={15}/> Tudo</Btn>
+      <Btn full onClick={()=>nav&&nav('cart')} sfx="nav" style={{flex:1}}><ShoppingCart size={15}/> Ver carrinho{cartCount>0?` (${cartCount})`:''}</Btn>
+    </div>}
+    <ImageLightbox src={zoomSrc} onClose={()=>setZoomSrc(null)}/>
   </div>);
 }
 
@@ -801,50 +812,54 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onMoveT
   const canCheckout=isIndividual?(totalQty>=minCards):(isFullBonus||totalPaid>=MIN_ORDER_CARDS||hasMetMinimumBefore);
   const missingCards=hasMetMinimumBefore?0:Math.max(0,minCards-(isIndividual?totalQty:totalPaid));
   const canGoCheckout=isIndividual||campaignOpen;
+  const [zoomSrc,setZoomSrc]=useState(null);
 
-  return(<div className="portal-page portal-cart" style={{display:'flex',flexDirection:'column',gap:12}}>
+  return(<div className="portal-page portal-cart" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:cartItems.length>0?(canGoCheckout?168:120):0}}>
     {!isIndividual&&!campaignOpen&&<Card style={{padding:12,borderColor:'rgba(201,169,110,0.25)',background:'rgba(201,169,110,0.06)'}}>
       <div style={{display:'flex',alignItems:'center',gap:8}}><AlertTriangle size={14} style={{color:'#c9a96e'}}/><div style={{fontSize:12,color:'#c9a96e',fontWeight:600}}>{campaignStatus?campaignLabel(campaignStatus):'Nenhuma encomenda ativa'}<div style={{fontSize:11,color:'rgba(255,255,255,0.35)',fontWeight:400,marginTop:2}}>Continue montando seu carrinho. O checkout estará disponível quando a encomenda abrir.</div></div></div>
     </Card>}
     {cartItems.length>0&&<>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <span style={{fontSize:12,color:'rgba(255,255,255,0.4)'}}>{totalQty} carta{totalQty!==1?'s':''}</span>
-        <span style={{fontSize:14,fontWeight:800,color:theme.primary}}>≈ R$ {totalBRL.toFixed(2)}{totalBonus>0&&<span style={{fontSize:11,color:'#2ee59d',fontWeight:600,marginLeft:6}}>({totalBonus} bônus)</span>}</span>
-      </div>
-      <div className="portal-card-grid portal-cart-grid" style={{display:'flex',flexDirection:'column',gap:5}}>
+      <div className="portal-card-grid portal-cart-grid" style={{display:'flex',flexDirection:'column',gap:8}}>
         {bd.map((c)=>{const itemPrice=unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv);return(
-          <Card key={c.id} style={{padding:'10px 12px'}}>
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <Card key={c.id} style={{padding:9}}>
+            <div style={{display:'flex',alignItems:'center',gap:11}}>
+              <div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:54,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={9}/></div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name}</div>
-                <div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap',marginTop:1}}>
+                <div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap',marginTop:2}}>
                   <span style={{fontSize:10,color:TC[c.card_type],fontWeight:700}}>{c.card_type}</span>
                   {c.bonusQty>0&&<Tag color="#2ee59d" style={{fontSize:9,padding:'1px 5px'}}>🎁 {c.bonusQty} grátis</Tag>}
-                  {c.paidQty>0&&<span style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>R$ {(c.paidQty*itemPrice).toFixed(2)}</span>}
+                </div>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginTop:7}}>
+                  <div style={{display:'flex',alignItems:'center',background:'rgba(0,0,0,0.3)',borderRadius:10,border:'1px solid rgba(255,255,255,0.05)'}}>
+                    <button onClick={()=>onUpdateCartQty(c.id,c.quantity-1)} style={{background:'none',border:'none',color:'#fff',padding:'5px 11px',cursor:'pointer'}}><Minus size={12}/></button>
+                    <span style={{minWidth:18,textAlign:'center',fontSize:13,fontWeight:700}}>{c.quantity}</span>
+                    <button onClick={()=>onUpdateCartQty(c.id,c.quantity+1)} style={{background:'none',border:'none',color:'#fff',padding:'5px 11px',cursor:'pointer'}}><Plus size={12}/></button>
+                  </div>
+                  <span style={{fontSize:13,fontWeight:800,color:'#fff',whiteSpace:'nowrap'}}>{c.paidQty>0?`R$ ${(c.paidQty*itemPrice).toFixed(2).replace('.',',')}`:<span style={{color:'#2ee59d'}}>Grátis</span>}</span>
                 </div>
               </div>
-              <div style={{display:'flex',alignItems:'center',background:'rgba(0,0,0,0.3)',borderRadius:10,border:'1px solid rgba(255,255,255,0.05)'}}>
-                <button onClick={()=>onUpdateCartQty(c.id,c.quantity-1)} style={{background:'none',border:'none',color:'#fff',padding:'6px 9px',cursor:'pointer'}}><Minus size={12}/></button>
-                <span style={{minWidth:20,textAlign:'center',fontSize:13,fontWeight:700}}>{c.quantity}</span>
-                <button onClick={()=>onUpdateCartQty(c.id,c.quantity+1)} style={{background:'none',border:'none',color:'#fff',padding:'6px 9px',cursor:'pointer'}}><Plus size={12}/></button>
-              </div>
-              <div style={{display:'flex',gap:6}}>
-                {c.card_image_url&&<button onClick={e=>{e.stopPropagation();window.open(c.card_image_url,'_blank','noopener,noreferrer');}} title="Ver imagem" style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'8px 10px',cursor:'pointer',color:'rgba(255,255,255,0.45)',display:'flex',alignItems:'center'}}><Eye size={14}/></button>}
-                <button onClick={()=>onMoveToWants(c)} title="Voltar para wants" style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'8px 10px',cursor:'pointer',color:'rgba(255,255,255,0.5)',display:'flex',alignItems:'center'}}><ArrowLeft size={14}/></button>
-                <button onClick={()=>onRemoveFromCart(c.id)} style={{background:'rgba(217,68,82,0.08)',border:'1px solid rgba(217,68,82,0.15)',borderRadius:10,padding:'8px 10px',cursor:'pointer',color:'#ff6b7a',display:'flex',alignItems:'center'}}><Trash2 size={14}/></button>
+              <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                <button onClick={()=>onMoveToWants(c)} title="Voltar para wants" style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:11,padding:'8px 11px',cursor:'pointer',color:'rgba(255,255,255,0.5)',display:'flex',alignItems:'center',justifyContent:'center'}}><ArrowLeft size={14}/></button>
+                <button onClick={()=>onRemoveFromCart(c.id)} title="Remover" style={{background:'rgba(217,68,82,0.08)',border:'1px solid rgba(217,68,82,0.15)',borderRadius:11,padding:'8px 11px',cursor:'pointer',color:'#ff6b7a',display:'flex',alignItems:'center',justifyContent:'center'}}><Trash2 size={13}/></button>
               </div>
             </div>
           </Card>
         );})}
       </div>
-      {/* Aviso de mínimo de cartas */}
-      {canGoCheckout&&!canCheckout&&!isFullBonus&&<Card style={{padding:'10px 14px',borderColor:'rgba(201,169,110,0.3)',background:'rgba(201,169,110,0.06)'}}>
-        <div style={{display:'flex',alignItems:'center',gap:8}}><AlertTriangle size={14} style={{color:'#c9a96e',flexShrink:0}}/><div style={{fontSize:12,color:'#c9a96e',fontWeight:600}}>Mínimo de {minCards} cartas{isIndividual?'':' pagas'} por pedido<div style={{fontSize:11,fontWeight:400,color:'rgba(255,255,255,0.35)',marginTop:2}}>Adicione mais {missingCards} carta{missingCards!==1?'s':''} ao carrinho para continuar.</div></div></div>
-      </Card>}
-      {canGoCheckout&&<Btn full onClick={()=>nav('checkout')} disabled={!canCheckout} sfx="nav" style={{marginTop:4}}><CreditCard size={15}/> {canCheckout?'Ir para checkout':'Mínimo: '+minCards+' cartas (faltam '+missingCards+')'}</Btn>}
+      <Btn full variant="ghost" onClick={()=>nav('wants')} sfx="nav"><ArrowLeft size={14}/> Voltar para Wants</Btn>
+      {/* Barra de resumo fixa */}
+      <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:480,background:'rgba(13,13,23,0.97)',backdropFilter:'blur(20px)',borderTop:'1px solid rgba(255,255,255,0.08)',borderRadius:'20px 20px 0 0',padding:'13px 16px calc(12px + env(safe-area-inset-bottom))',zIndex:25,boxShadow:'0 -10px 30px rgba(0,0,0,0.4)'}}>
+        {canGoCheckout&&!canCheckout&&!isFullBonus&&<div style={{display:'flex',alignItems:'center',gap:7,marginBottom:10,padding:'8px 10px',borderRadius:11,background:'rgba(201,169,110,0.08)',border:'1px solid rgba(201,169,110,0.2)'}}><AlertTriangle size={13} style={{color:'#c9a96e',flexShrink:0}}/><span style={{fontSize:11.5,color:'#c9a96e',fontWeight:600}}>Faltam {missingCards} carta{missingCards!==1?'s':''} para o mínimo de {minCards}{isIndividual?'':' pagas'}</span></div>}
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:11}}>
+          <div><div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{totalQty} carta{totalQty!==1?'s':''}{totalBonus>0?` · ${totalBonus} bônus`:''}</div><div style={{fontSize:22,fontWeight:800,color:'#fff',marginTop:1}}>≈ R$ {totalBRL.toFixed(2).replace('.',',')}</div></div>
+          {totalBonus>0&&<Tag color="#2ee59d"><Gift size={12}/> {totalBonus} grátis</Tag>}
+        </div>
+        {canGoCheckout&&<Btn full onClick={()=>nav('checkout')} disabled={!canCheckout} sfx="nav"><CreditCard size={15}/> {canCheckout?'Ir para checkout':`Mínimo ${minCards} (faltam ${missingCards})`}</Btn>}
+      </div>
     </>}
     {cartItems.length===0&&<><EmptyState icon={ShoppingCart} title="Carrinho vazio" sub="Mova cartas da sua lista de wants"/><div style={{textAlign:'center',marginTop:8}}><Btn variant="secondary" onClick={()=>nav('wants')} sfx="nav"><ScrollText size={15}/> Ir para Wants</Btn></div></>}
-    {cartItems.length>0&&<Btn full variant="ghost" onClick={()=>nav('wants')} sfx="nav" style={{marginTop:4}}><ArrowLeft size={14}/> Voltar para Wants</Btn>}
+    <ImageLightbox src={zoomSrc} onClose={()=>setZoomSrc(null)}/>
   </div>);
 }
 function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme,nav,profile,token,orderId,campaignId,campaignStatus,onOrderDone,toast,previousPaidBatches=[],onMoveToWants,onRemoveFromCart,onUpdateCartQty,orderMode='CAMPAIGN',indiv=null}){
@@ -3297,7 +3312,7 @@ export default function MagicPortal(){
           <Btn full variant="secondary" onClick={()=>{loadAppData(token,session?.user?.id);}} sfx="click"><RefreshCw size={16}/> Recarregar</Btn>
         </div>)}</>}
         {page === 'catalog' && <CatalogPage token={token} wants={wants} onAddWant={handleAddWant} priceBRL={priceBRL} theme={theme} campaignStatus={campaign?.status} tutStep={showTutorial?tutStep:-1} onTutNext={tutNext} />}
-        {page === 'wants' && <WantsPage wants={wants} onMoveToCart={handleMoveToCart} onMoveAllToCart={handleMoveAllToCart} onRemoveWant={handleRemoveWant} onUpdateWantQty={handleUpdateWantQty} cartCount={cartCount} bonusAvail={bonusAvail} theme={theme} />}
+        {page === 'wants' && <WantsPage wants={wants} onMoveToCart={handleMoveToCart} onMoveAllToCart={handleMoveAllToCart} onRemoveWant={handleRemoveWant} onUpdateWantQty={handleUpdateWantQty} cartCount={cartCount} bonusAvail={bonusAvail} theme={theme} nav={nav} />}
         {page === 'cart' && <CartPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} campaignStatus={campaign?.status} theme={theme} nav={nav} onMoveToWants={handleMoveToWants} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} profile={profile} previousPaidBatches={previousPaidBatches} orderMode={orderMode} indiv={indivPricing} />}
         {page === 'checkout' && (orderMode==='INDIVIDUAL' || campaignCanOrder(campaign?.status)) && <CheckoutPage cartItems={cartItems} wants={wants} cartQtyByItem={cartQtyByItem} pricing={pricing} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} campaignStatus={campaign?.status} onOrderDone={handleOrderDone} toast={toast} previousPaidBatches={previousPaidBatches} onMoveToWants={handleMoveToWants} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} orderMode={orderMode} indiv={indivPricing} />}
         {page === 'checkout' && orderMode!=='INDIVIDUAL' && !campaignCanOrder(campaign?.status) && <CartPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} campaignStatus={campaign?.status} theme={theme} nav={nav} onMoveToWants={handleMoveToWants} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} profile={profile} previousPaidBatches={previousPaidBatches} orderMode={orderMode} indiv={indivPricing} />}
