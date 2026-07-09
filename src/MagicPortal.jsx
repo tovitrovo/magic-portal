@@ -622,7 +622,7 @@ function ImageLightbox({src,alt,onClose}){
   </div>);
 }
 
-function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutStep,onTutNext}){
+function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,orderMode='CAMPAIGN',tutStep,onTutNext}){
   const [search,setSearch]=useState('');const [typeF,setTypeF]=useState('Todos');const [tcgFilter,setTcgFilter]=useState('Magic');const [cards,setCards]=useState([]);const [total,setTotal]=useState(0);
   const [page,setPage]=useState(0);const [loading,setLoading]=useState(false);const [addQty,setAddQty]=useState({});
   const [detail,setDetail]=useState(null);
@@ -636,7 +636,8 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutSte
     update();const t=setInterval(update,300);return()=>clearInterval(t);
   },[tutStep,cards]);
   
-  const campaignOpen = campaignCanOrder(campaignStatus);
+  const isIndividual = orderMode==='INDIVIDUAL';
+  const campaignOpen = isIndividual||campaignCanOrder(campaignStatus);
   const campaignStatusText = campaignLabel(campaignStatus);
 
   const fetchCards = useCallback(async()=>{
@@ -670,7 +671,7 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,tutSte
   function add(card,qty){SFX.addCard();setFlyAnim(true);onAddWant(card,qty);setQ(card.id,1);if(tutStep===2&&onTutNext)onTutNext();}
 
   return(<div className="portal-page portal-catalog" style={{display:'flex',flexDirection:'column',gap:12}}>
-    {!campaignOpen&&<Card style={{padding:14,borderColor:'rgba(201,169,110,0.25)',background:'rgba(201,169,110,0.08)'}}><div style={{fontSize:13,fontWeight:700,color:'#c9a96e'}}>Encomenda fechada no momento</div><div style={{fontSize:12,color:'rgba(255,255,255,0.55)',marginTop:4}}>{campaignStatusText}</div></Card>}
+    {!isIndividual&&!campaignOpen&&<Card style={{padding:14,borderColor:'rgba(201,169,110,0.25)',background:'rgba(201,169,110,0.08)'}}><div style={{fontSize:13,fontWeight:700,color:'#c9a96e'}}>Encomenda fechada no momento</div><div style={{fontSize:12,color:'rgba(255,255,255,0.55)',marginTop:4}}>{campaignStatusText}</div></Card>}
     <FlyingCard show={flyAnim} onDone={()=>setFlyAnim(false)}/>
     <div style={{display:'flex',gap:5,overflowX:'auto',WebkitOverflowScrolling:'touch',paddingBottom:2}}>
       {TCG_LIST.map(t=>(<button key={t.key} onClick={()=>{SFX.toggle();setTcgFilter(t.key);setTypeF(current=>current===RECENT_CARDS_FILTER?current:'Todos');}} style={{padding:'7px 12px',borderRadius:10,border:'none',background:tcgFilter===t.key?t.color+'22':'rgba(255,255,255,0.04)',color:tcgFilter===t.key?t.color:'rgba(255,255,255,0.3)',fontWeight:700,fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap',flexShrink:0,boxShadow:tcgFilter===t.key?`0 0 0 1.5px ${t.color}60`:'none'}}>{t.key}</button>))}
@@ -2943,6 +2944,9 @@ export default function MagicPortal(){
   const [indivPricing,setIndivPricing]=useState(null); // { tiers, pricing, fx }
   const [statusOverrides,setStatusOverrides]=useState({});
 
+  // Sem encomenda coletiva ativa: força o modo individual (a aba de Coletiva fica oculta).
+  useEffect(()=>{if(!campaign&&orderMode==='CAMPAIGN')setOrderMode('INDIVIDUAL');},[campaign,orderMode]);
+
   // UI state
   const [page,setPage]=useState('home');
   const [showTutorial,setShowTutorial]=useState(false);
@@ -3511,13 +3515,13 @@ export default function MagicPortal(){
       {/* Pages */}
       <main className="portal-content" style={{ padding: page === 'onboarding' ? '0 20px' : '14px 20px' }}>
         {page === 'home' && <>
-          {/* Seletor de modo de pedido */}
+          {/* Seletor de modo de pedido — a aba de Encomenda Coletiva só aparece quando há campanha ativa */}
           <div style={{display:'flex',gap:8,marginBottom:14}}>
-            <button onClick={()=>{SFX.toggle();setOrderMode('CAMPAIGN');}} disabled={!campaign} style={{flex:1,padding:'12px 10px',borderRadius:14,border:'1px solid '+(orderMode==='CAMPAIGN'?theme.primary+'55':'rgba(255,255,255,0.06)'),background:orderMode==='CAMPAIGN'?theme.primary+'18':'rgba(255,255,255,0.02)',color:campaign?(orderMode==='CAMPAIGN'?theme.primary:'rgba(255,255,255,0.5)'):'rgba(255,255,255,0.18)',cursor:campaign?'pointer':'not-allowed',fontFamily:"'Outfit',sans-serif",textAlign:'left'}}>
+            {campaign&&<button onClick={()=>{SFX.toggle();setOrderMode('CAMPAIGN');}} style={{flex:1,padding:'12px 10px',borderRadius:14,border:'1px solid '+(orderMode==='CAMPAIGN'?theme.primary+'55':'rgba(255,255,255,0.06)'),background:orderMode==='CAMPAIGN'?theme.primary+'18':'rgba(255,255,255,0.02)',color:orderMode==='CAMPAIGN'?theme.primary:'rgba(255,255,255,0.5)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",textAlign:'left'}}>
               <div style={{fontSize:13,fontWeight:700}}>🛒 Encomenda Coletiva</div>
-              <div style={{fontSize:10,opacity:0.7,marginTop:2}}>{campaign?'Preço fixo por tipo':'Nenhuma campanha aberta'}</div>
-            </button>
-            <button onClick={()=>{SFX.toggle();setOrderMode('INDIVIDUAL');}} style={{flex:1,padding:'12px 10px',borderRadius:14,border:'1px solid '+(orderMode==='INDIVIDUAL'?theme.primary+'55':'rgba(255,255,255,0.06)'),background:orderMode==='INDIVIDUAL'?theme.primary+'18':'rgba(255,255,255,0.02)',color:orderMode==='INDIVIDUAL'?theme.primary:'rgba(255,255,255,0.5)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",textAlign:'left'}}>
+              <div style={{fontSize:10,opacity:0.7,marginTop:2}}>Preço fixo por tipo</div>
+            </button>}
+            <button onClick={()=>{SFX.toggle();setOrderMode('INDIVIDUAL');}} style={{flex:1,padding:'12px 10px',borderRadius:14,border:'1px solid '+(!campaign||orderMode==='INDIVIDUAL'?theme.primary+'55':'rgba(255,255,255,0.06)'),background:!campaign||orderMode==='INDIVIDUAL'?theme.primary+'18':'rgba(255,255,255,0.02)',color:!campaign||orderMode==='INDIVIDUAL'?theme.primary:'rgba(255,255,255,0.5)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",textAlign:'left'}}>
               <div style={{fontSize:13,fontWeight:700}}>👤 Pedido Individual</div>
               <div style={{fontSize:10,opacity:0.7,marginTop:2}}>Desconto por volume</div>
             </button>
@@ -3541,7 +3545,7 @@ export default function MagicPortal(){
           }
           <Btn full variant="secondary" onClick={()=>{loadAppData(token,session?.user?.id);}} sfx="click"><RefreshCw size={16}/> Recarregar</Btn>
         </div>)}</>}
-        {page === 'catalog' && <CatalogPage token={token} wants={wants} onAddWant={handleAddWant} priceBRL={priceBRL} theme={theme} campaignStatus={campaign?.status} tutStep={showTutorial?tutStep:-1} onTutNext={tutNext} />}
+        {page === 'catalog' && <CatalogPage token={token} wants={wants} onAddWant={handleAddWant} priceBRL={priceBRL} theme={theme} campaignStatus={campaign?.status} orderMode={orderMode} tutStep={showTutorial?tutStep:-1} onTutNext={tutNext} />}
         {page === 'wants' && <WantsPage wants={wants} onMoveToCart={handleMoveToCart} onMoveAllToCart={handleMoveAllToCart} onRemoveWant={handleRemoveWant} onUpdateWantQty={handleUpdateWantQty} cartCount={cartCount} bonusAvail={bonusAvail} theme={theme} nav={nav} />}
         {page === 'cart' && <CartPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} campaignStatus={campaign?.status} theme={theme} nav={nav} onMoveToWants={handleMoveToWants} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} profile={profile} previousPaidBatches={previousPaidBatches} orderMode={orderMode} indiv={indivPricing} />}
         {page === 'checkout' && (orderMode==='INDIVIDUAL' || campaignCanOrder(campaign?.status)) && <CheckoutPage cartItems={cartItems} wants={wants} cartQtyByItem={cartQtyByItem} pricing={pricing} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} campaignStatus={campaign?.status} onOrderDone={handleOrderDone} toast={toast} previousPaidBatches={previousPaidBatches} onMoveToWants={handleMoveToWants} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} orderMode={orderMode} indiv={indivPricing} />}
