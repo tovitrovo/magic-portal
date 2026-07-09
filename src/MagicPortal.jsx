@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from 'react';
 import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff, Archive } from 'lucide-react';
 import { buildCatalogQueries, buildLatestCardQuery, RECENT_CARDS_FILTER } from './catalogQuery';
 import { buildShippingGroups, SHIPPING_SERVICE_UNKNOWN } from '../shared/shipping-groups';
@@ -1383,6 +1383,23 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
                 </div>
               ))}</div>
               :<div style={{fontSize:11,color:'rgba(255,255,255,0.2)',marginTop:8}}>Detalhes não disponíveis</div>}
+            {o.orderKind==='INDIVIDUAL'&&isPaid&&(()=>{
+              const idx=indivStageIndex(o.fulfillment_status);
+              const trackingCode=o.mandabem_rastreamento||o.mandabem_etiqueta;
+              return(<div style={{marginTop:10,padding:'10px 12px',borderRadius:10,background:'rgba(0,0,0,0.2)'}}>
+                <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.3)',marginBottom:8,textTransform:'uppercase',letterSpacing:1}}>Status do pedido</div>
+                <div style={{display:'flex',alignItems:'flex-start'}}>
+                  {INDIV_FULFILLMENT_STAGES.map((s,i)=>(<Fragment key={s.key}>
+                    {i>0&&<div style={{flex:1,height:2,background:i<=idx?'#2ee59d':'rgba(255,255,255,0.08)',marginTop:7}}/>}
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'center',width:44,flexShrink:0}}>
+                      <div style={{width:15,height:15,borderRadius:8,background:i<=idx?'#2ee59d':'rgba(255,255,255,0.08)',display:'grid',placeItems:'center'}}>{i<idx?<Check size={9} style={{color:'#04120c'}}/>:null}</div>
+                      <div style={{fontSize:8,color:i<=idx?'#2ee59d':'rgba(255,255,255,0.25)',marginTop:3,textAlign:'center',lineHeight:1.2}}>{s.short}</div>
+                    </div>
+                  </Fragment>))}
+                </div>
+                {trackingCode&&<div style={{fontSize:11,color:'#2ee59d',marginTop:10}}>Rastreio: {trackingCode}{o.mandabem_status?` · ${o.mandabem_status}`:''}</div>}
+              </div>);
+            })()}
             {showActions&&isPending&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginTop:10}}>
               <Btn variant="warn" onClick={(e)=>{e.stopPropagation();pagarAgoraPedido(o,toastFn);}} style={{width:'100%',fontSize:11,whiteSpace:'nowrap',justifyContent:'center'}} sfx="nav"><CreditCard size={12}/> Pagar</Btn>
               <Btn variant="ghost" onClick={async(e)=>{e.stopPropagation();try{await mpSync(o.id);onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:11,justifyContent:'center'}} sfx=""><RefreshCw size={12}/></Btn>
@@ -1623,9 +1640,183 @@ function OnboardingPage({onComplete,theme}){
 // ADMIN — full management panel
 const CAMPAIGN_STATUSES=['DRAFT','ACTIVE','LOCKED','ORDERING','ORDERED','RECEIVED','PACKING','SHIPPING','DONE','CANCELLED'];
 
+// Pipeline simplificado de importação do Pedido Individual (dropship via AliExpress).
+// Só se aplica a orders.kind==='INDIVIDUAL' — a Encomenda Coletiva usa o status da campanha.
+const INDIV_FULFILLMENT_STAGES=[
+  {key:'AWAITING_SUPPLIER_ORDER',label:'Aguardando compra',short:'Aguardando'},
+  {key:'ORDERED_FROM_SUPPLIER',label:'Encomenda feita',short:'Encomendado'},
+  {key:'SHIPPED_TO_BR',label:'A caminho do Brasil',short:'A caminho'},
+  {key:'ARRIVED_BR',label:'Chegou no Brasil',short:'Chegou'},
+  {key:'PREPARING',label:'Em preparação',short:'Preparando'},
+  {key:'LABEL_GENERATED',label:'Etiqueta gerada',short:'Enviado'},
+];
+function indivStageIndex(status){const i=INDIV_FULFILLMENT_STAGES.findIndex(s=>s.key===status);return i<0?0:i;}
+
+// Painel de Pedidos Individuais — não depende de nenhuma campanha selecionada,
+// já que orders.kind==='INDIVIDUAL' sempre tem campaign_id null. Agrupa por
+// dia de pagamento (o admin compra tudo do dia de uma vez no fornecedor).
+function AdminIndividualPanel({token,theme,toast:toastFn,onBack}){
+  const [orders,setOrders]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [expandedBatch,setExpandedBatch]=useState(null);
+  const [batchCards,setBatchCards]=useState({});
+  const [busyKey,setBusyKey]=useState(null);
+  const [dayFilter,setDayFilter]=useState('PENDING');
+
+  async function load(){
+    setLoading(true);
+    try{
+      const r=await fetch('/api/admin-individual-orders',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`}});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      setOrders(json.orders||[]);
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao carregar pedidos individuais: '+(e.message||String(e)),'error');}
+    setLoading(false);
+  }
+  useEffect(()=>{load();},[]);
+
+  const flatBatches=useMemo(()=>{
+    const list=[];
+    orders.forEach(o=>{(o.order_batches||[]).forEach(b=>{
+      list.push({...b,orderId:o.id,userId:o.user_id,clientName:o.profiles?.name||'—',clientWhatsapp:o.profiles?.whatsapp||'',clientEmail:o.profiles?.email||''});
+    });});
+    return list;
+  },[orders]);
+
+  const dayGroups=useMemo(()=>{
+    const groups=new Map();
+    flatBatches.forEach(b=>{
+      const ts=b.confirmed_at||b.created_at;
+      const dayKey=ts?new Date(ts).toLocaleDateString('pt-BR'):'—';
+      if(!groups.has(dayKey))groups.set(dayKey,{dayKey,ts:ts?new Date(ts).getTime():0,batches:[]});
+      groups.get(dayKey).batches.push(b);
+    });
+    return [...groups.values()].sort((a,b)=>b.ts-a.ts);
+  },[flatBatches]);
+
+  const visibleGroups=useMemo(()=>dayFilter==='ALL'?dayGroups:dayGroups.filter(g=>g.batches.some(b=>b.fulfillment_status!=='LABEL_GENERATED')),[dayGroups,dayFilter]);
+
+  async function loadBatchCards(batchId){
+    if(batchCards[batchId])return;
+    try{
+      const r=await fetch('/api/admin-batch-items',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchIds:[batchId]})});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      setBatchCards(prev=>({...prev,[batchId]:(json.items||[]).map(i=>({name:i.cards?.name||'Carta',type:i.cards?.type||'',qty:Number(i.quantity||1)}))}));
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao carregar itens: '+(e.message||String(e)),'error');}
+  }
+
+  async function setFulfillment(batchIds,status,busyId){
+    setBusyKey(busyId);
+    try{
+      const r=await fetch('/api/admin-update-fulfillment',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchIds,fulfillmentStatus:status})});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      SFX.success();
+      await load();
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao atualizar status: '+(e.message||String(e)),'error');}
+    setBusyKey(null);
+  }
+
+  async function generateLabel(batch){
+    let formaEnvio=batch.shipping_service&&batch.shipping_service!==SHIPPING_SERVICE_UNKNOWN?batch.shipping_service:'';
+    const action=batch.mandabem_envio_id?'refresh':'generate';
+    if(action==='generate'){
+      if(!formaEnvio){
+        const svc=prompt('Serviço não identificado. Selecione PAC, SEDEX ou PACMINI:','PACMINI');
+        if(svc===null)return;
+        formaEnvio=svc.trim().toUpperCase().replace(/[\s_-]+/g,'');
+        if(!['PAC','SEDEX','PACMINI'].includes(formaEnvio)){if(toastFn)toastFn('Serviço inválido. Use PAC, SEDEX ou PACMINI.','error');return;}
+      }
+      if(!confirm('Gerar etiqueta/envio no MandaBem para este pedido?'))return;
+    }
+    setBusyKey(batch.id);
+    try{
+      const r=await fetch('/api/admin-mandabem-label',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:batch.id,action,formaEnvio})});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      if(action==='generate'){
+        await fetch('/api/admin-update-fulfillment',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchIds:[batch.id],fulfillmentStatus:'LABEL_GENERATED'})}).catch(()=>{});
+      }
+      SFX.success();if(toastFn)toastFn(action==='refresh'?'Envio atualizado no MandaBem':'Etiqueta gerada no MandaBem','success');
+      await load();
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro MandaBem: '+(e.message||String(e)),'error');}
+    setBusyKey(null);
+  }
+
+  return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+      <div style={{display:'flex',alignItems:'center',gap:8}}>
+        <button onClick={onBack} style={{background:'none',border:'none',color:'#fff',cursor:'pointer',padding:2}}><ChevronLeft size={18}/></button>
+        <Package size={18} style={{color:theme.primary}}/>
+        <span style={{fontFamily:"'Cinzel',serif",fontSize:16,fontWeight:700}}>Pedidos Individuais</span>
+      </div>
+      <button onClick={load} style={{background:'none',border:'none',color:'rgba(255,255,255,0.4)',cursor:'pointer'}}><RefreshCw size={16}/></button>
+    </div>
+
+    <div style={{display:'flex',gap:4}}>
+      <button onClick={()=>setDayFilter('PENDING')} style={{flex:1,padding:'7px 0',borderRadius:10,border:'none',background:dayFilter==='PENDING'?theme.primary+'15':'rgba(255,255,255,0.025)',color:dayFilter==='PENDING'?theme.primary:'rgba(255,255,255,0.3)',fontWeight:600,fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Pendentes</button>
+      <button onClick={()=>setDayFilter('ALL')} style={{flex:1,padding:'7px 0',borderRadius:10,border:'none',background:dayFilter==='ALL'?theme.primary+'15':'rgba(255,255,255,0.025)',color:dayFilter==='ALL'?theme.primary:'rgba(255,255,255,0.3)',fontWeight:600,fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Todos ({flatBatches.length})</button>
+    </div>
+
+    {loading?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:
+    visibleGroups.length===0?<EmptyState icon={Package} title="Nenhum pedido" sub="Nenhum pedido individual pago encontrado"/>:
+    visibleGroups.map(group=>{
+      const stageIdxs=group.batches.map(b=>indivStageIndex(b.fulfillment_status));
+      const minIdx=Math.min(...stageIdxs);
+      const nextStage=INDIV_FULFILLMENT_STAGES[minIdx+1];
+      const bulkTargets=group.batches.filter(b=>indivStageIndex(b.fulfillment_status)===minIdx).map(b=>b.id);
+      return(<Card key={group.dayKey} style={{padding:14}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,gap:8}}>
+          <div>
+            <div style={{fontSize:13,fontWeight:800}}>{group.dayKey}</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>{group.batches.length} pedido(s) · {group.batches.reduce((s,b)=>s+Number(b.qty_in_batch||0),0)} cartas</div>
+          </div>
+          {nextStage&&nextStage.key!=='LABEL_GENERATED'&&bulkTargets.length>0&&<Btn variant="secondary" onClick={()=>setFulfillment(bulkTargets,nextStage.key,group.dayKey)} disabled={busyKey===group.dayKey} style={{padding:'6px 10px',fontSize:11,flexShrink:0}} sfx="">
+            {busyKey===group.dayKey?<Spin size={12}/>:<><ArrowRight size={12}/> Marcar grupo: {nextStage.label}</>}
+          </Btn>}
+        </div>
+        <div style={{display:'flex',flexDirection:'column',gap:6}}>
+          {group.batches.map(b=>{
+            const isExp=expandedBatch===b.id;
+            const idx=indivStageIndex(b.fulfillment_status);
+            const stageInfo=INDIV_FULFILLMENT_STAGES[idx];
+            const next=INDIV_FULFILLMENT_STAGES[idx+1];
+            const trackingCode=b.mandabem_rastreamento||b.mandabem_etiqueta;
+            return(<div key={b.id} style={{borderTop:'1px solid rgba(255,255,255,0.04)',paddingTop:6}}>
+              <div onClick={async()=>{const nextExp=isExp?null:b.id;setExpandedBatch(nextExp);if(nextExp)await loadBatchCards(b.id);}} style={{cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div style={{display:'flex',alignItems:'center',gap:6}}>
+                  <span style={{fontSize:12,fontWeight:800,fontFamily:'monospace',color:'rgba(255,255,255,0.6)'}}>#{String(b.id).slice(0,8).toUpperCase()}</span>
+                  <span style={{fontSize:13,fontWeight:700}}>{b.clientName}</span>
+                </div>
+                <div style={{display:'flex',alignItems:'center',gap:6}}>
+                  <Tag color={idx>=5?'#2ee59d':theme.primary} style={{fontSize:9}}>{stageInfo.short}</Tag>
+                  <ChevronRight size={12} style={{color:'rgba(255,255,255,0.15)',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
+                </div>
+              </div>
+              {isExp&&<div style={{marginTop:8,display:'flex',flexDirection:'column',gap:8}}>
+                <div style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>{b.qty_in_batch} cartas · R$ {Number(b.total_locked||0).toFixed(2)}</div>
+                {(batchCards[b.id]||[]).length>0?batchCards[b.id].map((c,ci)=>(<div key={ci} style={{display:'flex',gap:8,fontSize:12}}><span style={{flex:1,color:'rgba(255,255,255,0.5)'}}>{c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span><span style={{fontWeight:700}}>x{c.qty}</span></div>)):<div style={{fontSize:11,color:'rgba(255,255,255,0.2)'}}>Carregando itens...</div>}
+                {trackingCode&&<div style={{fontSize:11,color:'#2ee59d'}}>Rastreio: {trackingCode}{b.mandabem_status?` · ${b.mandabem_status}`:''}</div>}
+                <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                  {stageInfo.key==='PREPARING'&&<Btn variant="secondary" onClick={()=>generateLabel(b)} disabled={busyKey===b.id} style={{padding:'6px 10px',fontSize:11}} sfx=""><Truck size={12}/> Gerar etiqueta</Btn>}
+                  {stageInfo.key==='LABEL_GENERATED'&&<Btn variant="secondary" onClick={()=>generateLabel(b)} disabled={busyKey===b.id} style={{padding:'6px 10px',fontSize:11}} sfx=""><RefreshCw size={12}/> Atualizar envio</Btn>}
+                  {next&&next.key!=='LABEL_GENERATED'&&<Btn variant="ghost" onClick={()=>setFulfillment([b.id],next.key,b.id)} disabled={busyKey===b.id} style={{padding:'6px 10px',fontSize:11}} sfx="">→ {next.label}</Btn>}
+                  {b.clientWhatsapp&&trackingCode&&<button onClick={()=>{const url=buildShipmentWhatsAppUrl({name:b.clientName,whatsapp:b.clientWhatsapp},'',trackingCode,b.mandabem_status);if(!url){if(toastFn)toastFn('Cliente sem WhatsApp válido','error');return;}window.open(url,'_blank','noopener,noreferrer');}} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(37,211,102,0.08)',border:'1px solid rgba(37,211,102,0.18)',borderRadius:10,padding:'6px 10px',color:'#25d366',fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={12}/> Enviar rastreio</button>}
+                </div>
+              </div>}
+            </div>);
+          })}
+        </div>
+      </Card>);
+    })}
+  </div>);
+}
+
 function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,onReload,toast:toastFn}){
   const [campaigns,setCampaigns]=useState([]);
   const [selectedCampaign,setSelectedCampaign]=useState(campProp||null);
+  const [adminSection,setAdminSection]=useState('campaign'); // 'campaign' | 'individual'
   const [tab,setTab]=useState('orders');
   const [orders,setOrders]=useState([]);
   const [allProfiles,setAllProfiles]=useState([]);
@@ -2162,11 +2353,19 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   const finalizedCampaigns=campaigns.filter(c=>c.status==='DONE'||c.status==='CANCELLED');
   const adminTabs=[{key:'orders',icon:Package,label:'Pedidos'},{key:'clients',icon:User,label:'Clientes'},{key:'labels',icon:Truck,label:'Etiquetas'},{key:'list',icon:ScrollText,label:'Lista Final'},{key:'config',icon:Settings,label:'Configurações'}];
 
+  const sectionSwitcher=(<div style={{display:'flex',gap:6}}>
+    <button onClick={()=>setAdminSection('campaign')} style={{flex:1,padding:'8px 10px',borderRadius:10,border:'1px solid '+(adminSection==='campaign'?theme.primary+'55':'rgba(255,255,255,0.06)'),background:adminSection==='campaign'?theme.primary+'18':'rgba(255,255,255,0.02)',color:adminSection==='campaign'?theme.primary:'rgba(255,255,255,0.4)',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>🛒 Encomenda Coletiva</button>
+    <button onClick={()=>setAdminSection('individual')} style={{flex:1,padding:'8px 10px',borderRadius:10,border:'1px solid '+(adminSection==='individual'?theme.primary+'55':'rgba(255,255,255,0.06)'),background:adminSection==='individual'?theme.primary+'18':'rgba(255,255,255,0.02)',color:adminSection==='individual'?theme.primary:'rgba(255,255,255,0.4)',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>👤 Pedidos Individuais</button>
+  </div>);
+
+  if(adminSection==='individual')return<AdminIndividualPanel token={token} theme={theme} toast={toastFn} onBack={()=>setAdminSection('campaign')}/>;
+
   if(!selectedCampaign)return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
       <div style={{display:'flex',alignItems:'center',gap:8}}><Shield size={18} style={{color:theme.primary}}/><span style={{fontFamily:"'Cinzel',serif",fontSize:18,fontWeight:700}}>Admin</span></div>
       <Btn variant="ghost" onClick={()=>nav('profile')} style={{padding:'6px 10px',fontSize:12}} sfx="nav"><ChevronLeft size={14}/></Btn>
     </div>
+    {sectionSwitcher}
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
       <SectionTitle sub="Selecione uma encomenda para gerenciar">Encomendas</SectionTitle>
       <button onClick={()=>setShowCreateForm(v=>!v)} style={{width:32,height:32,borderRadius:10,border:'1px solid '+theme.primary+'30',background:theme.primary+'15',color:theme.primary,fontSize:20,display:'grid',placeItems:'center',cursor:'pointer'}}>{showCreateForm?'×':'+'}</button>
@@ -2211,6 +2410,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       </div>
       <Tag color={isFinalized?'rgba(255,255,255,0.3)':'#2ee59d'} style={{fontSize:10}}>{selectedCampaign.status}</Tag>
     </div>
+    {sectionSwitcher}
     <Card style={{padding:12}}>
       <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:8}}>
         <div><span style={{color:'rgba(255,255,255,0.3)'}}>Cartas pagas</span> <b style={{color:isViableAdmin?'#2ee59d':theme.primary}}>{pool||0}</b><span style={{color:'rgba(255,255,255,0.2)',fontSize:10}}> / {minCards}</span></div>
@@ -2988,13 +3188,14 @@ export default function MagicPortal(){
 
         // Order history — all paid batches across all campaigns
         try {
-          const allOrds = await sbGet('orders', `user_id=eq.${userId}&select=id,campaign_id,campaigns(status)`, tkn);
+          const allOrds = await sbGet('orders', `user_id=eq.${userId}&select=id,campaign_id,kind,campaigns(status)`, tkn);
           if (allOrds && allOrds.length > 0) {
             const ordCampStatus = {};
-            allOrds.forEach(o => { ordCampStatus[o.id] = o.campaigns?.status || null; });
+            const ordKind = {};
+            allOrds.forEach(o => { ordCampStatus[o.id] = o.campaigns?.status || null; ordKind[o.id] = o.kind || (o.campaign_id ? 'CAMPAIGN' : 'INDIVIDUAL'); });
             const ordIds = allOrds.map(o=>o.id).join(',');
-            const batches = await sbGet('order_batches', `order_id=in.(${ordIds})&select=id,status,payment_status,total_locked,payment_method,created_at,qty_in_batch,shipping_locked,shipping_service,shipping_already_paid,shipping_group_id,mandabem_envio_id,mandabem_rastreamento,mp_link,brl_unit_price_locked,subtotal_locked,order_id,order_items(quantity,cards(name,type))`, tkn);
-            setMyOrders((batches||[]).map(b=>({ ...b, campaignStatus: ordCampStatus[b.order_id] || null, cards: Array.isArray(b.order_items) ? b.order_items.map(i=>({ name:i.cards?.name||'Carta', type:i.cards?.type||'', qty:Number(i.quantity||1) })) : undefined })));
+            const batches = await sbGet('order_batches', `order_id=in.(${ordIds})&select=id,status,payment_status,total_locked,payment_method,created_at,qty_in_batch,shipping_locked,shipping_service,shipping_already_paid,shipping_group_id,mandabem_envio_id,mandabem_rastreamento,mandabem_status,fulfillment_status,mp_link,brl_unit_price_locked,subtotal_locked,order_id,order_items(quantity,cards(name,type))`, tkn);
+            setMyOrders((batches||[]).map(b=>({ ...b, campaignStatus: ordCampStatus[b.order_id] || null, orderKind: ordKind[b.order_id] || 'CAMPAIGN', cards: Array.isArray(b.order_items) ? b.order_items.map(i=>({ name:i.cards?.name||'Carta', type:i.cards?.type||'', qty:Number(i.quantity||1) })) : undefined })));
           }
         } catch(e) {
           if (isAuthFailure(e)) throw e;
