@@ -145,6 +145,18 @@ O bônus permite conceder cartas grátis a um usuário em uma campanha. Pode ser
 4. **API**: o endpoint `/api/admin-bonus` gerencia bônus (listar, conceder, revogar) usando `SB_SERVICE_ROLE_KEY`
 5. **Helper**: `_bonus-helper.js` contém a lógica de auto-grant, usada por `mp-webhook.js`, `mp-sync.js` e `admin-mark-paid.js`
 
+### Fulfillment do Pedido Individual
+
+O Pedido Individual (modo e-commerce, sem campanha) tem um pipeline de status simplificado para acompanhar a importação via fornecedor (AliExpress), separado do status da Encomenda Coletiva:
+
+`Aguardando compra` → `Encomenda feita` → `A caminho do Brasil` → `Chegou no Brasil` → `Em preparação` → (gera etiqueta MandaBem, que assume o rastreio automático)
+
+**Banco já existente?** Execute `supabase/migrations/add-individual-fulfillment-status.sql` no SQL Editor do Supabase. Adiciona a coluna `order_batches.fulfillment_status`.
+
+- **Admin**: aba **👤 Pedidos Individuais** (independente de campanha selecionada) agrupa os pedidos pagos por dia de pagamento, com avanço de status em lote por grupo ou individual.
+- **API**: `/api/admin-individual-orders` lista os pedidos; `/api/admin-update-fulfillment` avança o status de um ou mais lotes.
+- **Cliente**: em "Meus Pedidos", pedidos Individuais pagos mostram uma barra de progresso com o status atual.
+
 ### Como executar:
 
 1. Abra o [Supabase Dashboard](https://supabase.com/dashboard)
