@@ -3527,7 +3527,6 @@ export default function MagicPortal(){
                 <Card style={{padding:20}}>
                   <div style={{fontSize:11,color:'rgba(255,255,255,0.28)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif",textAlign:'center'}}>Pedido Individual</div>
                   <h1 style={{margin:'5px 0 10px',fontSize:24,fontFamily:"'Cinzel',serif",textAlign:'center',background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Quanto mais cartas, menor o preço</h1>
-                  <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',lineHeight:1.5,textAlign:'center'}}>O valor por carta reajusta conforme a quantidade no carrinho. Mínimo de {indivPricing?.pricing?.min_cards||MIN_ORDER_CARDS} cartas.{indivPricing?.fx?.rate?` · Dólar do dia: R$ ${Number(indivPricing.fx.rate).toFixed(2)}`:''}</div>
                   <Btn full onClick={()=>nav('catalog')} sfx="nav" style={{marginTop:14}}><BookOpen size={16}/> Montar meu pedido</Btn>
                 </Card>
               </div>
