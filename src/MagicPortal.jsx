@@ -1479,6 +1479,7 @@ function AuthPage({onLogin,theme}){
 
   async function submit(){
     setErr('');
+    const cleanEmail=email.trim().toLowerCase();
     if(!senhaOk){setErr('A senha deve conter 6 números');return;}
     if(mode==='signup'&&senha!==senha2){setErr('As senhas não coincidem');return;}
     setLoading(true);
@@ -1486,18 +1487,18 @@ function AuthPage({onLogin,theme}){
       if(mode==='signup'){
         if(!name){setErr('Preencha o nome');setLoading(false);return;}
         if(!whatsapp||whatsapp.length<10){setErr('WhatsApp inválido');setLoading(false);return;}
-        const res=await sbAuthSignUp(email,senha);
+        const res=await sbAuthSignUp(cleanEmail,senha);
         let session;
         if (res.access_token) session = res;
         else if (res.session?.access_token) session = res.session;
-        else session = await sbAuthSignIn(email, senha);
+        else session = await sbAuthSignIn(cleanEmail, senha);
         const userId = session.user?.id || res.user?.id;
         const token = session.access_token;
-        await sbUpsert('profiles', { id: userId, name, whatsapp, email, is_admin: false }, token);
+        await sbUpsert('profiles', { id: userId, name, whatsapp, email: cleanEmail, is_admin: false }, token);
         SFX.confirm();
         onLogin(session, 'signup');
       } else {
-        const res=await sbAuthSignIn(email,senha);
+        const res=await sbAuthSignIn(cleanEmail,senha);
         SFX.success();
         onLogin(res,'login');
       }
@@ -1509,10 +1510,11 @@ function AuthPage({onLogin,theme}){
   }
 
   async function handleForgot(){
-    if(!email.includes('@')){setErr('Digite seu email primeiro');return;}
+    const cleanEmail=email.trim().toLowerCase();
+    if(!cleanEmail.includes('@')){setErr('Digite seu email primeiro');return;}
     setErr('');setLoading(true);
     try{
-      await sbAuthResetPassword(email);
+      await sbAuthResetPassword(cleanEmail);
       setResetSent(true);SFX.success();
     }catch(e){setErr(e.message);}
     setLoading(false);
@@ -1527,7 +1529,7 @@ function AuthPage({onLogin,theme}){
       <Btn full variant="secondary" onClick={()=>{setForgotMode(false);setResetSent(false);}} style={{marginTop:16}} sfx="nav">Voltar ao login</Btn>
     </Card>:<>
       <div style={{fontSize:13,color:'rgba(255,255,255,0.4)',textAlign:'center'}}>Digite seu email e enviaremos um link para redefinir sua senha.</div>
-      <Input icon={Mail} placeholder="seu@email.com" value={email} onChange={e=>setEmail(e.target.value)}/>
+      <Input icon={Mail} type="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="seu@email.com" value={email} onChange={e=>setEmail(e.target.value)}/>
       {err&&<div style={{fontSize:12,color:'#ff6b7a',textAlign:'center',padding:4}}><AlertTriangle size={12}/> {err}</div>}
       <Btn full onClick={handleForgot} disabled={!email.includes('@')||loading} sfx="">{loading?<Spin size={16}/>:<><Mail size={16}/> Enviar link de recuperação</>}</Btn>
       <button onClick={()=>{setForgotMode(false);setErr('');}} style={{background:'none',border:'none',color:'var(--gp)',fontSize:13,cursor:'pointer',fontFamily:"'Outfit',sans-serif",padding:8,textAlign:'center'}}>Voltar ao login</button>
@@ -1538,7 +1540,7 @@ function AuthPage({onLogin,theme}){
     <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>⚔️</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:22}}>{mode==='login'?'Bem-vindo':'Junte-se'}</h1></div>
     <div style={{display:'flex',borderRadius:12,background:'rgba(255,255,255,0.025)',padding:3,gap:3}}>{['login','signup'].map(m=>(<button key={m} onClick={()=>{SFX.toggle();setMode(m);setErr('');setSenha('');setSenha2('');setShowVK(false);}} style={{flex:1,padding:'9px 0',borderRadius:10,border:'none',background:mode===m?'rgba(255,255,255,0.07)':'transparent',color:mode===m?'#fff':'rgba(255,255,255,0.3)',fontWeight:700,fontSize:13,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{m==='login'?'Entrar':'Criar conta'}</button>))}</div>
     {mode==='signup'&&<Input icon={User} placeholder="Seu nome" value={name} onChange={e=>setName(e.target.value)}/>}
-    <Input icon={Mail} placeholder="seu@email.com" value={email} onChange={e=>setEmail(e.target.value)}/>
+    <Input icon={Mail} type="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="seu@email.com" value={email} onChange={e=>setEmail(e.target.value)}/>
     {mode==='signup'&&<Input icon={Phone} placeholder="WhatsApp (11999999999)" value={whatsapp} onChange={e=>setWhatsapp(e.target.value.replace(/\D/g,'').slice(0,11))}/>}
     <div>
       <div onClick={()=>openVK('senha')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='senha'?'var(--gp)':'rgba(255,255,255,0.08)'),background:'rgba(0,0,0,0.3)',color:senha?'#e9edf7':'rgba(255,255,255,0.3)',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
