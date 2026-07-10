@@ -128,3 +128,58 @@ export function buildCardsFromCsv(text, options = {}) {
   }
   return { cards, skipped, total: rows.length };
 }
+
+// ──────────────────────────────────────────────────────────────
+// Adição de cartas por link de imagem (ex: Google Imagens).
+// Compartilhado entre o painel admin (preview) e o endpoint
+// /api/admin-add-cards-by-link (download + upload no servidor).
+// ──────────────────────────────────────────────────────────────
+
+// Link de resultado do Google Imagens (…/imgres?imgurl=https%3A%2F%2F…) → URL real da imagem.
+// Se já for uma URL direta (ex: "copiar endereço da imagem"), retorna como está.
+export function extractImageUrl(link) {
+  const s = String(link == null ? '' : link).trim();
+  if (!s) return '';
+  try {
+    const u = new URL(s);
+    if (/(^|\.)google\.[a-z.]+$/i.test(u.hostname) && u.pathname.includes('/imgres')) {
+      const imgurl = u.searchParams.get('imgurl');
+      if (imgurl) return imgurl;
+    }
+    return s;
+  } catch {
+    return s;
+  }
+}
+
+// "Aragorn, King of Gondor" → "aragorn-king-of-gondor"
+export function slugify(input) {
+  const s = String(input == null ? '' : input)
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return s.slice(0, 80) || 'carta';
+}
+
+// Lista colada pelo admin (uma carta por linha: "Nome da carta | link da imagem").
+// Linhas vazias e iniciadas com "#" são ignoradas. Separa itens válidos de
+// inválidos para exibir um preview antes de enviar ao servidor.
+export function parseCardLinkList(text) {
+  const lines = String(text == null ? '' : text).split(/\r\n|\r|\n/);
+  const items = [];
+  const invalid = [];
+  let total = 0;
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    total++;
+    const idx = line.indexOf('|');
+    if (idx === -1) { invalid.push({ raw: line, error: 'Formato esperado: Nome da carta | link da imagem' }); continue; }
+    const name = cleanName(line.slice(0, idx).trim());
+    const url = extractImageUrl(line.slice(idx + 1).trim());
+    if (!name || !url) { invalid.push({ raw: line, error: 'Nome ou link ausente' }); continue; }
+    items.push({ name, url });
+  }
+  return { items, invalid, total };
+}

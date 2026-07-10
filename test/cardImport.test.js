@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   decodeHtmlEntities, parseCsv, categoryToType, cleanName,
   basename, parseMoney, rowToCard, buildCardsFromCsv, STORAGE_BASE,
+  extractImageUrl, slugify, parseCardLinkList,
 } from '../shared/cardImport.js';
 
 test('decodeHtmlEntities decodifica numéricas e nomeadas', () => {
@@ -83,4 +84,43 @@ test('buildCardsFromCsv deduplica import_ref e conta puladas', () => {
   assert.equal(cards.length, 1);
   assert.equal(skipped, 2); // duplicado + linha sem nome
   assert.equal(cards[0].import_ref, 'a.jpg');
+});
+
+test('extractImageUrl extrai imgurl de link do Google Imagens', () => {
+  assert.equal(
+    extractImageUrl('https://www.google.com/imgres?q=aragorn&imgurl=https%3A%2F%2Fexample.com%2Faragorn.jpg&imgrefurl=https%3A%2F%2Fexample.com'),
+    'https://example.com/aragorn.jpg',
+  );
+});
+
+test('extractImageUrl mantém link direto de imagem como está', () => {
+  assert.equal(extractImageUrl('https://cards.scryfall.io/large/aragorn.jpg'), 'https://cards.scryfall.io/large/aragorn.jpg');
+  assert.equal(extractImageUrl(''), '');
+  assert.equal(extractImageUrl('não é url'), 'não é url');
+});
+
+test('slugify normaliza acentos e espaços', () => {
+  assert.equal(slugify('Aragorn, King of Gondor'), 'aragorn-king-of-gondor');
+  assert.equal(slugify('Ração Élfica'), 'racao-elfica');
+  assert.equal(slugify(''), 'carta');
+});
+
+test('parseCardLinkList separa itens válidos de inválidos', () => {
+  const text = [
+    '# comentário',
+    'Aragorn, King of Gondor | https://www.google.com/imgres?imgurl=https%3A%2F%2Fexample.com%2Faragorn.jpg',
+    'Sauron | https://example.com/sauron.png',
+    'linha sem separador',
+    'Vazio |',
+    '',
+  ].join('\n');
+  const { items, invalid, total } = parseCardLinkList(text);
+  assert.equal(total, 4);
+  assert.deepEqual(items, [
+    { name: 'Aragorn, King of Gondor', url: 'https://example.com/aragorn.jpg' },
+    { name: 'Sauron', url: 'https://example.com/sauron.png' },
+  ]);
+  assert.equal(invalid.length, 2);
+  assert.equal(invalid[0].error, 'Formato esperado: Nome da carta | link da imagem');
+  assert.equal(invalid[1].error, 'Nome ou link ausente');
 });
