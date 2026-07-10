@@ -80,6 +80,9 @@ export async function onRequest(context) {
   if (items.length === 0) return json({ ok: false, error: "Nenhuma carta informada" }, 400);
   if (items.length > MAX_ITEMS) return json({ ok: false, error: `Máximo de ${MAX_ITEMS} cartas por vez` }, 400);
 
+  const tcg = (typeof body.tcg === "string" && body.tcg.trim()) || "Magic";
+  const type = (typeof body.type === "string" && body.type.trim()) || "Normal";
+
   const headers = {
     apikey: SB_SERVICE_ROLE_KEY,
     Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}`,
@@ -102,8 +105,8 @@ export async function onRequest(context) {
 
         const card = {
           name,
-          type: "Normal",
-          tcg: "Magic",
+          type,
+          tcg,
           is_active: true,
           image_url: STORAGE_BASE + filename,
           import_ref: filename,
