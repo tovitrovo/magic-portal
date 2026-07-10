@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from 'rea
 import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff, Archive } from 'lucide-react';
 import { buildCatalogQueries, buildLatestCardQuery, RECENT_CARDS_FILTER } from './catalogQuery';
 import { buildShippingGroups, SHIPPING_SERVICE_UNKNOWN } from '../shared/shipping-groups';
-import { buildCardsFromCsv } from '../shared/cardImport';
+import { buildCardsFromCsv, parseCardLinkList } from '../shared/cardImport';
 import { pricePerCard as indivPricePerCard } from '../shared/individualPricing';
 import { DEFAULT_WHATSAPP_MESSAGES, WHATSAPP_AUDIENCES, buildShipmentWhatsAppUrl, buildWhatsAppUrl, getWhatsAppRecipients } from './whatsappCommunication';
 import './responsive.css';
@@ -1840,6 +1840,15 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   const [importing,setImporting]=useState(false);
   const [importResult,setImportResult]=useState(null);
 
+  // Adicionar cartas por link de imagem (ex: Google Imagens)
+  const [linkListText,setLinkListText]=useState('');
+  const [linkPreview,setLinkPreview]=useState(null);
+  const [linkAdding,setLinkAdding]=useState(false);
+  const [linkResult,setLinkResult]=useState(null);
+  const [linkTcg,setLinkTcg]=useState('Magic');
+  const [linkType,setLinkType]=useState('Normal');
+  const linkTypeOptions=(TCG_LIST.find(t=>t.key===linkTcg)?.types||[]).filter(t=>t!=='Todos');
+
   // Precificação do pedido individual
   const [indivCfg,setIndivCfg]=useState(null);
   const [indivTiers,setIndivTiers]=useState([]);
@@ -2292,6 +2301,25 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       setImportResult(json);SFX.success();if(onReload)onReload();
     }catch(e){console.error(e);if(toastFn)toastFn('Erro ao importar catálogo: '+(e.message||String(e)),'error');}
     setImporting(false);
+  }
+
+  function onLinkListChange(text){
+    setLinkListText(text);
+    setLinkResult(null);
+    setLinkPreview(text.trim()?parseCardLinkList(text):null);
+  }
+
+  async function addCardsByLink(){
+    if(!linkPreview||linkPreview.items.length===0)return;
+    setLinkAdding(true);setLinkResult(null);
+    try{
+      const r=await fetch('/api/admin-add-cards-by-link',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({items:linkPreview.items,tcg:linkTcg,type:linkType})});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      setLinkResult(json);
+      if(json.added>0){SFX.success();if(onReload)onReload();}
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao adicionar cartas: '+(e.message||String(e)),'error');}
+    setLinkAdding(false);
   }
 
   async function saveIndividualPricing(){
@@ -2812,6 +2840,30 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         <Btn full variant="success" onClick={importCards} disabled={importing||!importPreview||!!(importPreview&&importPreview.error)||!(importPreview&&importPreview.valid>0)} style={{marginTop:12}} sfx="">{importing?<Spin size={14}/>:<><Upload size={14}/> Importar catálogo</>}</Btn>
         {importResult&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:10,background:'rgba(74,222,128,0.08)',border:'1px solid rgba(74,222,128,0.2)',fontSize:12,color:'rgba(255,255,255,0.7)',lineHeight:1.6}}>
           <Check size={13} style={{verticalAlign:'middle',color:'#4ade80'}}/> Importado: <b>{importResult.upserted}</b> cartas{importResult.deactivated>0?<> · {importResult.deactivated} antigas desativadas</>:null}{importResult.skipped>0?<> · {importResult.skipped} ignoradas</>:null}
+        </div>}
+      </Card>
+
+      {/* Adicionar cartas avulsas por link de imagem (ex: Google Imagens) */}
+      <Card style={{padding:16}}>
+        <SectionTitle sub="Cola uma lista com nome + link da imagem — o servidor baixa e sobe a imagem automaticamente">Adicionar Cartas por Link</SectionTitle>
+        <div style={{fontSize:12,color:'rgba(255,255,255,0.3)',marginBottom:12,lineHeight:1.5}}>Uma carta por linha, no formato <b>Nome da carta | link da imagem</b>. Aceita link direto da imagem ou link de resultado do Google Imagens (a URL real é extraída automaticamente). Máximo de 25 cartas por vez. O TCG e o tipo abaixo valem para todas as cartas desta lista.</div>
+        <div style={{display:'flex',gap:8,marginBottom:10}}>
+          <select value={linkTcg} onChange={e=>{const tcg=e.target.value;setLinkTcg(tcg);const opts=(TCG_LIST.find(t=>t.key===tcg)?.types||[]).filter(t=>t!=='Todos');setLinkType(opts[0]||'Normal');}} style={{flex:1,padding:'10px 8px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:11,fontFamily:"'Outfit',sans-serif",outline:'none',cursor:'pointer'}}>
+            {TCG_LIST.map(t=><option key={t.key} value={t.key}>{t.key}</option>)}
+          </select>
+          <select value={linkType} onChange={e=>setLinkType(e.target.value)} style={{flex:1,padding:'10px 8px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:11,fontFamily:"'Outfit',sans-serif",outline:'none',cursor:'pointer'}}>
+            {linkTypeOptions.map(t=><option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+        <textarea value={linkListText} onChange={e=>onLinkListChange(e.target.value)} placeholder={'Aragorn, King of Gondor | https://exemplo.com/aragorn.jpg\nSauron, the Dark Lord | https://www.google.com/imgres?imgurl=...'} rows={6} style={{width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.02)',color:'#fff',fontSize:12,fontFamily:'monospace',resize:'vertical',boxSizing:'border-box'}}/>
+        {linkPreview&&<div style={{marginTop:12,padding:'10px 12px',borderRadius:10,background:'rgba(255,255,255,0.03)',fontSize:12,color:'rgba(255,255,255,0.55)',lineHeight:1.6}}>
+          <div><b style={{color:theme.primary}}>{linkPreview.items.length}</b> carta(s) válida(s) de {linkPreview.total} linha(s){linkPreview.invalid.length>0?<> · <span style={{color:'#d9a452'}}>{linkPreview.invalid.length} com erro</span></>:null}</div>
+          {linkPreview.invalid.length>0&&<div style={{marginTop:4,fontSize:11,color:'#d9a452'}}>{linkPreview.invalid.map((inv,i)=><div key={i}>· {inv.raw||'(linha vazia)'}: {inv.error}</div>)}</div>}
+        </div>}
+        <Btn full variant="success" onClick={addCardsByLink} disabled={linkAdding||!linkPreview||linkPreview.items.length===0||linkPreview.items.length>25} style={{marginTop:12}} sfx="">{linkAdding?<Spin size={14}/>:<><Upload size={14}/> Adicionar cartas</>}</Btn>
+        {linkResult&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:10,background:linkResult.failed>0?'rgba(217,164,82,0.08)':'rgba(74,222,128,0.08)',border:'1px solid '+(linkResult.failed>0?'rgba(217,164,82,0.2)':'rgba(74,222,128,0.2)'),fontSize:12,color:'rgba(255,255,255,0.7)',lineHeight:1.6}}>
+          <Check size={13} style={{verticalAlign:'middle',color:'#4ade80'}}/> Adicionadas: <b>{linkResult.added}</b> carta(s){linkResult.failed>0?<> · {linkResult.failed} falharam</>:null}
+          {linkResult.results.filter(r=>!r.ok).map((r,i)=><div key={i} style={{marginTop:4,fontSize:11,color:'#ff6b7a'}}>· {r.name||r.url}: {r.error}</div>)}
         </div>}
       </Card>
 
