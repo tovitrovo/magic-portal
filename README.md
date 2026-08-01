@@ -4,7 +4,7 @@ O **catálogo está funcional** no código. Corrigi os bugs que impediam o funci
 
 ### ✅ Correções Realizadas:
 1. **Variáveis undefined** - Adicionei campaignStatus como prop no CatalogPage
-2. **Função handleAddWant** - Verificada e funcionando corretamente
+2. **Função de adicionar à lista** - Verificada e funcionando corretamente
 3. **Busca no Supabase** - Query otimizada para buscar cartas ativas
 4. **Renderização** - Cartas aparecem com nome, tipo e botão de adicionar
 
@@ -17,21 +17,23 @@ pm install
 ode check-cards.js (criará cartas de exemplo se necessário)
 4. **Rodar projeto**: 
 pm run dev
-5. **Testar catálogo** - Deve mostrar cartas e permitir adicionar aos wants
+5. **Testar catálogo** - Deve mostrar cartas e permitir adicionar à lista de desejos
 
 ### 📋 Como Funciona:
 
 1. **Cliente acessa catálogo** → Cartas carregam do Supabase
-2. **Cliente clica no botão '+'** → Carta vai para lista de wants
-3. **Carta fica salva** no banco como order_item 
-4. **Cliente vê na aba 'Wants'** → Pode ajustar quantidades e mover pro carrinho
+2. **Cliente clica no botão '+'** → Carta entra na lista de desejos
+3. **Carta fica salva** no banco como `wishlist_item` (por usuário, não por pedido)
+4. **Cliente vê na aba 'Desejos'** → Ajusta quantidades e manda pro carrinho; a
+   carta **continua na lista**, marcada como "no carrinho". Ver
+   [Lista de desejos](#-lista-de-desejos).
 
 O sistema já está **pronto para uso**! 🎉
 
 ### ✅ Funcionalidades Implementadas
 - ✅ Catálogo de cartas MTG do Supabase
 - ✅ Busca e filtros funcionais  
-- ✅ Adicionar cartas aos wants
+- ✅ Lista de desejos que sobrevive à compra
 - ✅ Persistência no banco de dados
 - ✅ Interface responsiva
 - ✅ **Painel Admin Completo:**
@@ -56,7 +58,7 @@ ode check-cards.js para verificar/popular dados de teste
 - [ ] Rodar 
 pm run dev e testar catálogo localmente
 - [ ] Verificar se cartas aparecem corretamente
-- [ ] Testar funcionalidade de adicionar aos wants
+- [ ] Testar funcionalidade de adicionar à lista de desejos
 - [ ] Validar persistência no banco de dados
 
 ### 🚀 Funcionalidades a Implementar
@@ -90,6 +92,7 @@ O arquivo `supabase/schema.sql` contém **todo** o schema necessário para o fun
 | `order_batches` | Lotes de pagamento dentro de um pedido |
 | `order_items` | Itens (cartas) dentro de um batch |
 | `bonus_grants` | Bônus concedidos por campanha |
+| `wishlist_items` | Lista de desejos (por usuário, independente de pedido) |
 
 ### Foreign keys (obrigatórias para o painel admin):
 
@@ -156,6 +159,49 @@ O Pedido Individual (modo e-commerce, sem campanha) tem um pipeline de status si
 - **Admin**: em **Pedidos → Compras do dia**, os pedidos individuais pagos aparecem agrupados por dia de pagamento, com avanço de status em lote por grupo ou individual.
 - **API**: `/api/admin-individual-orders` lista os pedidos; `/api/admin-update-fulfillment` avança o status de um ou mais lotes.
 - **Cliente**: em "Meus Pedidos", pedidos Individuais pagos mostram uma barra de progresso com o status atual.
+
+## 💚 Lista de desejos
+
+A lista de desejos é **do usuário**, não do pedido: ela atravessa campanhas e
+sobrevive à compra. Isso a separa do carrinho, que é do pedido e se esvazia.
+
+| | Lista de desejos | Carrinho |
+|---|---|---|
+| Tabela | `wishlist_items` | `order_items` (`in_cart = true`, `batch_id IS NULL`) |
+| Escopo | por usuário | por pedido/campanha |
+| Precisa de encomenda aberta? | não | sim |
+| Comprar… | marca `acquired_qty` | esvazia |
+
+### As duas regras que definem o modelo
+
+1. **Mandar para o carrinho copia, não move.** A carta continua na lista,
+   marcada como "no carrinho".
+2. **Comprar não apaga o desejo** — incrementa `acquired_qty` e carimba
+   `acquired_at`. Querer uma carta e já tê-la comprado são estados, não opostos.
+
+Antes, os desejos eram linhas de `order_items` com `batch_id IS NULL AND
+in_cart = false`. Mover para o carrinho tirava a carta da lista e comprar a
+fazia sumir de vez, então a lista só guardava o que a pessoa **ainda não tinha
+tocado** — uma caixa de entrada, não uma lista de desejos.
+`test/wishlist.test.js` trava as duas regras acima.
+
+A página mostra três estados por carta — pendente, no carrinho e já comprada —
+e o catálogo usa a mesma informação nos selos, então dá para ver do catálogo
+que uma carta já foi comprada antes de pedir de novo.
+
+### Migração
+
+Banco novo: `supabase/schema.sql` já inclui a tabela. Banco existente: rode
+`supabase/migrations/wishlist.sql` no SQL Editor. Ele cria a tabela com RLS e
+faz dois backfills a partir de `order_items` — os desejos pendentes (incluindo
+os que estavam no carrinho) e o histórico do que já foi comprado, para o selo
+"já comprei" nascer com dados.
+
+O script é idempotente: os backfills recalculam a partir de `order_items`
+(a fonte da verdade) em vez de somar ao valor atual, então reexecutar chega no
+mesmo estado. No fim há um `DELETE` **comentado** que remove as linhas de
+`order_items` que viraram lixo — destrutivo de propósito, rode só depois de
+conferir o resultado.
 
 ## 🎛️ Console de Administração
 

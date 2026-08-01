@@ -199,6 +199,22 @@ CREATE TABLE IF NOT EXISTS public.bonus_grants (
 -- Migration for existing DBs:
 -- ALTER TABLE public.bonus_grants ADD COLUMN IF NOT EXISTS grant_type text DEFAULT 'MANUAL' CHECK (grant_type IN ('MANUAL','TIER_CHANGE'));
 
+-- ──────────────────────────────────────────────
+-- 10. WISHLIST_ITEMS (lista de desejos — por usuário)
+-- ──────────────────────────────────────────────
+-- Deliberadamente fora do pedido: o desejo sobrevive à compra e atravessa
+-- campanhas. `quantity` é quanto a pessoa quer, `acquired_qty` é quanto já
+-- comprou. Ver supabase/migrations/wishlist.sql para o backfill.
+CREATE TABLE IF NOT EXISTS public.wishlist_items (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  card_id      uuid NOT NULL REFERENCES public.cards(id) ON DELETE CASCADE,
+  quantity     integer NOT NULL DEFAULT 1 CHECK (quantity > 0),
+  acquired_qty integer NOT NULL DEFAULT 0 CHECK (acquired_qty >= 0),
+  acquired_at  timestamptz,
+  created_at   timestamptz DEFAULT now()
+);
+
 -- ══════════════════════════════════════════════════════════════
 -- INDEXES (para queries frequentes do app e admin)
 -- ══════════════════════════════════════════════════════════════
@@ -215,6 +231,10 @@ CREATE INDEX IF NOT EXISTS idx_bonus_grants_user  ON public.bonus_grants(user_id
 CREATE INDEX IF NOT EXISTS idx_bonus_grants_camp  ON public.bonus_grants(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_cards_active       ON public.cards(is_active);
 CREATE INDEX IF NOT EXISTS idx_campaigns_status   ON public.campaigns(status);
+-- Unique: uma carta aparece uma vez só na lista de cada pessoa. É este índice
+-- que o upsert do app e o backfill da migração usam no ON CONFLICT.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_wishlist_user_card ON public.wishlist_items(user_id, card_id);
+CREATE INDEX IF NOT EXISTS idx_wishlist_user      ON public.wishlist_items(user_id);
 
 -- ══════════════════════════════════════════════════════════════
 -- ROW LEVEL SECURITY (RLS)
@@ -339,6 +359,26 @@ DROP POLICY IF EXISTS "Users can update own bonus" ON public.bonus_grants;
 CREATE POLICY "Users can update own bonus" ON public.bonus_grants
   FOR UPDATE USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+-- ─── wishlist_items ──────────────────────────
+ALTER TABLE public.wishlist_items ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own wishlist" ON public.wishlist_items;
+CREATE POLICY "Users can view own wishlist" ON public.wishlist_items
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own wishlist" ON public.wishlist_items;
+CREATE POLICY "Users can insert own wishlist" ON public.wishlist_items
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own wishlist" ON public.wishlist_items;
+CREATE POLICY "Users can update own wishlist" ON public.wishlist_items
+  FOR UPDATE USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own wishlist" ON public.wishlist_items;
+CREATE POLICY "Users can delete own wishlist" ON public.wishlist_items
+  FOR DELETE USING (auth.uid() = user_id);
 
 -- ══════════════════════════════════════════════════════════════
 -- TRIGGER: auto-criar perfil ao registrar usuário

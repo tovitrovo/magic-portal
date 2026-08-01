@@ -124,10 +124,19 @@ async function sbPost(table, data, token) {
   return r.json();
 }
 
-async function sbUpsert(table, data, token) {
-  const h = { ...sbH(token), 'Prefer': 'return=representation,resolution=merge-duplicates' };
-  const r = await fetch(`${SB_URL}/rest/v1/${table}`, { method: 'POST', headers: h, body: JSON.stringify(data) });
-  if (!r.ok) { const t = await r.text(); throw new Error(`Erro ao criar conta: ${t}`); }
+// Upsert via PostgREST. `onConflict` é opcional: sem ele o conflito resolve
+// pela chave primária (caso do perfil no cadastro); com ele, aponta um índice
+// unique composto — é o que a lista de desejos usa em (user_id, card_id) para
+// não precisar de um GET antes de cada adição.
+async function sbUpsert(table, data, token, onConflict) {
+  const headers = { ...sbH(token), 'Prefer': 'resolution=merge-duplicates,return=representation' };
+  const qs = onConflict ? `?on_conflict=${onConflict}` : '';
+  const r = await fetch(`${SB_URL}/rest/v1/${table}${qs}`, { method: 'POST', headers, body: JSON.stringify(data) });
+  if (!r.ok) {
+    const err = await sbReadError(r);
+    err.message = `UPSERT ${table}: ${err.message}`;
+    throw err;
+  }
   return r.json();
 }
 
@@ -568,10 +577,10 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
 const TUTORIAL_STEPS=[
   {title:'Catálogo',body:'Aqui ficam todas as cartas. Busque pelo nome e filtre por tipo.',navTo:'catalog',tabIndex:1,spotlightId:null,icon:'📖'},
   {title:'Busca e filtros',body:'Use a barra de busca, selecione o TCG e filtre por tipo de carta.',navTo:'catalog',tabIndex:1,spotlightId:'tut-search-area',scrollTo:true,icon:'🔍'},
-  {title:'Adicionar à lista',body:'Toque no + de qualquer carta para adicioná-la à sua lista de wants.',navTo:'catalog',tabIndex:1,spotlightId:null,icon:'➕',interactive:true},
-  {title:'Lista de Wants',body:'Suas cartas escolhidas ficam aqui. Toque no 🛒 para mover a carta pro carrinho, ou na 🗑️ para excluir.',navTo:'wants',tabIndex:2,spotlightId:null,icon:'📋'},
+  {title:'Adicionar à lista',body:'Toque no + de qualquer carta para adicioná-la à sua lista de desejos.',navTo:'catalog',tabIndex:1,spotlightId:null,icon:'➕',interactive:true},
+  {title:'Lista de desejos',body:'As cartas que você quer ficam aqui — inclusive as que já comprou. Toque no 🛒 para mandar para o carrinho; a carta continua na lista.',navTo:'wants',tabIndex:2,spotlightId:null,icon:'📋'},
   {title:'Bônus',body:'O administrador pode conceder cartas bônus para você. Quando disponíveis, elas aparecem aqui e saem de graça no próximo checkout!',navTo:'wants',tabIndex:2,spotlightId:null,icon:'🎁'},
-  {title:'Carrinho',body:'Edite quantidades, mova cartas de volta para wants e avance para o checkout.',navTo:'cart',tabIndex:3,spotlightId:null,icon:'🛒'},
+  {title:'Carrinho',body:'Edite quantidades, tire o que não quer agora e avance para o checkout.',navTo:'cart',tabIndex:3,spotlightId:null,icon:'🛒'},
   {title:'Checkout',body:'Revise o pedido, preencha o endereço e calcule o frete antes de finalizar.',navTo:'checkout',tabIndex:3,spotlightId:'tut-checkout-summary',icon:'📦'},
   {title:'Pagamento',body:'Pague com segurança via Mercado Pago — cartão, boleto ou saldo.',navTo:'checkout',tabIndex:3,spotlightId:'tut-payment',icon:'💳'},
   {title:'Perfil',body:'Veja seus pedidos, altere endereço, mude a senha e reabra este tutorial quando quiser.',navTo:'profile',tabIndex:4,spotlightId:null,icon:'👤'},
@@ -581,7 +590,7 @@ const TUTORIAL_STEPS=[
 // HOME
 // ══════════════════════════════════════════════════════
 
-function HomePage({pool,minCards,pricing,closeDate,theme,nav,wantsCount,cartCount,bonusAvail,campaign_status}){
+function HomePage({pool,minCards,pricing,closeDate,theme,nav,wishlistCount,cartCount,bonusAvail,campaign_status}){
   const goalCards=minCards||150;
   const isViable=pool>=goalCards;
   const progress=Math.min(100,goalCards>0?Math.round((pool/goalCards)*100):0);
@@ -644,7 +653,7 @@ function HomePage({pool,minCards,pricing,closeDate,theme,nav,wantsCount,cartCoun
 
     {/* Resumo stats */}
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
-      {[{icon:ScrollText,val:wantsCount,lbl:'Wants',c:theme.primary},{icon:ShoppingCart,val:cartCount,lbl:'Carrinho',c:'var(--gold)'},{icon:Gift,val:bonusAvail,lbl:'Bônus',c:'var(--ok)'}].map(s=>(<Card key={s.lbl} style={{textAlign:'center',padding:12}}><s.icon size={16} style={{color:s.c,marginBottom:3}}/><div style={{fontSize:18,fontWeight:800}}>{s.val}</div><div style={{fontSize:10,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}>{s.lbl}</div></Card>))}
+      {[{icon:ScrollText,val:wishlistCount,lbl:'Desejos',c:theme.primary},{icon:ShoppingCart,val:cartCount,lbl:'Carrinho',c:'var(--gold)'},{icon:Gift,val:bonusAvail,lbl:'Bônus',c:'var(--ok)'}].map(s=>(<Card key={s.lbl} style={{textAlign:'center',padding:12}}><s.icon size={16} style={{color:s.c,marginBottom:3}}/><div style={{fontSize:18,fontWeight:800}}>{s.val}</div><div style={{fontSize:10,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}>{s.lbl}</div></Card>))}
     </div>
 
     {/* Bônus disponíveis */}
@@ -708,7 +717,7 @@ function ImageLightboxOpen({src,alt,onClose}){
   </div>);
 }
 
-function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,orderMode='CAMPAIGN',tutStep,onTutNext}){
+function CatalogPage({token,wishlist,cartItems=[],onAddToWishlist,priceBRL,theme,campaignStatus,orderMode='CAMPAIGN',tutStep,onTutNext}){
   const [search,setSearch]=useState('');const [typeF,setTypeF]=useState('Todos');const [tcgFilter,setTcgFilter]=useState('Magic');const [cards,setCards]=useState([]);const [total,setTotal]=useState(0);
   const [page,setPage]=useState(0);const [loading,setLoading]=useState(false);const [addQty,setAddQty]=useState({});
   const [detail,setDetail]=useState(null);
@@ -754,10 +763,10 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,orderM
   useEffect(()=>{const t=setTimeout(fetchCards,300);return()=>{clearTimeout(t);latestFetchRef.current++;};},[fetchCards,page]);
 
   const getQ=id=>addQty[id]||1;const setQ=(id,v)=>setAddQty(q=>({...q,[id]:Math.max(1,v)}));
-  function add(card,qty){SFX.addCard();setFlyAnim(true);onAddWant(card,qty);setQ(card.id,1);if(tutStep===2&&onTutNext)onTutNext();}
+  function add(card,qty){SFX.addCard();setFlyAnim(true);onAddToWishlist(card,qty);setQ(card.id,1);if(tutStep===2&&onTutNext)onTutNext();}
 
   return(<div className="portal-page portal-catalog" style={{display:'flex',flexDirection:'column',gap:12}}>
-    {!isIndividual&&!campaignOpen&&<Card style={{padding:14,borderColor:'rgba(var(--gold-rgb),0.25)',background:'rgba(var(--gold-rgb),0.08)'}}><div style={{fontSize:13,fontWeight:700,color:'var(--gold)'}}>Encomenda fechada no momento</div><div style={{fontSize:12,color:'rgba(var(--ink),calc(0.55*var(--ink-a)))',marginTop:4}}>{campaignStatusText}</div></Card>}
+    {!isIndividual&&!campaignOpen&&<Card style={{padding:14,borderColor:'rgba(var(--gold-rgb),0.25)',background:'rgba(var(--gold-rgb),0.08)'}}><div style={{fontSize:'var(--fs-sm)',fontWeight:700,color:'var(--gold)'}}>Encomenda fechada no momento</div><div style={{fontSize:'var(--fs-xs)',color:'var(--text-muted)',marginTop:4}}>{campaignStatusText} Você ainda pode montar sua lista de desejos.</div></Card>}
     <FlyingCard show={flyAnim} onDone={()=>setFlyAnim(false)}/>
     <div style={{display:'flex',gap:5,overflowX:'auto',WebkitOverflowScrolling:'touch',paddingBottom:2}}>
       {TCG_LIST.map(t=>(<button key={t.key} onClick={()=>{SFX.toggle();setTcgFilter(t.key);setTypeF(current=>current===RECENT_CARDS_FILTER?current:'Todos');}} style={{padding:'7px 12px',borderRadius:10,border:'none',background:tcgFilter===t.key?wa(t.color,'22'):'rgba(var(--ink),calc(0.04*var(--ink-a)))',color:tcgFilter===t.key?t.color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontWeight:700,fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap',flexShrink:0,boxShadow:tcgFilter===t.key?`0 0 0 1.5px ${t.color}60`:'none'}}>{t.key}</button>))}
@@ -771,12 +780,21 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,orderM
     {loading?<div style={{textAlign:'center',padding:40}}><Spin size={28}/></div>:(
       <div className="portal-card-grid portal-catalog-grid">
         {cards.map((c,i)=>{
-          const existsInWants=wants.find(w=>w.card_id===c.id);
+          // Três estados, em ordem de precedência: já comprada > no carrinho >
+          // na lista. Antes só existia "está nos wants".
+          const wish=wishlist.find(w=>w.card_id===c.id);
+          const inCart=cartItems.find(ci=>ci.card_id===c.id);
+          const acquiredQty=wish?.acquired_qty||0;
+          const badge=acquiredQty>0
+            ?{color:'var(--ok)',icon:Check,text:acquiredQty>1?`${acquiredQty}x comprada`:'comprada'}
+            :inCart?{color:'var(--gold)',icon:ShoppingCart,text:String(inCart.quantity)}
+            :wish?{color:theme.primary,icon:ScrollText,text:String(wish.quantity)}
+            :null;
           return(<Card key={c.id} onClick={()=>{SFX.nav();setDetail(c);}} style={{padding:8}}>
             <div style={{position:'relative'}}>
               <CardThumb card={c}/>
-              {existsInWants&&<div style={{position:'absolute',top:7,left:7}}><Tag color="var(--ok)" style={{fontSize:9,padding:'2px 7px'}}>{existsInWants.quantity}</Tag></div>}
-              <button ref={i===0?firstAddBtnRef:null} id={i===0?'tut-add-btn':undefined} title="Adicionar aos wants" aria-label={`Adicionar ${c.name} aos wants`} onClick={e=>{e.stopPropagation();add(c,1);}} style={{position:'absolute',right:7,bottom:7,width:36,height:36,border:'none',borderRadius:12,background:existsInWants?'rgba(var(--ok-rgb),0.92)':'var(--gp)',color:'var(--gp-ink)',display:'grid',placeItems:'center',cursor:'pointer',boxShadow:'0 6px 16px var(--gg)'}}><Plus size={18}/></button>
+              {badge&&<div style={{position:'absolute',top:7,left:7}}><Tag color={badge.color} style={{fontSize:'var(--fs-2xs)',padding:'2px 7px'}}><badge.icon size={10}/> {badge.text}</Tag></div>}
+              <button ref={i===0?firstAddBtnRef:null} id={i===0?'tut-add-btn':undefined} title="Adicionar à lista de desejos" aria-label={`Adicionar ${c.name} à lista de desejos`} onClick={e=>{e.stopPropagation();add(c,1);}} style={{position:'absolute',right:7,bottom:7,width:40,height:40,border:'none',borderRadius:12,background:wish?'rgba(var(--ok-rgb),0.92)':'var(--gp)',color:'var(--gp-ink)',display:'grid',placeItems:'center',cursor:'pointer',boxShadow:'0 6px 16px var(--gg)'}}><Plus size={18}/></button>
             </div>
             <div style={{padding:'9px 3px 2px'}}>
               <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</div>
@@ -795,7 +813,7 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,orderM
       <Btn variant="secondary" disabled={(page+1)*PAGE_SIZE>=total} onClick={()=>setPage(p=>p+1)} style={{padding:'8px 14px',fontSize:12}} sfx="nav"><ChevronRight size={14}/></Btn>
     </div>}
     {tutStep===2&&handPos&&<div style={{position:'fixed',top:handPos.top,left:handPos.left,zIndex:200,pointerEvents:'none',fontSize:22,animation:'tutHandBounce 0.8s ease-in-out infinite',transform:'translateX(-50%)'}}>👆</div>}
-    {detail&&<CardDetailModal card={detail} priceBRL={priceBRL} existing={wants.find(w=>w.card_id===detail.id)} campaignOpen={campaignOpen} onClose={()=>setDetail(null)} onAdd={(c,q)=>add(c,q)}/>}
+    {detail&&<CardDetailModal card={detail} priceBRL={priceBRL} existing={wishlist.find(w=>w.card_id===detail.id)} campaignOpen={campaignOpen} onClose={()=>setDetail(null)} onAdd={(c,q)=>add(c,q)}/>}
   </div>);
 }
 
@@ -818,7 +836,7 @@ function CardDetailModal({card,priceBRL,existing,campaignOpen,onClose,onAdd}){
         <div style={{fontSize:11,letterSpacing:1.5,textTransform:'uppercase',color:tc,fontWeight:700}}>{card.type}</div>
         <div id="card-detail-title" style={{fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)',color:'var(--text-strong)',marginTop:3,lineHeight:1.15}}>{card.name}</div>
         {existing&&<div style={{display:'flex',alignItems:'center',gap:10,marginTop:10}}>
-          <Tag color="var(--ok)" style={{fontSize:11}}>{existing.quantity} nos wants</Tag>
+          <Tag color="var(--ok)" style={{fontSize:'var(--fs-2xs)'}}>{existing.quantity} na sua lista</Tag>
         </div>}
       </div>
       <div style={{display:'flex',gap:10,alignItems:'stretch',marginTop:20}}>
@@ -827,7 +845,10 @@ function CardDetailModal({card,priceBRL,existing,campaignOpen,onClose,onAdd}){
           <span aria-live="polite" aria-label={`Quantidade: ${qty}`} style={{minWidth:18,textAlign:'center',fontWeight:700,fontSize:'var(--fs-md)',color:'var(--text-strong)'}}>{qty}</span>
           <button onClick={()=>{SFX.toggle();setQty(q=>q+1);}} aria-label="Aumentar quantidade" style={{background:'none',border:'none',color:'var(--text-strong)',cursor:'pointer',display:'grid',padding:10}}><Plus size={16}/></button>
         </div>
-        <Btn full disabled={!campaignOpen} sfx={null} onClick={()=>{onAdd(card,qty);onClose();}} style={{flex:1}}><Plus size={16}/> {campaignOpen?'Adicionar aos Wants':'Encomenda fechada'}</Btn>
+        {/* Sem `disabled`: a lista de desejos é do usuário e não depende de
+            encomenda aberta. O aviso de encomenda fechada, no topo da página,
+            informa; quem bloqueia a compra é o carrinho. */}
+        <Btn full sfx={null} onClick={()=>{onAdd(card,qty);onClose();}} style={{flex:1}}><Plus size={16}/> Adicionar à lista</Btn>
       </div>
     </div>
     {zoom&&<ImageLightbox src={card.image_url} alt={card.name} onClose={()=>setZoom(false)}/>}
@@ -838,50 +859,76 @@ function CardDetailModal({card,priceBRL,existing,campaignOpen,onClose,onAdd}){
 // WANTS — reads order_items, cart is local toggle
 // ══════════════════════════════════════════════════════
 
-function WantsPage({wants,onMoveToCart,onMoveAllToCart,onRemoveWant,onUpdateWantQty,cartCount,bonusAvail,theme,nav}){
+function WishlistPage({wishlist,cartItems,onAddToCart,onAddAllToCart,onRemove,onUpdateQty,cartCount,bonusAvail,theme,nav}){
   const [searchW,setSearchW]=useState('');
   const [zoomSrc,setZoomSrc]=useState(null);
+  const [showAcquired,setShowAcquired]=useState(false);
   const bonus=bonusAvail||0;
-  const wantsUnits=wants.reduce((s,w)=>s+w.quantity,0);
-  const fW=searchW?wants.filter(w=>w.card_name.toLowerCase().includes(searchW.toLowerCase())):wants;
 
-  return(<div className="portal-page portal-wants" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:wants.length>0?86:0}}>
+  // Três estados por carta, e é isso que separa lista de desejos de carrinho:
+  // uma carta já comprada continua aqui, marcada, em vez de sumir.
+  const decorated=wishlist.map(w=>{
+    const acquired=w.acquired_qty||0;
+    const inCart=cartItems.find(c=>c.card_id===w.card_id);
+    return {...w,acquiredQty:acquired,pending:Math.max(0,w.quantity-acquired),inCartQty:inCart?inCart.quantity:0};
+  });
+  const pending=decorated.filter(w=>w.pending>0);
+  const acquired=decorated.filter(w=>w.pending<=0);
+  const pendingUnits=pending.reduce((s,w)=>s+w.pending,0);
+  const visible=showAcquired?acquired:pending;
+  const filtered=searchW?visible.filter(w=>w.card_name.toLowerCase().includes(searchW.toLowerCase())):visible;
+  const addableCount=pending.filter(w=>!w.inCartQty).length;
+
+  return(<div className="portal-page portal-wants" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:pending.length>0?86:0}}>
     <div id="tut-wants-tags" style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
-      <Tag color={theme.primary}><ScrollText size={11}/> {wantsUnits} na wants</Tag>
+      <Tag color={theme.primary}><ScrollText size={11}/> {pendingUnits} na lista</Tag>
       <Tag color="var(--gold)"><ShoppingCart size={11}/> {cartCount} no carrinho</Tag>
       {bonus>0&&<Tag color="var(--ok)"><Gift size={11}/> {bonus} bônus</Tag>}
     </div>
+
     {bonus>0&&<Card id="tut-bonus-card" glow="rgba(var(--ok-rgb),0.12)" style={{padding:12,background:'rgba(var(--ok-rgb),0.03)'}}>
-      <div style={{display:'flex',alignItems:'center',gap:8}}><Gift size={16} style={{color:'var(--ok)'}}/><div style={{fontSize:13}}><span style={{fontWeight:700,color:'var(--ok)'}}>{bonus} carta(s) bônus</span><div style={{fontSize:11,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))',marginTop:2}}>Primeiras do carrinho saem grátis!</div></div></div>
+      <div style={{display:'flex',alignItems:'center',gap:8}}><Gift size={16} style={{color:'var(--ok)'}}/><div style={{fontSize:'var(--fs-sm)'}}><span style={{fontWeight:700,color:'var(--ok)'}}>{bonus} carta(s) bônus</span><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginTop:2}}>Primeiras do carrinho saem grátis!</div></div></div>
     </Card>}
-    {wants.length>0&&<>
-      {wants.length>3&&<Input icon={Search} placeholder="Buscar..." value={searchW} onChange={e=>setSearchW(e.target.value)}/>}
-      <div className="portal-card-grid portal-wants-grid" style={{display:'flex',flexDirection:'column',gap:8}}>
-        {fW.map((w)=>{const img=w.card_image_url;return(
-          <Card key={w.id} style={{padding:9}}>
-            <div style={{display:'flex',alignItems:'center',gap:11}}>
-              <div onClick={()=>img&&setZoomSrc(img)} role={img?'button':undefined} tabIndex={img?0:undefined} aria-label={img?`Ampliar imagem de ${w.card_name}`:undefined} onKeyDown={e=>{if(img&&(e.key==='Enter'||e.key===' ')){e.preventDefault();setZoomSrc(img);}}} style={{width:54,flexShrink:0,cursor:img?'zoom-in':'default'}}><CardThumb card={w} radius={9}/></div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{w.card_name}</div>
-                <span style={{fontSize:10,color:TC[w.card_type],fontWeight:700}}>{w.card_type}</span>
-                <div style={{display:'flex',alignItems:'center',gap:0,background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',borderRadius:10,border:'1px solid rgba(var(--ink),calc(0.05*var(--ink-a)))',width:'fit-content',marginTop:7}}>
-                  <button onClick={()=>onUpdateWantQty(w.id,w.quantity-1)} aria-label={`Diminuir quantidade de ${w.card_name}`} style={{background:'none',border:'none',color:'var(--text-strong)',padding:'10px 12px',cursor:'pointer'}}><Minus size={12}/></button>
-                  <span aria-label={`Quantidade de ${w.card_name}: ${w.quantity}`} style={{minWidth:18,textAlign:'center',fontSize:'var(--fs-sm)',fontWeight:700}}>{w.quantity}</span>
-                  <button onClick={()=>onUpdateWantQty(w.id,w.quantity+1)} aria-label={`Aumentar quantidade de ${w.card_name}`} style={{background:'none',border:'none',color:'var(--text-strong)',padding:'10px 12px',cursor:'pointer'}}><Plus size={12}/></button>
-                </div>
-              </div>
-              <div style={{display:'flex',flexDirection:'column',gap:6,alignItems:'stretch'}}>
-                <button onClick={()=>onMoveToCart(w)} title="Mover para o carrinho" aria-label={`Mover ${w.card_name} para o carrinho`} style={{background:'var(--gp)',border:'none',borderRadius:11,padding:'9px 13px',cursor:'pointer',color:'var(--gp-ink)',display:'flex',alignItems:'center',gap:5,fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",boxShadow:'0 4px 14px var(--gg)'}}><ShoppingCart size={14}/></button>
-                <button onClick={()=>onRemoveWant(w.id)} title="Remover" aria-label={`Remover ${w.card_name} dos wants`} style={{background:'rgba(var(--danger-rgb),0.08)',border:'1px solid rgba(var(--danger-rgb),0.15)',borderRadius:11,padding:'8px 13px',cursor:'pointer',color:'var(--danger)',display:'flex',alignItems:'center',justifyContent:'center'}}><Trash2 size={13}/></button>
-              </div>
+
+    {acquired.length>0&&<div role="tablist" aria-label="Filtrar lista de desejos" style={{display:'flex',gap:6}}>
+      {[{key:false,label:`Quero (${pending.length})`},{key:true,label:`Já comprei (${acquired.length})`}].map(t=>(
+        <button key={String(t.key)} role="tab" aria-selected={showAcquired===t.key} onClick={()=>{SFX.toggle();setShowAcquired(t.key);}} style={{flex:1,padding:'9px 10px',borderRadius:'var(--r-control)',border:'1px solid '+(showAcquired===t.key?wa(theme.primary,'55'):'var(--line-soft)'),background:showAcquired===t.key?wa(theme.primary,'18'):'var(--fill-soft)',color:showAcquired===t.key?theme.primary:'var(--text-dim)',fontWeight:700,fontSize:'var(--fs-xs)',fontFamily:"'Outfit',sans-serif",cursor:'pointer'}}>{t.label}</button>
+      ))}
+    </div>}
+
+    {visible.length>3&&<Input icon={Search} placeholder="Buscar na lista..." value={searchW} onChange={e=>setSearchW(e.target.value)}/>}
+
+    {filtered.length>0&&<div className="portal-card-grid portal-wants-grid" style={{display:'flex',flexDirection:'column',gap:8}}>
+      {filtered.map((w)=>{const img=w.card_image_url;const done=w.pending<=0;return(
+        <Card key={w.id} style={{padding:9,opacity:done?0.72:1}}>
+          <div style={{display:'flex',alignItems:'center',gap:11}}>
+            <div onClick={()=>img&&setZoomSrc(img)} role={img?'button':undefined} tabIndex={img?0:undefined} aria-label={img?`Ampliar imagem de ${w.card_name}`:undefined} onKeyDown={e=>{if(img&&(e.key==='Enter'||e.key===' ')){e.preventDefault();setZoomSrc(img);}}} style={{width:54,flexShrink:0,cursor:img?'zoom-in':'default'}}><CardThumb card={w} radius={9}/></div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontWeight:700,fontSize:'var(--fs-sm)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{w.card_name}</div>
+              <span style={{fontSize:'var(--fs-2xs)',color:TC[w.card_type],fontWeight:700}}>{w.card_type}</span>
+              {w.acquiredQty>0&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--ok)',fontWeight:700,marginTop:2,display:'flex',alignItems:'center',gap:4}}><Check size={11}/> {w.acquiredQty} de {w.quantity} já comprada{w.acquiredQty!==1?'s':''}</div>}
+              {w.inCartQty>0&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--gold)',fontWeight:700,marginTop:2,display:'flex',alignItems:'center',gap:4}}><ShoppingCart size={11}/> {w.inCartQty} no carrinho</div>}
+              {!done&&<div style={{display:'flex',alignItems:'center',gap:0,background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',borderRadius:'var(--r-control)',border:'1px solid var(--line-soft)',width:'fit-content',marginTop:7}}>
+                <button onClick={()=>onUpdateQty(w.id,w.quantity-1)} aria-label={`Diminuir quantidade desejada de ${w.card_name}`} style={{background:'none',border:'none',color:'var(--text-strong)',padding:'10px 12px',cursor:'pointer'}}><Minus size={12}/></button>
+                <span aria-label={`Quantidade desejada de ${w.card_name}: ${w.quantity}`} style={{minWidth:18,textAlign:'center',fontSize:'var(--fs-sm)',fontWeight:700}}>{w.quantity}</span>
+                <button onClick={()=>onUpdateQty(w.id,w.quantity+1)} aria-label={`Aumentar quantidade desejada de ${w.card_name}`} style={{background:'none',border:'none',color:'var(--text-strong)',padding:'10px 12px',cursor:'pointer'}}><Plus size={12}/></button>
+              </div>}
             </div>
-          </Card>
-        );})}
-      </div>
-    </>}
-    {wants.length===0&&<EmptyState icon={ScrollText} title="Wants vazia" sub="Adicione cartas pelo catálogo"/>}
-    {wants.length>0&&<div style={{position:'fixed',bottom:78,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:480,padding:'10px 16px 12px',background:'var(--fade-to-bg)',zIndex:15,display:'flex',gap:9}}>
-      <Btn variant="secondary" onClick={onMoveAllToCart} sfx="addCard" style={{flex:'0 0 auto',padding:'13px 14px'}}><CheckCircle size={15}/> Tudo</Btn>
+            <div style={{display:'flex',flexDirection:'column',gap:6,alignItems:'stretch'}}>
+              {!done&&<button onClick={()=>onAddToCart(w,w.pending)} title="Adicionar ao carrinho" aria-label={`Adicionar ${w.card_name} ao carrinho`} style={{background:'var(--gp)',border:'none',borderRadius:'var(--r-control)',padding:'11px 13px',cursor:'pointer',color:'var(--gp-ink)',display:'flex',alignItems:'center',gap:5,fontSize:'var(--fs-xs)',fontWeight:700,fontFamily:"'Outfit',sans-serif",boxShadow:'0 4px 14px var(--gg)'}}><ShoppingCart size={14}/></button>}
+              <button onClick={()=>onRemove(w.id)} title="Tirar da lista" aria-label={`Tirar ${w.card_name} da lista de desejos`} style={{background:'rgba(var(--danger-rgb),0.08)',border:'1px solid rgba(var(--danger-rgb),0.15)',borderRadius:'var(--r-control)',padding:'10px 13px',cursor:'pointer',color:'var(--danger)',display:'flex',alignItems:'center',justifyContent:'center'}}><Trash2 size={13}/></button>
+            </div>
+          </div>
+        </Card>
+      );})}
+    </div>}
+
+    {filtered.length===0&&(showAcquired
+      ?<EmptyState icon={Check} title="Nada comprado ainda" sub="As cartas que você comprar ficam registradas aqui"/>
+      :<EmptyState icon={ScrollText} title={searchW?'Nenhuma carta encontrada':'Sua lista de desejos está vazia'} sub={searchW?'Tente outro termo':'Adicione cartas pelo catálogo'}/>)}
+
+    {pending.length>0&&!showAcquired&&<div style={{position:'fixed',bottom:78,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:480,padding:'10px 16px 12px',background:'var(--fade-to-bg)',zIndex:15,display:'flex',gap:9}}>
+      <Btn variant="secondary" onClick={onAddAllToCart} disabled={addableCount===0} sfx="addCard" style={{flex:'0 0 auto',padding:'13px 14px'}}><CheckCircle size={15}/> Tudo</Btn>
       <Btn full onClick={()=>nav&&nav('cart')} sfx="nav" style={{flex:1}}><ShoppingCart size={15}/> Ver carrinho{cartCount>0?` (${cartCount})`:''}</Btn>
     </div>}
     <ImageLightbox src={zoomSrc} onClose={()=>setZoomSrc(null)}/>
@@ -890,7 +937,7 @@ function WantsPage({wants,onMoveToCart,onMoveAllToCart,onRemoveWant,onUpdateWant
 
 const MIN_ORDER_CARDS = 15;
 
-function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onMoveToWants,onRemoveFromCart,onUpdateCartQty,token,orderId,campaignId,onOrderDone,toast,profile,previousPaidBatches,orderMode='CAMPAIGN',indiv=null}){
+function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onRemoveFromCart,onUpdateCartQty,token,orderId,campaignId,onOrderDone,toast,profile,previousPaidBatches,orderMode='CAMPAIGN',indiv=null}){
   const isIndividual=orderMode==='INDIVIDUAL';
   const totalQty=cartItems.reduce((s,c)=>s+c.quantity,0);
   const bonus=isIndividual?0:(bonusAvail||0); // pedido individual não usa bônus
@@ -942,15 +989,14 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onMoveT
                     :<span style={{fontSize:13,fontWeight:800,color:'var(--ok)',whiteSpace:'nowrap'}}>Grátis</span>}
                 </div>
               </div>
-              <div style={{display:'flex',flexDirection:'column',gap:6}}>
-                <button onClick={()=>onMoveToWants(c)} title="Voltar para wants" style={{background:'rgba(var(--ink),calc(0.06*var(--ink-a)))',border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',borderRadius:11,padding:'8px 11px',cursor:'pointer',color:'rgba(var(--ink),calc(0.5*var(--ink-a)))',display:'flex',alignItems:'center',justifyContent:'center'}}><ArrowLeft size={14}/></button>
-                <button onClick={()=>onRemoveFromCart(c.id)} title="Remover" style={{background:'rgba(var(--danger-rgb),0.08)',border:'1px solid rgba(var(--danger-rgb),0.15)',borderRadius:11,padding:'8px 11px',cursor:'pointer',color:'var(--danger)',display:'flex',alignItems:'center',justifyContent:'center'}}><Trash2 size={13}/></button>
-              </div>
+              {/* Uma ação só: tirar do carrinho não mexe na lista de desejos,
+                  então "voltar para a lista" e "remover" viraram a mesma coisa. */}
+              <button onClick={()=>onRemoveFromCart(c.id)} title="Tirar do carrinho" aria-label={`Tirar ${c.card_name} do carrinho`} style={{alignSelf:'center',background:'rgba(var(--danger-rgb),0.08)',border:'1px solid rgba(var(--danger-rgb),0.15)',borderRadius:'var(--r-control)',padding:'10px 12px',cursor:'pointer',color:'var(--danger)',display:'flex',alignItems:'center',justifyContent:'center'}}><Trash2 size={14}/></button>
             </div>
           </Card>
         );})}
       </div>
-      <Btn full variant="ghost" onClick={()=>nav('wants')} sfx="nav"><ArrowLeft size={14}/> Voltar para Wants</Btn>
+      <Btn full variant="ghost" onClick={()=>nav('wants')} sfx="nav"><ArrowLeft size={14}/> Voltar para a lista de desejos</Btn>
       {/* Barra de resumo fixa */}
       <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:480,background:'var(--sheet-bg-alt)',backdropFilter:'blur(20px)',borderTop:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',borderRadius:'20px 20px 0 0',padding:'13px 16px calc(12px + env(safe-area-inset-bottom))',zIndex:25,boxShadow:'0 -10px 30px rgba(var(--sunk),calc(0.4*var(--sunk-a)))'}}>
         {canGoCheckout&&!canCheckout&&!isFullBonus&&<div style={{display:'flex',alignItems:'center',gap:7,marginBottom:10,padding:'8px 10px',borderRadius:11,background:'rgba(var(--gold-rgb),0.08)',border:'1px solid rgba(var(--gold-rgb),0.2)'}}><AlertTriangle size={13} style={{color:'var(--gold)',flexShrink:0}}/><span style={{fontSize:11.5,color:'var(--gold)',fontWeight:600}}>Faltam {missingCards} carta{missingCards!==1?'s':''} para o mínimo de {minCards}{isIndividual?'':' pagas'}</span></div>}
@@ -961,11 +1007,11 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onMoveT
         {canGoCheckout&&<Btn full onClick={()=>nav('checkout')} disabled={!canCheckout} sfx="nav"><CreditCard size={15}/> {canCheckout?'Ir para checkout':`Mínimo ${minCards} (faltam ${missingCards})`}</Btn>}
       </div>
     </>}
-    {cartItems.length===0&&<><EmptyState icon={ShoppingCart} title="Carrinho vazio" sub="Mova cartas da sua lista de wants"/><div style={{textAlign:'center',marginTop:8}}><Btn variant="secondary" onClick={()=>nav('wants')} sfx="nav"><ScrollText size={15}/> Ir para Wants</Btn></div></>}
+    {cartItems.length===0&&<><EmptyState icon={ShoppingCart} title="Carrinho vazio" sub="Escolha cartas na sua lista de desejos"/><div style={{textAlign:'center',marginTop:8}}><Btn variant="secondary" onClick={()=>nav('wants')} sfx="nav"><ScrollText size={15}/> Ir para Wants</Btn></div></>}
     <ImageLightbox src={zoomSrc} onClose={()=>setZoomSrc(null)}/>
   </div>);
 }
-function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme,nav,profile,token,orderId,campaignId,campaignStatus,onOrderDone,toast,previousPaidBatches=[],onMoveToWants,onRemoveFromCart,onUpdateCartQty,orderMode='CAMPAIGN',indiv=null}){
+function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,orderId,campaignId,campaignStatus,onOrderDone,toast,previousPaidBatches=[],onRemoveFromCart,onUpdateCartQty,orderMode='CAMPAIGN',indiv=null}){
   const isIndividual=orderMode==='INDIVIDUAL';
   const [freteOptions,setFreteOptions]=useState([]);const [selectedFrete,setSelectedFrete]=useState(null);
   const [lF,setLF]=useState(false);const [submitting,setSubmitting]=useState(false);
@@ -984,7 +1030,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
   const [addr,setAddr]=useState({cep:profile?.cep||'',rua:profile?.rua||'',numero:profile?.numero||'',complemento:profile?.complemento||'',bairro:profile?.bairro||'',cidade:profile?.cidade||'',uf:profile?.uf||''});
   const profileHasSavedAddress=Boolean(profile?.cep&&(profile.cep||'').replace(/\D/g,'').length===8&&profile?.rua);
   const [editingAddr,setEditingAddr]=useState(!profileHasSavedAddress);
-  const cart=cartItems.length>0?cartItems:wants.map(w=>{const q=Math.min(w.quantity,Math.max(0,cartQtyByItem[w.id]||0));return q>0?{...w,quantity:q,fullQty:w.quantity}:null;}).filter(Boolean);
+  const cart=cartItems;
   const bonus=isIndividual?0:(bonusAvail||0); // pedido individual não usa bônus
   let bL=bonus;
   const bd=cart.map(c=>{const bq=Math.min(c.quantity,bL);bL-=bq;return{...c,bonusQty:bq,paidQty:c.quantity-bq};});
@@ -1057,8 +1103,10 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
       const d=await r.json().catch(()=>({}));
       if(!r.ok||!d.ok)throw new Error(d.error||`HTTP ${r.status}`);
       if(saveAddressChoice===true&&addr.rua)await sbPatch('profiles','id=eq.'+(profile.id),{cep:addr.cep,rua:addr.rua,numero:addr.numero,complemento:addr.complemento,bairro:addr.bairro,cidade:addr.cidade,uf:addr.uf},token).catch(()=>{});
-      // Esvazia o carrinho-rascunho (os itens do pedido foram criados no servidor); volta os itens para wants
-      for(const c of cart){ if(c.id) await sbPatch('order_items','id=eq.'+c.id,{in_cart:false},token).catch(()=>{}); }
+      // Esvazia o carrinho-rascunho: os itens definitivos do pedido já foram
+      // criados no servidor, então estas linhas viram órfãs. O desejo em si
+      // continua guardado em wishlist_items.
+      for(const c of cart){ if(c.id) await sbDelete('order_items','id=eq.'+c.id,token).catch(()=>{}); }
       SFX.confirm();
       onOrderDone({method:'mp',totalPaid:d.totalQty,totalBonus:0,pricing,isFullBonus:false,alreadyPaidShipping:shippingSkipped,batchId:d.batchId,shortId:d.shortId,cards:cart.map(c=>({name:c.card_name,type:c.card_type,qty:c.quantity}))});
       toast('Gerando link de pagamento...','info');
@@ -1156,7 +1204,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
     </Card>
     <div style={{textAlign:'center',marginTop:16}}><Btn onClick={()=>nav('catalog')} sfx="nav"><BookOpen size={16}/> Ver catálogo</Btn></div>
   </div>);
-  if(totalQty===0)return(<div style={{paddingTop:40}}><EmptyState icon={ShoppingCart} title="Carrinho vazio" sub="Selecione cartas nos wants"/><div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'center',marginTop:16}}><Btn onClick={()=>nav('wants')} sfx="nav"><ScrollText size={14}/> Ir para Wants</Btn></div></div>);
+  if(totalQty===0)return(<div style={{paddingTop:40}}><EmptyState icon={ShoppingCart} title="Carrinho vazio" sub="Escolha cartas na sua lista de desejos"/><div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'center',marginTop:16}}><Btn onClick={()=>nav('wants')} sfx="nav"><ScrollText size={14}/> Ir para Wants</Btn></div></div>);
 
   // Bloquear checkout se mínimo não atingido
   if(!canCheckout&&!isFullBonus)return(<div style={{paddingTop:20}}>
@@ -3448,9 +3496,11 @@ export default function MagicPortal(){
   const [campaign,setCampaign]=useState(null);
   const [pricing,setPricing]=useState(null);
   const [orderId,setOrderId]=useState(null);
-  const [wants,setWants]=useState([]); // order_items with card info
-  const [cartItems,setCartItems]=useState([]); // order_items with in_cart=true
-  const [cartQtyByItem,setCartQtyByItem]=useState({});
+  // Lista de desejos: linhas de wishlist_items, por usuário — não por pedido.
+  // Sobrevive à compra (acquired_qty) e atravessa campanhas.
+  const [wishlist,setWishlist]=useState([]);
+  // Carrinho: order_items com in_cart=true no pedido da campanha em contexto.
+  const [cartItems,setCartItems]=useState([]);
   const [bonusGrants,setBonusGrants]=useState([]);
   const [lastOrder,setLastOrder]=useState(null);
   const [myOrders,setMyOrders]=useState([]);
@@ -3583,6 +3633,20 @@ export default function MagicPortal(){
         setProfile({ id: userId, name: '', is_admin: false });
       }
 
+      // ── Lista de desejos ──────────────────────────────────────────────────
+      // Fora do bloco de pedido de propósito: ela é do usuário, não da
+      // campanha, então carrega mesmo quando não há encomenda aberta.
+      try {
+        const rows = await sbGet('wishlist_items', `user_id=eq.${userId}&select=id,card_id,quantity,acquired_qty,acquired_at,cards(name,type,image_url)&order=created_at.desc`, tkn);
+        setWishlist((rows || [])
+          .filter(w => w && w.id && w.card_id)
+          .map(w => ({ ...w, card_name: w.cards?.name || '?', card_type: w.cards?.type || 'Normal', card_image_url: w.cards?.image_url || null })));
+      } catch(e) {
+        // Banco sem a migração wishlist.sql ainda: a lista fica vazia em vez
+        // de derrubar o resto do carregamento.
+        console.warn('[loadAppData] Falha ao carregar a lista de desejos (rodou supabase/migrations/wishlist.sql?):', e);
+      }
+
       // Campaign
       let camp = null;
       try {
@@ -3653,35 +3717,6 @@ export default function MagicPortal(){
             // Defensive: sbPost may return an array or a single object
             ord = Array.isArray(created) ? (created[0] ?? null) : (created ?? null);
 
-            if (ord?.id) {
-              // Copy non-bonus wants from the most recent previous order (any campaign)
-              try {
-                const prevOrds = await sbGet('orders', `user_id=eq.${userId}&id=neq.${ord.id}&select=id,created_at&order=created_at.desc&limit=1`, tkn);
-                if (prevOrds && prevOrds.length > 0) {
-                  let prevItems = [];
-                  try {
-                    prevItems = await sbGet('order_items', `order_id=eq.${prevOrds[0].id}&batch_id=is.null&is_bonus=not.eq.true&select=card_id,quantity,in_cart`, tkn);
-                  } catch(eInCart) {
-                    // Fallback if in_cart column doesn't exist in the DB yet
-                    console.warn('[loadAppData] prevItems with in_cart failed, retrying without it:', eInCart);
-                    try {
-                      const raw = await sbGet('order_items', `order_id=eq.${prevOrds[0].id}&batch_id=is.null&is_bonus=not.eq.true&select=card_id,quantity`, tkn);
-                      prevItems = (raw || []).map(i => ({ ...i, in_cart: false }));
-                    } catch(e2) { console.warn('[loadAppData] prevItems fallback also failed:', e2); }
-                  }
-                  for (const item of (prevItems || [])) {
-                    if (!item.card_id) continue;
-                    await sbPost('order_items', {
-                      order_id: ord.id,
-                      card_id: item.card_id,
-                      quantity: Math.max(1, Number(item.quantity) || 1),
-                      is_bonus: false,
-                      in_cart: item.in_cart || false,
-                    }, tkn).catch(e => console.warn('[loadAppData] copy item failed for card_id:', item.card_id, e));
-                  }
-                }
-              } catch(e) { console.warn('[loadAppData] Failed to copy wants from previous order:', e); }
-            }
           } catch(e) {
             // Race condition: another tab/request may have created the order simultaneously
             console.warn('[loadAppData] Order creation failed, trying race-condition fallback:', e);
@@ -3713,26 +3748,14 @@ export default function MagicPortal(){
 
         setOrderId(ord.id);
 
-        // ── Load wants (in_cart=false) and cart items (in_cart=true) ──────────
-        // Filters: no batch (not yet checked out) + not a bonus item
-        // is_bonus=not.eq.true includes both is_bonus=false AND is_bonus=NULL (legacy rows)
+        // ── Carrinho: order_items do pedido em contexto, ainda sem batch ──────
+        // is_bonus=not.eq.true cobre false E NULL (linhas antigas).
         try {
-          let items;
-          const itemsFilter = `order_id=eq.${ord.id}&batch_id=is.null&is_bonus=not.eq.true`;
-          try {
-            items = await sbGet('order_items', `${itemsFilter}&select=id,card_id,quantity,in_cart,cards(name,type,image_url)`, tkn);
-          } catch(eCart) {
-            // Fallback if in_cart column does not exist in this DB yet
-            console.warn('[loadAppData] order_items with in_cart failed, retrying without:', eCart);
-            items = (await sbGet('order_items', `${itemsFilter}&select=id,card_id,quantity,cards(name,type,image_url)`, tkn)).map(i=>({...i,in_cart:false}));
-          }
-          const mapped = (items || [])
-            .filter(i => i && i.id && i.card_id) // skip any invalid/incomplete rows
-            .map(i=>({...i, card_name:i.cards?.name||'?', card_type:i.cards?.type||'Normal', card_image_url:i.cards?.image_url||null}));
-          setWants(mapped.filter(i=>!i.in_cart));
-          setCartItems(mapped.filter(i=>i.in_cart));
-        } catch(e) { console.warn('[loadAppData] Failed to load order items:', e); }
-        setCartQtyByItem({});
+          const items = await sbGet('order_items', `order_id=eq.${ord.id}&batch_id=is.null&is_bonus=not.eq.true&in_cart=is.true&select=id,card_id,quantity,cards(name,type,image_url)`, tkn);
+          setCartItems((items || [])
+            .filter(i => i && i.id && i.card_id)
+            .map(i=>({...i, card_name:i.cards?.name||'?', card_type:i.cards?.type||'Normal', card_image_url:i.cards?.image_url||null})));
+        } catch(e) { console.warn('[loadAppData] Falha ao carregar o carrinho:', e); }
       } catch(eOrder) {
         if (isAuthFailure(eOrder)) throw eOrder;
         console.error('[loadAppData] Order block failed — orderId will be null:', eOrder);
@@ -3798,7 +3821,7 @@ export default function MagicPortal(){
   function handleLogout(){
     localStorage.removeItem('cpj_session');
     setSession(null);setProfile(null);setCampaign(null);setPricing(null);
-    setOrderId(null);setWants([]);setCartItems([]);setCartQtyByItem({});setBonusGrants([]);setMyOrders([]);
+    setOrderId(null);setWishlist([]);setCartItems([]);setBonusGrants([]);setMyOrders([]);
     setPage('home');setIsNew(false);didAutoLoad.current=false;
   }
 
@@ -3822,54 +3845,67 @@ export default function MagicPortal(){
     toast('Perfil salvo!', 'success');
   }
 
-  // ─── Add want ─────────────────────────────────────
-  async function handleAddWant(card, qty) {
+  // ─── Lista de desejos: adicionar ──────────────────
+  // Não exige pedido aberto: desejar uma carta independe de haver encomenda
+  // ativa. É esse desacoplamento que diferencia a lista do carrinho.
+  async function handleAddToWishlist(card, qty) {
     if (!token) { toast('Faça login primeiro','error'); return; }
-    if (!orderId) {
-      console.error('[handleAddWant] orderId is null — order was not loaded. userId:', session?.user?.id);
-      toast('Seu pedido está sendo carregado. Aguarde um momento e tente novamente.','error');
-      // Attempt silent recovery in the background so the next add attempt works
-      if (token && session?.user?.id) {
-        loadAppData(token, session.user.id).catch(e => console.warn('[handleAddWant] recovery loadAppData failed:', e));
-      }
-      return;
-    }
+    const userId = session?.user?.id;
+    if (!userId) { toast('Sua sessão ainda está carregando. Tente de novo em instantes.','error'); return; }
     try {
-      const existing = wants.find(w => w.card_id === card.id);
+      const existing = wishlist.find(w => w.card_id === card.id);
       if (existing) {
         const newQty = existing.quantity + qty;
-        await sbPatch('order_items', 'id=eq.'+(existing.id), { quantity: newQty }, token);
-        setWants(prev => prev.map(w => w.id === existing.id ? { ...w, quantity: newQty } : w));
+        await sbPatch('wishlist_items', 'id=eq.'+(existing.id), { quantity: newQty }, token);
+        setWishlist(prev => prev.map(w => w.id === existing.id ? { ...w, quantity: newQty } : w));
       } else {
-        const created = await sbPost('order_items', { order_id: orderId, card_id: card.id, quantity: qty, is_bonus: false, unit_price_brl: 0 }, token);
-        const item = Array.isArray(created) ? created[0] : created;
-        if (item?.id) {
-          setWants(prev => [{ ...item, card_name: card.name, card_type: card.type || 'Normal', card_image_url: card.image_url || null }, ...prev]);
+        // Upsert e não POST: se a linha existir no servidor sem estar no estado
+        // local (outra aba, estado velho), o merge evita 409. O payload omite
+        // acquired_qty/acquired_at de propósito — o upsert só toca as colunas
+        // que recebe, então o histórico de compra sobrevive.
+        const created = await sbUpsert('wishlist_items', { user_id: userId, card_id: card.id, quantity: qty }, token, 'user_id,card_id');
+        const row = Array.isArray(created) ? created[0] : created;
+        if (row?.id) {
+          setWishlist(prev => [{ ...row, card_name: card.name, card_type: card.type || 'Normal', card_image_url: card.image_url || null }, ...prev.filter(w => w.card_id !== card.id)]);
         }
       }
-      toast(qty+'x '+card.name+' adicionada!','success');
+      toast(qty+'x '+card.name+' na sua lista de desejos!','success');
     } catch(e) {
-      console.error('[handleAddWant] error:', e);
+      console.error('[handleAddToWishlist]', e);
       toast('Erro ao adicionar: '+e.message,'error');
     }
   }
 
-  // ─── Move want → cart ─────────────────────────────
-  async function handleMoveToCart(item) {
+  // ─── Lista de desejos → carrinho ──────────────────
+  // COPIA, não move. O desejo continua na lista, agora marcado como "no
+  // carrinho" — era o "mover" antigo que esvaziava a lista de desejos assim
+  // que a pessoa decidia comprar.
+  async function handleAddToCart(item, qty) {
     if (!token) return;
-    await sbPatch('order_items', 'id=eq.'+(item.id), { in_cart: true }, token);
-    setWants(prev => prev.filter(w => w.id !== item.id));
-    setCartItems(prev => [...prev, { ...item, in_cart: true }]);
-    SFX.addCard();
-  }
-
-  // ─── Move cart → wants ────────────────────────────
-  async function handleMoveToWants(item) {
-    if (!token) return;
-    await sbPatch('order_items', 'id=eq.'+(item.id), { in_cart: false }, token);
-    setCartItems(prev => prev.filter(c => c.id !== item.id));
-    setWants(prev => [...prev, { ...item, in_cart: false }]);
-    SFX.toggle();
+    if (!orderId) {
+      toast('Seu pedido está sendo carregado. Tente de novo em instantes.','error');
+      if (session?.user?.id) loadAppData(token, session.user.id).catch(e => console.warn('[handleAddToCart] recovery falhou:', e));
+      return;
+    }
+    const amount = Math.max(1, qty || item.quantity || 1);
+    try {
+      const existing = cartItems.find(c => c.card_id === item.card_id);
+      if (existing) {
+        const newQty = existing.quantity + amount;
+        await sbPatch('order_items', 'id=eq.'+(existing.id), { quantity: newQty }, token);
+        setCartItems(prev => prev.map(c => c.id === existing.id ? { ...c, quantity: newQty } : c));
+      } else {
+        const created = await sbPost('order_items', { order_id: orderId, card_id: item.card_id, quantity: amount, is_bonus: false, in_cart: true, unit_price_brl: 0 }, token);
+        const row = Array.isArray(created) ? created[0] : created;
+        if (row?.id) {
+          setCartItems(prev => [...prev, { ...row, card_name: item.card_name, card_type: item.card_type, card_image_url: item.card_image_url }]);
+        }
+      }
+      SFX.addCard();
+    } catch(e) {
+      console.error('[handleAddToCart]', e);
+      toast('Erro ao adicionar ao carrinho: '+e.message,'error');
+    }
   }
 
   // ─── Remove from cart ─────────────────────────────
@@ -3888,48 +3924,58 @@ export default function MagicPortal(){
     setCartItems(prev => prev.map(c => c.id === itemId ? { ...c, quantity: newQty } : c));
   }
 
-  // ─── Move all wants → cart ────────────────────────
-  async function handleMoveAllToCart() {
-    if (!token || wants.length === 0) return;
-    await Promise.all(wants.map(w => sbPatch('order_items', 'id=eq.'+(w.id), { in_cart: true }, token)));
-    setCartItems(prev => [...prev, ...wants.map(w => ({ ...w, in_cart: true }))]);
-    setWants([]);
+  // ─── Lista inteira → carrinho ─────────────────────
+  // Sequencial de propósito: handleAddToCart lê cartItems para decidir entre
+  // criar e somar, e em paralelo duas cartas iguais criariam linhas duplicadas.
+  async function handleAddAllToCart() {
+    if (!token || pendingWishlist.length === 0) return;
+    for (const w of pendingWishlist) {
+      if (cartItems.some(c => c.card_id === w.card_id)) continue;
+      await handleAddToCart(w, w.quantity);
+    }
     SFX.confirm();
   }
 
-  // ─── Remove want ──────────────────────────────────
-  async function handleRemoveWant(itemId) {
+  // ─── Lista de desejos: remover ────────────────────
+  async function handleRemoveFromWishlist(itemId) {
     if (!token) return;
-    await sbDelete('order_items', 'id=eq.'+(itemId), token);
-    setWants(prev => prev.filter(w => w.id !== itemId));
-    setCartQtyByItem(prev => { const cp = { ...prev }; delete cp[itemId]; return cp; });
+    await sbDelete('wishlist_items', 'id=eq.'+(itemId), token);
+    setWishlist(prev => prev.filter(w => w.id !== itemId));
     SFX.click();
   }
 
-  // ─── Update want qty ─────────────────────────────
-  async function handleUpdateWantQty(itemId, newQty) {
+  // ─── Lista de desejos: quantidade ─────────────────
+  async function handleUpdateWishlistQty(itemId, newQty) {
     if (!token) return;
-    if (newQty <= 0) { handleRemoveWant(itemId); return; }
-    await sbPatch('order_items', 'id=eq.'+(itemId), { quantity: newQty }, token);
-    setWants(prev => prev.map(w => w.id === itemId ? { ...w, quantity: newQty } : w));
-    setCartQtyByItem(prev => {
-      const selected = prev[itemId] || 0;
-      if (selected <= newQty) return prev;
-      return { ...prev, [itemId]: newQty };
-    });
+    if (newQty <= 0) { handleRemoveFromWishlist(itemId); return; }
+    await sbPatch('wishlist_items', 'id=eq.'+(itemId), { quantity: newQty }, token);
+    setWishlist(prev => prev.map(w => w.id === itemId ? { ...w, quantity: newQty } : w));
   }
 
-  // ─── Order done ───────────────────────────────────
+  // ─── Pedido concluído ─────────────────────────────
   async function handleOrderDone(order) {
     setLastOrder(order);
-    setWants(prev => prev.flatMap(w => {
-      const selected = Math.min(w.quantity, Math.max(0, cartQtyByItem[w.id] || 0));
-      if (selected <= 0) return [w];
-      const remaining = w.quantity - selected;
-      return remaining > 0 ? [{ ...w, quantity: remaining }] : [];
-    }));
-    setCartQtyByItem({});
+
+    // Comprar NÃO tira a carta da lista de desejos — registra que ela foi
+    // adquirida. Querer uma carta e já tê-la comprado são dois estados, não
+    // opostos; era apagar aqui que transformava a lista numa caixa de entrada.
+    const bought = cartItems.map(c => ({ card_id: c.card_id, qty: c.quantity }));
     setCartItems([]);
+    if (bought.length > 0) {
+      const now = new Date().toISOString();
+      const patches = [];
+      for (const b of bought) {
+        const w = wishlist.find(x => x.card_id === b.card_id);
+        if (!w) continue; // carta comprada fora da lista: nada a marcar
+        patches.push(sbPatch('wishlist_items', 'id=eq.'+(w.id), { acquired_qty: (w.acquired_qty || 0) + b.qty, acquired_at: now }, token)
+          .catch(e => console.warn('[handleOrderDone] falha ao marcar como adquirida:', e)));
+      }
+      setWishlist(prev => prev.map(w => {
+        const hit = bought.find(b => b.card_id === w.card_id);
+        return hit ? { ...w, acquired_qty: (w.acquired_qty || 0) + hit.qty, acquired_at: now } : w;
+      }));
+      await Promise.all(patches);
+    }
     setMyOrders(prev => [{ id: order.batchId, status: 'DRAFT', total_locked: order.isFullBonus ? 0 : order.totalPaid * order.priceBRL, payment_method: order.method === 'bonus' ? 'BONUS' : 'MERCADO_PAGO', qty_in_batch: order.totalPaid + order.totalBonus, created_at: new Date().toISOString(), cards: order.cards, order_id: orderId, campaignStatus: campaign?.status || null }, ...prev]);
 
     if (order.totalBonus > 0) {
@@ -3958,17 +4004,6 @@ export default function MagicPortal(){
     toast('Pedido registrado!', 'success');
   }
 
-  useEffect(() => {
-    setCartQtyByItem(prev => {
-      const next = {};
-      wants.forEach(w => {
-        const q = Math.min(w.quantity, Math.max(0, prev[w.id] || 0));
-        if (q > 0) next[w.id] = q;
-      });
-      return next;
-    });
-  }, [wants]);
-
   // Sound toggle
   const origSfx = useRef(null);
   useEffect(() => {
@@ -3982,7 +4017,10 @@ export default function MagicPortal(){
   function tutNext() { if (tutStep < TUTORIAL_STEPS.length - 1) setTutStep(s => s + 1); else { setShowTutorial(false); setTutStep(0); setIsFirstTimeTut(false); setPage('catalog'); } }
   function tutSkip() { setShowTutorial(false); setTutStep(0); setIsFirstTimeTut(false); }
 
-  const wantsCount = wants.reduce((s, w) => s + w.quantity, 0);
+  // Um desejo "pendente" é o que ainda falta comprar. Cartas já adquiridas
+  // continuam na lista — só saem da contagem e do "adicionar tudo".
+  const pendingWishlist = wishlist.filter(w => (w.acquired_qty || 0) < w.quantity);
+  const wishlistCount = pendingWishlist.reduce((s, w) => s + (w.quantity - (w.acquired_qty || 0)), 0);
   const cartCount = cartItems.reduce((s, c) => s + c.quantity, 0);
   // Pedidos pagos APENAS da encomenda ativa atual (mesmo order_id = mesma campanha)
   // Usado para detectar se o cliente já tem pedidos e oferecer frete conjunto
@@ -3993,7 +4031,7 @@ export default function MagicPortal(){
     // Só considera batches do pedido atual (= encomenda ativa)
     return isPaid && o.order_id === orderId;
   });
-  const bottomTabs = [{ key: 'home', icon: Home, label: 'Início' }, { key: 'catalog', icon: BookOpen, label: 'Catálogo' }, { key: 'wants', icon: ScrollText, label: 'Wants' }, { key: 'cart', icon: ShoppingCart, label: 'Carrinho' }, { key: 'profile', icon: User, label: 'Perfil' }];
+  const bottomTabs = [{ key: 'home', icon: Home, label: 'Início' }, { key: 'catalog', icon: BookOpen, label: 'Catálogo' }, { key: 'wants', icon: ScrollText, label: 'Desejos' }, { key: 'cart', icon: ShoppingCart, label: 'Carrinho' }, { key: 'profile', icon: User, label: 'Perfil' }];
 
   return (<div className="portal-shell" data-page={page} style={{ '--gp': theme.primary, '--gs': theme.secondary, '--gg': theme.glow, '--gp-ink': inkOn(theme.primary), minHeight: '100vh', background: `radial-gradient(ellipse at 50% -20%,${theme.primary}12 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,${theme.secondary}08 0%,transparent 40%),var(--bg)`, color: 'var(--text)', fontFamily: "'Outfit',sans-serif", maxWidth: 480, margin: '0 auto', position: 'relative', paddingBottom: 78 }}>
     <FloatingMana theme={theme}/>
@@ -4045,7 +4083,7 @@ export default function MagicPortal(){
       {page !== 'onboarding' && <div className="portal-header" style={{ padding: '13px 20px 11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(var(--ink),calc(0.035*var(--ink-a)))', position: 'sticky', top: 0, zIndex: 10, background: 'var(--chrome-bg)', backdropFilter: 'blur(20px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {(page === 'success' || page === 'admin' || page === 'checkout') && <button onClick={() => nav(page === 'admin' ? 'profile' : page === 'checkout' ? 'cart' : 'home')} className="mp-tap" aria-label="Voltar" style={{ background: 'none', border: 'none', color: 'var(--text-strong)', cursor: 'pointer' }}><ChevronLeft size={20} /></button>}
-          <span style={{ fontFamily: "'Cinzel',serif", fontSize: 15, fontWeight: 700, letterSpacing: .3 }}>{({ home: 'Cartas para Jogar', catalog: 'Catálogo', wants: 'Wants', cart: 'Carrinho', checkout: 'Checkout', success: '', profile: 'Perfil', admin: 'Admin', onboarding: '' })[page] || ''}</span>
+          <span style={{ fontFamily: "'Cinzel',serif", fontSize: 15, fontWeight: 700, letterSpacing: .3 }}>{({ home: 'Cartas para Jogar', catalog: 'Catálogo', wants: 'Lista de desejos', cart: 'Carrinho', checkout: 'Checkout', success: '', profile: 'Perfil', admin: 'Admin', onboarding: '' })[page] || ''}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button onClick={() => { SFX.toggle(); setColorMode(m => m === 'light' ? 'dark' : 'light'); }} className="mp-tap" title={colorMode === 'light' ? 'Mudar para o modo escuro' : 'Mudar para o modo claro'} aria-label={colorMode === 'light' ? 'Mudar para o modo escuro' : 'Mudar para o modo claro'} style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer' }}>{colorMode === 'light' ? <Moon size={16} /> : <Sun size={16} />}</button>
@@ -4086,7 +4124,7 @@ export default function MagicPortal(){
                   <Btn full onClick={()=>nav('catalog')} sfx="nav" style={{marginTop:14}}><BookOpen size={16}/> Montar meu pedido</Btn>
                 </Card>
               </div>
-            : (campaign ? <HomePage pool={pool} minCards={campaign?.min_cards||150} pricing={pricing} closeDate={campaign?.close_at} theme={theme} nav={nav} wantsCount={wantsCount} cartCount={cartCount} bonusAvail={bonusAvail} campaign_status={campaign?.status} /> : <div style={{display:'flex',flexDirection:'column',gap:14}}>
+            : (campaign ? <HomePage pool={pool} minCards={campaign?.min_cards||150} pricing={pricing} closeDate={campaign?.close_at} theme={theme} nav={nav} wishlistCount={wishlistCount} cartCount={cartCount} bonusAvail={bonusAvail} campaign_status={campaign?.status} /> : <div style={{display:'flex',flexDirection:'column',gap:14}}>
           <div style={{textAlign:'center',padding:'6px 0 0'}}>
             <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.28*var(--ink-a)))',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>
             <h1 style={{margin:'5px 0 0',fontSize:26,fontFamily:"'Cinzel',serif",background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Cartas para Jogar</h1>
@@ -4097,11 +4135,11 @@ export default function MagicPortal(){
           }
           <Btn full variant="secondary" onClick={()=>{loadAppData(token,session?.user?.id);}} sfx="click"><RefreshCw size={16}/> Recarregar</Btn>
         </div>)}</>}
-        {page === 'catalog' && <CatalogPage token={token} wants={wants} onAddWant={handleAddWant} priceBRL={priceBRL} theme={theme} campaignStatus={campaign?.status} orderMode={orderMode} tutStep={showTutorial?tutStep:-1} onTutNext={tutNext} />}
-        {page === 'wants' && <WantsPage wants={wants} onMoveToCart={handleMoveToCart} onMoveAllToCart={handleMoveAllToCart} onRemoveWant={handleRemoveWant} onUpdateWantQty={handleUpdateWantQty} cartCount={cartCount} bonusAvail={bonusAvail} theme={theme} nav={nav} />}
-        {page === 'cart' && <CartPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} campaignStatus={campaign?.status} theme={theme} nav={nav} onMoveToWants={handleMoveToWants} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} profile={profile} previousPaidBatches={previousPaidBatches} orderMode={orderMode} indiv={indivPricing} />}
-        {page === 'checkout' && (orderMode==='INDIVIDUAL' || campaignCanOrder(campaign?.status)) && <CheckoutPage cartItems={cartItems} wants={wants} cartQtyByItem={cartQtyByItem} pricing={pricing} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} campaignStatus={campaign?.status} onOrderDone={handleOrderDone} toast={toast} previousPaidBatches={previousPaidBatches} onMoveToWants={handleMoveToWants} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} orderMode={orderMode} indiv={indivPricing} />}
-        {page === 'checkout' && orderMode!=='INDIVIDUAL' && !campaignCanOrder(campaign?.status) && <CartPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} campaignStatus={campaign?.status} theme={theme} nav={nav} onMoveToWants={handleMoveToWants} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} profile={profile} previousPaidBatches={previousPaidBatches} orderMode={orderMode} indiv={indivPricing} />}
+        {page === 'catalog' && <CatalogPage token={token} wishlist={wishlist} cartItems={cartItems} onAddToWishlist={handleAddToWishlist} priceBRL={priceBRL} theme={theme} campaignStatus={campaign?.status} orderMode={orderMode} tutStep={showTutorial?tutStep:-1} onTutNext={tutNext} />}
+        {page === 'wants' && <WishlistPage wishlist={wishlist} cartItems={cartItems} onAddToCart={handleAddToCart} onAddAllToCart={handleAddAllToCart} onRemove={handleRemoveFromWishlist} onUpdateQty={handleUpdateWishlistQty} cartCount={cartCount} bonusAvail={bonusAvail} theme={theme} nav={nav} />}
+        {page === 'cart' && <CartPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} campaignStatus={campaign?.status} theme={theme} nav={nav} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} profile={profile} previousPaidBatches={previousPaidBatches} orderMode={orderMode} indiv={indivPricing} />}
+        {page === 'checkout' && (orderMode==='INDIVIDUAL' || campaignCanOrder(campaign?.status)) && <CheckoutPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} campaignStatus={campaign?.status} onOrderDone={handleOrderDone} toast={toast} previousPaidBatches={previousPaidBatches} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} orderMode={orderMode} indiv={indivPricing} />}
+        {page === 'checkout' && orderMode!=='INDIVIDUAL' && !campaignCanOrder(campaign?.status) && <CartPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} campaignStatus={campaign?.status} theme={theme} nav={nav} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} profile={profile} previousPaidBatches={previousPaidBatches} orderMode={orderMode} indiv={indivPricing} />}
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
         {page === 'profile' && !profile && <div style={{padding:20,color:'var(--danger)',fontSize:12}}><div>profile: null</div><div>token: {token?'ok':'null'}</div><div>appLoading: {String(appLoading)}</div><Btn onClick={()=>loadAppData(token,session?.user?.id)} sfx="click"><RefreshCw size={14}/> Recarregar</Btn></div>}
         {page === 'profile' && profile && (() => { try { return <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} campaign={campaign} colorMode={colorMode} onColorModeChange={setColorMode} />; } catch(e) { return <div style={{padding:20,color:'var(--danger)',fontSize:12}}>Crash: {e.message}</div>; } })()}
