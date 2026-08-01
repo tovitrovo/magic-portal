@@ -19,7 +19,24 @@
 
     <style>
       body { margin: 0; background: #08080f; }
+      :root[data-theme='light'] body { background: #f6f1e6; }
     </style>
+
+    <!-- Aplica o tema salvo antes do primeiro paint: sem isso o modo claro
+         pisca escuro enquanto o React não monta. -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('cpj_color_mode');
+          var mode = saved === 'light' || saved === 'dark'
+            ? saved
+            : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+          document.documentElement.setAttribute('data-theme', mode);
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', mode === 'light' ? '#f6f1e6' : '#08080f');
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

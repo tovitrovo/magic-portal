@@ -173,6 +173,47 @@ dependem de encomenda e aparecem sempre.
 | **Encomendas** | Criar/editar/arquivar campanhas + lista de compra da encomenda selecionada |
 | **Ajustes** | Preços da coletiva, preços do individual, notificações e mapa do console |
 
+## 🌗 Tema claro e escuro
+
+O portal abre no tema que o sistema do aparelho pede e lembra a escolha do
+usuário (`localStorage`, chave `cpj_color_mode`). Dá para trocar no ícone
+☀️/🌙 do cabeçalho ou em **Perfil → Aparência**. O modo claro usa um
+off-white quente (`#f6f1e6`) com tinta marrom, não branco/cinza.
+
+### Como as cores funcionam
+
+O app é quase todo estilo inline, então as cores vivem em variáveis CSS
+definidas em `src/theme.css` e trocadas pelo atributo `data-theme` no `<html>`
+(aplicado antes do primeiro paint por um script em `index.html`, para o claro
+não piscar escuro).
+
+Duas convenções valem para qualquer código novo:
+
+| Precisa de… | Use |
+|---|---|
+| Texto/borda/fundo neutro | `rgba(var(--ink), calc(0.3 * var(--ink-a)))` |
+| Superfície rebaixada (campo, sombra) | `rgba(var(--sunk), calc(0.3 * var(--sunk-a)))` |
+| Texto principal | `var(--text)` · `var(--text-strong)` |
+| Cartão, campo, cabeçalho | `var(--card-bg)`, `var(--field-bg)`, `var(--chrome-bg)` |
+| Acento sólido | `var(--ok)`, `var(--gold)`, `var(--danger)`, `var(--info)`, `var(--indiv)`, `var(--wa)` |
+| Acento translúcido | `rgba(var(--ok-rgb), 0.08)` |
+| Opacidade sobre cor variável | `wa(theme.primary, '30')` |
+
+O multiplicador `--ink-a` compensa contraste: a mesma opacidade que funciona
+sobre preto some sobre um fundo creme, então no claro ela é escalada.
+
+`--ink`/`--sunk` guardam **tripletes RGB** (`255, 255, 255`), não cores — é o
+que permite reaproveitar as dezenas de opacidades diferentes do layout.
+
+Cores de acento com opacidade não podem ser concatenadas (`var(--ok)+'14'`
+não é CSS válido): use `wa(cor, '14')`, que aceita tanto hex quanto `var()`.
+A paleta de guilda (`GT`/`GT_LIGHT`) continua em hex justamente porque
+`theme.primary` é concatenado em vários lugares.
+
+`test/theme.test.js` trava esse contrato: os dois modos precisam definir os
+mesmos tokens, e um `rgba(255,255,255,…)` novo no JSX quebra o teste antes de
+quebrar o modo claro silenciosamente.
+
 ## 🔔 Notificações (Web Push + PWA)
 
 O admin recebe no celular: **pedido novo**, **pagamento confirmado**,
