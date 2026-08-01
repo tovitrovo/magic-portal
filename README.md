@@ -280,6 +280,31 @@ O piso de tipo é 11px, e só para rótulo de aba e badge — texto corrido come
 em `--fs-sm`. Os tokens de texto substituem os 14 níveis de opacidade que
 existiam espalhados pelo JSX; o olho lê três, não catorze.
 
+As telas do cliente já foram convertidas (137 `fontSize`, 81 cores de texto,
+20 bordas e 14 fundos). **O console admin ainda usa valores crus** — é uma
+ferramenta de trabalho, com necessidade de densidade diferente da vitrine, e
+merece uma passada própria.
+
+### Catálogo
+
+Busca e filtro trocam a grade por *skeletons* de mesma altura, em vez do
+spinner que substituía tudo e fazia a página saltar a cada tecla. A paginação
+anterior/próxima virou **carregar mais**, que acumula os resultados e mostra
+"N de M cartas".
+
+### Mínimo do pedido
+
+O mínimo de cartas aparece como barra de progresso no carrinho enquanto a
+pessoa monta o pedido, com `role="progressbar"` — antes só era descoberto no
+checkout, depois de tudo escolhido.
+
+### Modo de pedido
+
+Coletiva e Individual mudam preço, mínimo e se o bônus vale. Fora da Home o
+modo era invisível, então dava para montar um pedido inteiro no modo errado.
+Agora há um chip no cabeçalho em catálogo, lista, carrinho e checkout; tocar
+nele leva à Home, onde se troca.
+
 ### Tinta sobre a cor da guilda
 
 `--gp` (cor primária da guilda do usuário) pinta superfícies sólidas, e a cor

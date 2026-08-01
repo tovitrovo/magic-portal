@@ -429,16 +429,16 @@ function FloatingMana({theme}){
 // ══════════════════════════════════════════════════════
 
 const Card=({children,style,glow,onClick,id})=><div id={id} onClick={onClick} style={{background:'var(--card-bg)',border:'1px solid '+(glow||'var(--card-border)'),borderRadius:16,padding:16,boxShadow:glow?'0 0 20px '+glow:'var(--card-shadow)',...(onClick?{cursor:'pointer'}:{}),...style}}>{children}</div>;
-const Btn=({children,variant='primary',disabled,onClick,style,full,sfx='click',id})=>{const v={primary:{background:'var(--gp)',color:'var(--gp-ink)',boxShadow:'0 4px 18px var(--gg)'},secondary:{background:'rgba(var(--ink),calc(0.06*var(--ink-a)))',color:'var(--text-strong)',border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))'},ghost:{background:'transparent',color:'var(--gp)',padding:'12px'},danger:{background:'rgba(var(--danger-rgb),0.1)',color:'var(--danger)',border:'1px solid rgba(var(--danger-rgb),0.15)'},success:{background:'rgba(var(--ok-rgb),0.1)',color:'var(--ok)',border:'1px solid rgba(var(--ok-rgb),0.15)'},pix:{background:'rgba(var(--pix-rgb),0.12)',color:'var(--pix)',border:'1px solid rgba(var(--pix-rgb),0.2)'},warn:{background:'rgba(var(--gold-rgb),0.1)',color:'var(--gold)',border:'1px solid rgba(var(--gold-rgb),0.15)'}};return <button id={id} onClick={e=>{if(!disabled&&sfx&&SFX[sfx])SFX[sfx]();if(onClick)onClick(e);}} disabled={disabled} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,border:'none',borderRadius:14,padding:'13px 20px',fontWeight:700,fontSize:14,cursor:disabled?'not-allowed':'pointer',opacity:disabled?.4:1,transition:'all .15s',fontFamily:"'Outfit',sans-serif",...(full?{width:'100%'}:{}),...v[variant],...style}}>{children}</button>;};
-const Input=({icon:Icon,...p})=><div style={{position:'relative'}}>{Icon&&<Icon size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(var(--ink),calc(0.22*var(--ink-a)))',pointerEvents:'none'}}/>}<input {...p} style={{width:'100%',padding:Icon?'13px 14px 13px 42px':'13px 14px',borderRadius:14,border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',background:'var(--field-bg)',color:'var(--text)',fontSize:15,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box',...p.style}}/></div>;
-const Tag=({children,color,style})=><span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:99,background:color?wa(color,'14'):'rgba(var(--ink),calc(0.04*var(--ink-a)))',border:'1px solid '+(color?wa(color,'22'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),fontSize:12,color:color||'rgba(var(--ink),calc(0.55*var(--ink-a)))',fontWeight:600,whiteSpace:'nowrap',...style}}>{children}</span>;
-const SectionTitle=({children,sub})=><div style={{marginBottom:12}}><h2 style={{margin:0,fontSize:17,fontFamily:"'Cinzel',serif",color:'var(--text-strong)',letterSpacing:.3}}>{children}</h2>{sub&&<p style={{margin:'3px 0 0',fontSize:12,color:'rgba(var(--ink),calc(0.33*var(--ink-a)))'}}>{sub}</p>}</div>;
-const EmptyState=({icon:Icon,title,sub})=><div style={{textAlign:'center',padding:'32px 20px',opacity:.5}}><Icon size={34} style={{marginBottom:8,color:'var(--gp)'}}/><div style={{fontSize:15,fontWeight:700,marginBottom:4}}>{title}</div><div style={{fontSize:13,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))'}}>{sub}</div></div>;
-const ManaOrb=({mana,selected,onClick,size=44})=>{const m=MANA_COLORS.find(c=>c.key===mana);return <button onClick={()=>{SFX.toggle();onClick&&onClick();}} style={{width:size,height:size,borderRadius:size,background:selected?wa(m.color,'28'):'rgba(var(--ink),calc(0.03*var(--ink-a)))',border:'2.5px solid '+(selected?m.color:'rgba(var(--ink),calc(0.08*var(--ink-a)))'),display:'grid',placeItems:'center',cursor:'pointer',fontSize:size*.4,transition:'all .2s',boxShadow:selected?'0 0 14px '+wa(m.color,'35'):'none'}}>{m.emoji}</button>;};
+const Btn=({children,variant='primary',disabled,onClick,style,full,sfx='click',id})=>{const v={primary:{background:'var(--gp)',color:'var(--gp-ink)',boxShadow:'0 4px 18px var(--gg)'},secondary:{background:'var(--fill)',color:'var(--text-strong)',border:'1px solid var(--line)'},ghost:{background:'transparent',color:'var(--gp)',padding:'12px'},danger:{background:'rgba(var(--danger-rgb),0.1)',color:'var(--danger)',border:'1px solid rgba(var(--danger-rgb),0.15)'},success:{background:'rgba(var(--ok-rgb),0.1)',color:'var(--ok)',border:'1px solid rgba(var(--ok-rgb),0.15)'},pix:{background:'rgba(var(--pix-rgb),0.12)',color:'var(--pix)',border:'1px solid rgba(var(--pix-rgb),0.2)'},warn:{background:'rgba(var(--gold-rgb),0.1)',color:'var(--gold)',border:'1px solid rgba(var(--gold-rgb),0.15)'}};return <button id={id} onClick={e=>{if(!disabled&&sfx&&SFX[sfx])SFX[sfx]();if(onClick)onClick(e);}} disabled={disabled} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,border:'none',borderRadius:14,padding:'13px 20px',fontWeight:700,fontSize:14,cursor:disabled?'not-allowed':'pointer',opacity:disabled?.4:1,transition:'all .15s',fontFamily:"'Outfit',sans-serif",...(full?{width:'100%'}:{}),...v[variant],...style}}>{children}</button>;};
+const Input=({icon:Icon,...p})=><div style={{position:'relative'}}>{Icon&&<Icon size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)',pointerEvents:'none'}}/>}<input {...p} style={{width:'100%',padding:Icon?'13px 14px 13px 42px':'13px 14px',borderRadius:14,border:'1px solid var(--line)',background:'var(--field-bg)',color:'var(--text)',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box',...p.style}}/></div>;
+const Tag=({children,color,style})=><span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:99,background:color?wa(color,'14'):'rgba(var(--ink),calc(0.04*var(--ink-a)))',border:'1px solid '+(color?wa(color,'22'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),fontSize:'var(--fs-xs)',color:color||'rgba(var(--ink),calc(0.55*var(--ink-a)))',fontWeight:600,whiteSpace:'nowrap',...style}}>{children}</span>;
+const SectionTitle=({children,sub})=><div style={{marginBottom:12}}><h2 style={{margin:0,fontSize:'var(--fs-lg)',fontFamily:"'Cinzel',serif",color:'var(--text-strong)',letterSpacing:.3}}>{children}</h2>{sub&&<p style={{margin:'3px 0 0',fontSize:'var(--fs-xs)',color:'var(--text-faint)'}}>{sub}</p>}</div>;
+const EmptyState=({icon:Icon,title,sub})=><div style={{textAlign:'center',padding:'32px 20px',opacity:.5}}><Icon size={34} style={{marginBottom:8,color:'var(--gp)'}}/><div style={{fontSize:'var(--fs-md)',fontWeight:700,marginBottom:4}}>{title}</div><div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}>{sub}</div></div>;
+const ManaOrb=({mana,selected,onClick,size=44})=>{const m=MANA_COLORS.find(c=>c.key===mana);return <button onClick={()=>{SFX.toggle();onClick&&onClick();}} style={{width:size,height:size,borderRadius:size,background:selected?wa(m.color,'28'):'rgba(var(--ink),calc(0.03*var(--ink-a)))',border:'2.5px solid '+(selected?m.color:'var(--text-faint)'),display:'grid',placeItems:'center',cursor:'pointer',fontSize:size*.4,transition:'all .2s',boxShadow:selected?'0 0 14px '+wa(m.color,'35'):'none'}}>{m.emoji}</button>;};
 const GuildBadge=({guild,size=22})=>{if(!guild||!GT[guild])return null;const t=guildTheme(guild);return <div style={{width:size,height:size,borderRadius:size,background:'linear-gradient(135deg,'+t.primary+','+t.secondary+')',boxShadow:'0 0 '+size*.5+'px '+t.glow,flexShrink:0}}/>;};
 const Spin=({size=18,color})=><Loader size={size} style={{color:color||'var(--gp)',animation:'spin 1s linear infinite'}}/>;
 
-const Toast=({msg,type='info',onClose})=>{const bg=type==='error'?'rgba(var(--danger-rgb),0.15)':type==='success'?'rgba(var(--ok-rgb),0.15)':'rgba(var(--info-rgb),0.15)';const c=type==='error'?'var(--danger)':type==='success'?'var(--ok)':'var(--info)';return <div style={{position:'fixed',top:16,left:'50%',transform:'translateX(-50%)',zIndex:200,padding:'10px 18px',borderRadius:14,background:bg,border:'1px solid '+wa(c,'30'),color:c,fontSize:13,fontWeight:600,display:'flex',alignItems:'center',gap:8,backdropFilter:'blur(12px)',maxWidth:'90%'}}>{type==='error'?<AlertTriangle size={15}/>:<Check size={15}/>}{msg}<button onClick={onClose} style={{background:'none',border:'none',color:c,cursor:'pointer',padding:2}}><X size={14}/></button></div>;};
+const Toast=({msg,type='info',onClose})=>{const bg=type==='error'?'rgba(var(--danger-rgb),0.15)':type==='success'?'rgba(var(--ok-rgb),0.15)':'rgba(var(--info-rgb),0.15)';const c=type==='error'?'var(--danger)':type==='success'?'var(--ok)':'var(--info)';return <div style={{position:'fixed',top:16,left:'50%',transform:'translateX(-50%)',zIndex:200,padding:'10px 18px',borderRadius:14,background:bg,border:'1px solid '+wa(c,'30'),color:c,fontSize:'var(--fs-sm)',fontWeight:600,display:'flex',alignItems:'center',gap:8,backdropFilter:'blur(12px)',maxWidth:'90%'}}>{type==='error'?<AlertTriangle size={15}/>:<Check size={15}/>}{msg}<button onClick={onClose} style={{background:'none',border:'none',color:c,cursor:'pointer',padding:2}}><X size={14}/></button></div>;};
 
 const AddressForm=({address,setAddress})=>{
   const [cepLoading,setCepLoading]=useState(false);
@@ -484,14 +484,14 @@ const AddressForm=({address,setAddress})=>{
 const AddressDisplay=({address,onEdit})=>{
   const has=address&&(address.rua||address.cep);
   return(<div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10}}>
-    <div style={{fontSize:13,color:'rgba(var(--ink),calc(0.55*var(--ink-a)))',lineHeight:1.6}}>
+    <div style={{fontSize:'var(--fs-sm)',color:'var(--text-muted)',lineHeight:1.6}}>
       {has?<>
         {address.rua&&<div>{address.rua}{address.numero?', '+address.numero:''}{address.complemento?' · '+address.complemento:''}</div>}
         {(address.bairro||address.cidade)&&<div>{[address.bairro,address.cidade,address.uf].filter(Boolean).join(' — ')}</div>}
-        {address.cep&&<div style={{fontSize:11,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}>CEP {address.cep}</div>}
-      </>:<span style={{color:'rgba(var(--ink),calc(0.25*var(--ink-a)))'}}>Nenhum endereço cadastrado</span>}
+        {address.cep&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>CEP {address.cep}</div>}
+      </>:<span style={{color:'var(--text-faint)'}}>Nenhum endereço cadastrado</span>}
     </div>
-    <button onClick={onEdit} style={{background:'rgba(var(--ink),calc(0.05*var(--ink-a)))',border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',borderRadius:10,padding:'6px 10px',cursor:'pointer',color:'rgba(var(--ink),calc(0.5*var(--ink-a)))',display:'flex',alignItems:'center',gap:4,fontSize:11,flexShrink:0}}><Edit3 size={12}/> Editar</button>
+    <button onClick={onEdit} style={{background:'var(--fill)',border:'1px solid var(--line)',borderRadius:10,padding:'6px 10px',cursor:'pointer',color:'var(--text-dim)',display:'flex',alignItems:'center',gap:4,fontSize:'var(--fs-2xs)',flexShrink:0}}><Edit3 size={12}/> Editar</button>
   </div>);
 };
 
@@ -499,7 +499,7 @@ function FlyingCard({show,onDone}){
   useEffect(()=>{if(show){const t=setTimeout(()=>onDone&&onDone(),600);return()=>clearTimeout(t);}},[show]);
   if(!show)return null;
   return <div style={{position:'fixed',zIndex:999,pointerEvents:'none',top:'50%',left:'50%',animation:'flyToWants 0.6s ease-in forwards'}}>
-    <div style={{width:32,height:44,borderRadius:4,background:'linear-gradient(135deg,var(--gp),var(--gs))',boxShadow:'0 0 16px var(--gg)',border:'1px solid rgba(var(--ink),calc(0.2*var(--ink-a)))'}}/>
+    <div style={{width:32,height:44,borderRadius:4,background:'linear-gradient(135deg,var(--gp),var(--gs))',boxShadow:'0 0 16px var(--gg)',border:'1px solid var(--line)'}}/>
   </div>;
 }
 
@@ -515,15 +515,15 @@ function SwipeableCard({children,onSwipeLeft,onSwipeRight,leftLabel='Excluir',ri
   }
   const bgColor=dx<-30?wa(leftColor,'20'):dx>30?wa((rightColor||'var(--gp)'),'20'):'transparent';
   return(<div style={{position:'relative',overflow:'hidden',borderRadius:16,background:bgColor,transition:swiping?'none':'background .3s'}}>
-    {dx<-20&&<div style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',color:leftColor,fontSize:11,fontWeight:700,display:'flex',alignItems:'center',gap:4}}><Trash2 size={14}/>{leftLabel}</div>}
-    {dx>20&&<div style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',color:rightColor||'var(--gp)',fontSize:11,fontWeight:700,display:'flex',alignItems:'center',gap:4}}><ShoppingCart size={14}/>{rightLabel}</div>}
+    {dx<-20&&<div style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',color:leftColor,fontSize:'var(--fs-2xs)',fontWeight:700,display:'flex',alignItems:'center',gap:4}}><Trash2 size={14}/>{leftLabel}</div>}
+    {dx>20&&<div style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',color:rightColor||'var(--gp)',fontSize:'var(--fs-2xs)',fontWeight:700,display:'flex',alignItems:'center',gap:4}}><ShoppingCart size={14}/>{rightLabel}</div>}
     <div ref={ref} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} style={{transform:`translateX(${dx}px)`,transition:swiping?'none':'transform .3s',position:'relative',zIndex:1}}>{children}</div>
   </div>);
 }
 
 function VirtualKeyboard({onKey,onBackspace,onDone,maxLen=6,currentLen=0,doneLabel='OK'}){
   const rows=[['1','2','3'],['4','5','6'],['7','8','9'],['⌫','0',doneLabel]];
-  return(<div style={{background:'rgba(var(--sunk),calc(0.6*var(--sunk-a)))',backdropFilter:'blur(10px)',borderRadius:16,padding:10,border:'1px solid rgba(var(--ink),calc(0.06*var(--ink-a)))',maxWidth:220,margin:'0 auto'}}>
+  return(<div style={{background:'rgba(var(--sunk),calc(0.6*var(--sunk-a)))',backdropFilter:'blur(10px)',borderRadius:16,padding:10,border:'1px solid var(--line-soft)',maxWidth:220,margin:'0 auto'}}>
     {rows.map((row,ri)=>(<div key={ri} style={{display:'flex',justifyContent:'center',gap:4,marginBottom:4}}>
       {row.map(k=>{
         const isBack=k==='⌫';const isOk=k===doneLabel;const isNum=!isBack&&!isOk;
@@ -549,25 +549,25 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
     {rect&&<div style={{position:'absolute',top:rect.top,left:rect.left,width:rect.width,height:rect.height,borderRadius:14,border:'2.5px solid '+theme.primary,boxShadow:'0 0 30px '+theme.glow+', inset 0 0 20px '+theme.glow,background:'transparent',zIndex:101,pointerEvents:'none',animation:'tutPulse 1.5s ease-in-out infinite'}}/>}
     <div style={{position:'fixed',bottom:70,left:'50%',transform:'translateX(-50%)',width:'calc(100% - 40px)',maxWidth:420,zIndex:102}}>
       <Card glow={theme.glow} style={{padding:18,background:'var(--sheet-bg)',border:'1px solid '+wa(theme.primary,'30')}}>
-        <div style={{fontSize:15,fontWeight:700,color:theme.primary,marginBottom:6}}>{s.title}</div>
-        <div style={{fontSize:13,lineHeight:1.7,color:'rgba(var(--ink),calc(0.6*var(--ink-a)))',marginBottom:8}}>{s.body}</div>
+        <div style={{fontSize:'var(--fs-md)',fontWeight:700,color:theme.primary,marginBottom:6}}>{s.title}</div>
+        <div style={{fontSize:'var(--fs-sm)',lineHeight:1.7,color:'var(--text-muted)',marginBottom:8}}>{s.body}</div>
         {s.gesture==='swipe'&&<div style={{display:'flex',justifyContent:'center',gap:20,padding:'10px 0',marginBottom:6}}>
           <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:10,background:'rgba(var(--danger-rgb),0.08)',border:'1px solid rgba(var(--danger-rgb),0.15)'}}>
-            <span style={{fontSize:14}}>👈</span><span style={{fontSize:11,color:'var(--danger)',fontWeight:600}}>Excluir</span>
+            <span style={{fontSize:14}}>👈</span><span style={{fontSize:'var(--fs-2xs)',color:'var(--danger)',fontWeight:600}}>Excluir</span>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:10,background:'rgba(var(--ok-rgb),0.08)',border:'1px solid rgba(var(--ok-rgb),0.15)'}}>
-            <span style={{fontSize:11,color:'var(--ok)',fontWeight:600}}>Carrinho</span><span style={{fontSize:14}}>👉</span>
+            <span style={{fontSize:'var(--fs-2xs)',color:'var(--ok)',fontWeight:600}}>Carrinho</span><span style={{fontSize:14}}>👉</span>
           </div>
         </div>}
         {s.tip&&<div style={{display:'flex',alignItems:'center',gap:6,padding:'7px 10px',borderRadius:10,background:wa(theme.primary,'0a'),border:'1px solid '+wa(theme.primary,'15'),marginBottom:10}}>
           <HelpCircle size={13} style={{color:theme.primary,flexShrink:0}}/>
-          <span style={{fontSize:11,color:theme.primary,fontWeight:600}}>{s.tip}</span>
+          <span style={{fontSize:'var(--fs-2xs)',color:theme.primary,fontWeight:600}}>{s.tip}</span>
         </div>}
         <div style={{display:'flex',gap:5,justifyContent:'center',marginBottom:12}}>{steps.map((_,i)=><div key={i} style={{width:i===step?18:6,height:5,borderRadius:3,background:i===step?theme.primary:'rgba(var(--ink),calc(0.08*var(--ink-a)))',transition:'all .3s'}}/>)}</div>
         <div style={{display:'flex',gap:8}}>
-          {!isFirstTime&&<Btn variant="ghost" onClick={onSkip} style={{width:'100%',fontSize:11,whiteSpace:'nowrap',justifyContent:'center'}} sfx="nav">Pular</Btn>}
-          {s.interactive?<div style={{flex:2,textAlign:'center',fontSize:11,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))',fontStyle:'italic',padding:'10px 0'}}>Toque no + para continuar</div>:isLast?<Btn onClick={onNext} style={{flex:2,fontSize:13}} sfx="confirm"><BookOpen size={15}/> Ver cartas!</Btn>:
-          <Btn onClick={onNext} style={{flex:isFirstTime?1:2,fontSize:13}} sfx="click">Entendi <ArrowRight size={14}/></Btn>}
+          {!isFirstTime&&<Btn variant="ghost" onClick={onSkip} style={{width:'100%',fontSize:'var(--fs-2xs)',whiteSpace:'nowrap',justifyContent:'center'}} sfx="nav">Pular</Btn>}
+          {s.interactive?<div style={{flex:2,textAlign:'center',fontSize:'var(--fs-2xs)',color:'var(--text-faint)',fontStyle:'italic',padding:'10px 0'}}>Toque no + para continuar</div>:isLast?<Btn onClick={onNext} style={{flex:2,fontSize:'var(--fs-sm)'}} sfx="confirm"><BookOpen size={15}/> Ver cartas!</Btn>:
+          <Btn onClick={onNext} style={{flex:isFirstTime?1:2,fontSize:'var(--fs-sm)'}} sfx="click">Entendi <ArrowRight size={14}/></Btn>}
         </div>
       </Card>
     </div>
@@ -605,28 +605,28 @@ function HomePage({pool,minCards,pricing,closeDate,theme,nav,wishlistCount,cartC
   const foilPrice=Number(pricing?.foil_price_brl)||18;
   return(<div className="portal-page portal-home" style={{display:'flex',flexDirection:'column',gap:14}}>
     <div style={{textAlign:'center',padding:'6px 0 0'}}>
-      <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.28*var(--ink-a)))',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>
-      <h1 style={{margin:'5px 0 0',fontSize:26,fontFamily:"'Cinzel',serif",background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Cartas para Jogar</h1>
+      <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>
+      <h1 style={{margin:'5px 0 0',fontSize:'var(--fs-2xl)',fontFamily:"'Cinzel',serif",background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Cartas para Jogar</h1>
     </div>
 
     {/* Status da campanha se não estiver ativa */}
     {campaign_status&&campaign_status!=='ACTIVE'&&<Card style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:8,background:'rgba(var(--danger-rgb),0.06)',borderColor:'rgba(var(--danger-rgb),0.15)'}}>
-      <AlertTriangle size={16} style={{color:'#d94452'}}/><div><div style={{fontSize:13,fontWeight:700,color:'var(--danger)'}}>{campaignLabel(campaign_status)}</div><div style={{fontSize:11,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}>Novos pedidos disponíveis apenas quando a encomenda estiver ativa.</div></div>
+      <AlertTriangle size={16} style={{color:'#d94452'}}/><div><div style={{fontSize:'var(--fs-sm)',fontWeight:700,color:'var(--danger)'}}>{campaignLabel(campaign_status)}</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>Novos pedidos disponíveis apenas quando a encomenda estiver ativa.</div></div>
     </Card>}
 
     {/* Progresso da meta mínima */}
     <Card style={{padding:18,borderColor:isViable?'rgba(var(--ok-rgb),0.2)':undefined,background:isViable?'rgba(var(--ok-rgb),0.04)':undefined}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
         <div>
-          <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',textTransform:'uppercase',letterSpacing:1,marginBottom:3,fontWeight:600}}>Progresso da encomenda</div>
-          <div style={{fontSize:22,fontWeight:800,color:isViable?'var(--ok)':theme.primary}}>{pool} <span style={{fontSize:14,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontWeight:400}}>/ {goalCards} cartas</span></div>
+          <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',textTransform:'uppercase',letterSpacing:1,marginBottom:3,fontWeight:600}}>Progresso da encomenda</div>
+          <div style={{fontSize:'var(--fs-xl)',fontWeight:800,color:isViable?'var(--ok)':theme.primary}}>{pool} <span style={{fontSize:14,color:'var(--text-faint)',fontWeight:400}}>/ {goalCards} cartas</span></div>
         </div>
-        {isViable?<div style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:99,background:'rgba(var(--ok-rgb),0.12)',border:'1px solid rgba(var(--ok-rgb),0.25)'}}><Check size={12} style={{color:'var(--ok)'}}/><span style={{fontSize:11,fontWeight:700,color:'var(--ok)'}}>Meta atingida</span></div>:<div style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:99,background:'rgba(var(--ink),calc(0.04*var(--ink-a)))',border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))'}}><span style={{fontSize:11,fontWeight:600,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))'}}>Meta: {goalCards} cartas</span></div>}
+        {isViable?<div style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:99,background:'rgba(var(--ok-rgb),0.12)',border:'1px solid rgba(var(--ok-rgb),0.25)'}}><Check size={12} style={{color:'var(--ok)'}}/><span style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--ok)'}}>Meta atingida</span></div>:<div style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:99,background:'var(--fill-soft)',border:'1px solid var(--line)'}}><span style={{fontSize:'var(--fs-2xs)',fontWeight:600,color:'var(--text-dim)'}}>Meta: {goalCards} cartas</span></div>}
       </div>
       <div style={{background:'rgba(var(--sunk),calc(0.35*var(--sunk-a)))',borderRadius:99,height:8,overflow:'hidden',marginBottom:10}}>
         <div style={{width:progress+'%',height:'100%',borderRadius:99,background:isViable?'linear-gradient(90deg,var(--ok),var(--ok-2))':'linear-gradient(90deg,'+theme.primary+','+theme.secondary+')',transition:'width .5s',boxShadow:'0 0 10px '+(isViable?'rgba(var(--ok-rgb),0.3)':theme.glow)}}/>
       </div>
-      <div style={{fontSize:12,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))',lineHeight:1.5}}>
+      <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',lineHeight:1.5}}>
         {isViable
           ?<>✅ Encomenda confirmada! Continuaremos recebendo pedidos até a data prevista de fechamento.</>
           :<>⏳ Faltam <b style={{color:theme.primary}}>{missingForMeta} carta{missingForMeta!==1?'s':''}</b> para a encomenda ser confirmada. A encomenda permanece aberta até atingir a meta mínima.</>
@@ -638,11 +638,11 @@ function HomePage({pool,minCards,pricing,closeDate,theme,nav,wishlistCount,cartC
     {closeD&&<Card style={{padding:'12px 16px',display:'flex',alignItems:'flex-start',gap:10}}>
       <Calendar size={16} style={{color:theme.primary,flexShrink:0,marginTop:1}}/>
       <div>
-        <div style={{fontSize:13,fontWeight:700,marginBottom:2}}>
+        <div style={{fontSize:'var(--fs-sm)',fontWeight:700,marginBottom:2}}>
           {datePassed?'Data prevista já passou':'Data prevista de fechamento: '+closeDateText}
-          {!datePassed&&daysLeft!==null&&<span style={{fontSize:11,fontWeight:400,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',marginLeft:6}}>({daysLeft} dia{daysLeft!==1?'s':''})</span>}
+          {!datePassed&&daysLeft!==null&&<span style={{fontSize:'var(--fs-2xs)',fontWeight:400,color:'var(--text-faint)',marginLeft:6}}>({daysLeft} dia{daysLeft!==1?'s':''})</span>}
         </div>
-        <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',lineHeight:1.5}}>
+        <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',lineHeight:1.5}}>
           {isViable
             ?datePassed?'A meta mínima foi atingida. O admin pode fechar a encomenda a qualquer momento.':'Quando a data chegar e a meta estiver atingida, o admin encerrará a encomenda.'
             :'Se a data chegar antes de atingirmos a meta, a encomenda continuará aberta até as '+goalCards+' cartas serem alcançadas.'
@@ -653,24 +653,24 @@ function HomePage({pool,minCards,pricing,closeDate,theme,nav,wishlistCount,cartC
 
     {/* Resumo stats */}
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
-      {[{icon:ScrollText,val:wishlistCount,lbl:'Desejos',c:theme.primary},{icon:ShoppingCart,val:cartCount,lbl:'Carrinho',c:'var(--gold)'},{icon:Gift,val:bonusAvail,lbl:'Bônus',c:'var(--ok)'}].map(s=>(<Card key={s.lbl} style={{textAlign:'center',padding:12}}><s.icon size={16} style={{color:s.c,marginBottom:3}}/><div style={{fontSize:18,fontWeight:800}}>{s.val}</div><div style={{fontSize:10,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}>{s.lbl}</div></Card>))}
+      {[{icon:ScrollText,val:wishlistCount,lbl:'Desejos',c:theme.primary},{icon:ShoppingCart,val:cartCount,lbl:'Carrinho',c:'var(--gold)'},{icon:Gift,val:bonusAvail,lbl:'Bônus',c:'var(--ok)'}].map(s=>(<Card key={s.lbl} style={{textAlign:'center',padding:12}}><s.icon size={16} style={{color:s.c,marginBottom:3}}/><div style={{fontSize:'var(--fs-lg)',fontWeight:800}}>{s.val}</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{s.lbl}</div></Card>))}
     </div>
 
     {/* Bônus disponíveis */}
     {bonusAvail>0&&<Card style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:10,background:'rgba(var(--ok-rgb),0.06)',borderColor:'rgba(var(--ok-rgb),0.18)'}}>
-      <Gift size={18} style={{color:'var(--ok)',flexShrink:0}}/><div><div style={{fontSize:13,fontWeight:700,color:'var(--ok)'}}>Você tem {bonusAvail} carta{bonusAvail!==1?'s':''} bônus! 🎉</div><div style={{fontSize:11,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))'}}>Serão incluídas automaticamente no seu próximo checkout.</div></div>
+      <Gift size={18} style={{color:'var(--ok)',flexShrink:0}}/><div><div style={{fontSize:'var(--fs-sm)',fontWeight:700,color:'var(--ok)'}}>Você tem {bonusAvail} carta{bonusAvail!==1?'s':''} bônus! 🎉</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>Serão incluídas automaticamente no seu próximo checkout.</div></div>
     </Card>}
 
     {/* Tabela de preços por tipo */}
     <Card style={{padding:16}}>
       <SectionTitle sub="Preços fixos por tipo de carta">Preços</SectionTitle>
-      {[{label:'Carta Normal',price:normalPrice,color:'rgba(var(--ink),calc(0.6*var(--ink-a)))',desc:'Cartas comuns e não-foil'},{label:'Carta Holo',price:outerPrice,color:'var(--gold)',desc:'Cartas Holo / especiais'},{label:'Carta Foil',price:foilPrice,color:'#d94452',desc:'Cartas foil de qualquer tipo'}].map(t=>(
-        <div key={t.label} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 12px',borderRadius:10,marginBottom:3,background:'rgba(var(--ink),calc(0.02*var(--ink-a)))',border:'1px solid rgba(var(--ink),calc(0.05*var(--ink-a)))'}}>
-          <div><div style={{fontSize:13,fontWeight:600,color:t.color}}>{t.label}</div><div style={{fontSize:10,color:'rgba(var(--ink),calc(0.25*var(--ink-a)))'}}>{t.desc}</div></div>
-          <span style={{fontSize:16,fontWeight:800,color:t.color}}>R$ {t.price.toFixed(2)}</span>
+      {[{label:'Carta Normal',price:normalPrice,color:'var(--text-muted)',desc:'Cartas comuns e não-foil'},{label:'Carta Holo',price:outerPrice,color:'var(--gold)',desc:'Cartas Holo / especiais'},{label:'Carta Foil',price:foilPrice,color:'#d94452',desc:'Cartas foil de qualquer tipo'}].map(t=>(
+        <div key={t.label} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 12px',borderRadius:10,marginBottom:3,background:'var(--fill-soft)',border:'1px solid var(--line-soft)'}}>
+          <div><div style={{fontSize:'var(--fs-sm)',fontWeight:600,color:t.color}}>{t.label}</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{t.desc}</div></div>
+          <span style={{fontSize:'var(--fs-md)',fontWeight:800,color:t.color}}>R$ {t.price.toFixed(2)}</span>
         </div>
       ))}
-      <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.2*var(--ink-a)))',marginTop:8,textAlign:'center'}}>Mínimo de 15 cartas pagas por pedido</div>
+      <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginTop:8,textAlign:'center'}}>Mínimo de 15 cartas pagas por pedido</div>
     </Card>
 
     <Btn full onClick={()=>{SFX.nav();nav('catalog');}} sfx="nav"><BookOpen size={18}/> Ver catálogo</Btn>
@@ -690,12 +690,12 @@ function CardThumb({card,radius=12,style}){
   const type=card.type||card.card_type||'Normal';
   const img=card.image_url||card.card_image_url;
   const tc=TC[type]||'rgba(var(--ink),calc(0.4*var(--ink-a)))';
-  return(<div style={{position:'relative',width:'100%',aspectRatio:'0.72',borderRadius:radius,overflow:'hidden',background:'linear-gradient(150deg,rgba(var(--ink),calc(0.07*var(--ink-a))),rgba(var(--ink),calc(0.02*var(--ink-a))))',border:'1px solid rgba(var(--ink),calc(0.06*var(--ink-a)))',...style}}>
+  return(<div style={{position:'relative',width:'100%',aspectRatio:'0.72',borderRadius:radius,overflow:'hidden',background:'linear-gradient(150deg,rgba(var(--ink),calc(0.07*var(--ink-a))),rgba(var(--ink),calc(0.02*var(--ink-a))))',border:'1px solid var(--line-soft)',...style}}>
     {img&&!err
       ? <img src={img} alt={name} loading="lazy" onError={()=>setErr(true)} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
       : <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:6,padding:8,textAlign:'center'}}>
           <div style={{fontSize:24,opacity:.45}}>🃏</div>
-          <div style={{fontSize:10,fontWeight:700,color:'rgba(var(--ink),calc(0.62*var(--ink-a)))',lineHeight:1.15,wordBreak:'break-word'}}>{name}</div>
+          <div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-muted)',lineHeight:1.15,wordBreak:'break-word'}}>{name}</div>
           <div style={{fontSize:8,fontWeight:700,color:tc,textTransform:'uppercase',letterSpacing:.4}}>{type}</div>
         </div>}
   </div>);
@@ -753,13 +753,14 @@ function CatalogPage({token,wishlist,cartItems=[],onAddToWishlist,priceBRL,theme
         sbGet('cards',countQuery,token),
       ]);
       if(fetchId!==latestFetchRef.current)return;
-      setCards(data);
+      // page 0 é busca/filtro novo (substitui); page > 0 é "carregar mais" (soma).
+      setCards(prev=>page===0?data:[...prev,...data.filter(d=>!prev.some(p=>p.id===d.id))]);
       setTotal(countData.length);
     } catch(e) { if(fetchId===latestFetchRef.current)console.error(e); }
     finally { if(fetchId===latestFetchRef.current)setLoading(false); }
   },[search,typeF,tcgFilter,page,token]);
 
-  useEffect(()=>{setPage(0);},[search,typeF,tcgFilter]);
+  useEffect(()=>{setPage(0);setCards([]);},[search,typeF,tcgFilter]);
   useEffect(()=>{const t=setTimeout(fetchCards,300);return()=>{clearTimeout(t);latestFetchRef.current++;};},[fetchCards,page]);
 
   const getQ=id=>addQty[id]||1;const setQ=(id,v)=>setAddQty(q=>({...q,[id]:Math.max(1,v)}));
@@ -769,16 +770,30 @@ function CatalogPage({token,wishlist,cartItems=[],onAddToWishlist,priceBRL,theme
     {!isIndividual&&!campaignOpen&&<Card style={{padding:14,borderColor:'rgba(var(--gold-rgb),0.25)',background:'rgba(var(--gold-rgb),0.08)'}}><div style={{fontSize:'var(--fs-sm)',fontWeight:700,color:'var(--gold)'}}>Encomenda fechada no momento</div><div style={{fontSize:'var(--fs-xs)',color:'var(--text-muted)',marginTop:4}}>{campaignStatusText} Você ainda pode montar sua lista de desejos.</div></Card>}
     <FlyingCard show={flyAnim} onDone={()=>setFlyAnim(false)}/>
     <div style={{display:'flex',gap:5,overflowX:'auto',WebkitOverflowScrolling:'touch',paddingBottom:2}}>
-      {TCG_LIST.map(t=>(<button key={t.key} onClick={()=>{SFX.toggle();setTcgFilter(t.key);setTypeF(current=>current===RECENT_CARDS_FILTER?current:'Todos');}} style={{padding:'7px 12px',borderRadius:10,border:'none',background:tcgFilter===t.key?wa(t.color,'22'):'rgba(var(--ink),calc(0.04*var(--ink-a)))',color:tcgFilter===t.key?t.color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontWeight:700,fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap',flexShrink:0,boxShadow:tcgFilter===t.key?`0 0 0 1.5px ${t.color}60`:'none'}}>{t.key}</button>))}
+      {TCG_LIST.map(t=>(<button key={t.key} onClick={()=>{SFX.toggle();setTcgFilter(t.key);setTypeF(current=>current===RECENT_CARDS_FILTER?current:'Todos');}} style={{padding:'7px 12px',borderRadius:10,border:'none',background:tcgFilter===t.key?wa(t.color,'22'):'rgba(var(--ink),calc(0.04*var(--ink-a)))',color:tcgFilter===t.key?t.color:'var(--text-faint)',fontWeight:700,fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap',flexShrink:0,boxShadow:tcgFilter===t.key?`0 0 0 1.5px ${t.color}60`:'none'}}>{t.key}</button>))}
     </div>
     <div id="tut-search-area" style={{display:'flex',flexDirection:'column',gap:8}}>
       <Input icon={Search} placeholder="Buscar carta..." value={search} onChange={e=>setSearch(e.target.value)}/>
       <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
-        {catalogFilters.map(t=>(<button key={t} onClick={()=>{SFX.toggle();setTypeF(t);}} style={{flex:'1 1 64px',minWidth:t===RECENT_CARDS_FILTER?96:64,padding:'7px 6px',borderRadius:10,border:'none',background:typeF===t?currentTcg.color:'rgba(var(--ink),calc(0.04*var(--ink-a)))',color:typeF===t?'#fff':'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontWeight:600,fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap'}}>{t}</button>))}
+        {catalogFilters.map(t=>(<button key={t} onClick={()=>{SFX.toggle();setTypeF(t);}} style={{flex:'1 1 64px',minWidth:t===RECENT_CARDS_FILTER?96:64,padding:'7px 6px',borderRadius:10,border:'none',background:typeF===t?currentTcg.color:'var(--text-faint)',color:typeF===t?'#fff':'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontWeight:600,fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap'}}>{t}</button>))}
       </div>
     </div>
-    {loading?<div style={{textAlign:'center',padding:40}}><Spin size={28}/></div>:(
-      <div className="portal-card-grid portal-catalog-grid">
+    {loading&&cards.length===0?(
+      // Skeleton em vez de spinner: antes a grade inteira era substituída a cada
+      // tecla digitada e a página saltava. Mantendo a altura, nada pula.
+      <div className="portal-card-grid portal-catalog-grid" aria-hidden="true">
+        {Array.from({length:6}).map((_,i)=>(
+          <Card key={'sk'+i} style={{padding:8}}>
+            <div style={{width:'100%',aspectRatio:'0.72',borderRadius:12,background:'var(--fill)',animation:'skPulse 1.2s ease-in-out infinite'}}/>
+            <div style={{padding:'9px 3px 2px'}}>
+              <div style={{height:11,width:'78%',borderRadius:4,background:'var(--fill)',animation:'skPulse 1.2s ease-in-out infinite'}}/>
+              <div style={{height:9,width:'42%',borderRadius:4,background:'var(--fill)',marginTop:6,animation:'skPulse 1.2s ease-in-out infinite'}}/>
+            </div>
+          </Card>
+        ))}
+      </div>
+    ):(
+      <div className="portal-card-grid portal-catalog-grid" style={{opacity:loading?0.55:1,transition:'opacity .15s'}}>
         {cards.map((c,i)=>{
           // Três estados, em ordem de precedência: já comprada > no carrinho >
           // na lista. Antes só existia "está nos wants".
@@ -797,9 +812,9 @@ function CatalogPage({token,wishlist,cartItems=[],onAddToWishlist,priceBRL,theme
               <button ref={i===0?firstAddBtnRef:null} id={i===0?'tut-add-btn':undefined} title="Adicionar à lista de desejos" aria-label={`Adicionar ${c.name} à lista de desejos`} onClick={e=>{e.stopPropagation();add(c,1);}} style={{position:'absolute',right:7,bottom:7,width:40,height:40,border:'none',borderRadius:12,background:wish?'rgba(var(--ok-rgb),0.92)':'var(--gp)',color:'var(--gp-ink)',display:'grid',placeItems:'center',cursor:'pointer',boxShadow:'0 6px 16px var(--gg)'}}><Plus size={18}/></button>
             </div>
             <div style={{padding:'9px 3px 2px'}}>
-              <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</div>
+              <div style={{fontWeight:700,fontSize:'var(--fs-sm)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</div>
               <div style={{display:'flex',alignItems:'center',marginTop:5}}>
-                <span style={{fontSize:10,color:TC[c.type],fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.type}</span>
+                <span style={{fontSize:'var(--fs-2xs)',color:TC[c.type],fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.type}</span>
               </div>
             </div>
           </Card>);
@@ -807,12 +822,15 @@ function CatalogPage({token,wishlist,cartItems=[],onAddToWishlist,priceBRL,theme
         {cards.length===0&&!loading&&<div style={{gridColumn:'1 / -1'}}><EmptyState icon={Search} title="Nenhuma carta encontrada" sub="Tente outro termo"/></div>}
       </div>
     )}
-    {total>PAGE_SIZE&&<div style={{display:'flex',justifyContent:'center',gap:8,padding:'8px 0'}}>
-      <Btn variant="secondary" disabled={page===0} onClick={()=>setPage(p=>p-1)} style={{padding:'8px 14px',fontSize:12}} sfx="nav"><ChevronLeft size={14}/></Btn>
-      <Tag>{page+1}/{Math.ceil(total/PAGE_SIZE)}</Tag>
-      <Btn variant="secondary" disabled={(page+1)*PAGE_SIZE>=total} onClick={()=>setPage(p=>p+1)} style={{padding:'8px 14px',fontSize:12}} sfx="nav"><ChevronRight size={14}/></Btn>
+    {cards.length>0&&<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,padding:'4px 0 8px'}}>
+      <div aria-live="polite" style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)'}}>
+        {cards.length} de {total} carta{total!==1?'s':''}
+      </div>
+      {cards.length<total&&<Btn variant="secondary" disabled={loading} onClick={()=>setPage(p=>p+1)} sfx="nav" style={{minWidth:200}}>
+        {loading?<><Spin size={14}/> Carregando…</>:<>Carregar mais {Math.min(PAGE_SIZE,total-cards.length)}</>}
+      </Btn>}
     </div>}
-    {tutStep===2&&handPos&&<div style={{position:'fixed',top:handPos.top,left:handPos.left,zIndex:200,pointerEvents:'none',fontSize:22,animation:'tutHandBounce 0.8s ease-in-out infinite',transform:'translateX(-50%)'}}>👆</div>}
+    {tutStep===2&&handPos&&<div style={{position:'fixed',top:handPos.top,left:handPos.left,zIndex:200,pointerEvents:'none',fontSize:'var(--fs-xl)',animation:'tutHandBounce 0.8s ease-in-out infinite',transform:'translateX(-50%)'}}>👆</div>}
     {detail&&<CardDetailModal card={detail} priceBRL={priceBRL} existing={wishlist.find(w=>w.card_id===detail.id)} campaignOpen={campaignOpen} onClose={()=>setDetail(null)} onAdd={(c,q)=>add(c,q)}/>}
   </div>);
 }
@@ -825,22 +843,22 @@ function CardDetailModal({card,priceBRL,existing,campaignOpen,onClose,onAdd}){
   const dialogRef=useDialogA11y(onClose);
   return(<div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="card-detail-title" style={{position:'fixed',inset:0,zIndex:120,display:'flex',alignItems:'flex-end',justifyContent:'center',animation:'fadeIn .15s ease'}}>
     <div onClick={onClose} aria-hidden="true" style={{position:'absolute',inset:0,background:'rgba(var(--sunk),calc(0.72*var(--sunk-a)))',backdropFilter:'blur(6px)'}}/>
-    <div className="portal-modal" style={{position:'relative',width:'100%',maxWidth:480,maxHeight:'92vh',overflowY:'auto',background:'var(--sheet-bg)',borderRadius:'24px 24px 0 0',border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',padding:'12px 18px 24px',animation:'sheetUp .22s ease'}}>
-      <div style={{display:'flex',justifyContent:'center',marginBottom:6}}><div style={{width:40,height:5,borderRadius:99,background:'rgba(var(--ink),calc(0.14*var(--ink-a)))'}}/></div>
-      <button onClick={onClose} title="Fechar" aria-label="Fechar detalhe da carta" style={{position:'absolute',top:14,right:14,width:44,height:44,borderRadius:11,border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',background:'rgba(var(--ink),calc(0.05*var(--ink-a)))',color:'rgba(var(--ink),calc(0.6*var(--ink-a)))',display:'grid',placeItems:'center',cursor:'pointer'}}><X size={16}/></button>
+    <div className="portal-modal" style={{position:'relative',width:'100%',maxWidth:480,maxHeight:'92vh',overflowY:'auto',background:'var(--sheet-bg)',borderRadius:'24px 24px 0 0',border:'1px solid var(--line)',padding:'12px 18px 24px',animation:'sheetUp .22s ease'}}>
+      <div style={{display:'flex',justifyContent:'center',marginBottom:6}}><div style={{width:40,height:5,borderRadius:99,background:'var(--fill)'}}/></div>
+      <button onClick={onClose} title="Fechar" aria-label="Fechar detalhe da carta" style={{position:'absolute',top:14,right:14,width:44,height:44,borderRadius:11,border:'1px solid var(--line)',background:'var(--fill)',color:'var(--text-muted)',display:'grid',placeItems:'center',cursor:'pointer'}}><X size={16}/></button>
       <div role={card.image_url?'button':undefined} tabIndex={card.image_url?0:undefined} aria-label={card.image_url?`Ampliar imagem de ${card.name}`:undefined} onKeyDown={e=>{if(card.image_url&&(e.key==='Enter'||e.key===' ')){e.preventDefault();setZoom(true);}}} style={{maxWidth:230,margin:'2px auto 0',position:'relative',cursor:card.image_url?'zoom-in':'default'}} onClick={()=>card.image_url&&setZoom(true)}>
         <CardThumb card={card} radius={18}/>
-        {card.image_url&&<div style={{position:'absolute',right:8,bottom:8,width:32,height:32,borderRadius:10,background:'var(--overlay-bg)',backdropFilter:'blur(6px)',border:'1px solid rgba(var(--ink),calc(0.15*var(--ink-a)))',display:'grid',placeItems:'center',color:'#fff'}}><Search size={14}/></div>}
+        {card.image_url&&<div style={{position:'absolute',right:8,bottom:8,width:32,height:32,borderRadius:10,background:'var(--overlay-bg)',backdropFilter:'blur(6px)',border:'1px solid var(--line)',display:'grid',placeItems:'center',color:'#fff'}}><Search size={14}/></div>}
       </div>
       <div style={{marginTop:16}}>
-        <div style={{fontSize:11,letterSpacing:1.5,textTransform:'uppercase',color:tc,fontWeight:700}}>{card.type}</div>
+        <div style={{fontSize:'var(--fs-2xs)',letterSpacing:1.5,textTransform:'uppercase',color:tc,fontWeight:700}}>{card.type}</div>
         <div id="card-detail-title" style={{fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)',color:'var(--text-strong)',marginTop:3,lineHeight:1.15}}>{card.name}</div>
         {existing&&<div style={{display:'flex',alignItems:'center',gap:10,marginTop:10}}>
           <Tag color="var(--ok)" style={{fontSize:'var(--fs-2xs)'}}>{existing.quantity} na sua lista</Tag>
         </div>}
       </div>
       <div style={{display:'flex',gap:10,alignItems:'stretch',marginTop:20}}>
-        <div style={{display:'flex',alignItems:'center',gap:14,background:'rgba(var(--ink),calc(0.05*var(--ink-a)))',border:'1px solid rgba(var(--ink),calc(0.09*var(--ink-a)))',borderRadius:14,padding:'0 14px'}}>
+        <div style={{display:'flex',alignItems:'center',gap:14,background:'var(--fill)',border:'1px solid var(--line)',borderRadius:14,padding:'0 14px'}}>
           <button onClick={()=>{SFX.toggle();setQty(q=>Math.max(1,q-1));}} aria-label="Diminuir quantidade" style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',display:'grid',padding:10}}><Minus size={16}/></button>
           <span aria-live="polite" aria-label={`Quantidade: ${qty}`} style={{minWidth:18,textAlign:'center',fontWeight:700,fontSize:'var(--fs-md)',color:'var(--text-strong)'}}>{qty}</span>
           <button onClick={()=>{SFX.toggle();setQty(q=>q+1);}} aria-label="Aumentar quantidade" style={{background:'none',border:'none',color:'var(--text-strong)',cursor:'pointer',display:'grid',padding:10}}><Plus size={16}/></button>
@@ -961,7 +979,7 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onRemov
 
   return(<div className="portal-page portal-cart" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:cartItems.length>0?(canGoCheckout?168:120):0}}>
     {!isIndividual&&!campaignOpen&&<Card style={{padding:12,borderColor:'rgba(var(--gold-rgb),0.25)',background:'rgba(var(--gold-rgb),0.06)'}}>
-      <div style={{display:'flex',alignItems:'center',gap:8}}><AlertTriangle size={14} style={{color:'var(--gold)'}}/><div style={{fontSize:12,color:'var(--gold)',fontWeight:600}}>{campaignStatus?campaignLabel(campaignStatus):'Nenhuma encomenda ativa'}<div style={{fontSize:11,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))',fontWeight:400,marginTop:2}}>Continue montando seu carrinho. O checkout estará disponível quando a encomenda abrir.</div></div></div>
+      <div style={{display:'flex',alignItems:'center',gap:8}}><AlertTriangle size={14} style={{color:'var(--gold)'}}/><div style={{fontSize:'var(--fs-xs)',color:'var(--gold)',fontWeight:600}}>{campaignStatus?campaignLabel(campaignStatus):'Nenhuma encomenda ativa'}<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',fontWeight:400,marginTop:2}}>Continue montando seu carrinho. O checkout estará disponível quando a encomenda abrir.</div></div></div>
     </Card>}
     {cartItems.length>0&&<>
       <div className="portal-card-grid portal-cart-grid" style={{display:'flex',flexDirection:'column',gap:8}}>
@@ -970,23 +988,23 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onRemov
             <div style={{display:'flex',alignItems:'center',gap:11}}>
               <div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:54,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={9}/></div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name}</div>
+                <div style={{fontWeight:700,fontSize:'var(--fs-sm)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name}</div>
                 <div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap',marginTop:2}}>
-                  <span style={{fontSize:10,color:TC[c.card_type],fontWeight:700}}>{c.card_type}</span>
-                  {c.bonusQty>0&&<Tag color="var(--ok)" style={{fontSize:9,padding:'1px 5px'}}>🎁 {c.bonusQty} grátis</Tag>}
+                  <span style={{fontSize:'var(--fs-2xs)',color:TC[c.card_type],fontWeight:700}}>{c.card_type}</span>
+                  {c.bonusQty>0&&<Tag color="var(--ok)" style={{fontSize:'var(--fs-2xs)',padding:'1px 5px'}}>🎁 {c.bonusQty} grátis</Tag>}
                 </div>
                 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginTop:7}}>
-                  <div style={{display:'flex',alignItems:'center',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',borderRadius:10,border:'1px solid rgba(var(--ink),calc(0.05*var(--ink-a)))'}}>
+                  <div style={{display:'flex',alignItems:'center',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',borderRadius:10,border:'1px solid var(--line-soft)'}}>
                     <button onClick={()=>onUpdateCartQty(c.id,c.quantity-1)} style={{background:'none',border:'none',color:'var(--text-strong)',padding:'5px 11px',cursor:'pointer'}}><Minus size={12}/></button>
-                    <span style={{minWidth:18,textAlign:'center',fontSize:13,fontWeight:700}}>{c.quantity}</span>
+                    <span style={{minWidth:18,textAlign:'center',fontSize:'var(--fs-sm)',fontWeight:700}}>{c.quantity}</span>
                     <button onClick={()=>onUpdateCartQty(c.id,c.quantity+1)} style={{background:'none',border:'none',color:'var(--text-strong)',padding:'5px 11px',cursor:'pointer'}}><Plus size={12}/></button>
                   </div>
                   {c.paidQty>0
                     ?<div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:1}}>
-                      <span style={{fontSize:13,fontWeight:800,color:'var(--text-strong)',whiteSpace:'nowrap'}}>R$ {(c.paidQty*itemPrice).toFixed(2).replace('.',',')}</span>
-                      <span style={{fontSize:10,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))',whiteSpace:'nowrap'}}>{baseItemPrice>itemPrice&&<span style={{textDecoration:'line-through',marginRight:4,color:'rgba(var(--ink),calc(0.25*var(--ink-a)))'}}>R$ {baseItemPrice.toFixed(2).replace('.',',')}</span>}<span style={{color:baseItemPrice>itemPrice?'var(--ok)':'rgba(var(--ink),calc(0.4*var(--ink-a)))',fontWeight:baseItemPrice>itemPrice?700:400}}>R$ {itemPrice.toFixed(2).replace('.',',')}</span> /un</span>
+                      <span style={{fontSize:'var(--fs-sm)',fontWeight:800,color:'var(--text-strong)',whiteSpace:'nowrap'}}>R$ {(c.paidQty*itemPrice).toFixed(2).replace('.',',')}</span>
+                      <span style={{fontSize:'var(--fs-2xs)',color:'var(--text-dim)',whiteSpace:'nowrap'}}>{baseItemPrice>itemPrice&&<span style={{textDecoration:'line-through',marginRight:4,color:'var(--text-faint)'}}>R$ {baseItemPrice.toFixed(2).replace('.',',')}</span>}<span style={{color:baseItemPrice>itemPrice?'var(--ok)':'rgba(var(--ink),calc(0.4*var(--ink-a)))',fontWeight:baseItemPrice>itemPrice?700:400}}>R$ {itemPrice.toFixed(2).replace('.',',')}</span> /un</span>
                     </div>
-                    :<span style={{fontSize:13,fontWeight:800,color:'var(--ok)',whiteSpace:'nowrap'}}>Grátis</span>}
+                    :<span style={{fontSize:'var(--fs-sm)',fontWeight:800,color:'var(--ok)',whiteSpace:'nowrap'}}>Grátis</span>}
                 </div>
               </div>
               {/* Uma ação só: tirar do carrinho não mexe na lista de desejos,
@@ -999,9 +1017,22 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onRemov
       <Btn full variant="ghost" onClick={()=>nav('wants')} sfx="nav"><ArrowLeft size={14}/> Voltar para a lista de desejos</Btn>
       {/* Barra de resumo fixa */}
       <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:480,background:'var(--sheet-bg-alt)',backdropFilter:'blur(20px)',borderTop:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',borderRadius:'20px 20px 0 0',padding:'13px 16px calc(12px + env(safe-area-inset-bottom))',zIndex:25,boxShadow:'0 -10px 30px rgba(var(--sunk),calc(0.4*var(--sunk-a)))'}}>
-        {canGoCheckout&&!canCheckout&&!isFullBonus&&<div style={{display:'flex',alignItems:'center',gap:7,marginBottom:10,padding:'8px 10px',borderRadius:11,background:'rgba(var(--gold-rgb),0.08)',border:'1px solid rgba(var(--gold-rgb),0.2)'}}><AlertTriangle size={13} style={{color:'var(--gold)',flexShrink:0}}/><span style={{fontSize:11.5,color:'var(--gold)',fontWeight:600}}>Faltam {missingCards} carta{missingCards!==1?'s':''} para o mínimo de {minCards}{isIndividual?'':' pagas'}</span></div>}
+        {canGoCheckout&&!canCheckout&&!isFullBonus&&(()=>{
+          const atuais=isIndividual?totalQty:totalPaid;
+          const pct=Math.min(100,Math.round((atuais/minCards)*100));
+          return(<div style={{marginBottom:10,padding:'9px 11px',borderRadius:'var(--r-control)',background:'rgba(var(--gold-rgb),0.08)',border:'1px solid rgba(var(--gold-rgb),0.2)'}}>
+            <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:7}}>
+              <AlertTriangle size={13} style={{color:'var(--gold)',flexShrink:0}}/>
+              <span style={{fontSize:'var(--fs-xs)',color:'var(--gold)',fontWeight:600}}>Faltam {missingCards} carta{missingCards!==1?'s':''} para o mínimo de {minCards}{isIndividual?'':' pagas'}</span>
+            </div>
+            <div role="progressbar" aria-valuenow={atuais} aria-valuemin={0} aria-valuemax={minCards} aria-label={`${atuais} de ${minCards} cartas para o mínimo do pedido`} style={{background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',borderRadius:'var(--r-pill)',height:6,overflow:'hidden'}}>
+              <div style={{width:pct+'%',height:'100%',borderRadius:'var(--r-pill)',background:'linear-gradient(90deg,var(--gold),var(--gp))',transition:'width .4s'}}/>
+            </div>
+            <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginTop:5,textAlign:'right'}}>{atuais}/{minCards}</div>
+          </div>);
+        })()}
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:11}}>
-          <div><div style={{fontSize:11,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))'}}>{totalQty} carta{totalQty!==1?'s':''}{totalBonus>0?` · ${totalBonus} bônus`:''}</div>{volumeDiscount>0&&<div style={{fontSize:11,color:'var(--ok)',fontWeight:700,marginTop:2,display:'flex',alignItems:'center',gap:4}}><Gift size={11}/> Desconto por volume −R$ {volumeDiscount.toFixed(2).replace('.',',')}</div>}<div style={{fontSize:22,fontWeight:800,color:'var(--text-strong)',marginTop:1}}>≈ R$ {totalBRL.toFixed(2).replace('.',',')}</div></div>
+          <div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-dim)'}}>{totalQty} carta{totalQty!==1?'s':''}{totalBonus>0?` · ${totalBonus} bônus`:''}</div>{volumeDiscount>0&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--ok)',fontWeight:700,marginTop:2,display:'flex',alignItems:'center',gap:4}}><Gift size={11}/> Desconto por volume −R$ {volumeDiscount.toFixed(2).replace('.',',')}</div>}<div style={{fontSize:'var(--fs-xl)',fontWeight:800,color:'var(--text-strong)',marginTop:1}}>≈ R$ {totalBRL.toFixed(2).replace('.',',')}</div></div>
           {totalBonus>0&&<Tag color="var(--ok)"><Gift size={12}/> {totalBonus} grátis</Tag>}
         </div>
         {canGoCheckout&&<Btn full onClick={()=>nav('checkout')} disabled={!canCheckout} sfx="nav"><CreditCard size={15}/> {canCheckout?'Ir para checkout':`Mínimo ${minCards} (faltam ${missingCards})`}</Btn>}
@@ -1198,9 +1229,9 @@ function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,o
   if(!isIndividual&&!campaignOpen)return(<div style={{paddingTop:40}}>
     <Card style={{padding:20,textAlign:'center',borderColor:'rgba(var(--gold-rgb),0.25)',background:'rgba(var(--gold-rgb),0.08)'}}>
       <AlertTriangle size={32} style={{color:'var(--gold)',marginBottom:8}}/>
-      <div style={{fontWeight:700,fontSize:16,color:'var(--gold)',marginBottom:6}}>Encomenda fechada</div>
-      <div style={{fontSize:13,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))'}}>{campaignStatusText}</div>
-      <div style={{fontSize:12,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',marginTop:8}}>Você pode navegar o catálogo e adicionar cartas à lista de wants. O carrinho será liberado quando a encomenda estiver ativa.</div>
+      <div style={{fontWeight:700,fontSize:'var(--fs-md)',color:'var(--gold)',marginBottom:6}}>Encomenda fechada</div>
+      <div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}>{campaignStatusText}</div>
+      <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',marginTop:8}}>Você pode navegar o catálogo e adicionar cartas à lista de wants. O carrinho será liberado quando a encomenda estiver ativa.</div>
     </Card>
     <div style={{textAlign:'center',marginTop:16}}><Btn onClick={()=>nav('catalog')} sfx="nav"><BookOpen size={16}/> Ver catálogo</Btn></div>
   </div>);
@@ -1210,9 +1241,9 @@ function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,o
   if(!canCheckout&&!isFullBonus)return(<div style={{paddingTop:20}}>
     <Card style={{padding:20,textAlign:'center',borderColor:'rgba(var(--gold-rgb),0.3)',background:'rgba(var(--gold-rgb),0.06)'}}>
       <AlertTriangle size={32} style={{color:'var(--gold)',marginBottom:8}}/>
-      <div style={{fontWeight:700,fontSize:16,color:'var(--gold)',marginBottom:6}}>Mínimo não atingido</div>
-      <div style={{fontSize:13,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))',lineHeight:1.5}}>Cada pedido precisa ter pelo menos <b style={{color:'var(--gold)'}}>{minCards} cartas{isIndividual?'':' pagas'}</b>.<br/>Seu carrinho tem {isIndividual?totalQty:totalPaid} carta{(isIndividual?totalQty:totalPaid)!==1?'s':''}{isIndividual?'':' paga'+(totalPaid!==1?'s':'')}. Adicione mais <b style={{color:'var(--gold)'}}>{missingCards}</b>.</div>
-      {totalBonus>0&&<div style={{fontSize:12,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',marginTop:6}}>Cartas bônus não contam para o mínimo.</div>}
+      <div style={{fontWeight:700,fontSize:'var(--fs-md)',color:'var(--gold)',marginBottom:6}}>Mínimo não atingido</div>
+      <div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',lineHeight:1.5}}>Cada pedido precisa ter pelo menos <b style={{color:'var(--gold)'}}>{minCards} cartas{isIndividual?'':' pagas'}</b>.<br/>Seu carrinho tem {isIndividual?totalQty:totalPaid} carta{(isIndividual?totalQty:totalPaid)!==1?'s':''}{isIndividual?'':' paga'+(totalPaid!==1?'s':'')}. Adicione mais <b style={{color:'var(--gold)'}}>{missingCards}</b>.</div>
+      {totalBonus>0&&<div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',marginTop:6}}>Cartas bônus não contam para o mínimo.</div>}
     </Card>
     <div style={{textAlign:'center',marginTop:16}}><Btn onClick={()=>nav('cart')} sfx="nav"><ShoppingCart size={16}/> Voltar ao carrinho</Btn></div>
   </div>);
@@ -1220,17 +1251,17 @@ function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,o
   return(<div className="portal-page portal-checkout" style={{display:'flex',flexDirection:'column',gap:14}}>
     <Card id="tut-checkout-summary" style={{padding:18}}>
       <SectionTitle sub={totalQty+' cartas ('+totalBonus+' bônus + '+totalPaid+' pagas)'}>Resumo do pedido</SectionTitle>
-      {totalBonus>0&&<><div style={{fontSize:11,fontWeight:700,color:'var(--ok)',marginBottom:6,display:'flex',alignItems:'center',gap:5}}><Gift size={12}/> Bônus (grátis)</div>
-        {bd.filter(c=>c.bonusQty>0).map((c,i)=>(<div key={'b'+i} style={{display:'flex',alignItems:'center',gap:9,padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(var(--ok-rgb),0.08)'}}><div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:30,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={6}/></div><span style={{flex:1,minWidth:0,color:'rgba(var(--ink),calc(0.6*var(--ink-a)))',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.bonusQty}</span><span style={{fontWeight:700,color:'var(--ok)'}}>R$ 0,00</span></div>))}</>}
-      {totalPaid>0&&<><div style={{fontSize:11,fontWeight:700,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))',marginTop:totalBonus>0?12:0,marginBottom:6,display:'flex',alignItems:'center',gap:5}}><CreditCard size={12}/> Pagas</div>
-        {bd.filter(c=>c.paidQty>0).map((c,i)=>{const ip=unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv);return(<div key={'p'+i} style={{display:'flex',alignItems:'center',gap:9,padding:'5px 0',fontSize:13,borderBottom:'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))'}}><div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:30,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={6}/></div><span style={{flex:1,minWidth:0,color:'rgba(var(--ink),calc(0.6*var(--ink-a)))',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:10,fontWeight:700}}>{c.card_type}</span> x{c.paidQty}<span style={{color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:11}}> · R$ {ip.toFixed(2).replace('.',',')}/un</span></span><span style={{fontWeight:700,whiteSpace:'nowrap'}}>R$ {(c.paidQty*ip).toFixed(2)}</span></div>);})}</>}
+      {totalBonus>0&&<><div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--ok)',marginBottom:6,display:'flex',alignItems:'center',gap:5}}><Gift size={12}/> Bônus (grátis)</div>
+        {bd.filter(c=>c.bonusQty>0).map((c,i)=>(<div key={'b'+i} style={{display:'flex',alignItems:'center',gap:9,padding:'5px 0',fontSize:'var(--fs-sm)',borderBottom:'1px solid rgba(var(--ok-rgb),0.08)'}}><div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:30,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={6}/></div><span style={{flex:1,minWidth:0,color:'var(--text-muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:'var(--fs-2xs)',fontWeight:700}}>{c.card_type}</span> x{c.bonusQty}</span><span style={{fontWeight:700,color:'var(--ok)'}}>R$ 0,00</span></div>))}</>}
+      {totalPaid>0&&<><div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-dim)',marginTop:totalBonus>0?12:0,marginBottom:6,display:'flex',alignItems:'center',gap:5}}><CreditCard size={12}/> Pagas</div>
+        {bd.filter(c=>c.paidQty>0).map((c,i)=>{const ip=unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv);return(<div key={'p'+i} style={{display:'flex',alignItems:'center',gap:9,padding:'5px 0',fontSize:'var(--fs-sm)',borderBottom:'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))'}}><div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:30,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={6}/></div><span style={{flex:1,minWidth:0,color:'var(--text-muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:'var(--fs-2xs)',fontWeight:700}}>{c.card_type}</span> x{c.paidQty}<span style={{color:'var(--text-faint)',fontSize:'var(--fs-2xs)'}}> · R$ {ip.toFixed(2).replace('.',',')}/un</span></span><span style={{fontWeight:700,whiteSpace:'nowrap'}}>R$ {(c.paidQty*ip).toFixed(2)}</span></div>);})}</>}
       <div style={{marginTop:14,display:'flex',flexDirection:'column',gap:5}}>
-        {totalPaid>0&&volumeDiscount>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))'}}><span>Subtotal (sem desconto)</span><span style={{color:'rgba(var(--ink),calc(0.35*var(--ink-a)))',textDecoration:'line-through'}}>R$ {baseSub.toFixed(2)}</span></div>}
-        {totalPaid>0&&volumeDiscount>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'var(--ok)',fontWeight:700}}><span>Desconto por volume</span><span>−R$ {volumeDiscount.toFixed(2)}</span></div>}
-        {totalPaid>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))'}}><span>Subtotal</span><span style={{color:'var(--text-strong)',fontWeight:600}}>R$ {sub.toFixed(2)}</span></div>}
-        <div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))'}}><span>Frete</span><span style={{color:alreadyPaidShipping?'var(--ok)':'var(--text-strong)',fontWeight:600}}>{alreadyPaidShipping?'Já pago ✓':useJointShipping?'Envio conjunto (R$ 0,00)':selectedFrete?'R$ '+fV.toFixed(2):lF?'Calculando...':'—'}</span></div>
-        <div style={{height:1,background:'rgba(var(--ink),calc(0.06*var(--ink-a)))',margin:'3px 0'}}/>
-        <div style={{display:'flex',justifyContent:'space-between',fontSize:18,fontWeight:800}}><span>Total</span><span style={{color:payViaBonusFlow?'var(--ok)':theme.primary}}>{payViaBonusFlow?'R$ 0,00 (bônus!)':'R$ '+total.toFixed(2)}</span></div>
+        {totalPaid>0&&volumeDiscount>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}><span>Subtotal (sem desconto)</span><span style={{color:'var(--text-faint)',textDecoration:'line-through'}}>R$ {baseSub.toFixed(2)}</span></div>}
+        {totalPaid>0&&volumeDiscount>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-sm)',color:'var(--ok)',fontWeight:700}}><span>Desconto por volume</span><span>−R$ {volumeDiscount.toFixed(2)}</span></div>}
+        {totalPaid>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}><span>Subtotal</span><span style={{color:'var(--text-strong)',fontWeight:600}}>R$ {sub.toFixed(2)}</span></div>}
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}><span>Frete</span><span style={{color:alreadyPaidShipping?'var(--ok)':'var(--text-strong)',fontWeight:600}}>{alreadyPaidShipping?'Já pago ✓':useJointShipping?'Envio conjunto (R$ 0,00)':selectedFrete?'R$ '+fV.toFixed(2):lF?'Calculando...':'—'}</span></div>
+        <div style={{height:1,background:'var(--fill)',margin:'3px 0'}}/>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-lg)',fontWeight:800}}><span>Total</span><span style={{color:payViaBonusFlow?'var(--ok)':theme.primary}}>{payViaBonusFlow?'R$ 0,00 (bônus!)':'R$ '+total.toFixed(2)}</span></div>
       </div>
       {step==='review'&&<Btn full onClick={()=>setStep('address')} style={{marginTop:12}} sfx="nav"><ArrowRight size={16}/> Avançar para endereço e frete</Btn>}
     </Card>
@@ -1240,19 +1271,19 @@ function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,o
 
       {!shippingSkipped&&(profileHasSavedAddress&&!editingAddr?<AddressDisplay address={addr} onEdit={()=>{setEditingAddr(true);setFreteOptions([]);setSelectedFrete(null);}}/>:<AddressForm address={addr} setAddress={(a)=>setAddr(a)}/>)}
       {!shippingSkipped&&(editingAddr||!profileHasSavedAddress)&&<Btn full variant="secondary" onClick={calcFrete} disabled={cepClean.length<8||lF} style={{marginTop:10}} sfx="click">{lF?<Spin size={14}/>:<><Truck size={15}/> Calcular frete</>}</Btn>}
-      {!shippingSkipped&&profileHasSavedAddress&&!editingAddr&&lF&&<div style={{marginTop:10,textAlign:'center',color:'rgba(var(--ink),calc(0.4*var(--ink-a)))',fontSize:13,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><Spin size={14}/> Calculando frete...</div>}
+      {!shippingSkipped&&profileHasSavedAddress&&!editingAddr&&lF&&<div style={{marginTop:10,textAlign:'center',color:'var(--text-dim)',fontSize:'var(--fs-sm)',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><Spin size={14}/> Calculando frete...</div>}
       {!shippingSkipped&&freteOptions.length>0&&<div style={{marginTop:12}}>
-        <div style={{fontSize:11,fontWeight:700,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))',marginBottom:8}}>Opções de envio</div>
+        <div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-dim)',marginBottom:8}}>Opções de envio</div>
         {freteOptions.map((opt,i)=>(<button key={i} onClick={()=>{SFX.toggle();setSelectedFrete(opt);}} style={{width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',borderRadius:12,border:'1px solid '+(selectedFrete===opt?wa(theme.primary,'30'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),background:selectedFrete===opt?wa(theme.primary,'10'):'rgba(var(--ink),calc(0.02*var(--ink-a)))',cursor:'pointer',marginBottom:4,fontFamily:"'Outfit',sans-serif"}}>
-          <div style={{textAlign:'left'}}><div style={{fontSize:13,fontWeight:600,color:selectedFrete===opt?'var(--text-strong)':'rgba(var(--ink),calc(0.5*var(--ink-a)))'}}>{opt.carrier}</div><div style={{fontSize:11,color:'rgba(var(--ink),calc(0.25*var(--ink-a)))'}}>{opt.deadline_days} dias úteis</div></div>
+          <div style={{textAlign:'left'}}><div style={{fontSize:'var(--fs-sm)',fontWeight:600,color:selectedFrete===opt?'var(--text-strong)':'rgba(var(--ink),calc(0.5*var(--ink-a)))'}}>{opt.carrier}</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{opt.deadline_days} dias úteis</div></div>
           <div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:14,fontWeight:800,color:selectedFrete===opt?theme.primary:'rgba(var(--ink),calc(0.5*var(--ink-a)))'}}>R$ {Number(opt.price).toFixed(2)}</span>{selectedFrete===opt&&<CheckCircle size={16} style={{color:theme.primary}}/>}</div>
         </button>))}
       </div>}
-      {selectedFrete&&!shippingSkipped&&!addressUnchanged&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:10,background:'rgba(var(--ink),calc(0.03*var(--ink-a)))',border:'1px solid rgba(var(--ink),calc(0.06*var(--ink-a)))'}}>
-        <div style={{fontSize:12,fontWeight:700,marginBottom:8}}>Quer salvar esse endereço?</div>
+      {selectedFrete&&!shippingSkipped&&!addressUnchanged&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:10,background:'var(--fill-soft)',border:'1px solid var(--line-soft)'}}>
+        <div style={{fontSize:'var(--fs-xs)',fontWeight:700,marginBottom:8}}>Quer salvar esse endereço?</div>
         <div style={{display:'flex',gap:8}}>
-          <Btn variant={saveAddressChoice===true?'success':'ghost'} onClick={()=>setSaveAddressChoice(true)} style={{flex:1,padding:'8px 10px',fontSize:12}} sfx="">Sim</Btn>
-          <Btn variant={saveAddressChoice===false?'secondary':'ghost'} onClick={()=>setSaveAddressChoice(false)} style={{flex:1,padding:'8px 10px',fontSize:12}} sfx="">Não</Btn>
+          <Btn variant={saveAddressChoice===true?'success':'ghost'} onClick={()=>setSaveAddressChoice(true)} style={{flex:1,padding:'8px 10px',fontSize:'var(--fs-xs)'}} sfx="">Sim</Btn>
+          <Btn variant={saveAddressChoice===false?'secondary':'ghost'} onClick={()=>setSaveAddressChoice(false)} style={{flex:1,padding:'8px 10px',fontSize:'var(--fs-xs)'}} sfx="">Não</Btn>
         </div>
       </div>}
 
@@ -1260,8 +1291,8 @@ function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,o
       {hasPreviousOrders&&!alreadyPaidShipping&&<div style={{marginTop:14,padding:'12px 14px',borderRadius:12,background:useJointShipping?'rgba(var(--ok-rgb),0.06)':'rgba(var(--ink),calc(0.03*var(--ink-a)))',border:'1px solid '+(useJointShipping?'rgba(var(--ok-rgb),0.2)':'rgba(var(--ink),calc(0.08*var(--ink-a)))')}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
           <div>
-            <div style={{fontSize:13,fontWeight:700,color:useJointShipping?'var(--ok)':'var(--text-strong)',marginBottom:2,display:'flex',alignItems:'center',gap:6}}><Truck size={14} style={{flexShrink:0}}/> Envio conjunto</div>
-            <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))',lineHeight:1.4}}>Você já tem pedidos nesta encomenda. Envie tudo junto sem custo de frete adicional.</div>
+            <div style={{fontSize:'var(--fs-sm)',fontWeight:700,color:useJointShipping?'var(--ok)':'var(--text-strong)',marginBottom:2,display:'flex',alignItems:'center',gap:6}}><Truck size={14} style={{flexShrink:0}}/> Envio conjunto</div>
+            <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',lineHeight:1.4}}>Você já tem pedidos nesta encomenda. Envie tudo junto sem custo de frete adicional.</div>
           </div>
           <button onClick={()=>{SFX.toggle();setUseJointShipping(v=>!v);}} role="switch" aria-checked={useJointShipping} aria-label="Enviar junto com pedidos anteriores desta encomenda" style={{flexShrink:0,width:44,height:26,borderRadius:13,border:'none',background:useJointShipping?'var(--ok)':'rgba(var(--ink),calc(0.1*var(--ink-a)))',cursor:'pointer',position:'relative',transition:'background .2s'}}>
             <div style={{position:'absolute',top:3,left:useJointShipping?22:4,width:20,height:20,borderRadius:10,background:'#fff',transition:'left .2s',boxShadow:'0 1px 4px rgba(var(--sunk),calc(0.3*var(--sunk-a)))'}}/>
@@ -1273,8 +1304,8 @@ function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,o
       {hasUnshippedPaidOrder&&<div style={{marginTop:14,padding:'12px 14px',borderRadius:12,background:alreadyPaidShipping?'rgba(var(--ok-rgb),0.06)':'rgba(var(--ink),calc(0.03*var(--ink-a)))',border:'1px solid '+(alreadyPaidShipping?'rgba(var(--ok-rgb),0.2)':'rgba(var(--ink),calc(0.08*var(--ink-a)))')}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
           <div>
-            <div style={{fontSize:13,fontWeight:700,color:alreadyPaidShipping?'var(--ok)':'rgba(var(--ink),calc(0.5*var(--ink-a)))',marginBottom:2,display:'flex',alignItems:'center',gap:6}}><CheckCircle size={14} style={{flexShrink:0,color:alreadyPaidShipping?'var(--ok)':'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}/> Já paguei o frete</div>
-            <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))',lineHeight:1.4}}>Marque se o frete deste envio já foi pago em um pedido anterior.</div>
+            <div style={{fontSize:'var(--fs-sm)',fontWeight:700,color:alreadyPaidShipping?'var(--ok)':'rgba(var(--ink),calc(0.5*var(--ink-a)))',marginBottom:2,display:'flex',alignItems:'center',gap:6}}><CheckCircle size={14} style={{flexShrink:0,color:alreadyPaidShipping?'var(--ok)':'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}/> Já paguei o frete</div>
+            <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',lineHeight:1.4}}>Marque se o frete deste envio já foi pago em um pedido anterior.</div>
           </div>
           <button onClick={()=>{SFX.toggle();setAlreadyPaidShipping(v=>!v);if(useJointShipping)setUseJointShipping(false);}} role="switch" aria-checked={alreadyPaidShipping} aria-label="O frete deste envio já foi pago em um pedido anterior" style={{flexShrink:0,width:44,height:26,borderRadius:13,border:'none',background:alreadyPaidShipping?'var(--ok)':'rgba(var(--ink),calc(0.1*var(--ink-a)))',cursor:'pointer',position:'relative',transition:'background .2s'}}>
             <div style={{position:'absolute',top:3,left:alreadyPaidShipping?22:4,width:20,height:20,borderRadius:10,background:'#fff',transition:'left .2s',boxShadow:'0 1px 4px rgba(var(--sunk),calc(0.3*var(--sunk-a)))'}}/>
@@ -1355,8 +1386,8 @@ function SuccessPage({lastOrder,theme,nav}){
   const isBonus=lastOrder.isFullBonus;
   return(<div style={{display:'flex',flexDirection:'column',gap:16,alignItems:'center',textAlign:'center',paddingTop:20}}>
     <div style={{width:72,height:72,borderRadius:36,background:isBonus?'linear-gradient(135deg,var(--ok),var(--pix))':'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',display:'grid',placeItems:'center',boxShadow:'0 0 36px '+(isBonus?'rgba(var(--ok-rgb),0.3)':theme.glow)}}>{isBonus?<Gift size={32} color="#fff"/>:<Check size={32} color="#fff"/>}</div>
-    <div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:22}}>{isBonus?'Pedido Bônus!':'Pedido Registrado!'}</h1><p style={{color:'rgba(var(--ink),calc(0.35*var(--ink-a)))',fontSize:13,margin:'6px 0 0'}}>{isBonus?'Bônus escolhidos':lastOrder.totalPaid+' cartas a R$ '+lastOrder.priceBRL.toFixed(2)}</p></div>
-    <div style={{fontSize:12,color:'rgba(var(--ink),calc(0.25*var(--ink-a)))'}}>Pedido salvo no banco de dados.</div>
+    <div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)'}}>{isBonus?'Pedido Bônus!':'Pedido Registrado!'}</h1><p style={{color:'var(--text-faint)',fontSize:'var(--fs-sm)',margin:'6px 0 0'}}>{isBonus?'Bônus escolhidos':lastOrder.totalPaid+' cartas a R$ '+lastOrder.priceBRL.toFixed(2)}</p></div>
+    <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)'}}>Pedido salvo no banco de dados.</div>
     <Btn full onClick={()=>nav('home')} sfx="nav"><Home size={16}/> Voltar</Btn>
   </div>);
 }
@@ -1367,11 +1398,11 @@ function SuccessPage({lastOrder,theme,nav}){
 
 function ProfileSection({title,icon:Icon,color,children,defaultOpen=false}){
   const [open,setOpen]=useState(defaultOpen);
-  return(<div style={{borderRadius:16,border:'1px solid rgba(var(--ink),calc(0.06*var(--ink-a)))',overflow:'hidden',background:'rgba(var(--ink),calc(0.02*var(--ink-a)))'}}>
+  return(<div style={{borderRadius:16,border:'1px solid var(--line-soft)',overflow:'hidden',background:'var(--fill-soft)'}}>
     <button onClick={()=>setOpen(o=>!o)} style={{width:'100%',background:'none',border:'none',padding:'14px 16px',display:'flex',alignItems:'center',gap:10,cursor:'pointer',color:'var(--text)'}}>
       <div style={{width:32,height:32,borderRadius:10,background:wa(color,'18'),border:'1px solid '+wa(color,'30'),display:'grid',placeItems:'center',flexShrink:0}}><Icon size={15} style={{color}}/></div>
       <span style={{flex:1,textAlign:'left',fontWeight:700,fontSize:14,fontFamily:"'Outfit',sans-serif"}}>{title}</span>
-      <ChevronRight size={15} style={{color:'rgba(var(--ink),calc(0.25*var(--ink-a)))',transform:open?'rotate(90deg)':'none',transition:'transform .2s'}}/>
+      <ChevronRight size={15} style={{color:'var(--text-faint)',transform:open?'rotate(90deg)':'none',transition:'transform .2s'}}/>
     </button>
     {open&&<div style={{padding:'0 16px 16px',borderTop:'1px solid rgba(var(--ink),calc(0.04*var(--ink-a)))'}}>{children}</div>}
   </div>);
@@ -1425,11 +1456,11 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
           {guild?'⚔️':'👤'}
         </div>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontWeight:800,fontSize:18,fontFamily:"'Cinzel',serif",overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{profile?.name||'Aventureiro'}</div>
-          <div style={{fontSize:12,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))',marginTop:2}}>{guild||'Escolha sua guilda'}</div>
+          <div style={{fontWeight:800,fontSize:'var(--fs-lg)',fontFamily:"'Cinzel',serif",overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{profile?.name||'Aventureiro'}</div>
+          <div style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)',marginTop:2}}>{guild||'Escolha sua guilda'}</div>
         </div>
         <div style={{textAlign:'right',flexShrink:0}}>
-          <div style={{fontSize:10,color:campColor,fontWeight:700,textTransform:'uppercase',letterSpacing:1}}>{campLabel}</div>
+          <div style={{fontSize:'var(--fs-2xs)',color:campColor,fontWeight:700,textTransform:'uppercase',letterSpacing:1}}>{campLabel}</div>
           <div style={{width:8,height:8,borderRadius:4,background:campColor,margin:'4px auto 0',boxShadow:`0 0 6px ${campColor}`}}/>
         </div>
       </div>
@@ -1448,14 +1479,14 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
         </>:<>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div>
-              <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',marginBottom:2}}>Nome</div>
+              <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginBottom:2}}>Nome</div>
               <div style={{fontSize:14,fontWeight:600}}>{profile?.name||'—'}</div>
             </div>
             <div>
-              <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',marginBottom:2}}>WhatsApp</div>
+              <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginBottom:2}}>WhatsApp</div>
               <div style={{fontSize:14,fontWeight:600}}>{profile?.whatsapp||'—'}</div>
             </div>
-            <button onClick={()=>setEditName(true)} style={{background:'rgba(var(--ink),calc(0.05*var(--ink-a)))',border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',borderRadius:10,padding:'6px 10px',cursor:'pointer',color:'rgba(var(--ink),calc(0.5*var(--ink-a)))',display:'flex',alignItems:'center',gap:4,fontSize:11}}><Edit3 size={12}/> Editar</button>
+            <button onClick={()=>setEditName(true)} style={{background:'var(--fill)',border:'1px solid var(--line)',borderRadius:10,padding:'6px 10px',cursor:'pointer',color:'var(--text-dim)',display:'flex',alignItems:'center',gap:4,fontSize:'var(--fs-2xs)'}}><Edit3 size={12}/> Editar</button>
           </div>
         </>}
       </div>
@@ -1476,11 +1507,11 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
 
     {/* Guilda */}
     <ProfileSection title="Aparência" icon={colorMode==='light'?Sun:Moon} color="var(--gold)">
-      <div style={{fontSize:12,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))',marginBottom:10,lineHeight:1.5}}>Escolha como o portal aparece neste aparelho. A preferência fica salva aqui mesmo.</div>
+      <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',marginBottom:10,lineHeight:1.5}}>Escolha como o portal aparece neste aparelho. A preferência fica salva aqui mesmo.</div>
       <div style={{display:'flex',gap:6}}>
         {[{key:'dark',label:'Escuro',icon:Moon},{key:'light',label:'Claro',icon:Sun}].map(opt=>{
           const active=colorMode===opt.key;
-          return(<button key={opt.key} onClick={()=>{SFX.toggle();onColorModeChange(opt.key);}} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'11px 8px',borderRadius:12,border:'1px solid '+(active?wa(theme.primary,'55'):'rgba(var(--ink),calc(0.07*var(--ink-a)))'),background:active?wa(theme.primary,'18'):'rgba(var(--ink),calc(0.02*var(--ink-a)))',color:active?theme.primary:'rgba(var(--ink),calc(0.4*var(--ink-a)))',fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>
+          return(<button key={opt.key} onClick={()=>{SFX.toggle();onColorModeChange(opt.key);}} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'11px 8px',borderRadius:12,border:'1px solid '+(active?wa(theme.primary,'55'):'rgba(var(--ink),calc(0.07*var(--ink-a)))'),background:active?wa(theme.primary,'18'):'rgba(var(--ink),calc(0.02*var(--ink-a)))',color:active?theme.primary:'rgba(var(--ink),calc(0.4*var(--ink-a)))',fontSize:'var(--fs-sm)',fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>
             <opt.icon size={15}/>{opt.label}
           </button>);
         })}
@@ -1513,29 +1544,29 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
                 <Package size={15} style={{color:isPaid?'var(--ok)':isPending?'var(--gold)':'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}/>
               </div>
               <div>
-                <div style={{fontSize:12,fontWeight:700}}>{Number(o.total_locked)>0?'R$ '+Number(o.total_locked).toFixed(2):'Bônus'}</div>
-                <div style={{fontSize:10,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}>{o.qty_in_batch} cartas · {new Date(o.created_at).toLocaleDateString('pt-BR')}</div>
+                <div style={{fontSize:'var(--fs-xs)',fontWeight:700}}>{Number(o.total_locked)>0?'R$ '+Number(o.total_locked).toFixed(2):'Bônus'}</div>
+                <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{o.qty_in_batch} cartas · {new Date(o.created_at).toLocaleDateString('pt-BR')}</div>
               </div>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:6}}>
-              <Tag color={isPending?'var(--gold)':isPaid?'var(--ok)':'var(--info)'} style={{fontSize:9}}>{isPending?'Pendente':isPaid?'Pago':o.status}</Tag>
-              <ChevronRight size={13} style={{color:'rgba(var(--ink),calc(0.2*var(--ink-a)))',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
+              <Tag color={isPending?'var(--gold)':isPaid?'var(--ok)':'var(--info)'} style={{fontSize:'var(--fs-2xs)'}}>{isPending?'Pendente':isPaid?'Pago':o.status}</Tag>
+              <ChevronRight size={13} style={{color:'var(--text-faint)',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
             </div>
           </div>
           {isExp&&<div style={{padding:'0 14px 12px',borderTop:'1px solid rgba(var(--ink),calc(0.04*var(--ink-a)))'}}>
             {((o.cards&&o.cards.length>0)?o.cards:(orderCardsCache[String(o.id)]||[])).length>0?
               <div style={{marginTop:8}}>{((o.cards&&o.cards.length>0)?o.cards:(orderCardsCache[String(o.id)]||[])).map((c,ci,arr)=>(
-                <div key={ci} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:12,borderBottom:ci<arr.length-1?'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))':'none'}}>
-                  <span style={{color:'rgba(var(--ink),calc(0.5*var(--ink-a)))'}}>{c.name} <span style={{color:TC[c.type]||'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
+                <div key={ci} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:'var(--fs-xs)',borderBottom:ci<arr.length-1?'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))':'none'}}>
+                  <span style={{color:'var(--text-dim)'}}>{c.name} <span style={{color:TC[c.type]||'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:'var(--fs-2xs)',fontWeight:700}}>{c.type||''}</span></span>
                   <span style={{fontWeight:700}}>x{c.qty}</span>
                 </div>
               ))}</div>
-              :<div style={{fontSize:11,color:'rgba(var(--ink),calc(0.2*var(--ink-a)))',marginTop:8}}>Detalhes não disponíveis</div>}
+              :<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginTop:8}}>Detalhes não disponíveis</div>}
             {o.orderKind==='INDIVIDUAL'&&isPaid&&(()=>{
               const idx=indivStageIndex(o.fulfillment_status);
               const trackingCode=o.mandabem_rastreamento||o.mandabem_etiqueta;
               return(<div style={{marginTop:10,padding:'10px 12px',borderRadius:10,background:'rgba(var(--sunk),calc(0.2*var(--sunk-a)))'}}>
-                <div style={{fontSize:10,fontWeight:700,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',marginBottom:8,textTransform:'uppercase',letterSpacing:1}}>Status do pedido</div>
+                <div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-faint)',marginBottom:8,textTransform:'uppercase',letterSpacing:1}}>Status do pedido</div>
                 <div style={{display:'flex',alignItems:'flex-start'}}>
                   {INDIV_FULFILLMENT_STAGES.map((s,i)=>(<Fragment key={s.key}>
                     {i>0&&<div style={{flex:1,height:2,background:i<=idx?'var(--ok)':'rgba(var(--ink),calc(0.08*var(--ink-a)))',marginTop:7}}/>}
@@ -1545,13 +1576,13 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
                     </div>
                   </Fragment>))}
                 </div>
-                {trackingCode&&<div style={{fontSize:11,color:'var(--ok)',marginTop:10}}>Rastreio: {trackingCode}{o.mandabem_status?` · ${o.mandabem_status}`:''}</div>}
+                {trackingCode&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--ok)',marginTop:10}}>Rastreio: {trackingCode}{o.mandabem_status?` · ${o.mandabem_status}`:''}</div>}
               </div>);
             })()}
             {showActions&&isPending&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginTop:10}}>
-              <Btn variant="warn" onClick={(e)=>{e.stopPropagation();pagarAgoraPedido(o,toastFn);}} style={{width:'100%',fontSize:11,whiteSpace:'nowrap',justifyContent:'center'}} sfx="nav"><CreditCard size={12}/> Pagar</Btn>
-              <Btn variant="ghost" onClick={async(e)=>{e.stopPropagation();try{await mpSync(o.id);onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:11,justifyContent:'center'}} sfx=""><RefreshCw size={12}/></Btn>
-              <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(!confirm('Cancelar este pedido?'))return;try{const res=await fetch('/api/cancel-order',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:String(o.id),orderId:String(o.order_id||'')})});const j=await res.json().catch(()=>({}));if(!res.ok||!j.ok)throw new Error(j.error||'Falha');toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:11,justifyContent:'center'}} sfx=""><X size={12}/> Cancelar</Btn>
+              <Btn variant="warn" onClick={(e)=>{e.stopPropagation();pagarAgoraPedido(o,toastFn);}} style={{width:'100%',fontSize:'var(--fs-2xs)',whiteSpace:'nowrap',justifyContent:'center'}} sfx="nav"><CreditCard size={12}/> Pagar</Btn>
+              <Btn variant="ghost" onClick={async(e)=>{e.stopPropagation();try{await mpSync(o.id);onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:'var(--fs-2xs)',justifyContent:'center'}} sfx=""><RefreshCw size={12}/></Btn>
+              <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(!confirm('Cancelar este pedido?'))return;try{const res=await fetch('/api/cancel-order',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:String(o.id),orderId:String(o.order_id||'')})});const j=await res.json().catch(()=>({}));if(!res.ok||!j.ok)throw new Error(j.error||'Falha');toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:'var(--fs-2xs)',justifyContent:'center'}} sfx=""><X size={12}/> Cancelar</Btn>
             </div>}
           </div>}
         </div>);
@@ -1559,7 +1590,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
       return(<>
         <ProfileSection title={`Meus Pedidos${activeOrders.length>0?' ('+activeOrders.length+')':''}`} icon={Package} color="var(--info)">
           <div style={{marginTop:12,display:'flex',flexDirection:'column',gap:6}}>
-            {activeOrders.length===0?<div style={{fontSize:13,color:'rgba(var(--ink),calc(0.25*var(--ink-a)))',textAlign:'center',padding:12}}>Nenhum pedido ativo</div>:
+            {activeOrders.length===0?<div style={{fontSize:'var(--fs-sm)',color:'var(--text-faint)',textAlign:'center',padding:12}}>Nenhum pedido ativo</div>:
             activeOrders.map(o=>renderOrder(o,true))}
           </div>
         </ProfileSection>
@@ -1576,16 +1607,16 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
       <div style={{marginTop:12}}>
         {!showChangePw?<Btn full variant="ghost" onClick={()=>setShowChangePw(true)} sfx="click"><Lock size={14}/> Alterar senha</Btn>:<>
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
-            <div onClick={()=>{setPwVKTarget('pw1');setPwVK(true);}} style={{padding:'12px 14px 12px 42px',borderRadius:12,border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',cursor:'pointer',position:'relative',minHeight:44}}>
-              <Lock size={16} style={{position:'absolute',left:13,top:'50%',transform:'translateY(-50%)',color:'rgba(var(--ink),calc(0.2*var(--ink-a)))'}}/>
-              {newPw?<span style={{letterSpacing:6}}>{'●'.repeat(newPw.length)}</span>:<span style={{color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:13}}>Nova senha (6 dígitos)</span>}
+            <div onClick={()=>{setPwVKTarget('pw1');setPwVK(true);}} style={{padding:'12px 14px 12px 42px',borderRadius:12,border:'1px solid var(--line)',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',cursor:'pointer',position:'relative',minHeight:44}}>
+              <Lock size={16} style={{position:'absolute',left:13,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
+              {newPw?<span style={{letterSpacing:6}}>{'●'.repeat(newPw.length)}</span>:<span style={{color:'var(--text-faint)',fontSize:'var(--fs-sm)'}}>Nova senha (6 dígitos)</span>}
             </div>
-            <div onClick={()=>{setPwVKTarget('pw2');setPwVK(true);}} style={{padding:'12px 14px 12px 42px',borderRadius:12,border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',cursor:'pointer',position:'relative',minHeight:44}}>
-              <Lock size={16} style={{position:'absolute',left:13,top:'50%',transform:'translateY(-50%)',color:'rgba(var(--ink),calc(0.2*var(--ink-a)))'}}/>
-              {newPw2?<span style={{letterSpacing:6}}>{'●'.repeat(newPw2.length)}</span>:<span style={{color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:13}}>Confirmar senha</span>}
+            <div onClick={()=>{setPwVKTarget('pw2');setPwVK(true);}} style={{padding:'12px 14px 12px 42px',borderRadius:12,border:'1px solid var(--line)',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',cursor:'pointer',position:'relative',minHeight:44}}>
+              <Lock size={16} style={{position:'absolute',left:13,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
+              {newPw2?<span style={{letterSpacing:6}}>{'●'.repeat(newPw2.length)}</span>:<span style={{color:'var(--text-faint)',fontSize:'var(--fs-sm)'}}>Confirmar senha</span>}
             </div>
             {pwVK&&<VirtualKeyboard onKey={pwVKKey} onBackspace={pwVKBack} onDone={()=>setPwVK(false)} maxLen={6} currentLen={pwVKTarget==='pw1'?newPw.length:newPw2.length} doneLabel="Fechar"/>}
-            {pwMsg&&<div style={{fontSize:12,color:pwMsg.t==='error'?'var(--danger)':'var(--ok)',textAlign:'center'}}>{pwMsg.m}</div>}
+            {pwMsg&&<div style={{fontSize:'var(--fs-xs)',color:pwMsg.t==='error'?'var(--danger)':'var(--ok)',textAlign:'center'}}>{pwMsg.m}</div>}
             <div style={{display:'flex',gap:8}}>
               <Btn variant="success" onClick={changePassword} disabled={pwLoading} style={{flex:1}} sfx="success">{pwLoading?<Spin size={14}/>:<><Check size={14}/> Confirmar</>}</Btn>
               <Btn variant="ghost" onClick={()=>{setShowChangePw(false);setNewPw('');setNewPw2('');setPwMsg(null);}} style={{flex:1}} sfx="click">Cancelar</Btn>
@@ -1668,44 +1699,44 @@ function AuthPage({onLogin,theme}){
   }
 
   if(forgotMode)return(<div style={{display:'flex',flexDirection:'column',gap:14,paddingTop:16}}>
-    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>🔑</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:22}}>Recuperar Senha</h1></div>
+    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>🔑</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)'}}>Recuperar Senha</h1></div>
     {resetSent?<Card glow="rgba(var(--ok-rgb),0.15)" style={{padding:20,textAlign:'center'}}>
       <Check size={32} style={{color:'var(--ok)',marginBottom:8}}/>
-      <div style={{fontWeight:700,color:'var(--ok)',fontSize:15}}>Email enviado!</div>
-      <div style={{fontSize:12,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))',marginTop:6}}>Verifique sua caixa de entrada e spam. Clique no link para redefinir sua senha.</div>
+      <div style={{fontWeight:700,color:'var(--ok)',fontSize:'var(--fs-md)'}}>Email enviado!</div>
+      <div style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)',marginTop:6}}>Verifique sua caixa de entrada e spam. Clique no link para redefinir sua senha.</div>
       <Btn full variant="secondary" onClick={()=>{setForgotMode(false);setResetSent(false);}} style={{marginTop:16}} sfx="nav">Voltar ao login</Btn>
     </Card>:<>
-      <div style={{fontSize:13,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))',textAlign:'center'}}>Digite seu email e enviaremos um link para redefinir sua senha.</div>
+      <div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',textAlign:'center'}}>Digite seu email e enviaremos um link para redefinir sua senha.</div>
       <Input icon={Mail} type="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="seu@email.com" value={email} onChange={e=>setEmail(e.target.value)}/>
-      {err&&<div style={{fontSize:12,color:'var(--danger)',textAlign:'center',padding:4}}><AlertTriangle size={12}/> {err}</div>}
+      {err&&<div style={{fontSize:'var(--fs-xs)',color:'var(--danger)',textAlign:'center',padding:4}}><AlertTriangle size={12}/> {err}</div>}
       <Btn full onClick={handleForgot} disabled={!email.includes('@')||loading} sfx="">{loading?<Spin size={16}/>:<><Mail size={16}/> Enviar link de recuperação</>}</Btn>
-      <button onClick={()=>{setForgotMode(false);setErr('');}} style={{background:'none',border:'none',color:'var(--gp)',fontSize:13,cursor:'pointer',fontFamily:"'Outfit',sans-serif",padding:8,textAlign:'center'}}>Voltar ao login</button>
+      <button onClick={()=>{setForgotMode(false);setErr('');}} style={{background:'none',border:'none',color:'var(--gp)',fontSize:'var(--fs-sm)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",padding:8,textAlign:'center'}}>Voltar ao login</button>
     </>}
   </div>);
 
   return(<div style={{display:'flex',flexDirection:'column',gap:14,paddingTop:16}}>
-    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>⚔️</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:22}}>{mode==='login'?'Bem-vindo':'Junte-se'}</h1></div>
-    <div style={{display:'flex',borderRadius:12,background:'rgba(var(--ink),calc(0.025*var(--ink-a)))',padding:3,gap:3}}>{['login','signup'].map(m=>(<button key={m} onClick={()=>{SFX.toggle();setMode(m);setErr('');setSenha('');setSenha2('');setShowVK(false);}} style={{flex:1,padding:'9px 0',borderRadius:10,border:'none',background:mode===m?'rgba(var(--ink),calc(0.07*var(--ink-a)))':'transparent',color:mode===m?'var(--text-strong)':'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontWeight:700,fontSize:13,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{m==='login'?'Entrar':'Criar conta'}</button>))}</div>
+    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>⚔️</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)'}}>{mode==='login'?'Bem-vindo':'Junte-se'}</h1></div>
+    <div style={{display:'flex',borderRadius:12,background:'var(--fill-soft)',padding:3,gap:3}}>{['login','signup'].map(m=>(<button key={m} onClick={()=>{SFX.toggle();setMode(m);setErr('');setSenha('');setSenha2('');setShowVK(false);}} style={{flex:1,padding:'9px 0',borderRadius:10,border:'none',background:mode===m?'rgba(var(--ink),calc(0.07*var(--ink-a)))':'transparent',color:mode===m?'var(--text-strong)':'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontWeight:700,fontSize:'var(--fs-sm)',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{m==='login'?'Entrar':'Criar conta'}</button>))}</div>
     {mode==='signup'&&<Input icon={User} placeholder="Seu nome" value={name} onChange={e=>setName(e.target.value)}/>}
     <Input icon={Mail} type="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="seu@email.com" value={email} onChange={e=>setEmail(e.target.value)}/>
     {mode==='signup'&&<Input icon={Phone} placeholder="WhatsApp (11999999999)" value={whatsapp} onChange={e=>setWhatsapp(e.target.value.replace(/\D/g,'').slice(0,11))}/>}
     <div>
-      <div onClick={()=>openVK('senha')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='senha'?'var(--gp)':'rgba(var(--ink),calc(0.08*var(--ink-a)))'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:senha?'var(--text)':'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
-        <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(var(--ink),calc(0.22*var(--ink-a)))'}}/>
-        {senha?<span style={{letterSpacing:6}}>{'●'.repeat(senha.length)}<span style={{color:'rgba(var(--ink),calc(0.15*var(--ink-a)))',letterSpacing:4}}>{'○'.repeat(6-senha.length)}</span></span>:'Senha (6 dígitos)'}
+      <div onClick={()=>openVK('senha')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='senha'?'var(--gp)':'rgba(var(--ink),calc(0.08*var(--ink-a)))'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:senha?'var(--text)':'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+        <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
+        {senha?<span style={{letterSpacing:6}}>{'●'.repeat(senha.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-senha.length)}</span></span>:'Senha (6 dígitos)'}
       </div>
     </div>
     {mode==='signup'&&<div>
-      <div onClick={()=>openVK('senha2')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='senha2'?'var(--gp)':'rgba(var(--ink),calc(0.08*var(--ink-a)))'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:senha2?'var(--text)':'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
-        <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(var(--ink),calc(0.22*var(--ink-a)))'}}/>
-        {senha2?<span style={{letterSpacing:6}}>{'●'.repeat(senha2.length)}<span style={{color:'rgba(var(--ink),calc(0.15*var(--ink-a)))',letterSpacing:4}}>{'○'.repeat(6-senha2.length)}</span></span>:'Confirmar senha'}
+      <div onClick={()=>openVK('senha2')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='senha2'?'var(--gp)':'rgba(var(--ink),calc(0.08*var(--ink-a)))'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:senha2?'var(--text)':'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+        <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
+        {senha2?<span style={{letterSpacing:6}}>{'●'.repeat(senha2.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-senha2.length)}</span></span>:'Confirmar senha'}
       </div>
-      {senha2.length===6&&senha!==senha2&&<div style={{fontSize:11,color:'var(--danger)',marginTop:4,textAlign:'center'}}>As senhas não coincidem</div>}
+      {senha2.length===6&&senha!==senha2&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--danger)',marginTop:4,textAlign:'center'}}>As senhas não coincidem</div>}
     </div>}
     {showVK&&<div style={{marginTop:4}}><VirtualKeyboard onKey={vkKey} onBackspace={vkBack} onDone={()=>setShowVK(false)} maxLen={6} currentLen={currentVKLen} doneLabel="Fechar"/></div>}
-    {err&&<div style={{fontSize:12,color:'var(--danger)',textAlign:'center',padding:4}}><AlertTriangle size={12}/> {err}</div>}
+    {err&&<div style={{fontSize:'var(--fs-xs)',color:'var(--danger)',textAlign:'center',padding:4}}><AlertTriangle size={12}/> {err}</div>}
     <Btn full onClick={submit} disabled={!canSubmit} sfx="">{loading?<Spin size={16}/>:<>{mode==='login'?'Entrar':'Criar conta'} <ArrowRight size={16}/></>}</Btn>
-    {mode==='login'&&<button onClick={()=>{setForgotMode(true);setErr('');}} style={{background:'none',border:'none',color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:12,cursor:'pointer',fontFamily:"'Outfit',sans-serif",padding:4,textAlign:'center'}}>Esqueci minha senha</button>}
+    {mode==='login'&&<button onClick={()=>{setForgotMode(true);setErr('');}} style={{background:'none',border:'none',color:'var(--text-faint)',fontSize:'var(--fs-xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",padding:4,textAlign:'center'}}>Esqueci minha senha</button>}
   </div>);
 }
 
@@ -1729,18 +1760,18 @@ function RecoveryPage({token,onDone,theme}){
     setLoading(false);
   }
   return(<div style={{display:'flex',flexDirection:'column',gap:14,paddingTop:16}}>
-    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>🔑</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:22}}>Nova Senha</h1><p style={{fontSize:13,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))',marginTop:6}}>Digite sua nova senha de 6 dígitos</p></div>
-    <div onClick={()=>{setVkTarget('pw');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='pw'?'var(--gp)':'rgba(var(--ink),calc(0.08*var(--ink-a)))'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:pw?'var(--text)':'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
-      <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(var(--ink),calc(0.22*var(--ink-a)))'}}/>
-      {pw?<span style={{letterSpacing:6}}>{'●'.repeat(pw.length)}<span style={{color:'rgba(var(--ink),calc(0.15*var(--ink-a)))',letterSpacing:4}}>{'○'.repeat(6-pw.length)}</span></span>:'Nova senha'}
+    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>🔑</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)'}}>Nova Senha</h1><p style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',marginTop:6}}>Digite sua nova senha de 6 dígitos</p></div>
+    <div onClick={()=>{setVkTarget('pw');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='pw'?'var(--gp)':'rgba(var(--ink),calc(0.08*var(--ink-a)))'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:pw?'var(--text)':'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+      <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
+      {pw?<span style={{letterSpacing:6}}>{'●'.repeat(pw.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-pw.length)}</span></span>:'Nova senha'}
     </div>
-    <div onClick={()=>{setVkTarget('pw2');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='pw2'?'var(--gp)':'rgba(var(--ink),calc(0.08*var(--ink-a)))'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:pw2?'var(--text)':'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:15,fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
-      <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(var(--ink),calc(0.22*var(--ink-a)))'}}/>
-      {pw2?<span style={{letterSpacing:6}}>{'●'.repeat(pw2.length)}<span style={{color:'rgba(var(--ink),calc(0.15*var(--ink-a)))',letterSpacing:4}}>{'○'.repeat(6-pw2.length)}</span></span>:'Confirmar senha'}
+    <div onClick={()=>{setVkTarget('pw2');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='pw2'?'var(--gp)':'rgba(var(--ink),calc(0.08*var(--ink-a)))'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:pw2?'var(--text)':'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+      <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
+      {pw2?<span style={{letterSpacing:6}}>{'●'.repeat(pw2.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-pw2.length)}</span></span>:'Confirmar senha'}
     </div>
-    {pw2.length===6&&pw!==pw2&&<div style={{fontSize:11,color:'var(--danger)',marginTop:4,textAlign:'center'}}>As senhas não coincidem</div>}
+    {pw2.length===6&&pw!==pw2&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--danger)',marginTop:4,textAlign:'center'}}>As senhas não coincidem</div>}
     {showVK&&<div style={{marginTop:4}}><VirtualKeyboard onKey={vkKey} onBackspace={vkBack} onDone={()=>setShowVK(false)} maxLen={6} currentLen={currentVKLen}/></div>}
-    {err&&<div style={{fontSize:12,color:'var(--danger)',textAlign:'center'}}><AlertTriangle size={12}/> {err}</div>}
+    {err&&<div style={{fontSize:'var(--fs-xs)',color:'var(--danger)',textAlign:'center'}}><AlertTriangle size={12}/> {err}</div>}
     <Btn full onClick={save} disabled={pw.length<6||pw!==pw2||loading} sfx="">{loading?<Spin size={14}/>:<><Check size={16}/> Salvar nova senha</>}</Btn>
   </div>);
 }
@@ -1762,22 +1793,22 @@ function OnboardingPage({onComplete,theme}){
   const s=steps[step];
 
   if(askTutorial)return(<div style={{display:'flex',flexDirection:'column',gap:16,paddingTop:40,alignItems:'center',textAlign:'center'}}>
-    <div style={{width:56,height:56,borderRadius:14,background:'rgba(var(--ink),calc(0.04*var(--ink-a)))',border:'1px solid rgba(var(--ink),calc(0.06*var(--ink-a)))',display:'grid',placeItems:'center',fontSize:28}}>🧙</div>
+    <div style={{width:56,height:56,borderRadius:14,background:'var(--fill-soft)',border:'1px solid var(--line-soft)',display:'grid',placeItems:'center',fontSize:28}}>🧙</div>
     <h2 style={{fontFamily:"'Cinzel',serif",fontSize:20}}>"Vamos explorar o portal juntos!"</h2>
-    <p style={{fontSize:13,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))',maxWidth:300,fontStyle:'italic'}}>Um guia rápido sobre o ritual da encomenda — leva menos de 1 minuto</p>
+    <p style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',maxWidth:300,fontStyle:'italic'}}>Um guia rápido sobre o ritual da encomenda — leva menos de 1 minuto</p>
     <div style={{display:'flex',gap:10,width:'100%',maxWidth:300}}>
       <Btn onClick={()=>onComplete(colors,guild,true)} style={{flex:1}} sfx="confirm">Vamos lá! 🔮</Btn>
     </div>
-    <button onClick={()=>onComplete(colors,guild,false)} style={{background:'none',border:'none',color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:12,cursor:'pointer',marginTop:4}}>Pular tutorial</button>
+    <button onClick={()=>onComplete(colors,guild,false)} style={{background:'none',border:'none',color:'var(--text-faint)',fontSize:'var(--fs-xs)',cursor:'pointer',marginTop:4}}>Pular tutorial</button>
   </div>);
 
   return(<div style={{display:'flex',flexDirection:'column',gap:16,paddingTop:16,minHeight:'70vh',justifyContent:'space-between'}}>
     <div>
-      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:18}}><div style={{width:44,height:44,borderRadius:12,background:'rgba(var(--ink),calc(0.04*var(--ink-a)))',border:'1px solid rgba(var(--ink),calc(0.06*var(--ink-a)))',display:'grid',placeItems:'center',fontSize:22}}>{s.mood}</div><div><div style={{fontWeight:800,fontSize:14}}>Goblin Guia</div><div style={{fontSize:11,color:'rgba(var(--ink),calc(0.28*var(--ink-a)))'}}>Guardião do Portal</div></div></div>
-      <h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:23}}>{s.title}</h1>
-      <p style={{fontSize:14,lineHeight:1.7,color:'rgba(var(--ink),calc(0.55*var(--ink-a)))',marginTop:10,fontStyle:'italic'}}>{s.body}</p>
+      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:18}}><div style={{width:44,height:44,borderRadius:12,background:'var(--fill-soft)',border:'1px solid var(--line-soft)',display:'grid',placeItems:'center',fontSize:'var(--fs-xl)'}}>{s.mood}</div><div><div style={{fontWeight:800,fontSize:14}}>Goblin Guia</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>Guardião do Portal</div></div></div>
+      <h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)'}}>{s.title}</h1>
+      <p style={{fontSize:14,lineHeight:1.7,color:'var(--text-muted)',marginTop:10,fontStyle:'italic'}}>{s.body}</p>
       {s.illus&&s.illus()}
-      {s.hasColors&&<div style={{marginTop:18}}><div style={{display:'flex',justifyContent:'center',gap:14,marginBottom:14}}>{MANA_COLORS.map(m=><ManaOrb key={m.key} mana={m.key} selected={colors.includes(m.key)} onClick={()=>toggleC(m.key)} size={50}/>)}</div>{guild&&<div style={{textAlign:'center'}}><GuildBadge guild={guild} size={24}/><span style={{fontFamily:"'Cinzel',serif",fontSize:18,fontWeight:700,color:gT.primary,marginLeft:8}}>{guild}</span></div>}</div>}
+      {s.hasColors&&<div style={{marginTop:18}}><div style={{display:'flex',justifyContent:'center',gap:14,marginBottom:14}}>{MANA_COLORS.map(m=><ManaOrb key={m.key} mana={m.key} selected={colors.includes(m.key)} onClick={()=>toggleC(m.key)} size={50}/>)}</div>{guild&&<div style={{textAlign:'center'}}><GuildBadge guild={guild} size={24}/><span style={{fontFamily:"'Cinzel',serif",fontSize:'var(--fs-lg)',fontWeight:700,color:gT.primary,marginLeft:8}}>{guild}</span></div>}</div>}
     </div>
     <div>
       <div style={{display:'flex',gap:5,justifyContent:'center',marginBottom:12}}>{steps.map((_,i)=><div key={i} style={{width:i===step?20:6,height:6,borderRadius:3,background:i===step?gT.primary:'rgba(var(--ink),calc(0.1*var(--ink-a)))'}}/>)}</div>
@@ -4083,9 +4114,16 @@ export default function MagicPortal(){
       {page !== 'onboarding' && <div className="portal-header" style={{ padding: '13px 20px 11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(var(--ink),calc(0.035*var(--ink-a)))', position: 'sticky', top: 0, zIndex: 10, background: 'var(--chrome-bg)', backdropFilter: 'blur(20px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {(page === 'success' || page === 'admin' || page === 'checkout') && <button onClick={() => nav(page === 'admin' ? 'profile' : page === 'checkout' ? 'cart' : 'home')} className="mp-tap" aria-label="Voltar" style={{ background: 'none', border: 'none', color: 'var(--text-strong)', cursor: 'pointer' }}><ChevronLeft size={20} /></button>}
-          <span style={{ fontFamily: "'Cinzel',serif", fontSize: 15, fontWeight: 700, letterSpacing: .3 }}>{({ home: 'Cartas para Jogar', catalog: 'Catálogo', wants: 'Lista de desejos', cart: 'Carrinho', checkout: 'Checkout', success: '', profile: 'Perfil', admin: 'Admin', onboarding: '' })[page] || ''}</span>
+          <span style={{ fontFamily: "'Cinzel',serif", fontSize: 'var(--fs-md)', fontWeight: 700, letterSpacing: .3 }}>{({ home: 'Cartas para Jogar', catalog: 'Catálogo', wants: 'Lista de desejos', cart: 'Carrinho', checkout: 'Checkout', success: '', profile: 'Perfil', admin: 'Admin', onboarding: '' })[page] || ''}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {/* Em que modo estou comprando. Clicável: leva à Home, onde se troca. */}
+          {['catalog','wants','cart','checkout'].includes(page) && (campaign || orderMode === 'INDIVIDUAL') && (
+            <button onClick={() => { SFX.nav(); nav('home'); }} title="Modo de pedido — toque para trocar" aria-label={`Modo de pedido: ${orderMode === 'INDIVIDUAL' ? 'Individual' : 'Encomenda coletiva'}. Toque para trocar.`} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: 'var(--r-pill)', cursor: 'pointer', border: '1px solid ' + (orderMode === 'INDIVIDUAL' ? 'rgba(var(--ink),calc(0.12*var(--ink-a)))' : wa(theme.primary, '55')), background: orderMode === 'INDIVIDUAL' ? 'var(--fill-soft)' : wa(theme.primary, '1f'), color: orderMode === 'INDIVIDUAL' ? 'var(--indiv)' : theme.primary, fontSize: 'var(--fs-2xs)', fontWeight: 700, fontFamily: "'Outfit',sans-serif", whiteSpace: 'nowrap' }}>
+              {orderMode === 'INDIVIDUAL' ? <User size={11}/> : <Store size={11}/>}
+              {orderMode === 'INDIVIDUAL' ? 'Individual' : 'Coletiva'}
+            </button>
+          )}
           <button onClick={() => { SFX.toggle(); setColorMode(m => m === 'light' ? 'dark' : 'light'); }} className="mp-tap" title={colorMode === 'light' ? 'Mudar para o modo escuro' : 'Mudar para o modo claro'} aria-label={colorMode === 'light' ? 'Mudar para o modo escuro' : 'Mudar para o modo claro'} style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer' }}>{colorMode === 'light' ? <Moon size={16} /> : <Sun size={16} />}</button>
           <button onClick={() => setSoundOn(s => !s)} className="mp-tap" role="switch" aria-checked={soundOn} title={soundOn ? 'Desligar sons' : 'Ligar sons'} aria-label={soundOn ? 'Desligar sons' : 'Ligar sons'} style={{ background: 'none', border: 'none', color: soundOn ? 'var(--text-faint)' : 'rgba(var(--ink),calc(0.14*var(--ink-a)))', cursor: 'pointer' }}>{soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>
         </div>

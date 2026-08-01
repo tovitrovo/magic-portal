@@ -93,3 +93,11 @@ select:focus-visible {
     animation-iteration-count: infinite !important;
   }
 }
+
+/* ── Skeleton ────────────────────────────────────────
+   Usado enquanto o catálogo busca. A grade continua montada e com a mesma
+   altura, então a página não salta a cada tecla digitada na busca. */
+@keyframes skPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
