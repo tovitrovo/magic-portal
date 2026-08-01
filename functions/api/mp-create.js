@@ -1,5 +1,6 @@
 import { authoritativeBatchTotal } from "./_campaign-helper.js";
 import { corsHeaders } from "./_cors.js";
+import { notifyOrderEvent } from "./_notify.js";
 
 export async function onRequest(context) {
   const CORS = corsHeaders(context, "POST, OPTIONS");
@@ -102,6 +103,14 @@ export async function onRequest(context) {
       } catch {
         // não bloqueia o retorno do link
       }
+    }
+
+    // Avisa o admin do pedido novo. Idempotente por lote e nunca bloqueia o
+    // checkout — se a notificação falhar, o cliente segue para o pagamento.
+    try {
+      await notifyOrderEvent(context.env, orderId, "NEW_ORDER");
+    } catch (e) {
+      console.error("mp-create: falha ao notificar pedido novo:", e);
     }
 
     return new Response(JSON.stringify({

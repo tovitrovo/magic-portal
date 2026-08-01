@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from 'react';
-import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff, Archive } from 'lucide-react';
+import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff, Archive, LayoutDashboard, Users, TrendingUp, BellRing, BellOff, Clock, Layers, ShoppingBag, ClipboardList, Zap, Store, Wallet, Activity, Inbox, LogIn, UserPlus } from 'lucide-react';
 import { buildCatalogQueries, buildLatestCardQuery, RECENT_CARDS_FILTER } from './catalogQuery';
 import { buildShippingGroups, SHIPPING_SERVICE_UNKNOWN } from '../shared/shipping-groups';
 import { buildCardsFromCsv, parseCardLinkList } from '../shared/cardImport';
 import { pricePerCard as indivPricePerCard } from '../shared/individualPricing';
 import { DEFAULT_WHATSAPP_MESSAGES, WHATSAPP_AUDIENCES, buildShipmentWhatsAppUrl, buildWhatsAppUrl, getWhatsAppRecipients } from './whatsappCommunication';
+import { PUSH_NEEDS_INSTALL, disablePush, enablePush, getPushState, reportAccess, sendTestPush, updatePushPrefs } from './push';
 import './responsive.css';
 
 // ══════════════════════════════════════════════════════
@@ -1640,8 +1641,15 @@ function OnboardingPage({onComplete,theme}){
 }
 
 // ══════════════════════════════════════════════════════
-// ADMIN — full management panel
+// ADMIN — console de vendas
+//
+// Organizado em seções fixas (Visão geral, Pedidos, Envios, Clientes,
+// Catálogo, Encomendas, Ajustes). A campanha selecionada é apenas um
+// contexto das seções coletivas — não é mais um portão para entrar no
+// painel, e os Pedidos Individuais convivem com os coletivos na mesma tela.
+// ══════════════════════════════════════════════════════
 const CAMPAIGN_STATUSES=['DRAFT','ACTIVE','LOCKED','ORDERING','ORDERED','RECEIVED','PACKING','SHIPPING','DONE','CANCELLED'];
+const CAMPAIGN_STATUS_LABELS={DRAFT:'Rascunho',ACTIVE:'Aberta',LOCKED:'Fechada',ORDERING:'Comprando',ORDERED:'Comprada',RECEIVED:'Recebida',PACKING:'Separando',SHIPPING:'Enviando',DONE:'Concluída',CANCELLED:'Cancelada'};
 
 // Pipeline simplificado de importação do Pedido Individual (dropship via AliExpress).
 // Só se aplica a orders.kind==='INDIVIDUAL' — a Encomenda Coletiva usa o status da campanha.
@@ -1655,184 +1663,284 @@ const INDIV_FULFILLMENT_STAGES=[
 ];
 function indivStageIndex(status){const i=INDIV_FULFILLMENT_STAGES.findIndex(s=>s.key===status);return i<0?0:i;}
 
-// Painel de Pedidos Individuais — não depende de nenhuma campanha selecionada,
-// já que orders.kind==='INDIVIDUAL' sempre tem campaign_id null. Agrupa por
-// dia de pagamento (o admin compra tudo do dia de uma vez no fornecedor).
-function AdminIndividualPanel({token,theme,toast:toastFn,onBack}){
-  const [orders,setOrders]=useState([]);
-  const [loading,setLoading]=useState(true);
-  const [expandedBatch,setExpandedBatch]=useState(null);
-  const [batchCards,setBatchCards]=useState({});
-  const [busyKey,setBusyKey]=useState(null);
-  const [dayFilter,setDayFilter]=useState('PENDING');
+const ADMIN_SECTIONS=[
+  {key:'overview',icon:LayoutDashboard,label:'Visão geral',sub:'O que precisa de você agora'},
+  {key:'orders',icon:ShoppingBag,label:'Pedidos',sub:'Coletiva e individual no mesmo lugar'},
+  {key:'shipping',icon:Truck,label:'Envios',sub:'Etiquetas, agrupamento e rastreio'},
+  {key:'clients',icon:Users,label:'Clientes',sub:'Contatos, bônus e WhatsApp'},
+  {key:'catalog',icon:BookOpen,label:'Catálogo',sub:'Cartas disponíveis para venda'},
+  {key:'campaigns',icon:Calendar,label:'Encomendas',sub:'Campanhas coletivas e lista de compra'},
+  {key:'settings',icon:Settings,label:'Ajustes',sub:'Preços, notificações e conta'},
+];
 
-  async function load(){
-    setLoading(true);
-    try{
-      const r=await fetch('/api/admin-individual-orders',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`}});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      setOrders(json.orders||[]);
-    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao carregar pedidos individuais: '+(e.message||String(e)),'error');}
-    setLoading(false);
-  }
-  useEffect(()=>{load();},[]);
+const PAID_BATCH_STATUSES=new Set(['PAID','PAID_CONFIRMED','CONFIRMED']);
+const PENDING_BATCH_STATUSES=new Set(['DRAFT','AWAITING_PAYMENT','PENDING_PAYMENT']);
+const isPaidBatch=s=>PAID_BATCH_STATUSES.has(String(s||'').toUpperCase());
+const isPendingBatch=s=>PENDING_BATCH_STATUSES.has(String(s||'').toUpperCase());
+const isCancelledBatch=s=>String(s||'').toUpperCase()==='CANCELLED';
 
-  const flatBatches=useMemo(()=>{
-    const list=[];
-    orders.forEach(o=>{(o.order_batches||[]).forEach(b=>{
-      list.push({...b,orderId:o.id,userId:o.user_id,clientName:o.profiles?.name||'—',clientWhatsapp:o.profiles?.whatsapp||'',clientEmail:o.profiles?.email||''});
-    });});
-    return list;
-  },[orders]);
+const brl=v=>'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const brlCompact=v=>{const n=Number(v||0);return n>=1000?'R$ '+(n/1000).toFixed(n>=10000?0:1).replace('.',',')+'k':'R$ '+n.toFixed(0);};
+const shortBatchId=id=>String(id||'').slice(0,8).toUpperCase();
+const CHANNEL_LABEL={CAMPAIGN:'Coletiva',INDIVIDUAL:'Individual'};
 
-  const dayGroups=useMemo(()=>{
-    const groups=new Map();
-    flatBatches.forEach(b=>{
-      const ts=b.confirmed_at||b.created_at;
-      const dayKey=ts?new Date(ts).toLocaleDateString('pt-BR'):'—';
-      if(!groups.has(dayKey))groups.set(dayKey,{dayKey,ts:ts?new Date(ts).getTime():0,batches:[]});
-      groups.get(dayKey).batches.push(b);
-    });
-    return [...groups.values()].sort((a,b)=>b.ts-a.ts);
-  },[flatBatches]);
+const NOTIF_META={
+  NEW_ORDER:{icon:ShoppingBag,color:'#c9a96e',label:'Pedido novo'},
+  ORDER_PAID:{icon:Wallet,color:'#2ee59d',label:'Pagamento'},
+  BONUS_ORDER:{icon:Gift,color:'#2ee59d',label:'Pedido bônus'},
+  LOGIN:{icon:LogIn,color:'#4a90d9',label:'Login'},
+  SIGNUP:{icon:UserPlus,color:'#4a90d9',label:'Nova conta'},
+};
 
-  const visibleGroups=useMemo(()=>dayFilter==='ALL'?dayGroups:dayGroups.filter(g=>g.batches.some(b=>b.fulfillment_status!=='LABEL_GENERATED')),[dayGroups,dayFilter]);
+function timeAgo(iso){
+  if(!iso)return '';
+  const diff=Date.now()-new Date(iso).getTime();
+  if(!Number.isFinite(diff))return '';
+  const min=Math.floor(diff/60000);
+  if(min<1)return 'agora';
+  if(min<60)return `${min} min`;
+  const h=Math.floor(min/60);
+  if(h<24)return `${h}h`;
+  const d=Math.floor(h/24);
+  if(d<7)return `${d}d`;
+  return new Date(iso).toLocaleDateString('pt-BR');
+}
 
-  async function loadBatchCards(batchId){
-    if(batchCards[batchId])return;
-    try{
-      const r=await fetch('/api/admin-batch-items',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchIds:[batchId]})});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      setBatchCards(prev=>({...prev,[batchId]:(json.items||[]).map(i=>({name:i.cards?.name||'Carta',type:i.cards?.type||'',qty:Number(i.quantity||1)}))}));
-    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao carregar itens: '+(e.message||String(e)),'error');}
-  }
+// Mesmo dia civil? Usado nos indicadores de "hoje" da visão geral.
+function isToday(iso){
+  if(!iso)return false;
+  const d=new Date(iso);const now=new Date();
+  return d.getDate()===now.getDate()&&d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
+}
 
-  async function setFulfillment(batchIds,status,busyId){
-    setBusyKey(busyId);
-    try{
-      const r=await fetch('/api/admin-update-fulfillment',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchIds,fulfillmentStatus:status})});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      SFX.success();
-      await load();
-    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao atualizar status: '+(e.message||String(e)),'error');}
-    setBusyKey(null);
-  }
+// ── Blocos visuais do console ─────────────────────────
+const AdminStat=({label,value,sub,color,icon:Icon,onClick,accent})=>(
+  <Card onClick={onClick} style={{padding:'12px 14px',display:'flex',flexDirection:'column',gap:2,borderLeft:'3px solid '+((accent||color||'rgba(255,255,255,0.12)')+(accent?'':'55'))}}>
+    <div style={{display:'flex',alignItems:'center',gap:5,fontSize:10,color:'rgba(255,255,255,0.32)',fontWeight:600,textTransform:'uppercase',letterSpacing:.6}}>
+      {Icon&&<Icon size={11}/>}{label}
+    </div>
+    <div style={{fontSize:22,fontWeight:800,color:color||'#fff',lineHeight:1.1}}>{value}</div>
+    {sub&&<div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{sub}</div>}
+  </Card>
+);
 
-  async function generateLabel(batch){
-    let formaEnvio=batch.shipping_service&&batch.shipping_service!==SHIPPING_SERVICE_UNKNOWN?batch.shipping_service:'';
-    const action=batch.mandabem_envio_id?'refresh':'generate';
-    if(action==='generate'){
-      if(!formaEnvio){
-        const svc=prompt('Serviço não identificado. Selecione PAC, SEDEX ou PACMINI:','PACMINI');
-        if(svc===null)return;
-        formaEnvio=svc.trim().toUpperCase().replace(/[\s_-]+/g,'');
-        if(!['PAC','SEDEX','PACMINI'].includes(formaEnvio)){if(toastFn)toastFn('Serviço inválido. Use PAC, SEDEX ou PACMINI.','error');return;}
-      }
-      if(!confirm('Gerar etiqueta/envio no MandaBem para este pedido?'))return;
-    }
-    setBusyKey(batch.id);
-    try{
-      const r=await fetch('/api/admin-mandabem-label',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:batch.id,action,formaEnvio})});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      if(action==='generate'){
-        await fetch('/api/admin-update-fulfillment',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchIds:[batch.id],fulfillmentStatus:'LABEL_GENERATED'})}).catch(()=>{});
-      }
-      SFX.success();if(toastFn)toastFn(action==='refresh'?'Envio atualizado no MandaBem':'Etiqueta gerada no MandaBem','success');
-      await load();
-    }catch(e){console.error(e);if(toastFn)toastFn('Erro MandaBem: '+(e.message||String(e)),'error');}
-    setBusyKey(null);
-  }
-
-  return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
-    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-      <div style={{display:'flex',alignItems:'center',gap:8}}>
-        <button onClick={onBack} style={{background:'none',border:'none',color:'#fff',cursor:'pointer',padding:2}}><ChevronLeft size={18}/></button>
-        <Package size={18} style={{color:theme.primary}}/>
-        <span style={{fontFamily:"'Cinzel',serif",fontSize:16,fontWeight:700}}>Pedidos Individuais</span>
+const AdminPanel=({title,sub,icon:Icon,accent,right,children,style})=>(
+  <Card style={{padding:16,...style}}>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10,marginBottom:12}}>
+      <div style={{display:'flex',gap:10,alignItems:'flex-start',minWidth:0}}>
+        {Icon&&<div style={{width:30,height:30,borderRadius:9,flexShrink:0,display:'grid',placeItems:'center',background:(accent||'var(--gp)')+'14',border:'1px solid '+(accent||'var(--gp)')+'22',color:accent||'var(--gp)'}}><Icon size={15}/></div>}
+        <div style={{minWidth:0}}>
+          <h2 style={{margin:0,fontSize:15,fontFamily:"'Cinzel',serif",color:'#fff',letterSpacing:.3}}>{title}</h2>
+          {sub&&<p style={{margin:'3px 0 0',fontSize:11,color:'rgba(255,255,255,0.33)',lineHeight:1.45}}>{sub}</p>}
+        </div>
       </div>
-      <button onClick={load} style={{background:'none',border:'none',color:'rgba(255,255,255,0.4)',cursor:'pointer'}}><RefreshCw size={16}/></button>
+      {right&&<div style={{flexShrink:0}}>{right}</div>}
     </div>
+    {children}
+  </Card>
+);
 
-    <div style={{display:'flex',gap:4}}>
-      <button onClick={()=>setDayFilter('PENDING')} style={{flex:1,padding:'7px 0',borderRadius:10,border:'none',background:dayFilter==='PENDING'?theme.primary+'15':'rgba(255,255,255,0.025)',color:dayFilter==='PENDING'?theme.primary:'rgba(255,255,255,0.3)',fontWeight:600,fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Pendentes</button>
-      <button onClick={()=>setDayFilter('ALL')} style={{flex:1,padding:'7px 0',borderRadius:10,border:'none',background:dayFilter==='ALL'?theme.primary+'15':'rgba(255,255,255,0.025)',color:dayFilter==='ALL'?theme.primary:'rgba(255,255,255,0.3)',fontWeight:600,fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Todos ({flatBatches.length})</button>
+// Pílulas de filtro/sub-navegação reutilizadas por várias seções.
+const AdminPills=({options,value,onChange,style})=>(
+  <div style={{display:'flex',gap:4,flexWrap:'wrap',...style}}>
+    {options.map(opt=>{
+      const active=value===opt.key;
+      const color=opt.color||'var(--gp)';
+      return(<button key={opt.key} onClick={()=>{SFX.toggle();onChange(opt.key);}} style={{display:'inline-flex',alignItems:'center',gap:5,padding:'6px 11px',borderRadius:99,border:'1px solid '+(active?color+'45':'rgba(255,255,255,0.06)'),background:active?color+'16':'rgba(255,255,255,0.022)',color:active?color:'rgba(255,255,255,0.34)',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap'}}>
+        {opt.icon&&<opt.icon size={11}/>}{opt.label}{opt.count!==undefined&&<span style={{fontSize:9,opacity:.65}}>({opt.count})</span>}
+      </button>);
+    })}
+  </div>
+);
+
+const AdminField=({label,hint,children})=>(
+  <div style={{marginBottom:10}}>
+    <label style={{fontSize:11,color:'rgba(255,255,255,0.32)',display:'block',marginBottom:4,fontWeight:600}}>{label}</label>
+    {children}
+    {hint&&<div style={{fontSize:10,color:'rgba(255,255,255,0.2)',marginTop:3,lineHeight:1.45}}>{hint}</div>}
+  </div>
+);
+
+const adminInputStyle={width:'100%',padding:'9px 12px',borderRadius:10,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:13,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'};
+
+// Linha "isso aqui precisa de você" da visão geral.
+const AdminTodo=({icon:Icon,color,title,detail,actionLabel,onAction})=>(
+  <div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+    <div style={{width:26,height:26,borderRadius:8,flexShrink:0,display:'grid',placeItems:'center',background:color+'14',color}}><Icon size={13}/></div>
+    <div style={{flex:1,minWidth:0}}>
+      <div style={{fontSize:12,fontWeight:700}}>{title}</div>
+      <div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>{detail}</div>
     </div>
+    {onAction&&<button onClick={onAction} style={{flexShrink:0,display:'inline-flex',alignItems:'center',gap:3,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:8,padding:'5px 9px',color:'rgba(255,255,255,0.55)',fontSize:10,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{actionLabel||'Abrir'} <ChevronRight size={11}/></button>}
+  </div>
+);
 
-    {loading?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:
-    visibleGroups.length===0?<EmptyState icon={Package} title="Nenhum pedido" sub="Nenhum pedido individual pago encontrado"/>:
-    visibleGroups.map(group=>{
-      const stageIdxs=group.batches.map(b=>indivStageIndex(b.fulfillment_status));
-      const minIdx=Math.min(...stageIdxs);
-      const nextStage=INDIV_FULFILLMENT_STAGES[minIdx+1];
-      const bulkTargets=group.batches.filter(b=>indivStageIndex(b.fulfillment_status)===minIdx).map(b=>b.id);
-      return(<Card key={group.dayKey} style={{padding:14}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,gap:8}}>
-          <div>
-            <div style={{fontSize:13,fontWeight:800}}>{group.dayKey}</div>
-            <div style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>{group.batches.length} pedido(s) · {group.batches.reduce((s,b)=>s+Number(b.qty_in_batch||0),0)} cartas</div>
+// Trilha de status do Pedido Individual (compra no fornecedor → etiqueta).
+const IndivStageTrack=({status})=>{
+  const idx=indivStageIndex(status);
+  return(<div style={{display:'flex',alignItems:'center',gap:3,marginTop:6}}>
+    {INDIV_FULFILLMENT_STAGES.map((stage,i)=>(
+      <div key={stage.key} title={stage.label} style={{flex:1,height:3,borderRadius:2,background:i<=idx?(i>=5?'#2ee59d':'var(--gp)'):'rgba(255,255,255,0.07)'}}/>
+    ))}
+  </div>);
+};
+
+// ── Central de notificações ───────────────────────────
+// Feed de eventos (pedidos novos, pagamentos, logins) gravados por
+// /api/admin-notifications. O push do celular é a mesma fonte de dados.
+function AdminNotificationFeed({notifications,loading,unread,onRefresh,onMarkAll,onClear,onOpenEvent,compact=false,limit}){
+  const list=limit?notifications.slice(0,limit):notifications;
+  return(<div style={{display:'flex',flexDirection:'column'}}>
+    {!compact&&<div style={{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap'}}>
+      <Btn variant="secondary" onClick={onRefresh} disabled={loading} style={{padding:'6px 11px',fontSize:11}} sfx="click">{loading?<Spin size={12}/>:<RefreshCw size={12}/>} Atualizar</Btn>
+      <Btn variant="secondary" onClick={onMarkAll} disabled={!unread} style={{padding:'6px 11px',fontSize:11}} sfx=""><CheckCircle size={12}/> Marcar tudo lido</Btn>
+      <Btn variant="ghost" onClick={onClear} style={{padding:'6px 11px',fontSize:11}} sfx=""><Trash2 size={12}/> Limpar lidas</Btn>
+    </div>}
+    {loading&&list.length===0?<div style={{textAlign:'center',padding:24}}><Spin size={20}/></div>:
+    list.length===0?<EmptyState icon={Inbox} title="Nada por aqui" sub="Pedidos novos e logins aparecem nesta lista"/>:
+    list.map(n=>{
+      const meta=NOTIF_META[n.type]||{icon:Bell,color:'rgba(255,255,255,0.4)',label:n.type};
+      const isUnread=!n.read_at;
+      return(<div key={n.id} onClick={()=>onOpenEvent&&onOpenEvent(n)} style={{display:'flex',gap:10,alignItems:'flex-start',padding:'9px 0',borderBottom:'1px solid rgba(255,255,255,0.04)',cursor:onOpenEvent?'pointer':'default',opacity:isUnread?1:0.55}}>
+        <div style={{width:28,height:28,borderRadius:9,flexShrink:0,display:'grid',placeItems:'center',background:meta.color+'14',color:meta.color}}><meta.icon size={13}/></div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+            <span style={{fontSize:12,fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{n.title}</span>
+            {isUnread&&<span style={{width:6,height:6,borderRadius:3,background:meta.color,flexShrink:0}}/>}
           </div>
-          {nextStage&&nextStage.key!=='LABEL_GENERATED'&&bulkTargets.length>0&&<Btn variant="secondary" onClick={()=>setFulfillment(bulkTargets,nextStage.key,group.dayKey)} disabled={busyKey===group.dayKey} style={{padding:'6px 10px',fontSize:11,flexShrink:0}} sfx="">
-            {busyKey===group.dayKey?<Spin size={12}/>:<><ArrowRight size={12}/> Marcar grupo: {nextStage.label}</>}
-          </Btn>}
+          {n.body&&<div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginTop:1,lineHeight:1.4}}>{n.body}</div>}
         </div>
-        <div style={{display:'flex',flexDirection:'column',gap:6}}>
-          {group.batches.map(b=>{
-            const isExp=expandedBatch===b.id;
-            const idx=indivStageIndex(b.fulfillment_status);
-            const stageInfo=INDIV_FULFILLMENT_STAGES[idx];
-            const next=INDIV_FULFILLMENT_STAGES[idx+1];
-            const trackingCode=b.mandabem_rastreamento||b.mandabem_etiqueta;
-            return(<div key={b.id} style={{borderTop:'1px solid rgba(255,255,255,0.04)',paddingTop:6}}>
-              <div onClick={async()=>{const nextExp=isExp?null:b.id;setExpandedBatch(nextExp);if(nextExp)await loadBatchCards(b.id);}} style={{cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <div style={{display:'flex',alignItems:'center',gap:6}}>
-                  <span style={{fontSize:12,fontWeight:800,fontFamily:'monospace',color:'rgba(255,255,255,0.6)'}}>#{String(b.id).slice(0,8).toUpperCase()}</span>
-                  <span style={{fontSize:13,fontWeight:700}}>{b.clientName}</span>
-                </div>
-                <div style={{display:'flex',alignItems:'center',gap:6}}>
-                  <Tag color={idx>=5?'#2ee59d':theme.primary} style={{fontSize:9}}>{stageInfo.short}</Tag>
-                  <ChevronRight size={12} style={{color:'rgba(255,255,255,0.15)',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
-                </div>
-              </div>
-              {isExp&&<div style={{marginTop:8,display:'flex',flexDirection:'column',gap:8}}>
-                <div style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>{b.qty_in_batch} cartas · R$ {Number(b.total_locked||0).toFixed(2)}</div>
-                {(batchCards[b.id]||[]).length>0?batchCards[b.id].map((c,ci)=>(<div key={ci} style={{display:'flex',gap:8,fontSize:12}}><span style={{flex:1,color:'rgba(255,255,255,0.5)'}}>{c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span><span style={{fontWeight:700}}>x{c.qty}</span></div>)):<div style={{fontSize:11,color:'rgba(255,255,255,0.2)'}}>Carregando itens...</div>}
-                {trackingCode&&<div style={{fontSize:11,color:'#2ee59d'}}>Rastreio: {trackingCode}{b.mandabem_status?` · ${b.mandabem_status}`:''}</div>}
-                <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-                  {stageInfo.key==='PREPARING'&&<Btn variant="secondary" onClick={()=>generateLabel(b)} disabled={busyKey===b.id} style={{padding:'6px 10px',fontSize:11}} sfx=""><Truck size={12}/> Gerar etiqueta</Btn>}
-                  {stageInfo.key==='LABEL_GENERATED'&&<Btn variant="secondary" onClick={()=>generateLabel(b)} disabled={busyKey===b.id} style={{padding:'6px 10px',fontSize:11}} sfx=""><RefreshCw size={12}/> Atualizar envio</Btn>}
-                  {next&&next.key!=='LABEL_GENERATED'&&<Btn variant="ghost" onClick={()=>setFulfillment([b.id],next.key,b.id)} disabled={busyKey===b.id} style={{padding:'6px 10px',fontSize:11}} sfx="">→ {next.label}</Btn>}
-                  {b.clientWhatsapp&&trackingCode&&<button onClick={()=>{const url=buildShipmentWhatsAppUrl({name:b.clientName,whatsapp:b.clientWhatsapp},'',trackingCode,b.mandabem_status);if(!url){if(toastFn)toastFn('Cliente sem WhatsApp válido','error');return;}window.open(url,'_blank','noopener,noreferrer');}} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(37,211,102,0.08)',border:'1px solid rgba(37,211,102,0.18)',borderRadius:10,padding:'6px 10px',color:'#25d366',fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={12}/> Enviar rastreio</button>}
-                </div>
-              </div>}
-            </div>);
-          })}
-        </div>
-      </Card>);
+        <span style={{fontSize:10,color:'rgba(255,255,255,0.22)',flexShrink:0,marginTop:2}}>{timeAgo(n.created_at)}</span>
+      </div>);
     })}
   </div>);
 }
 
-function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,onReload,toast:toastFn}){
+// Ativação do push neste aparelho. A permissão só pode ser pedida dentro de
+// um clique, então tudo aqui parte de um botão.
+function AdminPushSettings({token,toast:toastFn}){
+  const [state,setState]=useState(null);
+  const [busy,setBusy]=useState('');
+
+  async function refresh(){
+    try{setState(await getPushState(token));}
+    catch(e){console.warn('push state:',e);setState(s=>s||{supported:false,reason:'unsupported'});}
+  }
+  useEffect(()=>{refresh();},[token]);
+
+  async function handleEnable(){
+    setBusy('enable');
+    try{
+      await enablePush(token,state?.prefs);
+      SFX.success();if(toastFn)toastFn('Notificações ativadas neste aparelho','success');
+      await refresh();
+    }catch(e){if(toastFn)toastFn(e.message||String(e),'error');}
+    setBusy('');
+  }
+
+  async function handleDisable(){
+    setBusy('disable');
+    try{await disablePush(token);if(toastFn)toastFn('Notificações desligadas neste aparelho','success');await refresh();}
+    catch(e){if(toastFn)toastFn(e.message||String(e),'error');}
+    setBusy('');
+  }
+
+  async function togglePref(key){
+    if(!state?.endpoint)return;
+    const next={...state.prefs,[key]:!state.prefs[key]};
+    setState(s=>({...s,prefs:next}));
+    try{await updatePushPrefs(token,state.endpoint,next);}
+    catch(e){if(toastFn)toastFn('Não foi possível salvar a preferência','error');await refresh();}
+  }
+
+  async function handleTest(){
+    setBusy('test');
+    try{await sendTestPush(token,state.endpoint);if(toastFn)toastFn('Push de teste enviado','success');}
+    catch(e){if(toastFn)toastFn(e.message||String(e),'error');}
+    setBusy('');
+  }
+
+  if(!state)return <div style={{textAlign:'center',padding:16}}><Spin size={18}/></div>;
+
+  if(!state.supported)return(<div style={{fontSize:12,color:'rgba(255,255,255,0.45)',lineHeight:1.6}}>
+    {state.reason===PUSH_NEEDS_INSTALL
+      ? <>No iPhone/iPad o push só funciona com o portal <b style={{color:'#fff'}}>instalado na tela de início</b>. Abra o site no Safari, toque em <b style={{color:'#fff'}}>Compartilhar → Adicionar à Tela de Início</b> e ative as notificações por dentro do app instalado.</>
+      : <>Este navegador não suporta notificações push. Abra o portal no Chrome (Android/desktop) ou no app instalado do iPhone.</>}
+  </div>);
+
+  if(!state.serverConfigured)return(<div style={{fontSize:12,color:'#c9a96e',lineHeight:1.6}}>
+    O servidor ainda não tem as chaves VAPID. Rode <b style={{fontFamily:'monospace'}}>node scripts/generate-vapid-keys.mjs</b> e cadastre <b style={{fontFamily:'monospace'}}>VAPID_PUBLIC_KEY</b>, <b style={{fontFamily:'monospace'}}>VAPID_PRIVATE_KEY</b> e <b style={{fontFamily:'monospace'}}>VAPID_SUBJECT</b> nas variáveis do Cloudflare Pages.
+  </div>);
+
+  return(<div style={{display:'flex',flexDirection:'column',gap:10}}>
+    <div style={{display:'flex',alignItems:'center',gap:9}}>
+      <div style={{width:32,height:32,borderRadius:10,display:'grid',placeItems:'center',background:state.subscribed?'rgba(46,229,157,0.1)':'rgba(255,255,255,0.04)',color:state.subscribed?'#2ee59d':'rgba(255,255,255,0.3)'}}>{state.subscribed?<BellRing size={15}/>:<BellOff size={15}/>}</div>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontSize:13,fontWeight:700,color:state.subscribed?'#2ee59d':'rgba(255,255,255,0.6)'}}>{state.subscribed?'Este aparelho recebe notificações':'Notificações desligadas neste aparelho'}</div>
+        <div style={{fontSize:10,color:'rgba(255,255,255,0.28)'}}>{state.permission==='denied'?'Permissão bloqueada nas configurações do navegador':'Cada aparelho é ativado separadamente'}</div>
+      </div>
+    </div>
+
+    {state.subscribed&&<div style={{display:'flex',flexDirection:'column',gap:6}}>
+      {[{k:'newOrders',label:'Pedidos novos e pagamentos',icon:ShoppingBag},{k:'logins',label:'Logins e novas contas',icon:LogIn}].map(({k,label,icon:Icon})=>(
+        <label key={k} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px',borderRadius:10,background:'rgba(255,255,255,0.025)',cursor:'pointer',fontSize:12}}>
+          <input type="checkbox" checked={!!state.prefs[k]} onChange={()=>togglePref(k)} style={{cursor:'pointer'}}/>
+          <Icon size={13} style={{color:'rgba(255,255,255,0.3)'}}/>
+          <span style={{color:'rgba(255,255,255,0.6)'}}>{label}</span>
+        </label>
+      ))}
+    </div>}
+
+    <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+      {!state.subscribed
+        ? <Btn variant="success" onClick={handleEnable} disabled={busy==='enable'||state.permission==='denied'} style={{padding:'8px 13px',fontSize:12}} sfx="">{busy==='enable'?<Spin size={13}/>:<><Bell size={13}/> Ativar neste aparelho</>}</Btn>
+        : <>
+            <Btn variant="secondary" onClick={handleTest} disabled={busy==='test'} style={{padding:'8px 13px',fontSize:12}} sfx="">{busy==='test'?<Spin size={13}/>:<><Zap size={13}/> Enviar teste</>}</Btn>
+            <Btn variant="ghost" onClick={handleDisable} disabled={busy==='disable'} style={{padding:'8px 13px',fontSize:12}} sfx=""><BellOff size={13}/> Desligar</Btn>
+          </>}
+    </div>
+    {state.permission==='denied'&&<div style={{fontSize:10,color:'#c9a96e',lineHeight:1.5}}>A permissão foi negada. Libere as notificações do site nas configurações do navegador/aparelho e volte aqui.</div>}
+  </div>);
+}
+
+function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,onReload,toast:toastFn,initialSection}){
+  // ── Navegação do console ────────────────────────────
+  const validSection=key=>ADMIN_SECTIONS.some(s=>s.key===key)?key:null;
+  const [section,setSection]=useState(()=>validSection(initialSection)||'overview');
+  const [showNotifications,setShowNotifications]=useState(initialSection==='notifications');
+  // Um push clicado com o console já aberto troca a seção em exibição.
+  useEffect(()=>{
+    if(!initialSection)return;
+    if(initialSection==='notifications'){setShowNotifications(true);return;}
+    const target=validSection(initialSection);
+    if(target)setSection(target);
+  },[initialSection]);
+
+  // ── Dados ───────────────────────────────────────────
   const [campaigns,setCampaigns]=useState([]);
   const [selectedCampaign,setSelectedCampaign]=useState(campProp||null);
-  const [adminSection,setAdminSection]=useState('campaign'); // 'campaign' | 'individual'
-  const [tab,setTab]=useState('orders');
   const [orders,setOrders]=useState([]);
+  const [indivOrders,setIndivOrders]=useState([]);
   const [allProfiles,setAllProfiles]=useState([]);
   const [loading,setLoading]=useState(true);
   const [ordersLoading,setOrdersLoading]=useState(false);
+  const [indivLoading,setIndivLoading]=useState(false);
   const [saving,setSaving]=useState(false);
+
+  // ── Notificações ────────────────────────────────────
+  const [notifications,setNotifications]=useState([]);
+  const [notifUnread,setNotifUnread]=useState(0);
+  const [notifLoading,setNotifLoading]=useState(false);
+
+  // ── Encomendas (campanhas) ──────────────────────────
   const [archiving,setArchiving]=useState(false);
   const [showArchiveConfirm,setShowArchiveConfirm]=useState(false);
   const [showCreateForm,setShowCreateForm]=useState(false);
   const [newCamp,setNewCamp]=useState({name:'',status:'DRAFT',close_at:'',max_cards:null,min_cards:150});
   const [creating,setCreating]=useState(false);
+  const [editCamp,setEditCamp]=useState(campProp?{...campProp}:{});
 
-  // Importação de catálogo via CSV do fornecedor
+  // ── Catálogo: importação via CSV do fornecedor ──────
   const [importCsv,setImportCsv]=useState('');
   const [importFileName,setImportFileName]=useState('');
   const [importPreview,setImportPreview]=useState(null);
@@ -1840,7 +1948,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   const [importing,setImporting]=useState(false);
   const [importResult,setImportResult]=useState(null);
 
-  // Adicionar cartas por link de imagem (ex: Google Imagens)
+  // ── Catálogo: cartas avulsas por link de imagem ─────
   const [linkListText,setLinkListText]=useState('');
   const [linkPreview,setLinkPreview]=useState(null);
   const [linkAdding,setLinkAdding]=useState(false);
@@ -1849,11 +1957,55 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   const [linkType,setLinkType]=useState('Normal');
   const linkTypeOptions=(TCG_LIST.find(t=>t.key===linkTcg)?.types||[]).filter(t=>t!=='Todos');
 
-  // Precificação do pedido individual
+  // ── Preços ──────────────────────────────────────────
+  const [editPricing,setEditPricing]=useState(pricingProp?{...pricingProp}:{});
   const [indivCfg,setIndivCfg]=useState(null);
   const [indivTiers,setIndivTiers]=useState([]);
   const [indivFx,setIndivFx]=useState(null);
   const [savingIndiv,setSavingIndiv]=useState(false);
+  const [settingsTab,setSettingsTab]=useState('prices');
+
+  // ── Pedidos ─────────────────────────────────────────
+  const [orderView,setOrderView]=useState('list'); // 'list' | 'supplier'
+  const [channelFilter,setChannelFilter]=useState('ALL');
+  const [ordStatusFilter,setOrdStatusFilter]=useState('ALL');
+  const [ordSort,setOrdSort]=useState('date_desc');
+  const [searchOrders,setSearchOrders]=useState('');
+  const [expandedOrdBatch,setExpandedOrdBatch]=useState(null);
+  const [batchCards,setBatchCards]=useState({});
+  const [busyBatch,setBusyBatch]=useState(null);
+  const [supplierFilter,setSupplierFilter]=useState('PENDING');
+
+  // ── Clientes ────────────────────────────────────────
+  const [expandedClient,setExpandedClient]=useState(null);
+  const [expandedBatch,setExpandedBatch]=useState(null);
+  const [searchOrd,setSearchOrd]=useState('');
+  const [clientActiveFilter,setClientActiveFilter]=useState(false);
+  const [adminBonusGrants,setAdminBonusGrants]=useState([]);
+  const [bonusLoading,setBonusLoading]=useState(false);
+  const [bonusForm,setBonusForm]=useState({userId:null,qty:1});
+  const [whatsappAudience,setWhatsappAudience]=useState(WHATSAPP_AUDIENCES.BUYERS);
+  const [whatsappMessages,setWhatsappMessages]=useState(DEFAULT_WHATSAPP_MESSAGES);
+  const [whatsappContacted,setWhatsappContacted]=useState(()=>new Set());
+
+  // ── Envios / etiquetas ──────────────────────────────
+  const [shippingTab,setShippingTab]=useState('CAMPAIGN');
+  const [labelLoading,setLabelLoading]=useState({});
+  const [labelSelected,setLabelSelected]=useState(()=>new Set());
+  const [labelStatus,setLabelStatus]=useState({});
+  const [labelExpanded,setLabelExpanded]=useState(null);
+
+  // ── Lista de compra ─────────────────────────────────
+  const [finalList,setFinalList]=useState([]);
+  const [listLoading,setListLoading]=useState(false);
+  const [copied,setCopied]=useState(false);
+  const [zoomSrc,setZoomSrc]=useState(null);
+
+  // ─── Carregamento ──────────────────────────────────
+  useEffect(()=>{loadCampaigns();loadIndivOrders();loadNotifications();loadAllProfiles();},[]);
+  useEffect(()=>{if(pricingProp)setEditPricing({...pricingProp});},[pricingProp]);
+  useEffect(()=>{if(campProp&&!selectedCampaign)setSelectedCampaign(campProp);},[campProp]);
+
   useEffect(()=>{
     let alive=true;
     fetch('/api/pricing-individual',{method:'GET'}).then(r=>r.json()).then(d=>{
@@ -1865,134 +2017,192 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     return ()=>{alive=false;};
   },[]);
 
-  const [editPricing,setEditPricing]=useState(pricingProp?{...pricingProp}:{});
-  const [editCamp,setEditCamp]=useState(campProp?{...campProp}:{});
-
-  // Sync editPricing when parent data reloads
-  useEffect(()=>{if(pricingProp)setEditPricing({...pricingProp});},[pricingProp]);
-
-  const [expandedClient,setExpandedClient]=useState(null);
-  const [expandedBatch,setExpandedBatch]=useState(null);
-  const [batchCards,setBatchCards]=useState({});
-  const [searchOrd,setSearchOrd]=useState('');
-  const [ordStatusFilter,setOrdStatusFilter]=useState('ALL');
-  const [ordSort,setOrdSort]=useState('date_desc');
-  const [expandedOrdBatch,setExpandedOrdBatch]=useState(null);
-  const [searchOrders,setSearchOrders]=useState('');
-  const [labelLoading,setLabelLoading]=useState({});
-  const [labelSelected,setLabelSelected]=useState(()=>new Set());
-  const [labelStatus,setLabelStatus]=useState({});
-  const [labelExpanded,setLabelExpanded]=useState(null);
-
-  const [finalList,setFinalList]=useState([]);
-  const [listLoading,setListLoading]=useState(false);
-  const [copied,setCopied]=useState(false);
-  const [zoomSrc,setZoomSrc]=useState(null);
-
-  const [adminBonusGrants,setAdminBonusGrants]=useState([]);
-  const [bonusLoading,setBonusLoading]=useState(false);
-  const [bonusForm,setBonusForm]=useState({userId:null,qty:1});
-  const [clientActiveFilter,setClientActiveFilter]=useState(false);
-  const [whatsappAudience,setWhatsappAudience]=useState(WHATSAPP_AUDIENCES.BUYERS);
-  const [whatsappMessages,setWhatsappMessages]=useState(DEFAULT_WHATSAPP_MESSAGES);
-  const [whatsappContacted,setWhatsappContacted]=useState(()=>new Set());
-
-  async function loadBonusGrants(){
-    if(!selectedCampaign)return;
-    setBonusLoading(true);
-    try{
-      const r=await fetch('/api/admin-bonus',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({action:'list',campaignId:selectedCampaign.id})});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      setAdminBonusGrants(json.grants||[]);
-    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao carregar bônus: '+(e.message||String(e)),'error');}
-    setBonusLoading(false);
-  }
-
-  async function grantBonus(userId,qty){
-    if(!selectedCampaign||!userId||!qty||qty<1)return;
-    try{
-      const r=await fetch('/api/admin-bonus',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({action:'grant',userId,campaignId:selectedCampaign.id,bonusQty:qty})});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      SFX.success();if(toastFn)toastFn(`Bônus de ${qty} carta(s) concedido!`,'success');
-      loadBonusGrants();
-    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao conceder bônus: '+(e.message||String(e)),'error');}
-    setBonusForm({userId:null,qty:1});
-  }
-
-  async function revokeBonus(grantId){
-    if(!confirm('Revogar este bônus?'))return;
-    try{
-      const r=await fetch('/api/admin-bonus',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({action:'revoke',grantId})});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      SFX.success();if(toastFn)toastFn('Bônus revogado','success');
-      loadBonusGrants();
-    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao revogar: '+(e.message||String(e)),'error');}
-  }
-
   useEffect(()=>{
-    loadCampaigns();
-    fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL').then(r=>r.json()).then(d=>{if(d.USDBRL)setLiveUsd(parseFloat(d.USDBRL.bid));}).catch(()=>{});
+    if(selectedCampaign){loadOrders();loadBonusGrants();setEditCamp({...selectedCampaign});}
+    else{setOrders([]);setOrdersLoading(false);setAdminBonusGrants([]);}
+  },[selectedCampaign?.id]);
+
+  // Notificações novas chegam por push; aqui garantimos que a tela acompanhe
+  // quem já está com o painel aberto.
+  useEffect(()=>{
+    const id=setInterval(()=>{loadNotifications(true);},60000);
+    return ()=>clearInterval(id);
   },[]);
 
-  async function loadCampaigns(){
-    try{const r=await fetch('/api/campaigns',{method:'GET'});const data=await r.json();setCampaigns(Array.isArray(data)?data:[]);}catch(e){console.error(e);}finally{setLoading(false);}
+  async function apiPost(path,body){
+    const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify(body||{})});
+    const json=await r.json().catch(()=>({}));
+    if(!r.ok||json.ok===false)throw new Error(json.error||`HTTP ${r.status}`);
+    return json;
   }
 
-  useEffect(()=>{if(campProp&&!selectedCampaign)setSelectedCampaign(campProp);},[campProp]);
-
-  useEffect(()=>{
-    if(selectedCampaign){loadOrders();loadBonusGrants();loadAllProfiles();setEditCamp({...selectedCampaign});}else{setOrders([]);setOrdersLoading(false);setAdminBonusGrants([]);}
-  },[selectedCampaign?.id]);
+  async function loadCampaigns(){
+    try{const r=await fetch('/api/campaigns',{method:'GET'});const data=await r.json();
+      const list=Array.isArray(data)?data:[];
+      setCampaigns(list);
+      // Sem campanha vinda do app: assume a mais recente ainda aberta.
+      setSelectedCampaign(prev=>prev||list.find(c=>c.status!=='DONE'&&c.status!=='CANCELLED')||null);
+    }catch(e){console.error(e);}finally{setLoading(false);}
+  }
 
   async function loadOrders(){
     if(!selectedCampaign)return;
     setOrdersLoading(true);
-    try{
-      const r=await fetch('/api/admin-orders',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({campaignId:selectedCampaign.id})});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      setOrders(json.orders||[]);
-    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao carregar pedidos: '+(e.message||String(e)),'error');}
+    try{setOrders((await apiPost('/api/admin-orders',{campaignId:selectedCampaign.id})).orders||[]);}
+    catch(e){console.error(e);if(toastFn)toastFn('Erro ao carregar pedidos: '+(e.message||String(e)),'error');}
     setOrdersLoading(false);
   }
 
-  async function loadAllProfiles(){
-    try{
-      const r=await fetch('/api/admin-profiles',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`}});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      setAllProfiles(json.profiles||[]);
-    }catch(e){console.warn('loadAllProfiles error:',e);}
+  async function loadIndivOrders(){
+    setIndivLoading(true);
+    try{setIndivOrders((await apiPost('/api/admin-individual-orders')).orders||[]);}
+    catch(e){console.error(e);if(toastFn)toastFn('Erro ao carregar pedidos individuais: '+(e.message||String(e)),'error');}
+    setIndivLoading(false);
   }
+
+  async function loadAllProfiles(){
+    try{setAllProfiles((await apiPost('/api/admin-profiles')).profiles||[]);}
+    catch(e){console.warn('loadAllProfiles error:',e);}
+  }
+
+  async function loadNotifications(silent=false){
+    if(!silent)setNotifLoading(true);
+    try{
+      const json=await apiPost('/api/admin-notifications',{action:'list',limit:60});
+      setNotifications(json.notifications||[]);setNotifUnread(json.unread||0);
+    }catch(e){if(!silent)console.warn('loadNotifications:',e);}
+    if(!silent)setNotifLoading(false);
+  }
+
+  async function markAllNotificationsRead(){
+    try{await apiPost('/api/admin-notifications',{action:'readAll'});await loadNotifications();}
+    catch(e){if(toastFn)toastFn('Erro ao marcar como lido: '+(e.message||String(e)),'error');}
+  }
+
+  async function clearReadNotifications(){
+    try{await apiPost('/api/admin-notifications',{action:'clear'});await loadNotifications();}
+    catch(e){if(toastFn)toastFn('Erro ao limpar: '+(e.message||String(e)),'error');}
+  }
+
+  // Clicar num evento leva para o lugar certo do console.
+  async function openNotification(n){
+    if(!n.read_at){apiPost('/api/admin-notifications',{action:'read',ids:[n.id]}).then(()=>loadNotifications(true)).catch(()=>{});}
+    if(n.type==='LOGIN'||n.type==='SIGNUP'){setSection('clients');setSearchOrd(n.data?.name||'');}
+    else{setSection('orders');setChannelFilter('ALL');setOrdStatusFilter('ALL');setSearchOrders(n.data?.shortId||'');}
+    setShowNotifications(false);
+  }
+
+  async function loadBonusGrants(){
+    if(!selectedCampaign)return;
+    setBonusLoading(true);
+    try{setAdminBonusGrants((await apiPost('/api/admin-bonus',{action:'list',campaignId:selectedCampaign.id})).grants||[]);}
+    catch(e){console.error(e);if(toastFn)toastFn('Erro ao carregar bônus: '+(e.message||String(e)),'error');}
+    setBonusLoading(false);
+  }
+
+  async function reloadAll(){
+    await Promise.all([loadOrders(),loadIndivOrders(),loadNotifications(),loadCampaigns()]);
+    if(onReload)onReload();
+  }
+
+  // ─── Dados derivados ───────────────────────────────
+  // Lotes da encomenda coletiva selecionada.
+  const campaignBatches=useMemo(()=>{
+    const list=[];
+    orders.forEach(o=>{(o.order_batches||[]).forEach(b=>{
+      list.push({...b,channel:'CAMPAIGN',orderId:o.id,userId:o.user_id,clientName:o.profiles?.name||'—',clientWhatsapp:o.profiles?.whatsapp||'',clientEmail:o.profiles?.email||'',qtyPaid:o.qty_paid||0,qtyBonus:o.qty_bonus||0,orderCreatedAt:o.created_at,shippingPriceLocked:o.shipping_price_brl_locked,campaignName:selectedCampaign?.name||''});
+    });});
+    return list;
+  },[orders,selectedCampaign]);
+
+  // Lotes (já pagos) dos pedidos individuais — independem de campanha.
+  const individualBatches=useMemo(()=>{
+    const list=[];
+    indivOrders.forEach(o=>{(o.order_batches||[]).forEach(b=>{
+      list.push({...b,channel:'INDIVIDUAL',orderId:o.id,userId:o.user_id,clientName:o.profiles?.name||'—',clientWhatsapp:o.profiles?.whatsapp||'',clientEmail:o.profiles?.email||'',orderCreatedAt:o.created_at,campaignName:''});
+    });});
+    return list;
+  },[indivOrders]);
+
+  const allBatches=useMemo(()=>[...campaignBatches,...individualBatches],[campaignBatches,individualBatches]);
+
+  const batchDateOf=b=>b.confirmed_at||b.created_at||b.orderCreatedAt;
+
+  const stats=useMemo(()=>{
+    const build=list=>{
+      const paid=list.filter(b=>isPaidBatch(b.status));
+      const pending=list.filter(b=>isPendingBatch(b.status));
+      const cancelled=list.filter(b=>isCancelledBatch(b.status));
+      return{
+        total:list.length,paidCount:paid.length,pendingCount:pending.length,cancelledCount:cancelled.length,
+        revenue:paid.reduce((s,b)=>s+Number(b.total_locked||0),0),
+        pendingRevenue:pending.reduce((s,b)=>s+Number(b.total_locked||0),0),
+        cards:paid.reduce((s,b)=>s+Number(b.qty_in_batch||0),0),
+        paidToday:paid.filter(b=>isToday(batchDateOf(b))).length,
+        revenueToday:paid.filter(b=>isToday(batchDateOf(b))).reduce((s,b)=>s+Number(b.total_locked||0),0),
+      };
+    };
+    return {all:build(allBatches),campaign:build(campaignBatches),individual:build(individualBatches)};
+  },[allBatches,campaignBatches,individualBatches]);
+
+  const filteredBatches=useMemo(()=>{
+    let list=allBatches;
+    if(channelFilter!=='ALL')list=list.filter(b=>b.channel===channelFilter);
+    if(ordStatusFilter==='PAID')list=list.filter(b=>isPaidBatch(b.status));
+    else if(ordStatusFilter==='AWAITING_PAYMENT')list=list.filter(b=>isPendingBatch(b.status));
+    else if(ordStatusFilter==='CANCELLED')list=list.filter(b=>isCancelledBatch(b.status));
+    if(searchOrders){
+      const q=searchOrders.toLowerCase();
+      list=list.filter(b=>b.clientName.toLowerCase().includes(q)||String(b.clientEmail||'').toLowerCase().includes(q)||shortBatchId(b.id).includes(q.toUpperCase())||String(b.mp_payment_id||'').includes(q));
+    }
+    const sorted=[...list];
+    if(ordSort==='date_desc')sorted.sort((a,b)=>new Date(batchDateOf(b))-new Date(batchDateOf(a)));
+    else if(ordSort==='date_asc')sorted.sort((a,b)=>new Date(batchDateOf(a))-new Date(batchDateOf(b)));
+    else if(ordSort==='value_desc')sorted.sort((a,b)=>Number(b.total_locked||0)-Number(a.total_locked||0));
+    else if(ordSort==='value_asc')sorted.sort((a,b)=>Number(a.total_locked||0)-Number(b.total_locked||0));
+    return sorted;
+  },[allBatches,channelFilter,ordStatusFilter,searchOrders,ordSort]);
+
+  // Compras no fornecedor: pedidos individuais agrupados por dia de pagamento
+  // (o admin compra tudo do dia de uma vez no AliExpress).
+  const supplierGroups=useMemo(()=>{
+    const groups=new Map();
+    individualBatches.forEach(b=>{
+      const ts=b.confirmed_at||b.created_at;
+      const dayKey=ts?new Date(ts).toLocaleDateString('pt-BR'):'—';
+      if(!groups.has(dayKey))groups.set(dayKey,{dayKey,ts:ts?new Date(ts).getTime():0,batches:[]});
+      groups.get(dayKey).batches.push(b);
+    });
+    return [...groups.values()].sort((a,b)=>b.ts-a.ts);
+  },[individualBatches]);
+
+  const visibleSupplierGroups=useMemo(()=>supplierFilter==='ALL'?supplierGroups:supplierGroups.filter(g=>g.batches.some(b=>b.fulfillment_status!=='LABEL_GENERATED')),[supplierGroups,supplierFilter]);
 
   const clientGroups=useMemo(()=>{
     const groups={};
-    orders.forEach(o=>{
-      const allBatches=(o.order_batches||[]);
-      if(allBatches.length===0)return;
+    const attach=(o,channel)=>{
+      const allB=(o.order_batches||[]);
+      if(allB.length===0)return;
       const key=o.user_id;
-      if(!groups[key]){groups[key]={userId:o.user_id,name:o.profiles?.name||'—',whatsapp:o.profiles?.whatsapp||'',email:o.profiles?.email||'',orders:[],totalCards:0,hasOrder:true,hasActiveOrder:false,hasPaidOrder:false};}
-      groups[key].orders.push({...o,order_batches:allBatches});
-      groups[key].totalCards+=allBatches.reduce((s,b)=>s+(b.qty_in_batch||0),0);
-      if(allBatches.some(b=>b.status&&b.status!=='CANCELLED'))groups[key].hasActiveOrder=true;
-      if(allBatches.some(b=>b.status==='PAID'||b.status==='PAID_CONFIRMED'))groups[key].hasPaidOrder=true;
-    });
-    // Adiciona profiles sem pedido
+      if(!groups[key])groups[key]={userId:o.user_id,name:o.profiles?.name||'—',whatsapp:o.profiles?.whatsapp||'',email:o.profiles?.email||'',orders:[],totalCards:0,hasOrder:true,hasActiveOrder:false,hasPaidOrder:false};
+      groups[key].hasOrder=true;
+      groups[key].orders.push({...o,order_batches:allB,channel});
+      groups[key].totalCards+=allB.reduce((s,b)=>s+(b.qty_in_batch||0),0);
+      if(allB.some(b=>b.status&&!isCancelledBatch(b.status)))groups[key].hasActiveOrder=true;
+      if(allB.some(b=>isPaidBatch(b.status)))groups[key].hasPaidOrder=true;
+    };
+    orders.forEach(o=>attach(o,'CAMPAIGN'));
+    indivOrders.forEach(o=>attach(o,'INDIVIDUAL'));
     allProfiles.forEach(p=>{
-      if(!groups[p.id]&&!p.is_admin){
-        groups[p.id]={userId:p.id,name:p.name||'—',whatsapp:p.whatsapp||'',email:p.email||'',orders:[],totalCards:0,hasOrder:false,hasActiveOrder:false,hasPaidOrder:false};
-      }
+      if(!groups[p.id]&&!p.is_admin)groups[p.id]={userId:p.id,name:p.name||'—',whatsapp:p.whatsapp||'',email:p.email||'',orders:[],totalCards:0,hasOrder:false,hasActiveOrder:false,hasPaidOrder:false};
     });
     return Object.values(groups).sort((a,b)=>b.hasActiveOrder-a.hasActiveOrder||b.hasOrder-a.hasOrder||a.name.localeCompare(b.name));
-  },[orders,allProfiles]);
+  },[orders,indivOrders,allProfiles]);
 
   const filteredClients=useMemo(()=>{
     let list=clientGroups;
     if(clientActiveFilter)list=list.filter(c=>c.hasActiveOrder);
-    if(searchOrd){const q=searchOrd.toLowerCase();list=list.filter(c=>c.name.toLowerCase().includes(q)||c.whatsapp.toLowerCase().includes(q)||c.orders.some(o=>String(o.id).toLowerCase().includes(q)||o.order_batches?.some(b=>String(b.id).slice(0,8).toUpperCase().includes(q.toUpperCase()))));}
+    if(searchOrd){const q=searchOrd.toLowerCase();list=list.filter(c=>c.name.toLowerCase().includes(q)||c.whatsapp.toLowerCase().includes(q)||c.email.toLowerCase().includes(q)||c.orders.some(o=>String(o.id).toLowerCase().includes(q)||o.order_batches?.some(b=>shortBatchId(b.id).includes(q.toUpperCase()))));}
     return list;
   },[clientGroups,clientActiveFilter,searchOrd]);
 
@@ -2004,6 +2214,115 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   const whatsappContactKey=client=>`${selectedCampaign?.id||'campaign'}:${whatsappAudience}:${client.userId}`;
   const nextWhatsappRecipient=whatsappRecipients.find(client=>!whatsappContacted.has(whatsappContactKey(client)));
 
+  // Grupos de etiqueta da coletiva — um item por grupo de frete pago.
+  const labelGroups=useMemo(()=>{
+    return buildShippingGroups(campaignBatches).map(group=>{
+      const root=group.rootBatch||{};
+      const addr=root.shipping_address||{};
+      const profileData=allProfiles.find(p=>p.id===root.userId)||{};
+      return {...group,
+        clientName:root.clientName||addr.name||'—',
+        email:addr.email||profileData.email||'',
+        whatsapp:root.clientWhatsapp||profileData.whatsapp||'',
+        userId:root.userId,
+        address:{cep:addr.cep||'',rua:addr.rua||'',numero:addr.numero||'',complemento:addr.complemento||'',bairro:addr.bairro||'',cidade:addr.cidade||'',uf:addr.uf||''},
+      };
+    }).sort((a,b)=>{
+      if(!a.hasLabel&&b.hasLabel)return -1;
+      if(a.hasLabel&&!b.hasLabel)return 1;
+      return a.clientName.localeCompare(b.clientName);
+    });
+  },[campaignBatches,allProfiles]);
+
+  // Individuais prontos para etiqueta (ou já etiquetados).
+  const individualShipments=useMemo(()=>individualBatches.filter(b=>['PREPARING','LABEL_GENERATED'].includes(b.fulfillment_status)).sort((a,b)=>indivStageIndex(a.fulfillment_status)-indivStageIndex(b.fulfillment_status)||a.clientName.localeCompare(b.clientName)),[individualBatches]);
+
+  const identifyingLabelGroups=useRef(new Set());
+  useEffect(()=>{
+    if(section!=='shipping'||shippingTab!=='CAMPAIGN')return;
+    const pending=labelGroups.filter(group=>(!group.shippingService||(group.hasLabel&&!group.hasCompleteLabel))&&!identifyingLabelGroups.current.has(group.key));
+    if(!pending.length)return;
+    pending.forEach(async group=>{
+      identifyingLabelGroups.current.add(group.key);
+      try{
+        await apiPost('/api/admin-mandabem-label',{action:group.hasLabel?'refresh':'identify',rootBatchId:group.rootId,batchIds:group.batches.map(batch=>batch.id)});
+        await loadOrders();
+      }catch(error){console.error('Shipping service identification error:',error);}
+      finally{identifyingLabelGroups.current.delete(group.key);}
+    });
+  },[section,shippingTab,labelGroups,token]);
+
+  const minCards=selectedCampaign?.min_cards||150;
+  const isViableAdmin=pool>=minCards;
+  const isFinalized=selectedCampaign?.status==='DONE'||selectedCampaign?.status==='CANCELLED';
+  const activeCampaigns=campaigns.filter(c=>c.status!=='DONE'&&c.status!=='CANCELLED');
+  const finalizedCampaigns=campaigns.filter(c=>c.status==='DONE'||c.status==='CANCELLED');
+
+  // Pendências que a Visão geral cobra do admin.
+  const pendingLabelCount=labelGroups.filter(g=>!g.hasLabel).length;
+  const supplierPendingCount=individualBatches.filter(b=>indivStageIndex(b.fulfillment_status)<4).length;
+  const awaitingPaymentCount=stats.all.pendingCount;
+  const indivToPrepareCount=individualBatches.filter(b=>b.fulfillment_status==='PREPARING').length;
+
+  // ─── Ações de pedido ───────────────────────────────
+  async function loadBatchCards(batchId){
+    if(batchCards[batchId])return;
+    try{
+      const json=await apiPost('/api/admin-batch-items',{batchIds:[batchId]});
+      setBatchCards(prev=>({...prev,[batchId]:(json.items||[]).map(i=>({name:i.cards?.name||'Carta',type:i.cards?.type||'',qty:Number(i.quantity||1),image_url:i.cards?.image_url||null}))}));
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao carregar itens: '+(e.message||String(e)),'error');}
+  }
+
+  async function cancelBatch(batchId,isPaid){
+    const msg=isPaid?'Cancelar pedido pago? O reembolso deve ser feito manualmente no Mercado Pago.':'Cancelar este pedido pendente?';
+    if(!confirm(msg))return;
+    try{await apiPost('/api/admin-cancel-batch',{batchId});SFX.success();await reloadAll();}
+    catch(e){console.error(e);if(toastFn)toastFn('Erro ao cancelar: '+(e.message||String(e)),'error');}
+  }
+
+  async function markBatchPaid(batchId){
+    if(!confirm('Marcar este pedido como PAGO manualmente?'))return;
+    try{await apiPost('/api/admin-mark-paid',{batchId});SFX.success();await reloadAll();}
+    catch(e){console.error(e);if(toastFn)toastFn('Erro ao marcar como pago: '+(e.message||String(e)),'error');}
+  }
+
+  async function syncBatchMP(batchId){
+    try{await mpSync(batchId);SFX.success();await reloadAll();}
+    catch(e){console.error('Sync error:',e);if(toastFn)toastFn('Erro ao sincronizar com o Mercado Pago','error');}
+  }
+
+  // Avança o estágio de importação de um ou vários lotes individuais.
+  async function setFulfillment(batchIds,status,busyId){
+    setBusyBatch(busyId);
+    try{await apiPost('/api/admin-update-fulfillment',{batchIds,fulfillmentStatus:status});SFX.success();await loadIndivOrders();}
+    catch(e){console.error(e);if(toastFn)toastFn('Erro ao atualizar status: '+(e.message||String(e)),'error');}
+    setBusyBatch(null);
+  }
+
+  // Etiqueta de um pedido individual (não agrupa: cada pedido vai sozinho).
+  async function generateIndividualLabel(batch){
+    let formaEnvio=batch.shipping_service&&batch.shipping_service!==SHIPPING_SERVICE_UNKNOWN?batch.shipping_service:'';
+    const action=batch.mandabem_envio_id?'refresh':'generate';
+    if(action==='generate'){
+      if(!formaEnvio){
+        const svc=prompt('Serviço não identificado. Selecione PAC, SEDEX ou PACMINI:','PACMINI');
+        if(svc===null)return;
+        formaEnvio=svc.trim().toUpperCase().replace(/[\s_-]+/g,'');
+        if(!['PAC','SEDEX','PACMINI'].includes(formaEnvio)){if(toastFn)toastFn('Serviço inválido. Use PAC, SEDEX ou PACMINI.','error');return;}
+      }
+      if(!confirm('Gerar etiqueta/envio no MandaBem para este pedido?'))return;
+    }
+    setBusyBatch(batch.id);
+    try{
+      await apiPost('/api/admin-mandabem-label',{batchId:batch.id,action,formaEnvio});
+      if(action==='generate')await apiPost('/api/admin-update-fulfillment',{batchIds:[batch.id],fulfillmentStatus:'LABEL_GENERATED'}).catch(()=>{});
+      SFX.success();if(toastFn)toastFn(action==='refresh'?'Envio atualizado no MandaBem':'Etiqueta gerada no MandaBem','success');
+      await loadIndivOrders();
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro MandaBem: '+(e.message||String(e)),'error');}
+    setBusyBatch(null);
+  }
+
+  // ─── Comunicação ───────────────────────────────────
   function openWhatsAppFor(client){
     const url=buildWhatsAppUrl(client,whatsappMessages[whatsappAudience],selectedCampaign?.name);
     if(!url)return;
@@ -2012,83 +2331,39 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   }
 
   function getBatchTrackingInfo(batch){
-    return {
-      code: batch?.tracking_code||batch?.mandabem_rastreamento||batch?.mandabem_etiqueta||'',
-      status: batch?.tracking_status||batch?.mandabem_status||'',
-    };
+    return {code:batch?.tracking_code||batch?.mandabem_rastreamento||batch?.mandabem_etiqueta||'',status:batch?.tracking_status||batch?.mandabem_status||''};
   }
 
   function openShipmentWhatsAppFor(batch){
     const trackingInfo=getBatchTrackingInfo(batch);
-    const url=buildShipmentWhatsAppUrl({name:batch?.clientName,whatsapp:batch?.clientWhatsapp},selectedCampaign?.name,trackingInfo.code,trackingInfo.status);
+    const url=buildShipmentWhatsAppUrl({name:batch?.clientName,whatsapp:batch?.clientWhatsapp},batch?.channel==='INDIVIDUAL'?'':selectedCampaign?.name,trackingInfo.code,trackingInfo.status);
     if(!url){if(toastFn)toastFn('Cliente sem WhatsApp válido','error');return;}
     window.open(url,'_blank','noopener,noreferrer');
   }
 
   async function copyWhatsAppMessage(){
-    try{
-      await navigator.clipboard.writeText(whatsappMessages[whatsappAudience]);
-      SFX.success();if(toastFn)toastFn('Mensagem copiada!','success');
-    }catch(e){if(toastFn)toastFn('Não foi possível copiar a mensagem','error');}
+    try{await navigator.clipboard.writeText(whatsappMessages[whatsappAudience]);SFX.success();if(toastFn)toastFn('Mensagem copiada!','success');}
+    catch(e){if(toastFn)toastFn('Não foi possível copiar a mensagem','error');}
   }
 
-  async function loadBatchCards(batchId){
-    if(batchCards[batchId])return;
+  // ─── Bônus ─────────────────────────────────────────
+  async function grantBonus(userId,qty){
+    if(!selectedCampaign||!userId||!qty||qty<1)return;
     try{
-      const r=await fetch('/api/admin-batch-items',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchIds:[batchId]})});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      setBatchCards(prev=>({...prev,[batchId]:(json.items||[]).map(i=>({name:i.cards?.name||'Carta',type:i.cards?.type||'',qty:Number(i.quantity||1),image_url:i.cards?.image_url||null}))}));
-    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao carregar itens: '+(e.message||String(e)),'error');}
+      await apiPost('/api/admin-bonus',{action:'grant',userId,campaignId:selectedCampaign.id,bonusQty:qty});
+      SFX.success();if(toastFn)toastFn(`Bônus de ${qty} carta(s) concedido!`,'success');
+      loadBonusGrants();
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao conceder bônus: '+(e.message||String(e)),'error');}
+    setBonusForm({userId:null,qty:1});
   }
 
-  async function cancelBatch(batchId,isPaid){
-    const msg=isPaid?'Cancelar pedido pago? O reembolso deve ser feito manualmente no Mercado Pago.':'Cancelar este pedido pendente?';
-    if(!confirm(msg))return;
-    try{
-      const r=await fetch('/api/admin-cancel-batch',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId})});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      SFX.success();loadOrders();if(onReload)onReload();
-    }catch(e){console.error(e);}
+  async function revokeBonus(grantId){
+    if(!confirm('Revogar este bônus?'))return;
+    try{await apiPost('/api/admin-bonus',{action:'revoke',grantId});SFX.success();if(toastFn)toastFn('Bônus revogado','success');loadBonusGrants();}
+    catch(e){console.error(e);if(toastFn)toastFn('Erro ao revogar: '+(e.message||String(e)),'error');}
   }
 
-  async function markBatchPaid(batchId){
-    if(!confirm('Marcar este pedido como PAGO manualmente?'))return;
-    try{
-      const r=await fetch('/api/admin-mark-paid',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId})});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      SFX.success();loadOrders();if(onReload)onReload();
-    }catch(e){console.error(e);}
-  }
-
-  async function syncBatchMP(batchId){
-    try{
-      await mpSync(batchId);
-      SFX.success();loadOrders();
-    }catch(e){console.error('Sync error:',e);}
-  }
-
-
-  async function handleMandaBemLabel(batchId,action='generate',formaEnvio=''){
-    const group=labelGroups.find(item=>item.batches.some(batch=>batch.id===batchId));
-    if(action==='generate'&&group)return handleGroupLabel(group.key);
-    if(action==='generate'&&!String(formaEnvio||'').trim()){if(toastFn)toastFn('Informe o serviço de envio (PAC, SEDEX ou PACMINI)','error');return;}
-    if(action==='generate'&&!confirm('Gerar etiqueta/envio no MandaBem para este pedido?'))return;
-    setLabelLoading(prev=>({...prev,[batchId]:true}));
-    try{
-      const r=await fetch('/api/admin-mandabem-label',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify(group?{rootBatchId:group.rootId,batchIds:group.batches.map(batch=>batch.id),action,formaEnvio}:{batchId,action,formaEnvio})});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      SFX.success();
-      if(toastFn)toastFn(action==='refresh'?'Envio atualizado no MandaBem':'Etiqueta gerada no MandaBem','success');
-      await loadOrders();
-      if(onReload)onReload();
-    }catch(e){console.error('MandaBem label error:',e);if(toastFn)toastFn('Erro MandaBem: '+(e.message||String(e)),'error');}
-    setLabelLoading(prev=>({...prev,[batchId]:false}));
-  }
-
+  // ─── Etiquetas agrupadas (coletiva) ────────────────
   async function handleGroupLabel(groupKey,force=false){
     const group=labelGroups.find(g=>g.key===groupKey);
     if(!group)return;
@@ -2104,9 +2379,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     }
     setLabelStatus(prev=>({...prev,[groupKey]:{status:'generating',message:''}}));
     try{
-      const r=await fetch('/api/admin-mandabem-label',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({rootBatchId:targetBatch.id,batchIds:group.batches.map(batch=>batch.id),action:'generate',formaEnvio,force})});
-      const data=await r.json().catch(()=>({}));
-      if(!r.ok||!data.ok)throw new Error(data.error||`HTTP ${r.status}`);
+      await apiPost('/api/admin-mandabem-label',{rootBatchId:targetBatch.id,batchIds:group.batches.map(batch=>batch.id),action:'generate',formaEnvio,force});
       SFX.success();
       setLabelStatus(prev=>({...prev,[groupKey]:{status:'done',message:'Etiqueta gerada com sucesso'}}));
       await loadOrders();
@@ -2118,9 +2391,25 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     }
   }
 
+  async function handleMandaBemLabel(batchId,action='generate',formaEnvio=''){
+    const group=labelGroups.find(item=>item.batches.some(batch=>batch.id===batchId));
+    if(action==='generate'&&group)return handleGroupLabel(group.key);
+    if(action==='generate'&&!String(formaEnvio||'').trim()){if(toastFn)toastFn('Informe o serviço de envio (PAC, SEDEX ou PACMINI)','error');return;}
+    if(action==='generate'&&!confirm('Gerar etiqueta/envio no MandaBem para este pedido?'))return;
+    setLabelLoading(prev=>({...prev,[batchId]:true}));
+    try{
+      await apiPost('/api/admin-mandabem-label',group?{rootBatchId:group.rootId,batchIds:group.batches.map(batch=>batch.id),action,formaEnvio}:{batchId,action,formaEnvio});
+      SFX.success();
+      if(toastFn)toastFn(action==='refresh'?'Envio atualizado no MandaBem':'Etiqueta gerada no MandaBem','success');
+      await loadOrders();
+      if(onReload)onReload();
+    }catch(e){console.error('MandaBem label error:',e);if(toastFn)toastFn('Erro MandaBem: '+(e.message||String(e)),'error');}
+    setLabelLoading(prev=>({...prev,[batchId]:false}));
+  }
+
   function handleToggleAllPendingLabels(){
     const pendingKeys=labelGroups.filter(g=>!g.hasLabel).map(g=>g.key);
-    const allSelected=pendingKeys.every(k=>labelSelected.has(k));
+    const allSelected=pendingKeys.length>0&&pendingKeys.every(k=>labelSelected.has(k));
     setLabelSelected(allSelected?new Set():new Set(pendingKeys));
   }
 
@@ -2131,98 +2420,18 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     if(toastFn)toastFn('Processamento em lote concluído','success');
   }
 
-  // Flat batch list for Orders tab
-  const allBatches=useMemo(()=>{
-    const list=[];
-    orders.forEach(o=>{(o.order_batches||[]).forEach(b=>{
-      list.push({...b,orderId:o.id,userId:o.user_id,clientName:o.profiles?.name||'—',clientWhatsapp:o.profiles?.whatsapp||'',clientEmail:o.profiles?.email||'',qtyPaid:o.qty_paid||0,qtyBonus:o.qty_bonus||0,orderCreatedAt:o.created_at,shippingPriceLocked:o.shipping_price_brl_locked});
-    });});
-    return list;
-  },[orders]);
-
-  // Label groups for Etiquetas tab — one item per paid shipping group.
-  // Legacy batches without shipping_group_id are attached to the latest previous
-  // batch from the same client that actually paid shipping.
-  const labelGroups=useMemo(()=>{
-    return buildShippingGroups(allBatches).map(group=>{
-      const root=group.rootBatch||{};
-      const addr=root.shipping_address||{};
-      const profileData=allProfiles.find(p=>p.id===root.userId)||{};
-      return {
-        ...group,
-        clientName:root.clientName||addr.name||'—',
-        email:addr.email||profileData.email||'',
-        whatsapp:root.clientWhatsapp||profileData.whatsapp||'',
-        userId:root.userId,
-        address:{cep:addr.cep||'',rua:addr.rua||'',numero:addr.numero||'',complemento:addr.complemento||'',bairro:addr.bairro||'',cidade:addr.cidade||'',uf:addr.uf||''},
-      };
-    }).sort((a,b)=>{
-      if(!a.hasLabel&&b.hasLabel)return -1;
-      if(a.hasLabel&&!b.hasLabel)return 1;
-      return a.clientName.localeCompare(b.clientName);
-    });
-  },[allBatches,allProfiles]);
-
-  const identifyingLabelGroups=useRef(new Set());
-  useEffect(()=>{
-    if(tab!=='labels')return;
-    const pending=labelGroups.filter(group=>(!group.shippingService||(group.hasLabel&&!group.hasCompleteLabel))&&!identifyingLabelGroups.current.has(group.key));
-    if(!pending.length)return;
-    pending.forEach(async group=>{
-      identifyingLabelGroups.current.add(group.key);
-      try{
-        const response=await fetch('/api/admin-mandabem-label',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({action:group.hasLabel?'refresh':'identify',rootBatchId:group.rootId,batchIds:group.batches.map(batch=>batch.id)})});
-        const data=await response.json().catch(()=>({}));
-        if(!response.ok||!data.ok)throw new Error(data.error||`HTTP ${response.status}`);
-        await loadOrders();
-      }catch(error){
-        console.error('Shipping service identification error:',error);
-      }finally{
-        identifyingLabelGroups.current.delete(group.key);
-      }
-    });
-  },[tab,labelGroups,token]);
-
-  const ordStats=useMemo(()=>{
-    const paid=allBatches.filter(b=>b.status==='PAID'||b.status==='PAID_CONFIRMED');
-    const pending=allBatches.filter(b=>b.status==='DRAFT'||b.status==='AWAITING_PAYMENT'||b.status==='AWAITING_PAYMENT');
-    const cancelled=allBatches.filter(b=>b.status==='CANCELLED');
-    const totalRevenue=paid.reduce((s,b)=>s+Number(b.total_locked||0),0);
-    const totalCards=paid.reduce((s,b)=>s+(b.qty_in_batch||0),0);
-    const pendingRevenue=pending.reduce((s,b)=>s+Number(b.total_locked||0),0);
-    return {total:allBatches.length,paidCount:paid.length,pendingCount:pending.length,cancelledCount:cancelled.length,totalRevenue,totalCards,pendingRevenue};
-  },[allBatches]);
-
-  const filteredBatches=useMemo(()=>{
-    let list=allBatches;
-    if(ordStatusFilter==='PAID')list=list.filter(b=>b.status==='PAID'||b.status==='PAID_CONFIRMED');
-    else if(ordStatusFilter==='AWAITING_PAYMENT')list=list.filter(b=>b.status==='DRAFT'||b.status==='AWAITING_PAYMENT'||b.status==='AWAITING_PAYMENT');
-    else if(ordStatusFilter==='CANCELLED')list=list.filter(b=>b.status==='CANCELLED');
-    if(searchOrders){
-      const q=searchOrders.toLowerCase();
-      list=list.filter(b=>b.clientName.toLowerCase().includes(q)||b.clientEmail.toLowerCase().includes(q)||String(b.id).slice(0,8).toUpperCase().includes(q.toUpperCase())||String(b.mp_payment_id||'').includes(q));
-    }
-    if(ordSort==='date_desc')list=[...list].sort((a,b)=>new Date(b.confirmed_at||b.created_at||b.orderCreatedAt)-new Date(a.confirmed_at||a.created_at||a.orderCreatedAt));
-    else if(ordSort==='date_asc')list=[...list].sort((a,b)=>new Date(a.confirmed_at||a.created_at||a.orderCreatedAt)-new Date(b.confirmed_at||b.created_at||b.orderCreatedAt));
-    else if(ordSort==='value_desc')list=[...list].sort((a,b)=>Number(b.total_locked||0)-Number(a.total_locked||0));
-    else if(ordSort==='value_asc')list=[...list].sort((a,b)=>Number(a.total_locked||0)-Number(b.total_locked||0));
-    return list;
-  },[allBatches,ordStatusFilter,searchOrders,ordSort]);
-
+  // ─── Lista de compra ───────────────────────────────
   async function loadFinalList(){
     setListLoading(true);
     try{
       const paidBatchIds=[];const batchMeta={};
       orders.forEach(o=>{(o.order_batches||[]).forEach(b=>{
-        if(b.status==='PAID'||b.status==='PAID_CONFIRMED'){paidBatchIds.push(b.id);batchMeta[b.id]={userName:o.profiles?.name||'—',date:b.confirmed_at||b.created_at||o.created_at};}
+        if(isPaidBatch(b.status)){paidBatchIds.push(b.id);batchMeta[b.id]={userName:o.profiles?.name||'—',date:b.confirmed_at||b.created_at||o.created_at};}
       });});
       if(paidBatchIds.length===0){setFinalList([]);setListLoading(false);return;}
       const allItems=[];
       for(let i=0;i<paidBatchIds.length;i+=75){
-        const batchIds=paidBatchIds.slice(i,i+75);
-        const r=await fetch('/api/admin-batch-items',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchIds})});
-        const json=await r.json().catch(()=>({}));
-        if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+        const json=await apiPost('/api/admin-batch-items',{batchIds:paidBatchIds.slice(i,i+75)});
         allItems.push(...(json.items||[]));
       }
       const list=allItems.map(i=>{const m=batchMeta[i.batch_id]||{};return{name:i.cards?.name||'Carta',type:i.cards?.type||'',qty:Number(i.quantity||1),image_url:i.cards?.image_url||null,userName:m.userName||'—',date:m.date||''};});
@@ -2237,43 +2446,28 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     navigator.clipboard.writeText(text);setCopied(true);setTimeout(()=>setCopied(false),2000);SFX.success();
   }
 
-  async function saveTiers(){
-    setSaving(true);
-    try{
-      const campId=selectedCampaign?.id||campProp?.id;
-      if(!campId){if(toastFn)toastFn('Nenhuma campanha selecionada','error');setSaving(false);return;}
-      const payload=editTiers.map((t,i)=>{
-        const add=tierAdditional[t.id]||0;
-        const finalBrl=calcBrlPrice(t.usd,editPricing)+add;
-        const newUsd=add?calcUsdFromBrl(finalBrl,editPricing):t.usd;
-        const tier={usd_per_card:newUsd,label:t.label,min_qty:t.min,max_qty:t.max>999999?null:t.max,quest_text:t.quest,rank:i+1};
-        if(t._isNew)tier.campaign_id=campId; else tier.id=t.id;
-        return tier;
-      });
-      // IDs originais que foram removidos
-      const originalIds=(tiersProp||[]).map(t=>t.id).filter(Boolean);
-      const currentIds=editTiers.filter(t=>!t._isNew).map(t=>t.id).filter(Boolean);
-      const deletedIds=originalIds.filter(id=>!currentIds.includes(id));
-      const r=await fetch('/api/admin-save-tiers',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({tiers:payload,deletedIds,campaign_id:campId})});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      setTierAdditional({});SFX.success();if(onReload)onReload();
-    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao salvar tiers: '+(e.message||String(e)),'error');}
-    setSaving(false);
-  }
-
+  // ─── Preços ────────────────────────────────────────
   async function savePricing(){
     setSaving(true);
     try{
       const{id,...rest}=editPricing;delete rest.is_active;delete rest.created_at;delete rest.updated_at;
-      const r=await fetch('/api/admin-save-pricing',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({id,...rest})});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      SFX.success();if(onReload)onReload();
-    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao salvar taxas: '+(e.message||String(e)),'error');}
+      await apiPost('/api/admin-save-pricing',{id,...rest});
+      SFX.success();if(toastFn)toastFn('Preços salvos','success');if(onReload)onReload();
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao salvar preços: '+(e.message||String(e)),'error');}
     setSaving(false);
   }
 
+  async function saveIndividualPricing(){
+    setSavingIndiv(true);
+    try{
+      const tiers=indivTiers.map(t=>({min_qty:t.min_qty,max_qty:t.max_qty,usd_per_card:t.usd_per_card}));
+      await apiPost('/api/admin-save-individual-pricing',{pricing:indivCfg,tiers});
+      SFX.success();if(toastFn)toastFn('Precificação individual salva!','success');
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao salvar: '+(e.message||String(e)),'error');}
+    setSavingIndiv(false);
+  }
+
+  // ─── Catálogo ──────────────────────────────────────
   function onImportFile(e){
     const file=e.target.files&&e.target.files[0];
     setImportResult(null);
@@ -2294,12 +2488,8 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   async function importCards(){
     if(!importCsv.trim())return;
     setImporting(true);setImportResult(null);
-    try{
-      const r=await fetch('/api/admin-import-cards',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({csv:importCsv,deactivatePrevious:importDeactivate})});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      setImportResult(json);SFX.success();if(onReload)onReload();
-    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao importar catálogo: '+(e.message||String(e)),'error');}
+    try{const json=await apiPost('/api/admin-import-cards',{csv:importCsv,deactivatePrevious:importDeactivate});setImportResult(json);SFX.success();if(onReload)onReload();}
+    catch(e){console.error(e);if(toastFn)toastFn('Erro ao importar catálogo: '+(e.message||String(e)),'error');}
     setImporting(false);
   }
 
@@ -2313,38 +2503,14 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     if(!linkPreview||linkPreview.items.length===0)return;
     setLinkAdding(true);setLinkResult(null);
     try{
-      const r=await fetch('/api/admin-add-cards-by-link',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({items:linkPreview.items,tcg:linkTcg,type:linkType})});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
+      const json=await apiPost('/api/admin-add-cards-by-link',{items:linkPreview.items,tcg:linkTcg,type:linkType});
       setLinkResult(json);
       if(json.added>0){SFX.success();if(onReload)onReload();}
     }catch(e){console.error(e);if(toastFn)toastFn('Erro ao adicionar cartas: '+(e.message||String(e)),'error');}
     setLinkAdding(false);
   }
 
-  async function saveIndividualPricing(){
-    setSavingIndiv(true);
-    try{
-      const tiers=indivTiers.map(t=>({min_qty:t.min_qty,max_qty:t.max_qty,usd_per_card:t.usd_per_card}));
-      const r=await fetch('/api/admin-save-individual-pricing',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({pricing:indivCfg,tiers})});
-      const json=await r.json().catch(()=>({}));
-      if(!r.ok||!json.ok)throw new Error(json.error||`HTTP ${r.status}`);
-      SFX.success();if(toastFn)toastFn('Precificação individual salva!','success');
-    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao salvar: '+(e.message||String(e)),'error');}
-    setSavingIndiv(false);
-  }
-
-  async function archiveCampaign(){
-    setArchiving(true);
-    try{
-      const r=await fetch('/api/archive-campaign',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({campaignId:selectedCampaign.id})});
-      const d=await r.json().catch(()=>({}));
-      if(!d.ok)throw new Error(d.error||`HTTP ${r.status}`);
-      SFX.success();setSelectedCampaign(null);setShowArchiveConfirm(false);loadCampaigns();if(onReload)onReload();
-    }catch(e){if(toastFn)toastFn('Erro ao arquivar: '+(e.message||String(e)),'error');}
-    setArchiving(false);
-  }
-
+  // ─── Encomendas (campanhas) ────────────────────────
   async function createCampaign(){
     if(!newCamp.name.trim()){if(toastFn)toastFn('Nome obrigatório','error');return;}
     setCreating(true);
@@ -2352,7 +2518,9 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       const r=await fetch('/api/campaigns',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({name:newCamp.name,status:newCamp.status,close_at:newCamp.close_at||null,max_cards:newCamp.max_cards||null,min_cards:newCamp.min_cards||150})});
       const d=await r.json().catch(()=>({}));
       if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);
-      SFX.success();setShowCreateForm(false);setNewCamp({name:'',status:'DRAFT',close_at:'',max_cards:1000});if(Array.isArray(d)&&d[0])setSelectedCampaign(d[0]);loadCampaigns();if(onReload)onReload();
+      SFX.success();setShowCreateForm(false);setNewCamp({name:'',status:'DRAFT',close_at:'',max_cards:null,min_cards:150});
+      if(Array.isArray(d)&&d[0])setSelectedCampaign(d[0]);
+      loadCampaigns();if(onReload)onReload();
     }catch(e){if(toastFn)toastFn('Erro ao criar: '+(e.message||String(e)),'error');}
     setCreating(false);
   }
@@ -2364,244 +2532,401 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       const data=await r.json().catch(()=>({}));
       if(!r.ok)throw new Error(data.error||`HTTP ${r.status}`);
       SFX.success();setSelectedCampaign(prev=>({...prev,...editCamp}));if(onReload)onReload();loadCampaigns();
-    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao salvar campanha: '+(e.message||String(e)),'error');}
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao salvar encomenda: '+(e.message||String(e)),'error');}
     setSaving(false);
   }
 
-  async function deleteCampaign(){
-    if(!confirm('Excluir esta encomenda finalizada? Todos os dados serão perdidos.'))return;
-    try{
-      const r=await fetch('/api/campaigns',{method:'DELETE',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({id:selectedCampaign.id})});
-      const data=await r.json();
-      if(data.success){SFX.success();setSelectedCampaign(null);loadCampaigns();if(onReload)onReload();}
-    }catch(e){console.error(e);}
+  async function archiveCampaign(){
+    setArchiving(true);
+    try{await apiPost('/api/archive-campaign',{campaignId:selectedCampaign.id});SFX.success();setSelectedCampaign(null);setShowArchiveConfirm(false);loadCampaigns();if(onReload)onReload();}
+    catch(e){if(toastFn)toastFn('Erro ao arquivar: '+(e.message||String(e)),'error');}
+    setArchiving(false);
   }
 
-  const minCards=selectedCampaign?.min_cards||150;
-  const isViableAdmin=pool>=minCards;
-  const isFinalized=selectedCampaign?.status==='DONE'||selectedCampaign?.status==='CANCELLED';
-  const activeCampaigns=campaigns.filter(c=>c.status!=='DONE'&&c.status!=='CANCELLED');
-  const finalizedCampaigns=campaigns.filter(c=>c.status==='DONE'||c.status==='CANCELLED');
-  const adminTabs=[{key:'orders',icon:Package,label:'Pedidos'},{key:'clients',icon:User,label:'Clientes'},{key:'labels',icon:Truck,label:'Etiquetas'},{key:'list',icon:ScrollText,label:'Lista Final'},{key:'config',icon:Settings,label:'Configurações'}];
+  async function deleteCampaign(campaignId,campaignName){
+    if(!confirm(`Excluir "${campaignName||'esta encomenda'}"? Todos os dados serão perdidos.`))return;
+    try{
+      const r=await fetch('/api/campaigns',{method:'DELETE',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({id:campaignId})});
+      const data=await r.json().catch(()=>({}));
+      if(data.success){SFX.success();if(selectedCampaign?.id===campaignId)setSelectedCampaign(null);loadCampaigns();if(onReload)onReload();}
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao excluir encomenda','error');}
+  }
 
-  const sectionSwitcher=(<div style={{display:'flex',gap:6}}>
-    <button onClick={()=>setAdminSection('campaign')} style={{flex:1,padding:'8px 10px',borderRadius:10,border:'1px solid '+(adminSection==='campaign'?theme.primary+'55':'rgba(255,255,255,0.06)'),background:adminSection==='campaign'?theme.primary+'18':'rgba(255,255,255,0.02)',color:adminSection==='campaign'?theme.primary:'rgba(255,255,255,0.4)',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>🛒 Encomenda Coletiva</button>
-    <button onClick={()=>setAdminSection('individual')} style={{flex:1,padding:'8px 10px',borderRadius:10,border:'1px solid '+(adminSection==='individual'?theme.primary+'55':'rgba(255,255,255,0.06)'),background:adminSection==='individual'?theme.primary+'18':'rgba(255,255,255,0.02)',color:adminSection==='individual'?theme.primary:'rgba(255,255,255,0.4)',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>👤 Pedidos Individuais</button>
-  </div>);
+  // ─── Linha de pedido (usada na lista unificada) ────
+  function renderBatchRow(b){
+    const isExp=expandedOrdBatch===b.id;
+    const paid=isPaidBatch(b.status);
+    const cancelled=isCancelledBatch(b.status);
+    const pendingPay=isPendingBatch(b.status);
+    const sid=shortBatchId(b.id);
+    const ship=Number(b.shipping_locked||0);
+    const total=Number(b.total_locked||0);
+    const valNoShip=b.subtotal_locked?Number(b.subtotal_locked):total-ship;
+    const statusColor=paid?'#2ee59d':cancelled?'#ff6b7a':'#c9a96e';
+    const statusLabel=paid?'Pago':cancelled?'Cancelado':'Aguardando pagamento';
+    const mpCode=b.mp_payment_id||b.mp_preference_id||'';
+    const isIndiv=b.channel==='INDIVIDUAL';
+    const stageInfo=isIndiv?INDIV_FULFILLMENT_STAGES[indivStageIndex(b.fulfillment_status)]:null;
+    const nextStage=isIndiv?INDIV_FULFILLMENT_STAGES[indivStageIndex(b.fulfillment_status)+1]:null;
+    const tracking=getBatchTrackingInfo(b);
+    const canMandaBem=!isIndiv&&paid&&!cancelled&&!b.shipping_already_paid&&ship>0;
+    const busy=busyBatch===b.id||!!labelLoading[b.id];
 
-  if(adminSection==='individual')return<AdminIndividualPanel token={token} theme={theme} toast={toastFn} onBack={()=>setAdminSection('campaign')}/>;
-
-  if(!selectedCampaign)return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
-    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-      <div style={{display:'flex',alignItems:'center',gap:8}}><Shield size={18} style={{color:theme.primary}}/><span style={{fontFamily:"'Cinzel',serif",fontSize:18,fontWeight:700}}>Admin</span></div>
-      <Btn variant="ghost" onClick={()=>nav('profile')} style={{padding:'6px 10px',fontSize:12}} sfx="nav"><ChevronLeft size={14}/></Btn>
-    </div>
-    {sectionSwitcher}
-    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-      <SectionTitle sub="Selecione uma encomenda para gerenciar">Encomendas</SectionTitle>
-      <button onClick={()=>setShowCreateForm(v=>!v)} style={{width:32,height:32,borderRadius:10,border:'1px solid '+theme.primary+'30',background:theme.primary+'15',color:theme.primary,fontSize:20,display:'grid',placeItems:'center',cursor:'pointer'}}>{showCreateForm?'×':'+'}</button>
-    </div>
-    {showCreateForm&&<Card style={{padding:16}}>
-      <SectionTitle sub="Preencha os dados da nova encomenda">Nova Encomenda</SectionTitle>
-      <div style={{display:'flex',flexDirection:'column',gap:10,marginTop:8}}>
-        <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Nome</label><input value={newCamp.name} onChange={e=>setNewCamp(c=>({...c,name:e.target.value}))} placeholder="Ex: Encomenda Abril 26" style={{width:'100%',padding:'10px 12px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/></div>
-        <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Status inicial</label><div style={{display:'flex',gap:4,flexWrap:'wrap'}}>{CAMPAIGN_STATUSES.map(s=>(<button key={s} onClick={()=>setNewCamp(c=>({...c,status:s}))} style={{padding:'5px 10px',borderRadius:8,border:'1px solid '+(newCamp.status===s?theme.primary+'30':'rgba(255,255,255,0.06)'),background:newCamp.status===s?theme.primary+'15':'rgba(255,255,255,0.02)',color:newCamp.status===s?theme.primary:'rgba(255,255,255,0.3)',fontSize:10,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{s}</button>))}</div></div>
-        <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Data prevista de fechamento</label><input type="date" value={newCamp.close_at} onChange={e=>setNewCamp(c=>({...c,close_at:e.target.value}))} style={{width:'100%',padding:'10px 12px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/><div style={{fontSize:10,color:'rgba(255,255,255,0.2)',marginTop:2}}>Não é encerramento automático. A encomenda só fecha quando a meta mínima for atingida.</div></div>
-        <div><label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Meta mínima de cartas pagas</label><input type="number" value={newCamp.min_cards} onChange={e=>setNewCamp(c=>({...c,min_cards:parseInt(e.target.value)||150}))} style={{width:'100%',padding:'10px 12px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/><div style={{fontSize:10,color:'rgba(255,255,255,0.2)',marginTop:2}}>Mínimo de cartas para a encomenda ser confirmada (padrão: 150).</div></div>
-        <Btn full variant="success" onClick={createCampaign} disabled={creating} sfx="">{creating?<Spin size={14}/>:<><Check size={14}/> Criar encomenda</>}</Btn>
-      </div>
-    </Card>}
-    {loading&&<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>}
-    {activeCampaigns.length>0&&<><div style={{fontSize:12,fontWeight:700,color:theme.primary,marginBottom:4}}>Ativas</div>
-      {activeCampaigns.map(c=>(<Card key={c.id} onClick={()=>setSelectedCampaign(c)} style={{padding:'12px 16px',cursor:'pointer',marginBottom:4}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div><div style={{fontWeight:700,fontSize:14}}>{c.name}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>{new Date(c.created_at).toLocaleDateString('pt-BR')}</div></div>
-          <Tag color="#2ee59d" style={{fontSize:10}}>{c.status}</Tag>
-        </div>
-      </Card>))}</>}
-    {finalizedCampaigns.length>0&&<><div style={{fontSize:12,fontWeight:700,color:'rgba(255,255,255,0.3)',marginTop:8,marginBottom:4}}>Finalizadas</div>
-      {finalizedCampaigns.map(c=>(<Card key={c.id} onClick={()=>setSelectedCampaign(c)} style={{padding:'12px 16px',cursor:'pointer',marginBottom:4,opacity:0.6}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div><div style={{fontWeight:700,fontSize:14}}>{c.name}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>{new Date(c.created_at).toLocaleDateString('pt-BR')}</div></div>
-          <div style={{display:'flex',alignItems:'center',gap:6}}>
-            <Tag color="rgba(255,255,255,0.3)" style={{fontSize:10}}>{c.status}</Tag>
-            <button onClick={async(e)=>{e.stopPropagation();if(!confirm(`Excluir "${c.name}"? Todos os dados serão perdidos.`))return;try{const r=await fetch('/api/campaigns',{method:'DELETE',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({id:c.id})});const d=await r.json();if(d.success){SFX.success();loadCampaigns();if(onReload)onReload();}}catch(err){console.error(err);}}} style={{background:'rgba(217,68,82,0.1)',border:'1px solid rgba(217,68,82,0.15)',borderRadius:8,padding:'5px 7px',cursor:'pointer',color:'#ff6b7a',display:'grid',placeItems:'center',flexShrink:0}}><Trash2 size={13}/></button>
+    return(<Card key={b.id} style={{padding:0,marginBottom:5,borderLeft:'3px solid '+statusColor+'50'}}>
+      <div onClick={async()=>{const next=isExp?null:b.id;setExpandedOrdBatch(next);if(next)await loadBatchCards(b.id);}} style={{padding:'11px 14px',cursor:'pointer'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4,gap:8}}>
+          <div style={{display:'flex',alignItems:'center',gap:6,minWidth:0}}>
+            <span style={{fontSize:11,fontWeight:800,fontFamily:'monospace',color:'rgba(255,255,255,0.5)'}}>#{sid}</span>
+            <span style={{fontSize:13,fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.clientName}</span>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
+            <Tag color={isIndiv?'#a78bfa':theme.primary} style={{fontSize:9,padding:'3px 7px'}}>{CHANNEL_LABEL[b.channel]}</Tag>
+            <Tag color={statusColor} style={{fontSize:9,padding:'3px 7px'}}>{paid?'Pago':cancelled?'Cancelado':'Pendente'}</Tag>
+            <ChevronRight size={12} style={{color:'rgba(255,255,255,0.15)',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
           </div>
         </div>
-      </Card>))}</>}
-    {campaigns.length===0&&!loading&&<EmptyState icon={Calendar} title="Nenhuma encomenda" sub=""/>}
-  </div>);
-
-  return(<div className="portal-page portal-admin" style={{display:'flex',flexDirection:'column',gap:12}}>
-    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-      <div style={{display:'flex',alignItems:'center',gap:8}}>
-        <button onClick={()=>setSelectedCampaign(null)} style={{background:'none',border:'none',color:'#fff',cursor:'pointer',padding:2}}><ChevronLeft size={18}/></button>
-        <Shield size={18} style={{color:theme.primary}}/>
-        <span style={{fontFamily:"'Cinzel',serif",fontSize:16,fontWeight:700}}>{selectedCampaign.name}</span>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
+          <div style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:'rgba(255,255,255,0.3)',minWidth:0,flexWrap:'wrap'}}>
+            <span>{b.qty_in_batch} cartas</span><span>•</span>
+            <span>{new Date(batchDateOf(b)).toLocaleDateString('pt-BR')}</span>
+            {b.payment_method&&<><span>•</span><span>{b.payment_method==='MERCADO_PAGO'?'MP':b.payment_method==='BONUS'?'Bônus':'Outro'}</span></>}
+            {isIndiv&&stageInfo&&<><span>•</span><span style={{color:indivStageIndex(b.fulfillment_status)>=5?'#2ee59d':'var(--gp)'}}>{stageInfo.short}</span></>}
+          </div>
+          <span style={{fontSize:13,fontWeight:800,color:paid?'#2ee59d':'rgba(255,255,255,0.6)',flexShrink:0}}>{brl(total)}</span>
+        </div>
+        {isIndiv&&paid&&<IndivStageTrack status={b.fulfillment_status}/>}
       </div>
-      <Tag color={isFinalized?'rgba(255,255,255,0.3)':'#2ee59d'} style={{fontSize:10}}>{selectedCampaign.status}</Tag>
-    </div>
-    {sectionSwitcher}
-    <Card style={{padding:12}}>
-      <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:8}}>
-        <div><span style={{color:'rgba(255,255,255,0.3)'}}>Cartas pagas</span> <b style={{color:isViableAdmin?'#2ee59d':theme.primary}}>{pool||0}</b><span style={{color:'rgba(255,255,255,0.2)',fontSize:10}}> / {minCards}</span></div>
-        <div><span style={{color:'rgba(255,255,255,0.3)'}}>Clientes</span> <b style={{color:theme.primary}}>{clientGroups.length}</b></div>
-        <div>{isViableAdmin?<Tag color="#2ee59d" style={{fontSize:9}}>Meta atingida</Tag>:<Tag color="#c9a96e" style={{fontSize:9}}>Faltam {minCards-(pool||0)}</Tag>}</div>
-      </div>
-      <div style={{background:'rgba(0,0,0,0.3)',borderRadius:99,height:4,overflow:'hidden'}}>
-        <div style={{width:Math.min(100,(pool||0)/minCards*100)+'%',height:'100%',borderRadius:99,background:isViableAdmin?'linear-gradient(90deg,#2ee59d,#00d4a0)':'linear-gradient(90deg,'+theme.primary+','+theme.secondary+')',transition:'width .5s'}}/>
-      </div>
-    </Card>
 
-    <div style={{display:'flex',gap:3}}>{adminTabs.map(t=>(<button key={t.key} onClick={()=>{SFX.toggle();setTab(t.key);}} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:3,padding:'7px 0',borderRadius:10,border:'none',background:tab===t.key?theme.primary+'15':'rgba(255,255,255,0.025)',color:tab===t.key?theme.primary:'rgba(255,255,255,0.3)',fontWeight:600,fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><t.icon size={13}/>{t.label}</button>))}</div>
+      {isExp&&<div style={{borderTop:'1px solid rgba(255,255,255,0.04)',padding:'12px 14px'}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+          <div style={{padding:'8px 10px',borderRadius:10,background:'rgba(0,0,0,0.2)'}}><div style={{fontSize:9,color:'rgba(255,255,255,0.25)',marginBottom:2}}>Subtotal</div><div style={{fontSize:13,fontWeight:700}}>{brl(valNoShip)}</div></div>
+          <div style={{padding:'8px 10px',borderRadius:10,background:b.shipping_already_paid?'rgba(46,229,157,0.06)':'rgba(0,0,0,0.2)',border:b.shipping_already_paid?'1px solid rgba(46,229,157,0.2)':'none'}}>
+            <div style={{fontSize:9,color:'rgba(255,255,255,0.25)',marginBottom:2}}>Frete</div>
+            <div style={{fontSize:13,fontWeight:700,color:b.shipping_already_paid?'#2ee59d':undefined}}>{b.shipping_already_paid?'Já pago ✓':brl(ship)}</div>
+            {!b.shipping_already_paid&&b.shipping_service&&<div style={{fontSize:9,color:'rgba(255,255,255,0.28)',marginTop:2}}>{b.shipping_service}</div>}
+          </div>
+          <div style={{padding:'8px 10px',borderRadius:10,background:'rgba(0,0,0,0.2)'}}><div style={{fontSize:9,color:'rgba(255,255,255,0.25)',marginBottom:2}}>Total</div><div style={{fontSize:13,fontWeight:800,color:theme.primary}}>{brl(total)}</div></div>
+          <div style={{padding:'8px 10px',borderRadius:10,background:'rgba(0,0,0,0.2)'}}><div style={{fontSize:9,color:'rgba(255,255,255,0.25)',marginBottom:2}}>Status</div><div style={{fontSize:12,fontWeight:700,color:statusColor}}>{statusLabel}</div></div>
+        </div>
 
-    {tab==='orders'&&<>
-      {/* Stats Dashboard */}
+        {mpCode&&<div style={{padding:'6px 10px',borderRadius:8,background:'rgba(0,0,0,0.15)',marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div><div style={{fontSize:9,color:'rgba(255,255,255,0.25)'}}>Código MP</div><div style={{fontSize:11,fontFamily:'monospace',color:'rgba(255,255,255,0.5)'}}>{mpCode}</div></div>
+          <button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(mpCode);SFX.success();}} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,padding:'3px 6px',color:'rgba(255,255,255,0.4)',fontSize:10,cursor:'pointer'}}><Copy size={10}/></button>
+        </div>}
+
+        {tracking.code&&<div style={{padding:'8px 10px',borderRadius:8,background:'rgba(46,229,157,0.06)',border:'1px solid rgba(46,229,157,0.14)',marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
+          <div>
+            <div style={{fontSize:9,color:'rgba(46,229,157,0.6)',marginBottom:2}}>MandaBem · Rastreamento</div>
+            <div style={{fontSize:12,fontFamily:'monospace',fontWeight:800,color:'#2ee59d'}}>{tracking.code}</div>
+            {tracking.status&&<div style={{fontSize:10,color:'rgba(255,255,255,0.35)'}}>{tracking.status}</div>}
+          </div>
+          <div style={{display:'flex',gap:5,flexShrink:0}}>
+            <button title="Copiar rastreamento" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(tracking.code);SFX.success();}} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,padding:'4px 7px',color:'rgba(255,255,255,0.45)',cursor:'pointer'}}><Copy size={10}/></button>
+            {b.clientWhatsapp&&<button title="Enviar rastreamento" onClick={e=>{e.stopPropagation();openShipmentWhatsAppFor(b);}} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(37,211,102,0.08)',border:'1px solid rgba(37,211,102,0.18)',borderRadius:6,padding:'4px 7px',color:'#25d366',fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={10}/> Enviar</button>}
+          </div>
+        </div>}
+
+        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10,flexWrap:'wrap'}}>
+          {b.clientEmail&&<span style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'flex',alignItems:'center',gap:3}}><Mail size={10}/>{b.clientEmail}</span>}
+          {b.clientWhatsapp&&<a href={buildWhatsAppUrl({name:b.clientName,whatsapp:b.clientWhatsapp},whatsappMessages[whatsappAudience],b.channel==='INDIVIDUAL'?'':selectedCampaign?.name)} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:'#25d366',textDecoration:'none',display:'flex',alignItems:'center',gap:3}}><MessageCircle size={10}/> WhatsApp</a>}
+        </div>
+
+        <div style={{marginBottom:10}}>
+          <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.3)',marginBottom:4}}>Itens do pedido</div>
+          {(batchCards[b.id]||[]).length>0?batchCards[b.id].map((c,ci)=>(
+            <div key={ci} style={{display:'flex',alignItems:'center',gap:8,padding:'3px 0',fontSize:12,borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
+              <div onClick={e=>{e.stopPropagation();c.image_url&&setZoomSrc(c.image_url);}} style={{width:26,flexShrink:0,cursor:c.image_url?'zoom-in':'default'}}><CardThumb card={c} radius={5}/></div>
+              <span style={{flex:1,minWidth:0,color:'rgba(255,255,255,0.5)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
+              <span style={{fontWeight:700}}>x{c.qty}</span>
+            </div>
+          )):<div style={{fontSize:11,color:'rgba(255,255,255,0.2)'}}>Carregando itens...</div>}
+        </div>
+
+        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+          {pendingPay&&<Btn variant="success" onClick={e=>{e.stopPropagation();markBatchPaid(b.id);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><CheckCircle size={12}/> Marcar pago</Btn>}
+          {b.payment_method==='MERCADO_PAGO'&&!cancelled&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();syncBatchMP(b.id);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><RefreshCw size={12}/> Sync MP</Btn>}
+          {isIndiv&&nextStage&&nextStage.key!=='LABEL_GENERATED'&&<Btn variant="ghost" onClick={e=>{e.stopPropagation();setFulfillment([b.id],nextStage.key,b.id);}} disabled={busy} style={{padding:'6px 12px',fontSize:11}} sfx="">{busy?<Spin size={12}/>:<><ArrowRight size={12}/> {nextStage.label}</>}</Btn>}
+          {isIndiv&&['PREPARING','LABEL_GENERATED'].includes(b.fulfillment_status)&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();generateIndividualLabel(b);}} disabled={busy} style={{padding:'6px 12px',fontSize:11}} sfx="">{busy?<Spin size={12}/>:b.mandabem_envio_id?<><RefreshCw size={12}/> Atualizar envio</>:<><Truck size={12}/> Gerar etiqueta</>}</Btn>}
+          {canMandaBem&&!b.mandabem_envio_id&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleMandaBemLabel(b.id,'generate');}} disabled={busy} style={{padding:'6px 12px',fontSize:11}} sfx="">{busy?<Spin size={12}/>:<><Truck size={12}/> Gerar etiqueta</>}</Btn>}
+          {canMandaBem&&b.mandabem_envio_id&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleMandaBemLabel(b.id,'refresh');}} disabled={busy} style={{padding:'6px 12px',fontSize:11}} sfx="">{busy?<Spin size={12}/>:<><RefreshCw size={12}/> Atualizar envio</>}</Btn>}
+          {!cancelled&&<Btn variant="danger" onClick={e=>{e.stopPropagation();cancelBatch(b.id,paid);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><X size={12}/> {paid?'Cancelar (reembolso manual)':'Cancelar'}</Btn>}
+        </div>
+      </div>}
+    </Card>);
+  }
+
+  // ─── Seção: Visão geral ────────────────────────────
+  function renderOverview(){
+    const goTo=(key,extra)=>()=>{SFX.nav();setSection(key);if(extra)extra();};
+    return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-        <Card style={{padding:'10px 14px'}}><div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>Pedidos Pagos</div><div style={{fontSize:20,fontWeight:800,color:'#2ee59d'}}>{ordStats.paidCount}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>{ordStats.totalCards} cartas</div></Card>
-        <Card style={{padding:'10px 14px'}}><div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>Receita</div><div style={{fontSize:20,fontWeight:800,color:theme.primary}}>R$ {ordStats.totalRevenue.toFixed(0)}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>confirmado</div></Card>
-        <Card style={{padding:'10px 14px'}}><div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>Pendentes</div><div style={{fontSize:20,fontWeight:800,color:'#c9a96e'}}>{ordStats.pendingCount}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>R$ {ordStats.pendingRevenue.toFixed(0)}</div></Card>
-        <Card style={{padding:'10px 14px'}}><div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>Total / Cancelados</div><div style={{fontSize:20,fontWeight:800,color:'rgba(255,255,255,0.5)'}}>{ordStats.total}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.2)'}}>{ordStats.cancelledCount} cancelados</div></Card>
+        <AdminStat icon={Wallet} label="Receita confirmada" value={brlCompact(stats.all.revenue)} sub={`${stats.all.paidCount} pedidos pagos`} color="#2ee59d" accent="#2ee59d"/>
+        <AdminStat icon={TrendingUp} label="Hoje" value={brlCompact(stats.all.revenueToday)} sub={`${stats.all.paidToday} pedido(s) hoje`} color={theme.primary} accent={theme.primary}/>
+        <AdminStat icon={Clock} label="Aguardando pgto" value={stats.all.pendingCount} sub={brl(stats.all.pendingRevenue)} color="#c9a96e" accent="#c9a96e"/>
+        <AdminStat icon={Layers} label="Cartas vendidas" value={stats.all.cards} sub={`${stats.campaign.cards} coletiva · ${stats.individual.cards} individual`} color="#fff"/>
       </div>
 
-      {/* Status Filter Pills */}
-      <div style={{display:'flex',gap:4,flexWrap:'wrap',alignItems:'center'}}>
-        {[{key:'ALL',label:'Todos',color:'rgba(255,255,255,0.4)',count:ordStats.total},{key:'PAID',label:'Pagos',color:'#2ee59d',count:ordStats.paidCount},{key:'AWAITING_PAYMENT',label:'Pendentes',color:'#c9a96e',count:ordStats.pendingCount},{key:'CANCELLED',label:'Cancelados',color:'#ff6b7a',count:ordStats.cancelledCount}].map(f=>(
-          <button key={f.key} onClick={()=>{SFX.toggle();setOrdStatusFilter(f.key);}} style={{display:'flex',alignItems:'center',gap:4,padding:'5px 10px',borderRadius:99,border:'1px solid '+(ordStatusFilter===f.key?f.color+'40':'rgba(255,255,255,0.06)'),background:ordStatusFilter===f.key?f.color+'15':'rgba(255,255,255,0.02)',color:ordStatusFilter===f.key?f.color:'rgba(255,255,255,0.3)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{f.label} <span style={{fontSize:9,opacity:.7}}>({f.count})</span></button>
-        ))}
-      </div>
+      <AdminPanel title="Precisa de você" sub="As pendências abertas nos dois canais de venda" icon={Zap} accent="#c9a96e">
+        {awaitingPaymentCount===0&&pendingLabelCount===0&&supplierPendingCount===0&&indivToPrepareCount===0
+          ? <div style={{fontSize:12,color:'rgba(255,255,255,0.35)',padding:'8px 0'}}>Tudo em dia. Nenhuma pendência aberta. ✨</div>
+          : <>
+            {awaitingPaymentCount>0&&<AdminTodo icon={Clock} color="#c9a96e" title={`${awaitingPaymentCount} pedido(s) aguardando pagamento`} detail={`${brl(stats.all.pendingRevenue)} pendentes de confirmação`} actionLabel="Ver pedidos" onAction={goTo('orders',()=>{setOrdStatusFilter('AWAITING_PAYMENT');setChannelFilter('ALL');})}/>}
+            {supplierPendingCount>0&&<AdminTodo icon={ShoppingCart} color="#a78bfa" title={`${supplierPendingCount} pedido(s) individuais para comprar`} detail="Ainda não chegaram ao estágio de preparação" actionLabel="Compras do dia" onAction={goTo('orders',()=>{setOrderView('supplier');setSupplierFilter('PENDING');})}/>}
+            {indivToPrepareCount>0&&<AdminTodo icon={Package} color="#a78bfa" title={`${indivToPrepareCount} individual(is) em preparação`} detail="Prontos para gerar etiqueta" actionLabel="Envios" onAction={goTo('shipping',()=>setShippingTab('INDIVIDUAL'))}/>}
+            {pendingLabelCount>0&&<AdminTodo icon={Truck} color="#4a90d9" title={`${pendingLabelCount} etiqueta(s) da coletiva pendente(s)`} detail={selectedCampaign?.name||'Encomenda ativa'} actionLabel="Envios" onAction={goTo('shipping',()=>setShippingTab('CAMPAIGN'))}/>}
+          </>}
+      </AdminPanel>
 
-      {/* Search & Sort */}
-      <div style={{display:'flex',gap:6,alignItems:'center'}}>
-        <div style={{flex:1}}><Input icon={Search} placeholder="Buscar pedido, cliente, código MP..." value={searchOrders} onChange={e=>setSearchOrders(e.target.value)}/></div>
-        <select value={ordSort} onChange={e=>{setOrdSort(e.target.value);}} style={{padding:'10px 8px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:11,fontFamily:"'Outfit',sans-serif",outline:'none',cursor:'pointer'}}>
-          <option value="date_desc">Mais recente</option>
-          <option value="date_asc">Mais antigo</option>
-          <option value="value_desc">Maior valor</option>
-          <option value="value_asc">Menor valor</option>
-        </select>
-      </div>
-
-      {/* Orders List */}
-      {ordersLoading?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:
-      filteredBatches.length===0?<EmptyState icon={Package} title="Nenhum pedido" sub={searchOrders||ordStatusFilter!=='ALL'?'Tente outro filtro':'Nenhum pedido nesta campanha'}/>:
-      filteredBatches.map(b=>{
-        const isExp=expandedOrdBatch===b.id;
-        const isPaid=b.status==='PAID'||b.status==='PAID_CONFIRMED';
-        const isCancelled=b.status==='CANCELLED';
-        const isDraft=b.status==='DRAFT'||b.status==='AWAITING_PAYMENT'||b.status==='AWAITING_PAYMENT';
-        const sid=String(b.id).slice(0,8).toUpperCase();
-        const ship=Number(b.shipping_locked||0);
-        const valNoShip=b.subtotal_locked?Number(b.subtotal_locked):Number(b.total_locked||0)-ship;
-        const total=Number(b.total_locked||0);
-        const batchDate=b.confirmed_at||b.created_at||b.orderCreatedAt;
-        const statusColor=isPaid?'#2ee59d':isCancelled?'#ff6b7a':'#c9a96e';
-        const statusLabel=isPaid?'Pago':isCancelled?'Cancelado':'Pendente';
-        const mpCode=b.mp_payment_id||b.mp_preference_id||'';
-        const labelBusy=!!labelLoading[b.id];
-        const canMandaBem=isPaid&&!isCancelled&&!b.shipping_already_paid&&ship>0;
-
-        return(<Card key={b.id} style={{padding:0,marginBottom:4,borderLeft:'3px solid '+statusColor+'40'}}>
-          <div onClick={async()=>{const next=isExp?null:b.id;setExpandedOrdBatch(next);if(next)await loadBatchCards(b.id);}} style={{padding:'10px 14px',cursor:'pointer'}}>
-            {/* Row 1: ID + Client + Status */}
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
-              <div style={{display:'flex',alignItems:'center',gap:6}}>
-                <span style={{fontSize:12,fontWeight:800,fontFamily:'monospace',color:'rgba(255,255,255,0.6)'}}>#{sid}</span>
-                <span style={{fontSize:13,fontWeight:700}}>{b.clientName}</span>
-              </div>
-              <div style={{display:'flex',alignItems:'center',gap:4}}>
-                <Tag color={statusColor} style={{fontSize:9,padding:'3px 8px'}}>{statusLabel}</Tag>
-                <ChevronRight size={12} style={{color:'rgba(255,255,255,0.15)',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
-              </div>
-            </div>
-            {/* Row 2: Details */}
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <div style={{display:'flex',alignItems:'center',gap:8,fontSize:11,color:'rgba(255,255,255,0.3)'}}>
-                <span>{b.qty_in_batch} cartas</span>
-                <span>•</span>
-                <span>{new Date(batchDate).toLocaleDateString('pt-BR')}</span>
-                {b.payment_method&&<><span>•</span><span>{b.payment_method==='MERCADO_PAGO'?'MP':'Outro'}</span></>}
-              </div>
-              <span style={{fontSize:13,fontWeight:800,color:isPaid?'#2ee59d':'rgba(255,255,255,0.6)'}}>R$ {total.toFixed(2)}</span>
-            </div>
-          </div>
-
-          {/* Expanded Detail */}
-          {isExp&&<div style={{borderTop:'1px solid rgba(255,255,255,0.04)',padding:'12px 14px'}}>
-            {/* Payment Info */}
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
-              <div style={{padding:'8px 10px',borderRadius:10,background:'rgba(0,0,0,0.2)'}}><div style={{fontSize:9,color:'rgba(255,255,255,0.25)',marginBottom:2}}>Subtotal</div><div style={{fontSize:13,fontWeight:700}}>R$ {valNoShip.toFixed(2)}</div></div>
-              <div style={{padding:'8px 10px',borderRadius:10,background:b.shipping_already_paid?'rgba(46,229,157,0.06)':'rgba(0,0,0,0.2)',border:b.shipping_already_paid?'1px solid rgba(46,229,157,0.2)':'none'}}>
-                <div style={{fontSize:9,color:'rgba(255,255,255,0.25)',marginBottom:2}}>Frete</div>
-                <div style={{fontSize:13,fontWeight:700,color:b.shipping_already_paid?'#2ee59d':undefined}}>
-                  {b.shipping_already_paid?'Já pago ✓':'R$ '+ship.toFixed(2)}
-                </div>
-                {!b.shipping_already_paid&&b.shipping_service&&<div style={{fontSize:9,color:'rgba(255,255,255,0.28)',marginTop:2}}>{b.shipping_service}</div>}
-                {b.shipping_already_paid&&<div style={{fontSize:9,color:'rgba(46,229,157,0.6)',marginTop:2}}>Cliente informou que já pagou</div>}
-              </div>
-              <div style={{padding:'8px 10px',borderRadius:10,background:'rgba(0,0,0,0.2)'}}><div style={{fontSize:9,color:'rgba(255,255,255,0.25)',marginBottom:2}}>Total</div><div style={{fontSize:13,fontWeight:800,color:theme.primary}}>R$ {total.toFixed(2)}</div></div>
-              <div style={{padding:'8px 10px',borderRadius:10,background:'rgba(0,0,0,0.2)'}}><div style={{fontSize:9,color:'rgba(255,255,255,0.25)',marginBottom:2}}>Método</div><div style={{fontSize:13,fontWeight:700}}>{b.payment_method==='MERCADO_PAGO'?'Mercado Pago':b.payment_method==='BONUS'?'Bônus':b.payment_method||'—'}</div></div>
-            </div>
-
-            {/* MP Code */}
-            {mpCode&&<div style={{padding:'6px 10px',borderRadius:8,background:'rgba(0,0,0,0.15)',marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <div><div style={{fontSize:9,color:'rgba(255,255,255,0.25)'}}>Código MP</div><div style={{fontSize:11,fontFamily:'monospace',color:'rgba(255,255,255,0.5)'}}>{mpCode}</div></div>
-              <button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(mpCode);SFX.success();}} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,padding:'3px 6px',color:'rgba(255,255,255,0.4)',fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><Copy size={10}/></button>
-            </div>}
-
-            {/* MandaBem Label */}
-            {(b.mandabem_envio_id||b.mandabem_etiqueta||b.mandabem_rastreamento||b.mandabem_status)&&<div style={{padding:'8px 10px',borderRadius:8,background:'rgba(46,229,157,0.06)',border:'1px solid rgba(46,229,157,0.14)',marginBottom:8}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
-                <div>
-                  <div style={{fontSize:9,color:'rgba(46,229,157,0.6)',marginBottom:2}}>MandaBem · Código de rastreamento</div>
-                  {(b.mandabem_rastreamento||b.mandabem_etiqueta)&&<div style={{fontSize:12,fontFamily:'monospace',fontWeight:800,color:'#2ee59d'}}>{b.mandabem_rastreamento||b.mandabem_etiqueta}</div>}
-                  <div style={{fontSize:10,color:'rgba(255,255,255,0.35)'}}>{b.mandabem_status||'Envio gerado'}{b.mandabem_envio_id&&<span> · ID {b.mandabem_envio_id}</span>}</div>
-                </div>
-                {(b.mandabem_rastreamento||b.mandabem_etiqueta)&&<div style={{display:'flex',gap:5,flexShrink:0}}>
-                  <button title="Copiar rastreamento" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(b.mandabem_rastreamento||b.mandabem_etiqueta);SFX.success();}} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,padding:'4px 7px',color:'rgba(255,255,255,0.45)',fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><Copy size={10}/></button>
-                  {b.clientWhatsapp&&<button title="Enviar rastreamento no WhatsApp" onClick={e=>{e.stopPropagation();openShipmentWhatsAppFor(b);}} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(37,211,102,0.08)',border:'1px solid rgba(37,211,102,0.18)',borderRadius:6,padding:'4px 7px',color:'#25d366',fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={10}/> Enviar</button>}
-                </div>}
-              </div>
-            </div>}
-
-            {/* Client Contact */}
-            <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10,flexWrap:'wrap'}}>
-              {b.clientEmail&&<span style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'flex',alignItems:'center',gap:3}}><Mail size={10}/>{b.clientEmail}</span>}
-              {b.clientWhatsapp&&<a href={buildWhatsAppUrl({name:b.clientName,whatsapp:b.clientWhatsapp},whatsappMessages[whatsappAudience],selectedCampaign?.name)} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:'#25d366',textDecoration:'none',display:'flex',alignItems:'center',gap:3}}><MessageCircle size={10}/> WhatsApp</a>}
-              {b.clientWhatsapp&&(getBatchTrackingInfo(b).code||getBatchTrackingInfo(b).status)&&<button onClick={e=>{e.stopPropagation();openShipmentWhatsAppFor(b);}} style={{display:'flex',alignItems:'center',gap:3,padding:0,border:'none',background:'none',fontSize:11,color:'#25d366',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><Truck size={10}/> Enviar rastreamento</button>}
-            </div>
-
-            {/* Card Items */}
-            <div style={{marginBottom:10}}>
-              <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.3)',marginBottom:4}}>Itens do pedido</div>
-              {(batchCards[b.id]||[]).length>0?batchCards[b.id].map((c,ci)=>(
-                <div key={ci} style={{display:'flex',alignItems:'center',gap:8,padding:'3px 0',fontSize:12,borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
-                  <div onClick={e=>{e.stopPropagation();c.image_url&&setZoomSrc(c.image_url);}} style={{width:26,flexShrink:0,cursor:c.image_url?'zoom-in':'default'}}><CardThumb card={c} radius={5}/></div>
-                  <span style={{flex:1,minWidth:0,color:'rgba(255,255,255,0.5)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
-                  <span style={{fontWeight:700}}>x{c.qty}</span>
-                </div>
-              )):<div style={{fontSize:11,color:'rgba(255,255,255,0.2)'}}>Carregando itens...</div>}
-            </div>
-
-            {/* Actions */}
-            <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-              {isDraft&&<Btn variant="success" onClick={e=>{e.stopPropagation();markBatchPaid(b.id);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><CheckCircle size={12}/> Marcar Pago</Btn>}
-              {b.payment_method==='MERCADO_PAGO'&&!isCancelled&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();syncBatchMP(b.id);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><RefreshCw size={12}/> Sync MP</Btn>}
-              {canMandaBem&&!b.mandabem_envio_id&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleMandaBemLabel(b.id,'generate');}} disabled={labelBusy} style={{padding:'6px 12px',fontSize:11}} sfx="">{labelBusy?<Spin size={12}/>:<><Truck size={12}/> Gerar etiqueta</>}</Btn>}
-              {canMandaBem&&b.mandabem_envio_id&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleMandaBemLabel(b.id,'refresh');}} disabled={labelBusy} style={{padding:'6px 12px',fontSize:11}} sfx="">{labelBusy?<Spin size={12}/>:<><RefreshCw size={12}/> Atualizar envio</>}</Btn>}
-              {!isCancelled&&<Btn variant="danger" onClick={e=>{e.stopPropagation();cancelBatch(b.id,isPaid);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><X size={12}/> {isPaid?'Cancelar (reembolso manual)':'Cancelar'}</Btn>}
-            </div>
-          </div>}
-        </Card>);
-      })}
-    </>}
-
-    {tab==='clients'&&<>
-      <Card style={{padding:14,border:'1px solid rgba(37,211,102,0.18)'}}>
-        <SectionTitle sub="Abra as conversas uma a uma com a mensagem já preenchida">Comunicação por WhatsApp</SectionTitle>
-        <div style={{display:'flex',gap:6,marginBottom:10}}>
-          {[{key:WHATSAPP_AUDIENCES.BUYERS,label:'Compradores pagos'},{key:WHATSAPP_AUDIENCES.ALL,label:'Todos os clientes'}].map(option=><button key={option.key} onClick={()=>setWhatsappAudience(option.key)} style={{flex:1,padding:'7px 8px',borderRadius:9,border:'1px solid '+(whatsappAudience===option.key?'rgba(37,211,102,0.35)':'rgba(255,255,255,0.06)'),background:whatsappAudience===option.key?'rgba(37,211,102,0.12)':'rgba(255,255,255,0.025)',color:whatsappAudience===option.key?'#25d366':'rgba(255,255,255,0.38)',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{option.label}</button>)}
+      {selectedCampaign&&<AdminPanel title={selectedCampaign.name} sub="Encomenda coletiva em contexto" icon={Calendar} accent={theme.primary}
+        right={<Tag color={isFinalized?'rgba(255,255,255,0.3)':'#2ee59d'} style={{fontSize:9}}>{CAMPAIGN_STATUS_LABELS[selectedCampaign.status]||selectedCampaign.status}</Tag>}>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:8}}>
+          <div><span style={{color:'rgba(255,255,255,0.3)'}}>Cartas pagas</span> <b style={{color:isViableAdmin?'#2ee59d':theme.primary}}>{pool||0}</b><span style={{color:'rgba(255,255,255,0.2)',fontSize:10}}> / {minCards}</span></div>
+          <div><span style={{color:'rgba(255,255,255,0.3)'}}>Clientes</span> <b style={{color:theme.primary}}>{clientGroups.filter(c=>c.hasOrder).length}</b></div>
+          <div>{isViableAdmin?<Tag color="#2ee59d" style={{fontSize:9}}>Meta atingida</Tag>:<Tag color="#c9a96e" style={{fontSize:9}}>Faltam {minCards-(pool||0)}</Tag>}</div>
         </div>
+        <div style={{background:'rgba(0,0,0,0.3)',borderRadius:99,height:5,overflow:'hidden'}}>
+          <div style={{width:Math.min(100,(pool||0)/minCards*100)+'%',height:'100%',borderRadius:99,background:isViableAdmin?'linear-gradient(90deg,#2ee59d,#00d4a0)':'linear-gradient(90deg,'+theme.primary+','+theme.secondary+')',transition:'width .5s'}}/>
+        </div>
+      </AdminPanel>}
+
+      <AdminPanel title="Atividade recente" sub="Pedidos, pagamentos e acessos ao portal" icon={Activity} accent="#4a90d9"
+        right={<button onClick={()=>setShowNotifications(true)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.35)',fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif",display:'inline-flex',alignItems:'center',gap:3}}>Ver tudo <ChevronRight size={11}/></button>}>
+        <AdminNotificationFeed notifications={notifications} loading={notifLoading} unread={notifUnread} compact limit={6} onOpenEvent={openNotification}/>
+      </AdminPanel>
+
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+        <AdminStat icon={Store} label="Coletiva" value={brlCompact(stats.campaign.revenue)} sub={`${stats.campaign.paidCount} pagos · ${stats.campaign.pendingCount} pendentes`} color={theme.primary} onClick={()=>{SFX.nav();setSection('orders');setChannelFilter('CAMPAIGN');}}/>
+        <AdminStat icon={User} label="Individual" value={brlCompact(stats.individual.revenue)} sub={`${stats.individual.paidCount} pagos`} color="#a78bfa" accent="#a78bfa" onClick={()=>{SFX.nav();setSection('orders');setChannelFilter('INDIVIDUAL');}}/>
+      </div>
+    </div>);
+  }
+
+  // ─── Seção: Pedidos ────────────────────────────────
+  function renderOrders(){
+    const listLoadingNow=(channelFilter!=='INDIVIDUAL'&&ordersLoading)||(channelFilter!=='CAMPAIGN'&&indivLoading);
+    return(<div style={{display:'flex',flexDirection:'column',gap:10}}>
+      <AdminPills
+        options={[{key:'list',label:'Todos os pedidos',icon:ClipboardList},{key:'supplier',label:'Compras do dia',icon:ShoppingCart,count:supplierPendingCount}]}
+        value={orderView} onChange={setOrderView}/>
+
+      {orderView==='list'?<>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+          <AdminStat icon={CheckCircle} label="Pagos" value={stats.all.paidCount} sub={`${stats.all.cards} cartas`} color="#2ee59d" accent="#2ee59d"/>
+          <AdminStat icon={Wallet} label="Receita" value={brlCompact(stats.all.revenue)} sub="confirmada" color={theme.primary} accent={theme.primary}/>
+          <AdminStat icon={Clock} label="Pendentes" value={stats.all.pendingCount} sub={brl(stats.all.pendingRevenue)} color="#c9a96e" accent="#c9a96e"/>
+          <AdminStat icon={X} label="Cancelados" value={stats.all.cancelledCount} sub={`${stats.all.total} no total`} color="rgba(255,255,255,0.5)"/>
+        </div>
+
+        <AdminPills
+          options={[
+            {key:'ALL',label:'Todos os canais',count:allBatches.length},
+            {key:'CAMPAIGN',label:'Coletiva',icon:Store,count:campaignBatches.length,color:theme.primary},
+            {key:'INDIVIDUAL',label:'Individual',icon:User,count:individualBatches.length,color:'#a78bfa'},
+          ]}
+          value={channelFilter} onChange={setChannelFilter}/>
+
+        <AdminPills
+          options={[
+            {key:'ALL',label:'Todos',color:'rgba(255,255,255,0.5)'},
+            {key:'PAID',label:'Pagos',color:'#2ee59d'},
+            {key:'AWAITING_PAYMENT',label:'Pendentes',color:'#c9a96e'},
+            {key:'CANCELLED',label:'Cancelados',color:'#ff6b7a'},
+          ]}
+          value={ordStatusFilter} onChange={setOrdStatusFilter}/>
+
+        <div style={{display:'flex',gap:6,alignItems:'center'}}>
+          <div style={{flex:1}}><Input icon={Search} placeholder="Buscar pedido, cliente, código MP..." value={searchOrders} onChange={e=>setSearchOrders(e.target.value)}/></div>
+          <select value={ordSort} onChange={e=>setOrdSort(e.target.value)} style={{padding:'10px 8px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:11,fontFamily:"'Outfit',sans-serif",outline:'none',cursor:'pointer'}}>
+            <option value="date_desc">Mais recente</option>
+            <option value="date_asc">Mais antigo</option>
+            <option value="value_desc">Maior valor</option>
+            <option value="value_asc">Menor valor</option>
+          </select>
+        </div>
+
+        {channelFilter!=='INDIVIDUAL'&&!selectedCampaign&&<div style={{fontSize:11,color:'rgba(255,255,255,0.3)',padding:'2px 2px 4px',lineHeight:1.5}}>Nenhuma encomenda coletiva selecionada — só aparecem aqui os pedidos individuais. Escolha uma encomenda em <b style={{color:'rgba(255,255,255,0.55)'}}>Encomendas</b>.</div>}
+
+        {listLoadingNow&&filteredBatches.length===0?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:
+        filteredBatches.length===0?<EmptyState icon={Package} title="Nenhum pedido" sub={searchOrders||ordStatusFilter!=='ALL'||channelFilter!=='ALL'?'Tente outro filtro':'Ainda não há pedidos por aqui'}/>:
+        filteredBatches.map(renderBatchRow)}
+      </>:<>
+        {/* Compras no fornecedor: pedidos individuais pagos agrupados por dia */}
+        <AdminPanel title="Compras no fornecedor" sub="Pedidos individuais pagos agrupados por dia de pagamento — compre tudo do dia de uma vez e avance o grupo inteiro." icon={ShoppingCart} accent="#a78bfa"
+          right={<button onClick={loadIndivOrders} style={{background:'none',border:'none',color:'rgba(255,255,255,0.35)',cursor:'pointer'}}><RefreshCw size={15}/></button>}>
+          <AdminPills options={[{key:'PENDING',label:'Em aberto',color:'#a78bfa'},{key:'ALL',label:'Todos',count:individualBatches.length}]} value={supplierFilter} onChange={setSupplierFilter}/>
+        </AdminPanel>
+
+        {indivLoading&&visibleSupplierGroups.length===0?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:
+        visibleSupplierGroups.length===0?<EmptyState icon={ShoppingCart} title="Nada para comprar" sub="Nenhum pedido individual pago em aberto"/>:
+        visibleSupplierGroups.map(group=>{
+          const stageIdxs=group.batches.map(b=>indivStageIndex(b.fulfillment_status));
+          const minIdx=Math.min(...stageIdxs);
+          const nextStage=INDIV_FULFILLMENT_STAGES[minIdx+1];
+          const bulkTargets=group.batches.filter(b=>indivStageIndex(b.fulfillment_status)===minIdx).map(b=>b.id);
+          return(<Card key={group.dayKey} style={{padding:14}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,gap:8}}>
+              <div>
+                <div style={{fontSize:13,fontWeight:800}}>{group.dayKey}</div>
+                <div style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>{group.batches.length} pedido(s) · {group.batches.reduce((s,b)=>s+Number(b.qty_in_batch||0),0)} cartas · {brl(group.batches.reduce((s,b)=>s+Number(b.total_locked||0),0))}</div>
+              </div>
+              {nextStage&&nextStage.key!=='LABEL_GENERATED'&&bulkTargets.length>0&&<Btn variant="secondary" onClick={()=>setFulfillment(bulkTargets,nextStage.key,group.dayKey)} disabled={busyBatch===group.dayKey} style={{padding:'6px 10px',fontSize:11,flexShrink:0}} sfx="">
+                {busyBatch===group.dayKey?<Spin size={12}/>:<><ArrowRight size={12}/> {nextStage.label}</>}
+              </Btn>}
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:2}}>
+              {group.batches.map(b=>{
+                const idx=indivStageIndex(b.fulfillment_status);
+                const stageInfo=INDIV_FULFILLMENT_STAGES[idx];
+                const next=INDIV_FULFILLMENT_STAGES[idx+1];
+                return(<div key={b.id} style={{borderTop:'1px solid rgba(255,255,255,0.04)',paddingTop:7,paddingBottom:3}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
+                    <div style={{display:'flex',alignItems:'center',gap:6,minWidth:0}}>
+                      <span style={{fontSize:11,fontWeight:800,fontFamily:'monospace',color:'rgba(255,255,255,0.5)'}}>#{shortBatchId(b.id)}</span>
+                      <span style={{fontSize:12,fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.clientName}</span>
+                      <span style={{fontSize:10,color:'rgba(255,255,255,0.28)',flexShrink:0}}>{b.qty_in_batch} cartas</span>
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',gap:5,flexShrink:0}}>
+                      <Tag color={idx>=5?'#2ee59d':'#a78bfa'} style={{fontSize:9,padding:'3px 7px'}}>{stageInfo.short}</Tag>
+                      {next&&next.key!=='LABEL_GENERATED'&&<button onClick={()=>setFulfillment([b.id],next.key,b.id)} disabled={busyBatch===b.id} title={next.label} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:7,padding:'4px 6px',color:'rgba(255,255,255,0.5)',cursor:'pointer',display:'grid',placeItems:'center'}}>{busyBatch===b.id?<Spin size={11}/>:<ArrowRight size={11}/>}</button>}
+                    </div>
+                  </div>
+                  <IndivStageTrack status={b.fulfillment_status}/>
+                </div>);
+              })}
+            </div>
+          </Card>);
+        })}
+      </>}
+    </div>);
+  }
+
+  // ─── Seção: Envios ─────────────────────────────────
+  function renderShipping(){
+    return(<div style={{display:'flex',flexDirection:'column',gap:10}}>
+      <AdminPills
+        options={[
+          {key:'CAMPAIGN',label:'Coletiva (agrupada)',icon:Store,count:labelGroups.length,color:theme.primary},
+          {key:'INDIVIDUAL',label:'Individual',icon:User,count:individualShipments.length,color:'#a78bfa'},
+        ]}
+        value={shippingTab} onChange={setShippingTab}/>
+
+      {shippingTab==='CAMPAIGN'?<>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+          <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>
+            <span style={{color:'#c9a96e',fontWeight:700}}>{labelGroups.filter(g=>!g.hasLabel).length}</span> pendentes
+            {' · '}<span style={{color:'#2ee59d',fontWeight:700}}>{labelGroups.filter(g=>g.hasLabel).length}</span> com etiqueta
+          </div>
+          <div style={{display:'flex',gap:6}}>
+            {labelGroups.filter(g=>!g.hasLabel).length>0&&<Btn variant="secondary" onClick={handleToggleAllPendingLabels} style={{padding:'6px 10px',fontSize:11}} sfx="">{labelGroups.filter(g=>!g.hasLabel).every(g=>labelSelected.has(g.key))?'Desmarcar':'Selecionar pendentes'}</Btn>}
+            <Btn variant="success" onClick={handleBulkLabels} disabled={labelSelected.size===0} style={{padding:'6px 12px',fontSize:11}} sfx=""><Truck size={12}/> Gerar ({labelSelected.size})</Btn>
+          </div>
+        </div>
+
+        {ordersLoading&&labelGroups.length===0?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:
+        labelGroups.length===0?<EmptyState icon={Truck} title="Nenhum pedido para etiqueta" sub="Pedidos pagos com frete cobrado pelo portal aparecem aqui"/>:
+        labelGroups.map(group=>{
+          const gs=labelStatus[group.key]||{};
+          const isGroupExp=labelExpanded===group.key;
+          const isSelected=labelSelected.has(group.key);
+          const isGenerating=gs.status==='generating';
+          const isDone=gs.status==='done'||group.hasLabel;
+          const isError=gs.status==='error';
+          const statusColor=isDone?'#2ee59d':isError?'#ff6b7a':isGenerating?'#c9a96e':'rgba(255,255,255,0.2)';
+          const addr=group.address;
+          const addrLine=[addr.rua,addr.numero?'Nº '+addr.numero:'',addr.complemento,addr.bairro,addr.cidade&&addr.uf?addr.cidade+'/'+addr.uf:''].filter(Boolean).join(', ');
+          const labeledBatch=group.batches.find(b=>b.mandabem_rastreamento||b.mandabem_etiqueta||b.mandabem_envio_id);
+
+          return(<Card key={group.key} style={{padding:0,marginBottom:4,borderLeft:'3px solid '+statusColor+'60'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',cursor:'pointer'}} onClick={()=>setLabelExpanded(isGroupExp?null:group.key)}>
+              {!group.hasLabel
+                ? <input type="checkbox" checked={isSelected} onChange={e=>{e.stopPropagation();setLabelSelected(prev=>{const next=new Set(prev);next.has(group.key)?next.delete(group.key):next.add(group.key);return next;});}} onClick={e=>e.stopPropagation()} style={{width:14,height:14,cursor:'pointer',flexShrink:0}}/>
+                : <div style={{width:14,height:14,flexShrink:0}}/>}
+              <div style={{width:8,height:8,borderRadius:'50%',background:statusColor,flexShrink:0,boxShadow:isDone?'0 0 6px '+statusColor+'80':''}}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{group.clientName}</div>
+                <div style={{fontSize:10,color:'rgba(255,255,255,0.35)'}}>
+                  {group.batches.length===1?'1 pedido':`${group.batches.length} pedidos agrupados`} · {brl(group.totalValue)}
+                  <span style={{color:group.shippingService===SHIPPING_SERVICE_UNKNOWN?'#c9a96e':'rgba(255,255,255,0.5)'}}> · {group.shippingService==='PACMINI'?'PAC Mini':group.shippingService==='SEDEX'?'Sedex':group.shippingService==='PAC'?'PAC':group.shippingService===SHIPPING_SERVICE_UNKNOWN?'Serviço não identificado':'Identificando serviço...'}</span>
+                  {addr.cidade&&<span style={{color:'rgba(255,255,255,0.25)'}}> · {addr.cidade}{addr.uf?' / '+addr.uf:''}</span>}
+                  {isDone&&!isGenerating&&<span style={{color:'#2ee59d'}}> · Etiqueta gerada ✓</span>}
+                  {isError&&<span style={{color:'#ff6b7a'}}> · Erro</span>}
+                </div>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
+                {isGenerating&&<Spin size={14}/>}
+                {!isDone&&!isGenerating&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleGroupLabel(group.key);}} style={{padding:'5px 9px',fontSize:10}} sfx=""><Truck size={10}/> Gerar</Btn>}
+                {isError&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleGroupLabel(group.key);}} style={{padding:'5px 9px',fontSize:10,background:'rgba(217,68,82,0.1)',border:'1px solid rgba(217,68,82,0.2)',color:'#ff6b7a'}} sfx=""><RefreshCw size={10}/> Tentar de novo</Btn>}
+                {isDone&&!isGenerating&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleGroupLabel(group.key,true);}} style={{padding:'5px 9px',fontSize:10,opacity:0.55}} sfx=""><RefreshCw size={10}/> Regerar</Btn>}
+                <ChevronRight size={12} style={{color:'rgba(255,255,255,0.15)',transform:isGroupExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
+              </div>
+            </div>
+
+            {isGroupExp&&<div style={{borderTop:'1px solid rgba(255,255,255,0.04)',padding:'10px 14px'}}>
+              <div style={{display:'flex',flexDirection:'column',gap:3,marginBottom:10}}>
+                {group.email&&<div style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:'rgba(255,255,255,0.35)'}}><Mail size={10}/>{group.email}</div>}
+                {group.whatsapp&&<div style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:'rgba(255,255,255,0.35)'}}><Phone size={10}/>{group.whatsapp}</div>}
+                {addrLine&&<div style={{display:'flex',alignItems:'flex-start',gap:5,fontSize:11,color:'rgba(255,255,255,0.35)'}}><MapPin size={10} style={{marginTop:1,flexShrink:0}}/><span>{addrLine}{addr.cep?<span style={{color:'rgba(255,255,255,0.2)'}}> · CEP {addr.cep}</span>:null}</span></div>}
+              </div>
+              {isError&&<div style={{padding:'7px 10px',borderRadius:8,background:'rgba(217,68,82,0.08)',border:'1px solid rgba(217,68,82,0.18)',marginBottom:10,fontSize:11,color:'#ff9090',lineHeight:1.5}}><b>Erro ao gerar etiqueta:</b> {gs.message}</div>}
+              <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.3)',marginBottom:5}}>Pedidos incluídos:</div>
+              {group.batches.map(b=>(
+                <div key={b.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 0',fontSize:11,borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+                  <span style={{fontFamily:'monospace',color:'rgba(255,255,255,0.5)'}}>#{shortBatchId(b.id)}</span>
+                  <span style={{color:'rgba(255,255,255,0.35)'}}>{b.qty_in_batch} cartas</span>
+                  <span style={{fontWeight:700,color:isPaidBatch(b.status)?'#2ee59d':'rgba(255,255,255,0.4)'}}>{brl(b.total_locked)}</span>
+                  {b.mandabem_envio_id?<Tag color="#2ee59d" style={{fontSize:8,padding:'2px 5px'}}>✓ etiqueta</Tag>:<Tag color="rgba(255,255,255,0.2)" style={{fontSize:8,padding:'2px 5px'}}>sem etiqueta</Tag>}
+                </div>
+              ))}
+              {labeledBatch&&<div style={{marginTop:10,padding:'8px 10px',borderRadius:8,background:'rgba(46,229,157,0.06)',border:'1px solid rgba(46,229,157,0.14)',display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
+                <div>
+                  <div style={{fontSize:9,color:'rgba(46,229,157,0.6)',marginBottom:2}}>MandaBem · Rastreamento</div>
+                  {(labeledBatch.mandabem_rastreamento||labeledBatch.mandabem_etiqueta)&&<div style={{fontSize:12,fontFamily:'monospace',fontWeight:800,color:'#2ee59d'}}>{labeledBatch.mandabem_rastreamento||labeledBatch.mandabem_etiqueta}</div>}
+                  <div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>{labeledBatch.mandabem_status||'Envio gerado'}{labeledBatch.mandabem_envio_id&&<span> · ID {labeledBatch.mandabem_envio_id}</span>}</div>
+                </div>
+                {(labeledBatch.mandabem_rastreamento||labeledBatch.mandabem_etiqueta)&&<div style={{display:'flex',gap:5,flexShrink:0}}>
+                  <button title="Copiar rastreamento" onClick={()=>{navigator.clipboard.writeText(labeledBatch.mandabem_rastreamento||labeledBatch.mandabem_etiqueta);SFX.success();}} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,padding:'3px 6px',color:'rgba(255,255,255,0.4)',cursor:'pointer'}}><Copy size={10}/></button>
+                  {group.whatsapp&&<button title="Enviar rastreamento" onClick={()=>openShipmentWhatsAppFor({...labeledBatch,clientName:group.clientName,clientWhatsapp:group.whatsapp,channel:'CAMPAIGN'})} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(37,211,102,0.08)',border:'1px solid rgba(37,211,102,0.18)',borderRadius:6,padding:'3px 6px',color:'#25d366',fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={10}/> Enviar</button>}
+                </div>}
+              </div>}
+            </div>}
+          </Card>);
+        })}
+      </>:<>
+        {indivLoading&&individualShipments.length===0?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:
+        individualShipments.length===0?<EmptyState icon={Truck} title="Nada para enviar" sub="Pedidos individuais aparecem aqui quando chegam em 'Em preparação'"/>:
+        individualShipments.map(b=>{
+          const tracking=getBatchTrackingInfo(b);
+          const done=b.fulfillment_status==='LABEL_GENERATED';
+          const addr=b.shipping_address||{};
+          const addrLine=[addr.rua,addr.numero?'Nº '+addr.numero:'',addr.bairro,addr.cidade&&addr.uf?addr.cidade+'/'+addr.uf:''].filter(Boolean).join(', ');
+          return(<Card key={b.id} style={{padding:'12px 14px',marginBottom:4,borderLeft:'3px solid '+(done?'#2ee59d':'#a78bfa')+'60'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,marginBottom:5}}>
+              <div style={{display:'flex',alignItems:'center',gap:6,minWidth:0}}>
+                <span style={{fontSize:11,fontWeight:800,fontFamily:'monospace',color:'rgba(255,255,255,0.5)'}}>#{shortBatchId(b.id)}</span>
+                <span style={{fontSize:13,fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.clientName}</span>
+              </div>
+              <Tag color={done?'#2ee59d':'#a78bfa'} style={{fontSize:9,padding:'3px 7px',flexShrink:0}}>{done?'Etiqueta gerada':'Em preparação'}</Tag>
+            </div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:6}}>{b.qty_in_batch} cartas · {brl(b.total_locked)}{b.shipping_service?` · ${b.shipping_service}`:''}</div>
+            {addrLine&&<div style={{display:'flex',alignItems:'flex-start',gap:5,fontSize:11,color:'rgba(255,255,255,0.32)',marginBottom:8}}><MapPin size={10} style={{marginTop:1,flexShrink:0}}/><span>{addrLine}{addr.cep?` · CEP ${addr.cep}`:''}</span></div>}
+            {tracking.code&&<div style={{fontSize:11,color:'#2ee59d',marginBottom:8,fontFamily:'monospace'}}>{tracking.code}{tracking.status?<span style={{fontFamily:"'Outfit',sans-serif",color:'rgba(255,255,255,0.35)'}}> · {tracking.status}</span>:null}</div>}
+            <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+              <Btn variant="secondary" onClick={()=>generateIndividualLabel(b)} disabled={busyBatch===b.id} style={{padding:'6px 11px',fontSize:11}} sfx="">{busyBatch===b.id?<Spin size={12}/>:done?<><RefreshCw size={12}/> Atualizar envio</>:<><Truck size={12}/> Gerar etiqueta</>}</Btn>
+              {b.clientWhatsapp&&tracking.code&&<button onClick={()=>openShipmentWhatsAppFor(b)} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(37,211,102,0.08)',border:'1px solid rgba(37,211,102,0.18)',borderRadius:10,padding:'6px 11px',color:'#25d366',fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={12}/> Enviar rastreio</button>}
+            </div>
+          </Card>);
+        })}
+      </>}
+    </div>);
+  }
+
+  // ─── Seção: Clientes ───────────────────────────────
+  function renderClients(){
+    return(<div style={{display:'flex',flexDirection:'column',gap:10}}>
+      <AdminPanel title="Comunicação por WhatsApp" sub="Abra as conversas uma a uma com a mensagem já preenchida" icon={MessageCircle} accent="#25d366">
+        <AdminPills
+          options={[{key:WHATSAPP_AUDIENCES.BUYERS,label:'Compradores pagos',color:'#25d366'},{key:WHATSAPP_AUDIENCES.ALL,label:'Todos os clientes',color:'#25d366'}]}
+          value={whatsappAudience} onChange={setWhatsappAudience} style={{marginBottom:10}}/>
         <textarea value={whatsappMessages[whatsappAudience]} onChange={e=>setWhatsappMessages(messages=>({...messages,[whatsappAudience]:e.target.value}))} rows={5} style={{width:'100%',boxSizing:'border-box',resize:'vertical',padding:'10px 12px',borderRadius:10,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.28)',color:'#fff',fontSize:12,lineHeight:1.5,fontFamily:"'Outfit',sans-serif",outline:'none'}}/>
         <div style={{fontSize:10,color:'rgba(255,255,255,0.28)',marginTop:5}}>Use <b style={{color:'rgba(255,255,255,0.5)'}}>{'{nome}'}</b> para o primeiro nome e <b style={{color:'rgba(255,255,255,0.5)'}}>{'{encomenda}'}</b> para o nome da encomenda.</div>
         <div style={{display:'flex',justifyContent:'space-between',gap:8,alignItems:'center',marginTop:10,flexWrap:'wrap'}}>
@@ -2611,50 +2936,60 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
             <Btn variant="success" onClick={()=>nextWhatsappRecipient&&openWhatsAppFor(nextWhatsappRecipient)} disabled={!nextWhatsappRecipient||!whatsappMessages[whatsappAudience].trim()} style={{padding:'7px 10px',fontSize:10}} sfx=""><MessageCircle size={11}/> {nextWhatsappRecipient?'Abrir próximo':'Concluído'}</Btn>
           </div>
         </div>
-        {nextWhatsappRecipient&&<div style={{marginTop:8,padding:'7px 9px',borderRadius:8,background:'rgba(37,211,102,0.06)',fontSize:10,color:'rgba(255,255,255,0.38)'}}>Próximo: <b style={{color:'rgba(255,255,255,0.65)'}}>{nextWhatsappRecipient.name}</b>. Ao voltar do WhatsApp, clique novamente para seguir para o próximo contato.</div>}
+        {nextWhatsappRecipient&&<div style={{marginTop:8,padding:'7px 9px',borderRadius:8,background:'rgba(37,211,102,0.06)',fontSize:10,color:'rgba(255,255,255,0.38)'}}>Próximo: <b style={{color:'rgba(255,255,255,0.65)'}}>{nextWhatsappRecipient.name}</b>. Ao voltar do WhatsApp, clique de novo para seguir para o próximo contato.</div>}
         <div style={{fontSize:10,color:'rgba(255,255,255,0.22)',marginTop:8,lineHeight:1.4}}>O portal não envia mensagens automaticamente: cada conversa é aberta para você revisar e enviar, respeitando as regras do WhatsApp.</div>
-      </Card>
+      </AdminPanel>
+
       <Input icon={Search} placeholder="Buscar por nome, email ou pedido..." value={searchOrd} onChange={e=>setSearchOrd(e.target.value)}/>
-      <div style={{display:'flex',gap:6,marginBottom:4}}>
-        <button onClick={()=>setClientActiveFilter(false)} style={{padding:'5px 12px',borderRadius:8,border:'none',background:!clientActiveFilter?theme.primary+'20':'rgba(255,255,255,0.04)',color:!clientActiveFilter?theme.primary:'rgba(255,255,255,0.35)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Todos ({clientGroups.length})</button>
-        <button onClick={()=>setClientActiveFilter(true)} style={{padding:'5px 12px',borderRadius:8,border:'none',background:clientActiveFilter?'rgba(46,229,157,0.15)':'rgba(255,255,255,0.04)',color:clientActiveFilter?'#2ee59d':'rgba(255,255,255,0.35)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Ativos ({clientGroups.filter(c=>c.hasActiveOrder).length})</button>
-      </div>
-      {ordersLoading?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:
-      filteredClients.length===0?<EmptyState icon={User} title="Nenhum cliente" sub={searchOrd||clientActiveFilter?'Tente outro filtro':''}/>:
-      filteredClients.map(client=>{const isClientExp=expandedClient===client.userId;const clientBonus=adminBonusGrants.filter(g=>g.user_id===client.userId&&g.status==='AVAILABLE').reduce((s,g)=>s+g.bonus_qty,0);return(
-        <Card key={client.userId} style={{padding:0,marginBottom:4}}>
-          <div onClick={()=>{setExpandedClient(isClientExp?null:client.userId);if(!isClientExp&&adminBonusGrants.length===0)loadBonusGrants();}} style={{padding:'10px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer'}}>
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
+      <AdminPills
+        options={[{key:'all',label:'Todos',count:clientGroups.length},{key:'active',label:'Com pedido ativo',count:clientGroups.filter(c=>c.hasActiveOrder).length,color:'#2ee59d'}]}
+        value={clientActiveFilter?'active':'all'} onChange={k=>setClientActiveFilter(k==='active')}/>
+
+      {(ordersLoading||indivLoading)&&filteredClients.length===0?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:
+      filteredClients.length===0?<EmptyState icon={Users} title="Nenhum cliente" sub={searchOrd||clientActiveFilter?'Tente outro filtro':''}/>:
+      filteredClients.map(client=>{
+        const isClientExp=expandedClient===client.userId;
+        const clientBonus=adminBonusGrants.filter(g=>g.user_id===client.userId&&g.status==='AVAILABLE').reduce((s,g)=>s+g.bonus_qty,0);
+        const clientTotal=client.orders.reduce((s,o)=>s+(o.order_batches||[]).filter(b=>isPaidBatch(b.status)).reduce((t,b)=>t+Number(b.total_locked||0),0),0);
+        return(<Card key={client.userId} style={{padding:0,marginBottom:4}}>
+          <div onClick={()=>{setExpandedClient(isClientExp?null:client.userId);if(!isClientExp&&adminBonusGrants.length===0)loadBonusGrants();}} style={{padding:'10px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',gap:8}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,minWidth:0}}>
               {client.hasActiveOrder&&<span style={{display:'inline-block',width:8,height:8,borderRadius:'50%',background:'#2ee59d',boxShadow:'0 0 6px #2ee59d80',flexShrink:0}}/>}
-              <div><div style={{fontSize:13,fontWeight:700}}>{client.name}</div>{client.whatsapp&&<div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{client.whatsapp}</div>}</div>
+              <div style={{minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{client.name}</div>
+                <div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{client.whatsapp||client.email||'sem contato'}</div>
+              </div>
             </div>
-            <div style={{display:'flex',alignItems:'center',gap:4}}>
+            <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
               {clientBonus>0&&<Tag color="#2ee59d" style={{fontSize:9}}><Gift size={9}/> {clientBonus}</Tag>}
               {client.hasOrder?<Tag style={{fontSize:9}}>{client.totalCards} cartas</Tag>:<Tag color="rgba(255,255,255,0.15)" style={{fontSize:9,color:'rgba(255,255,255,0.3)'}}>sem pedido</Tag>}
               <ChevronRight size={12} style={{color:'rgba(255,255,255,0.15)',transform:isClientExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
             </div>
           </div>
           {isClientExp&&<div style={{borderTop:'1px solid rgba(255,255,255,0.04)'}}>
-            {client.email&&<div style={{padding:'6px 14px 0',fontSize:11,color:'rgba(255,255,255,0.3)'}}>{client.email}</div>}
+            <div style={{padding:'8px 14px 0',display:'flex',gap:12,flexWrap:'wrap',fontSize:11,color:'rgba(255,255,255,0.3)'}}>
+              {client.email&&<span style={{display:'flex',alignItems:'center',gap:4}}><Mail size={10}/>{client.email}</span>}
+              <span style={{display:'flex',alignItems:'center',gap:4}}><Wallet size={10}/>{brl(clientTotal)} em compras</span>
+            </div>
             {client.orders.map(o=>(o.order_batches||[]).map(b=>{
-              const batchExp=expandedBatch===b.id;const isPaid=b.status==='PAID'||b.status==='PAID_CONFIRMED';
-              const sid=String(b.id).slice(0,8).toUpperCase();
-              const mpCode=b.mp_payment_id||b.mp_preference_id||'—';
+              const batchExp=expandedBatch===b.id;const paid=isPaidBatch(b.status);
               const ship=Number(b.shipping_locked||0);
               const valNoShip=b.subtotal_locked?Number(b.subtotal_locked):Number(b.total_locked||0)-ship;
               return(<div key={b.id} style={{padding:'8px 14px',borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
-                <div onClick={async()=>{const next=batchExp?null:b.id;setExpandedBatch(next);if(next)await loadBatchCards(b.id);}} style={{display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer'}}>
-                  <div><span style={{fontSize:12,fontWeight:700,fontFamily:'monospace'}}>#{sid}</span><span style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginLeft:6}}>{b.qty_in_batch} cartas | {new Date(b.confirmed_at||b.created_at||o.created_at).toLocaleDateString('pt-BR')}</span></div>
-                  <div style={{display:'flex',alignItems:'center',gap:6}}>
-                    <span style={{fontSize:12,fontWeight:700}}>R$ {valNoShip.toFixed(2)}</span>
-                    <Tag color={isPaid?'#2ee59d':'#c9a96e'} style={{fontSize:9}}>{isPaid?'Pago':'Pendente'}</Tag>
+                <div onClick={async()=>{const next=batchExp?null:b.id;setExpandedBatch(next);if(next)await loadBatchCards(b.id);}} style={{display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',gap:8}}>
+                  <div style={{minWidth:0}}>
+                    <span style={{fontSize:12,fontWeight:700,fontFamily:'monospace'}}>#{shortBatchId(b.id)}</span>
+                    <span style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginLeft:6}}>{b.qty_in_batch} cartas · {new Date(b.confirmed_at||b.created_at||o.created_at).toLocaleDateString('pt-BR')}</span>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
+                    <Tag color={o.channel==='INDIVIDUAL'?'#a78bfa':theme.primary} style={{fontSize:8,padding:'2px 6px'}}>{CHANNEL_LABEL[o.channel]}</Tag>
+                    <span style={{fontSize:12,fontWeight:700}}>{brl(valNoShip)}</span>
+                    <Tag color={paid?'#2ee59d':'#c9a96e'} style={{fontSize:9}}>{paid?'Pago':'Pendente'}</Tag>
                   </div>
                 </div>
                 {batchExp&&<div style={{marginTop:8,padding:'8px 0'}}>
-                  <div style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginBottom:4}}>Código MP: <span style={{fontFamily:'monospace',color:'rgba(255,255,255,0.5)'}}>{mpCode}</span></div>
-                  <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:4}}>Valor (sem frete): R$ {valNoShip.toFixed(2)}{ship>0&&<span> | Frete: R$ {ship.toFixed(2)}</span>}</div>
+                  <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginBottom:6}}>Valor sem frete: {brl(valNoShip)}{ship>0&&<span> · Frete: {brl(ship)}</span>}</div>
                   {b.shipping_already_paid&&<div style={{fontSize:11,color:'#2ee59d',marginBottom:8,display:'flex',alignItems:'center',gap:4}}><CheckCircle size={11}/> Frete marcado como já pago pelo cliente</div>}
-                  {!b.shipping_already_paid&&ship===0&&b.payment_method==='BONUS'&&<div style={{fontSize:11,color:'rgba(46,229,157,0.6)',marginBottom:8}}>Pedido bônus — frete cobrado normalmente</div>}
                   <div style={{marginBottom:8}}>{(batchCards[b.id]||[]).length>0?batchCards[b.id].map((c,ci)=>(
                     <div key={ci} style={{display:'flex',alignItems:'center',gap:8,padding:'3px 0',fontSize:12,borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
                       <div onClick={e=>{e.stopPropagation();c.image_url&&setZoomSrc(c.image_url);}} style={{width:26,flexShrink:0,cursor:c.image_url?'zoom-in':'default'}}><CardThumb card={c} radius={5}/></div>
@@ -2662,167 +2997,40 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
                       <span style={{fontWeight:700}}>x{c.qty}</span>
                     </div>
                   )):<div style={{fontSize:11,color:'rgba(255,255,255,0.2)'}}>Carregando itens...</div>}</div>
-                  <Btn variant="danger" onClick={e=>{e.stopPropagation();cancelBatch(b.id,isPaid);}} style={{padding:'5px 10px',fontSize:10}} sfx=""><X size={11}/> {isPaid?'Cancelar (reembolso manual MP)':'Cancelar pedido'}</Btn>
+                  {!isCancelledBatch(b.status)&&<Btn variant="danger" onClick={e=>{e.stopPropagation();cancelBatch(b.id,paid);}} style={{padding:'5px 10px',fontSize:10}} sfx=""><X size={11}/> {paid?'Cancelar (reembolso manual MP)':'Cancelar pedido'}</Btn>}
                 </div>}
               </div>);
             }))}
-            {client.whatsapp&&<button onClick={()=>openWhatsAppFor(client)} style={{display:'inline-flex',alignItems:'center',gap:4,margin:'6px 14px 10px',padding:0,border:'none',background:'none',fontSize:11,color:'#25d366',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={12}/> WhatsApp com mensagem</button>}
+            {client.whatsapp&&<button onClick={()=>openWhatsAppFor(client)} style={{display:'inline-flex',alignItems:'center',gap:4,margin:'8px 14px 10px',padding:0,border:'none',background:'none',fontSize:11,color:'#25d366',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={12}/> WhatsApp com mensagem</button>}
             <div style={{padding:'8px 14px',borderTop:'1px solid rgba(255,255,255,0.04)'}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
-                <span style={{fontSize:11,fontWeight:700,color:'#2ee59d'}}><Gift size={11}/> Bônus</span>
+                <span style={{fontSize:11,fontWeight:700,color:'#2ee59d',display:'inline-flex',alignItems:'center',gap:4}}><Gift size={11}/> Bônus{selectedCampaign?` · ${selectedCampaign.name}`:''}</span>
                 {clientBonus>0&&<Tag color="#2ee59d" style={{fontSize:9}}>{clientBonus} disponível</Tag>}
               </div>
-              {adminBonusGrants.filter(g=>g.user_id===client.userId).map(g=>(
-                <div key={g.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'3px 0',fontSize:11,borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
-                  <span style={{color:g.status==='AVAILABLE'?'#2ee59d':g.status==='CONSUMED'?'rgba(255,255,255,0.3)':'rgba(255,255,255,0.15)'}}>{g.bonus_qty} carta(s) — {g.status==='AVAILABLE'?'Disponível':g.status==='CONSUMED'?'Usado':'Expirado'}</span>
-                  {g.status==='AVAILABLE'&&<button onClick={()=>revokeBonus(g.id)} style={{background:'none',border:'none',color:'#ff6b6b',fontSize:10,cursor:'pointer',padding:'2px 4px'}}>Revogar</button>}
-                </div>
-              ))}
-              {bonusForm.userId===client.userId?<div style={{display:'flex',gap:4,marginTop:6}}>
-                <input type="number" min="1" value={bonusForm.qty} onChange={e=>setBonusForm(f=>({...f,qty:Math.max(1,parseInt(e.target.value)||1)}))} style={{width:50,padding:'4px 6px',borderRadius:6,border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.05)',color:'#fff',fontSize:11,textAlign:'center'}}/>
-                <Btn variant="success" onClick={()=>grantBonus(client.userId,bonusForm.qty)} style={{padding:'4px 10px',fontSize:10}} sfx=""><Gift size={10}/> Conceder</Btn>
-                <button onClick={()=>setBonusForm({userId:null,qty:1})} style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',fontSize:10,cursor:'pointer'}}>Cancelar</button>
-              </div>:<Btn variant="secondary" onClick={()=>{setBonusForm({userId:client.userId,qty:1});if(adminBonusGrants.length===0)loadBonusGrants();}} style={{padding:'4px 10px',fontSize:10,marginTop:4}} sfx=""><Gift size={10}/> Dar bônus</Btn>}
-            </div>
-          </div>}
-        </Card>);})}
-    </>}
-
-    {tab==='labels'&&<>
-      {/* Summary bar */}
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
-        <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>
-          <span style={{color:'#c9a96e',fontWeight:700}}>{labelGroups.filter(g=>!g.hasLabel).length}</span> pendentes
-          {' · '}
-          <span style={{color:'#2ee59d',fontWeight:700}}>{labelGroups.filter(g=>g.hasLabel).length}</span> com etiqueta
-        </div>
-        <Btn variant="success" onClick={handleBulkLabels} disabled={labelSelected.size===0} style={{padding:'6px 12px',fontSize:11}} sfx="">
-          <Truck size={12}/> Gerar selecionadas ({labelSelected.size})
-        </Btn>
-      </div>
-
-      {/* Select/deselect pending */}
-      {labelGroups.filter(g=>!g.hasLabel).length>0&&<div style={{marginBottom:6}}>
-        <button onClick={handleToggleAllPendingLabels} style={{padding:'4px 10px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.4)',fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>
-          {labelGroups.filter(g=>!g.hasLabel).every(g=>labelSelected.has(g.key))?'Desmarcar todos':'Selecionar todos pendentes'}
-        </button>
-      </div>}
-
-      {ordersLoading?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:
-      labelGroups.length===0?<EmptyState icon={Truck} title="Nenhum pedido para etiqueta" sub="Pedidos pagos com frete cobrado pelo portal aparecerão aqui"/>:
-      labelGroups.map(group=>{
-        const gs=labelStatus[group.key]||{};
-        const isGroupExp=labelExpanded===group.key;
-        const isSelected=labelSelected.has(group.key);
-        const isGenerating=gs.status==='generating';
-        const isDone=gs.status==='done'||group.hasLabel;
-        const isError=gs.status==='error';
-        const statusColor=isDone?'#2ee59d':isError?'#ff6b7a':isGenerating?'#c9a96e':'rgba(255,255,255,0.2)';
-        const addr=group.address;
-        const addrLine=[addr.rua,addr.numero?'Nº '+addr.numero:'',addr.complemento,addr.bairro,addr.cidade&&addr.uf?addr.cidade+'/'+addr.uf:''].filter(Boolean).join(', ');
-        const labeledBatch=group.batches.find(b=>b.mandabem_rastreamento||b.mandabem_etiqueta||b.mandabem_envio_id);
-
-        return(<Card key={group.key} style={{padding:0,marginBottom:4,borderLeft:'3px solid '+statusColor+'60'}}>
-          {/* Card header row */}
-          <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',cursor:'pointer'}} onClick={()=>setLabelExpanded(isGroupExp?null:group.key)}>
-            {/* Checkbox — only for groups without full label */}
-            {!group.hasLabel&&<input type="checkbox" checked={isSelected} onChange={e=>{e.stopPropagation();setLabelSelected(prev=>{const next=new Set(prev);next.has(group.key)?next.delete(group.key):next.add(group.key);return next;});}} onClick={e=>e.stopPropagation()} style={{width:14,height:14,cursor:'pointer',flexShrink:0}}/>}
-            {group.hasLabel&&<div style={{width:14,height:14,flexShrink:0}}/>}
-
-            {/* Status dot */}
-            <div style={{width:8,height:8,borderRadius:'50%',background:statusColor,flexShrink:0,boxShadow:isDone?'0 0 6px '+statusColor+'80':''}}/>
-
-            {/* Info */}
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:13,fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{group.clientName}</div>
-              <div style={{fontSize:10,color:'rgba(255,255,255,0.35)'}}>
-                {group.batches.length===1?'1 pedido':`${group.batches.length} pedidos agrupados`} · R$ {group.totalValue.toFixed(2)}
-                <span style={{color:group.shippingService===SHIPPING_SERVICE_UNKNOWN?'#c9a96e':'rgba(255,255,255,0.5)'}}> · {group.shippingService==='PACMINI'?'PAC Mini':group.shippingService==='SEDEX'?'Sedex':group.shippingService==='PAC'?'PAC':group.shippingService===SHIPPING_SERVICE_UNKNOWN?'Serviço não identificado':'Identificando serviço...'}</span>
-                {addr.cidade&&<span style={{color:'rgba(255,255,255,0.25)'}}> · {addr.cidade}{addr.uf?' / '+addr.uf:''}{addr.cep?' · CEP '+addr.cep:''}</span>}
-                {isDone&&!isGenerating&&<span style={{color:'#2ee59d'}}> · Etiqueta gerada ✓</span>}
-                {isError&&<span style={{color:'#ff6b7a'}}> · Erro</span>}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
-              {isGenerating&&<Spin size={14}/>}
-              {!isDone&&!isGenerating&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleGroupLabel(group.key);}} style={{padding:'5px 9px',fontSize:10}} sfx=""><Truck size={10}/> Gerar</Btn>}
-              {isError&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleGroupLabel(group.key);}} style={{padding:'5px 9px',fontSize:10,background:'rgba(217,68,82,0.1)',border:'1px solid rgba(217,68,82,0.2)',color:'#ff6b7a'}} sfx=""><RefreshCw size={10}/> Tentar novamente</Btn>}
-              {isDone&&!isGenerating&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleGroupLabel(group.key,true);}} style={{padding:'5px 9px',fontSize:10,opacity:0.55}} sfx=""><RefreshCw size={10}/> Regerar</Btn>}
-              <ChevronRight size={12} style={{color:'rgba(255,255,255,0.15)',transform:isGroupExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
-            </div>
-          </div>
-
-          {/* Expanded detail */}
-          {isGroupExp&&<div style={{borderTop:'1px solid rgba(255,255,255,0.04)',padding:'10px 14px'}}>
-            {/* Contact + address */}
-            <div style={{display:'flex',flexDirection:'column',gap:3,marginBottom:10}}>
-              {group.email&&<div style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:'rgba(255,255,255,0.35)'}}><Mail size={10}/>{group.email}</div>}
-              {group.whatsapp&&<div style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:'rgba(255,255,255,0.35)'}}><Phone size={10}/>{group.whatsapp}</div>}
-              {addrLine&&<div style={{display:'flex',alignItems:'flex-start',gap:5,fontSize:11,color:'rgba(255,255,255,0.35)'}}><MapPin size={10} style={{marginTop:1,flexShrink:0}}/><span>{addrLine}{addr.cep?<span style={{color:'rgba(255,255,255,0.2)'}}> · CEP {addr.cep}</span>:null}</span></div>}
-            </div>
-
-            {/* Error message */}
-            {isError&&<div style={{padding:'7px 10px',borderRadius:8,background:'rgba(217,68,82,0.08)',border:'1px solid rgba(217,68,82,0.18)',marginBottom:10,fontSize:11,color:'#ff9090',lineHeight:1.5}}>
-              <b>Erro ao gerar etiqueta:</b> {gs.message}
-            </div>}
-
-            {/* Batches list */}
-            <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.3)',marginBottom:5}}>Pedidos incluídos:</div>
-            {group.batches.map(b=>{
-              const bSid=String(b.id).slice(0,8).toUpperCase();
-              return(<div key={b.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 0',fontSize:11,borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
-                <span style={{fontFamily:'monospace',color:'rgba(255,255,255,0.5)'}}>#{bSid}</span>
-                <span style={{color:'rgba(255,255,255,0.35)'}}>{b.qty_in_batch} cartas</span>
-                <span style={{fontWeight:700,color:b.status==='PAID'||b.status==='PAID_CONFIRMED'?'#2ee59d':'rgba(255,255,255,0.4)'}}>R$ {Number(b.total_locked||0).toFixed(2)}</span>
-                {b.mandabem_envio_id?<Tag color="#2ee59d" style={{fontSize:8,padding:'2px 5px'}}>✓ etiqueta</Tag>:<Tag color="rgba(255,255,255,0.2)" style={{fontSize:8,padding:'2px 5px'}}>sem etiqueta</Tag>}
-              </div>);
-            })}
-
-            {/* Label info if already generated */}
-            {labeledBatch&&<div style={{marginTop:10,padding:'8px 10px',borderRadius:8,background:'rgba(46,229,157,0.06)',border:'1px solid rgba(46,229,157,0.14)'}}>
-              <div style={{fontSize:9,color:'rgba(46,229,157,0.6)',marginBottom:4}}>MandaBem · Código de rastreamento</div>
-              {[labeledBatch].map(b=>(
-                <div key={b.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:3}}>
-                  <div>
-                    {(b.mandabem_rastreamento||b.mandabem_etiqueta)&&<div style={{fontSize:12,fontFamily:'monospace',fontWeight:800,color:'#2ee59d'}}>{b.mandabem_rastreamento||b.mandabem_etiqueta}</div>}
-                    <div style={{fontSize:10,color:'rgba(255,255,255,0.3)'}}>{b.mandabem_status||'Envio gerado'}{b.mandabem_envio_id&&<span> · ID {b.mandabem_envio_id}</span>}</div>
+              {!selectedCampaign?<div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>Selecione uma encomenda para conceder bônus.</div>:<>
+                {adminBonusGrants.filter(g=>g.user_id===client.userId).map(g=>(
+                  <div key={g.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'3px 0',fontSize:11,borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
+                    <span style={{color:g.status==='AVAILABLE'?'#2ee59d':'rgba(255,255,255,0.25)'}}>{g.bonus_qty} carta(s) — {g.status==='AVAILABLE'?'Disponível':g.status==='CONSUMED'||g.status==='USED'?'Usado':'Expirado'}</span>
+                    {g.status==='AVAILABLE'&&<button onClick={()=>revokeBonus(g.id)} style={{background:'none',border:'none',color:'#ff6b6b',fontSize:10,cursor:'pointer',padding:'2px 4px'}}>Revogar</button>}
                   </div>
-                  {(b.mandabem_rastreamento||b.mandabem_etiqueta)&&<div style={{display:'flex',gap:5,flexShrink:0}}>
-                    <button title="Copiar rastreamento" onClick={()=>{navigator.clipboard.writeText(b.mandabem_rastreamento||b.mandabem_etiqueta);SFX.success();}} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,padding:'3px 6px',color:'rgba(255,255,255,0.4)',fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><Copy size={10}/></button>
-                    {group.whatsapp&&<button title="Enviar rastreamento no WhatsApp" onClick={()=>openShipmentWhatsAppFor({...b,clientName:group.clientName,clientWhatsapp:group.whatsapp})} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(37,211,102,0.08)',border:'1px solid rgba(37,211,102,0.18)',borderRadius:6,padding:'3px 6px',color:'#25d366',fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={10}/> Enviar</button>}
-                  </div>}
-                </div>
-              ))}
-            </div>}
+                ))}
+                {bonusForm.userId===client.userId?<div style={{display:'flex',gap:4,marginTop:6}}>
+                  <input type="number" min="1" value={bonusForm.qty} onChange={e=>setBonusForm(f=>({...f,qty:Math.max(1,parseInt(e.target.value)||1)}))} style={{width:50,padding:'4px 6px',borderRadius:6,border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.05)',color:'#fff',fontSize:11,textAlign:'center'}}/>
+                  <Btn variant="success" onClick={()=>grantBonus(client.userId,bonusForm.qty)} style={{padding:'4px 10px',fontSize:10}} sfx=""><Gift size={10}/> Conceder</Btn>
+                  <button onClick={()=>setBonusForm({userId:null,qty:1})} style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',fontSize:10,cursor:'pointer'}}>Cancelar</button>
+                </div>:<Btn variant="secondary" onClick={()=>{setBonusForm({userId:client.userId,qty:1});if(adminBonusGrants.length===0)loadBonusGrants();}} style={{padding:'4px 10px',fontSize:10,marginTop:4}} sfx=""><Gift size={10}/> Dar bônus</Btn>}
+              </>}
+            </div>
           </div>}
         </Card>);
       })}
-    </>}
+    </div>);
+  }
 
-    {tab==='list'&&<Card style={{padding:16}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
-        <SectionTitle sub="Todas as cartas dos pedidos pagos em sequência">Lista Final</SectionTitle>
-        <Btn variant="secondary" onClick={loadFinalList} disabled={listLoading} style={{padding:'6px 12px',fontSize:11,flexShrink:0}} sfx="click">{listLoading?<Spin size={12}/>:<><RefreshCw size={12}/> Atualizar</>}</Btn>
-      </div>
-      {finalList.length>0?<>
-        <div style={{fontSize:14,fontWeight:800,color:theme.primary,marginBottom:8}}>{finalList.reduce((s,c)=>s+c.qty,0)} cartas no total</div>
-        <div style={{maxHeight:400,overflowY:'auto',marginBottom:10}}>{finalList.map((c,i)=>(
-          <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'4px 0',fontSize:12,borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
-            <div onClick={()=>c.image_url&&setZoomSrc(c.image_url)} style={{width:26,flexShrink:0,cursor:c.image_url?'zoom-in':'default'}}><CardThumb card={c} radius={5}/></div>
-            <span style={{flex:1,minWidth:0,color:'rgba(255,255,255,0.5)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.qty}x {c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
-            <span style={{fontSize:10,color:'rgba(255,255,255,0.2)',whiteSpace:'nowrap'}}>{c.userName}</span>
-          </div>
-        ))}</div>
-        <Btn full variant="success" onClick={copyFinalList} sfx="">{copied?<><Check size={14}/> Copiado!</>:<><Copy size={14}/> Copiar lista</>}</Btn>
-      </>:<div style={{fontSize:12,color:'rgba(255,255,255,0.2)',textAlign:'center',padding:20}}>{listLoading?<Spin size={20}/>:'Clique em "Atualizar" para gerar a lista'}</div>}
-    </Card>}
-
-    {tab==='config'&&<>
-      {/* Importar catálogo de Magic via CSV do fornecedor */}
-      <Card style={{padding:16}}>
-        <SectionTitle sub="Substitui o catálogo de cartas de Magic a partir do CSV do fornecedor">Importar Catálogo (CSV)</SectionTitle>
+  // ─── Seção: Catálogo ───────────────────────────────
+  function renderCatalog(){
+    return(<div style={{display:'flex',flexDirection:'column',gap:10}}>
+      <AdminPanel title="Importar catálogo (CSV)" sub="Substitui o catálogo de Magic a partir do CSV do fornecedor" icon={Upload} accent={theme.primary}>
         <div style={{fontSize:12,color:'rgba(255,255,255,0.3)',marginBottom:12,lineHeight:1.5}}>O CSV deve ter as colunas <b>name, price, original_price, category, image_file</b>. As imagens devem estar no bucket <b>cards</b> com o mesmo nome do <b>image_file</b>. Re-enviar o mesmo CSV atualiza preços/imagens (não duplica).</div>
         <label style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'12px',borderRadius:10,border:'1px dashed rgba(255,255,255,0.15)',background:'rgba(255,255,255,0.02)',color:'rgba(255,255,255,0.5)',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>
           <Upload size={15}/>{importFileName||'Escolher arquivo CSV'}
@@ -2841,12 +3049,10 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         {importResult&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:10,background:'rgba(74,222,128,0.08)',border:'1px solid rgba(74,222,128,0.2)',fontSize:12,color:'rgba(255,255,255,0.7)',lineHeight:1.6}}>
           <Check size={13} style={{verticalAlign:'middle',color:'#4ade80'}}/> Importado: <b>{importResult.upserted}</b> cartas{importResult.deactivated>0?<> · {importResult.deactivated} antigas desativadas</>:null}{importResult.skipped>0?<> · {importResult.skipped} ignoradas</>:null}
         </div>}
-      </Card>
+      </AdminPanel>
 
-      {/* Adicionar cartas avulsas por link de imagem (ex: Google Imagens) */}
-      <Card style={{padding:16}}>
-        <SectionTitle sub="Cola uma lista com nome + link da imagem — o servidor baixa e sobe a imagem automaticamente">Adicionar Cartas por Link</SectionTitle>
-        <div style={{fontSize:12,color:'rgba(255,255,255,0.3)',marginBottom:12,lineHeight:1.5}}>Uma carta por linha, no formato <b>Nome da carta | link da imagem</b>. Aceita link direto da imagem ou link de resultado do Google Imagens (a URL real é extraída automaticamente). Máximo de 25 cartas por vez. O TCG e o tipo abaixo valem para todas as cartas desta lista.</div>
+      <AdminPanel title="Adicionar cartas por link" sub="Cole nome + link da imagem — o servidor baixa e sobe a imagem" icon={Plus} accent="#a78bfa">
+        <div style={{fontSize:12,color:'rgba(255,255,255,0.3)',marginBottom:12,lineHeight:1.5}}>Uma carta por linha, no formato <b>Nome da carta | link da imagem</b>. Aceita link direto ou resultado do Google Imagens. Máximo de 25 cartas por vez. O TCG e o tipo abaixo valem para toda a lista.</div>
         <div style={{display:'flex',gap:8,marginBottom:10}}>
           <select value={linkTcg} onChange={e=>{const tcg=e.target.value;setLinkTcg(tcg);const opts=(TCG_LIST.find(t=>t.key===tcg)?.types||[]).filter(t=>t!=='Todos');setLinkType(opts[0]||'Normal');}} style={{flex:1,padding:'10px 8px',borderRadius:12,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:11,fontFamily:"'Outfit',sans-serif",outline:'none',cursor:'pointer'}}>
             {TCG_LIST.map(t=><option key={t.key} value={t.key}>{t.key}</option>)}
@@ -2855,7 +3061,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
             {linkTypeOptions.map(t=><option key={t} value={t}>{t}</option>)}
           </select>
         </div>
-        <textarea value={linkListText} onChange={e=>onLinkListChange(e.target.value)} placeholder={'Aragorn, King of Gondor | https://exemplo.com/aragorn.jpg\nSauron, the Dark Lord | https://www.google.com/imgres?imgurl=...'} rows={6} style={{width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.02)',color:'#fff',fontSize:12,fontFamily:'monospace',resize:'vertical',boxSizing:'border-box'}}/>
+        <textarea value={linkListText} onChange={e=>onLinkListChange(e.target.value)} placeholder={'Aragorn, King of Gondor | https://exemplo.com/aragorn.jpg'} rows={6} style={{width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.02)',color:'#fff',fontSize:12,fontFamily:'monospace',resize:'vertical',boxSizing:'border-box'}}/>
         {linkPreview&&<div style={{marginTop:12,padding:'10px 12px',borderRadius:10,background:'rgba(255,255,255,0.03)',fontSize:12,color:'rgba(255,255,255,0.55)',lineHeight:1.6}}>
           <div><b style={{color:theme.primary}}>{linkPreview.items.length}</b> carta(s) válida(s) de {linkPreview.total} linha(s){linkPreview.invalid.length>0?<> · <span style={{color:'#d9a452'}}>{linkPreview.invalid.length} com erro</span></>:null}</div>
           {linkPreview.invalid.length>0&&<div style={{marginTop:4,fontSize:11,color:'#d9a452'}}>{linkPreview.invalid.map((inv,i)=><div key={i}>· {inv.raw||'(linha vazia)'}: {inv.error}</div>)}</div>}
@@ -2865,93 +3071,250 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
           <Check size={13} style={{verticalAlign:'middle',color:'#4ade80'}}/> Adicionadas: <b>{linkResult.added}</b> carta(s){linkResult.failed>0?<> · {linkResult.failed} falharam</>:null}
           {linkResult.results.filter(r=>!r.ok).map((r,i)=><div key={i} style={{marginTop:4,fontSize:11,color:'#ff6b7a'}}>· {r.name||r.url}: {r.error}</div>)}
         </div>}
-      </Card>
+      </AdminPanel>
+    </div>);
+  }
 
-      {/* Preços por Tipo de Carta — nova lógica simplificada */}
-      <Card style={{padding:16}}>
-        <SectionTitle sub="Preço fixo em R$ por tipo de carta">Preços por Tipo de Carta</SectionTitle>
-        <div style={{fontSize:12,color:'rgba(255,255,255,0.3)',marginBottom:12,lineHeight:1.5}}>Estes são os preços que o cliente paga por carta, dependendo do tipo. Mínimo de {MIN_ORDER_CARDS} cartas por pedido.</div>
-        {[
-          {k:'normal_price_brl',l:'Carta Normal',desc:'Cartas comuns, não-foil',color:'rgba(255,255,255,0.6)',def:16},
-          {k:'ouro_price_brl',l:'Carta Ouro / Holo',desc:'Cartas especiais (Holo)',color:'#c9a96e',def:16},
-          {k:'foil_price_brl',l:'Carta Foil',desc:'Cartas foil de qualquer tipo',color:'#d94452',def:18},
-        ].map(({k,l,desc,color,def})=>(<div key={k} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
-          <div><div style={{fontSize:13,fontWeight:600,color}}>{l}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{desc}</div></div>
-          <div style={{display:'flex',alignItems:'center',gap:6}}>
-            <span style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>R$</span>
-            <input type="number" step="0.50" min="0" value={editPricing[k]??def} onChange={e=>setEditPricing(p=>({...p,[k]:parseFloat(e.target.value)||0}))} style={{width:70,padding:'7px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontWeight:800,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/>
+  // ─── Seção: Encomendas (campanhas coletivas) ───────
+  function renderCampaigns(){
+    const campaignCard=(c,finalized)=>{
+      const isSel=selectedCampaign?.id===c.id;
+      return(<Card key={c.id} onClick={()=>{SFX.click();setSelectedCampaign(c);}} style={{padding:'11px 14px',cursor:'pointer',marginBottom:4,opacity:finalized?0.6:1,border:'1px solid '+(isSel?theme.primary+'45':'rgba(255,255,255,0.06)'),background:isSel?theme.primary+'0d':undefined}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
+          <div style={{minWidth:0}}>
+            <div style={{fontWeight:700,fontSize:14,display:'flex',alignItems:'center',gap:6}}>{c.name}{isSel&&<Tag color={theme.primary} style={{fontSize:8,padding:'2px 6px'}}>em contexto</Tag>}</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>criada em {new Date(c.created_at).toLocaleDateString('pt-BR')}{c.close_at?` · fecha ${new Date(c.close_at).toLocaleDateString('pt-BR')}`:''}</div>
           </div>
-        </div>))}
-        <Btn full variant="success" onClick={savePricing} disabled={saving} style={{marginTop:12}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar preços</>}</Btn>
-      </Card>
+          <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
+            <Tag color={finalized?'rgba(255,255,255,0.3)':'#2ee59d'} style={{fontSize:10}}>{CAMPAIGN_STATUS_LABELS[c.status]||c.status}</Tag>
+            {finalized&&<button onClick={e=>{e.stopPropagation();deleteCampaign(c.id,c.name);}} style={{background:'rgba(217,68,82,0.1)',border:'1px solid rgba(217,68,82,0.15)',borderRadius:8,padding:'5px 7px',cursor:'pointer',color:'#ff6b7a',display:'grid',placeItems:'center',flexShrink:0}}><Trash2 size={13}/></button>}
+          </div>
+        </div>
+      </Card>);
+    };
 
-      {/* Precificação do Pedido Individual */}
-      {indivCfg&&<Card style={{padding:16}}>
-        <SectionTitle sub="Desconto por volume — preço/carta = custo × multiplicador × dólar, com piso por tipo">Pedido Individual</SectionTitle>
-        <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginBottom:12}}>Dólar do dia em uso: <b style={{color:theme.primary}}>R$ {indivFx?Number(indivFx.rate).toFixed(2):'—'}</b>{indivFx?<span style={{opacity:0.6}}> ({indivFx.source})</span>:null}</div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
-          {[
-            {k:'multiplier',l:'Multiplicador',step:'0.1'},
-            {k:'min_cards',l:'Mínimo de cartas',step:'1'},
-            {k:'normal_floor_brl',l:'Piso Normal (R$)',step:'0.5'},
-            {k:'holo_floor_brl',l:'Piso Holo (R$)',step:'0.5'},
-            {k:'foil_floor_brl',l:'Piso Foil (R$)',step:'0.5'},
-            {k:'fx_fallback_rate',l:'Dólar fallback',step:'0.01'},
-          ].map(({k,l,step})=>(<div key={k}>
-            <label style={{fontSize:10,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>{l}</label>
-            <input type="number" step={step} min="0" value={indivCfg[k]??''} onChange={e=>setIndivCfg(c=>({...c,[k]:e.target.value===''?'':Number(e.target.value)}))} style={{width:'100%',padding:'8px 10px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontWeight:700,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/>
-          </div>))}
-        </div>
-        <div style={{fontSize:11,color:'rgba(255,255,255,0.4)',fontWeight:700,margin:'6px 0 4px'}}>Faixas de volume (custo USD/carta)</div>
-        <div style={{display:'flex',flexDirection:'column',gap:4}}>
-          <div style={{display:'flex',gap:6,fontSize:9,color:'rgba(255,255,255,0.25)',padding:'0 2px'}}><span style={{flex:1}}>Mín</span><span style={{flex:1}}>Máx (vazio=∞)</span><span style={{flex:1}}>USD/carta</span><span style={{width:28}}/></div>
-          {indivTiers.map((t,idx)=>(<div key={idx} style={{display:'flex',gap:6,alignItems:'center'}}>
-            {['min_qty','max_qty','usd_per_card'].map(field=>(
-              <input key={field} type="number" step={field==='usd_per_card'?'0.01':'1'} value={t[field]??''} onChange={e=>{const v=e.target.value;setIndivTiers(ts=>ts.map((x,i)=>i===idx?{...x,[field]:v===''?(field==='max_qty'?null:''):Number(v)}:x));}} style={{flex:1,minWidth:0,padding:'6px 8px',borderRadius:7,border:'1px solid rgba(255,255,255,0.07)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:12,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/>
-            ))}
-            <button onClick={()=>setIndivTiers(ts=>ts.filter((_,i)=>i!==idx))} title="Remover" style={{width:28,height:28,flexShrink:0,borderRadius:7,border:'1px solid rgba(217,68,82,0.15)',background:'rgba(217,68,82,0.08)',color:'#ff6b7a',cursor:'pointer',display:'grid',placeItems:'center'}}><Trash2 size={12}/></button>
-          </div>))}
-        </div>
-        <Btn full variant="ghost" onClick={()=>setIndivTiers(ts=>[...ts,{min_qty:'',max_qty:null,usd_per_card:''}])} style={{marginTop:8}} sfx=""><Plus size={13}/> Adicionar faixa</Btn>
-        <Btn full variant="success" onClick={saveIndividualPricing} disabled={savingIndiv} style={{marginTop:8}} sfx="">{savingIndiv?<Spin size={14}/>:<><Check size={14}/> Salvar pedido individual</>}</Btn>
-      </Card>}
+    return(<div style={{display:'flex',flexDirection:'column',gap:10}}>
+      <AdminPanel title="Encomendas coletivas" sub="A encomenda selecionada define o contexto de pedidos, envios e bônus" icon={Calendar} accent={theme.primary}
+        right={<button onClick={()=>setShowCreateForm(v=>!v)} style={{width:30,height:30,borderRadius:9,border:'1px solid '+theme.primary+'30',background:theme.primary+'15',color:theme.primary,fontSize:18,display:'grid',placeItems:'center',cursor:'pointer'}}>{showCreateForm?'×':'+'}</button>}>
+        {showCreateForm&&<div style={{marginBottom:14,padding:'12px',borderRadius:12,background:'rgba(0,0,0,0.22)',border:'1px solid rgba(255,255,255,0.05)'}}>
+          <div style={{fontSize:12,fontWeight:700,marginBottom:10}}>Nova encomenda</div>
+          <AdminField label="Nome"><input value={newCamp.name} onChange={e=>setNewCamp(c=>({...c,name:e.target.value}))} placeholder="Ex: Encomenda Abril 26" style={adminInputStyle}/></AdminField>
+          <AdminField label="Status inicial">
+            <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>{CAMPAIGN_STATUSES.map(s=>(<button key={s} onClick={()=>setNewCamp(c=>({...c,status:s}))} style={{padding:'5px 9px',borderRadius:8,border:'1px solid '+(newCamp.status===s?theme.primary+'35':'rgba(255,255,255,0.06)'),background:newCamp.status===s?theme.primary+'15':'rgba(255,255,255,0.02)',color:newCamp.status===s?theme.primary:'rgba(255,255,255,0.3)',fontSize:10,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{CAMPAIGN_STATUS_LABELS[s]||s}</button>))}</div>
+          </AdminField>
+          <AdminField label="Data prevista de fechamento" hint="Não é encerramento automático. A encomenda só fecha quando a meta mínima for atingida.">
+            <input type="date" value={newCamp.close_at} onChange={e=>setNewCamp(c=>({...c,close_at:e.target.value}))} style={adminInputStyle}/>
+          </AdminField>
+          <AdminField label="Meta mínima de cartas pagas" hint="Mínimo de cartas para a encomenda ser confirmada (padrão: 150).">
+            <input type="number" value={newCamp.min_cards} onChange={e=>setNewCamp(c=>({...c,min_cards:parseInt(e.target.value)||150}))} style={adminInputStyle}/>
+          </AdminField>
+          <Btn full variant="success" onClick={createCampaign} disabled={creating} sfx="">{creating?<Spin size={14}/>:<><Check size={14}/> Criar encomenda</>}</Btn>
+        </div>}
 
-      {/* Configuração da encomenda ativa */}
-      {selectedCampaign&&!isFinalized&&<Card style={{padding:16}}>
-        <SectionTitle sub="Parâmetros da encomenda selecionada">Configuração da Encomenda</SectionTitle>
-        {[
-          {k:'name',l:'Nome',t:'text'},
-          {k:'close_at',l:'Data prevista de fechamento',t:'date'},
-          {k:'min_cards',l:'Meta mínima (cartas pagas)',t:'number'},
-          {k:'max_cards',l:'Limite máximo (cartas)',t:'number'},
-        ].map(({k,l,t})=>(<div key={k} style={{marginBottom:10}}>
-          <label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>{l}</label>
-          <input type={t} value={k==='close_at'?(editCamp[k]?String(editCamp[k]).slice(0,10):''):(editCamp[k]||'')} onChange={e=>setEditCamp(c=>({...c,[k]:t==='number'?parseInt(e.target.value)||0:e.target.value}))} style={{width:'100%',padding:'9px 12px',borderRadius:10,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:13,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/>
-          {k==='close_at'&&<div style={{fontSize:10,color:'rgba(255,255,255,0.2)',marginTop:3}}>Data prevista de fechamento. Não é encerramento automático — a encomenda só fecha quando a meta for atingida.</div>}
-          {k==='min_cards'&&<div style={{fontSize:10,color:'rgba(255,255,255,0.2)',marginTop:3}}>Mínimo de cartas pagas para a encomenda ser confirmada.</div>}
-        </div>))}
-        <div style={{marginBottom:10}}>
-          <label style={{fontSize:11,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>Status</label>
-          <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>{CAMPAIGN_STATUSES.map(s=>(<button key={s} onClick={()=>setEditCamp(c=>({...c,status:s}))} style={{padding:'5px 10px',borderRadius:8,border:'1px solid '+(editCamp.status===s?theme.primary+'30':'rgba(255,255,255,0.06)'),background:editCamp.status===s?theme.primary+'15':'rgba(255,255,255,0.02)',color:editCamp.status===s?theme.primary:'rgba(255,255,255,0.3)',fontSize:10,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{s}</button>))}</div>
-        </div>
+        {loading?<div style={{textAlign:'center',padding:20}}><Spin size={22}/></div>:<>
+          {activeCampaigns.length>0&&<><div style={{fontSize:11,fontWeight:700,color:theme.primary,marginBottom:5}}>Ativas</div>{activeCampaigns.map(c=>campaignCard(c,false))}</>}
+          {finalizedCampaigns.length>0&&<><div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.3)',margin:'10px 0 5px'}}>Finalizadas</div>{finalizedCampaigns.map(c=>campaignCard(c,true))}</>}
+          {campaigns.length===0&&<EmptyState icon={Calendar} title="Nenhuma encomenda" sub="Crie a primeira encomenda coletiva no + acima"/>}
+        </>}
+      </AdminPanel>
+
+      {selectedCampaign&&!isFinalized&&<AdminPanel title="Configuração da encomenda" sub={selectedCampaign.name} icon={Settings} accent={theme.primary}>
+        <AdminField label="Nome"><input value={editCamp.name||''} onChange={e=>setEditCamp(c=>({...c,name:e.target.value}))} style={adminInputStyle}/></AdminField>
+        <AdminField label="Data prevista de fechamento" hint="Não é encerramento automático — a encomenda só fecha quando a meta for atingida.">
+          <input type="date" value={editCamp.close_at?String(editCamp.close_at).slice(0,10):''} onChange={e=>setEditCamp(c=>({...c,close_at:e.target.value}))} style={adminInputStyle}/>
+        </AdminField>
+        <AdminField label="Meta mínima (cartas pagas)" hint="Mínimo de cartas pagas para a encomenda ser confirmada.">
+          <input type="number" value={editCamp.min_cards||''} onChange={e=>setEditCamp(c=>({...c,min_cards:parseInt(e.target.value)||0}))} style={adminInputStyle}/>
+        </AdminField>
+        <AdminField label="Limite máximo (cartas)">
+          <input type="number" value={editCamp.max_cards||''} onChange={e=>setEditCamp(c=>({...c,max_cards:parseInt(e.target.value)||0}))} style={adminInputStyle}/>
+        </AdminField>
+        <AdminField label="Status">
+          <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>{CAMPAIGN_STATUSES.map(s=>(<button key={s} onClick={()=>setEditCamp(c=>({...c,status:s}))} style={{padding:'5px 9px',borderRadius:8,border:'1px solid '+(editCamp.status===s?theme.primary+'35':'rgba(255,255,255,0.06)'),background:editCamp.status===s?theme.primary+'15':'rgba(255,255,255,0.02)',color:editCamp.status===s?theme.primary:'rgba(255,255,255,0.3)',fontSize:10,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{CAMPAIGN_STATUS_LABELS[s]||s}</button>))}</div>
+        </AdminField>
         <Btn full variant="success" onClick={saveCampaign} disabled={saving} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar encomenda</>}</Btn>
-      </Card>}
+      </AdminPanel>}
 
-      {/* Arquivar / excluir */}
-      {selectedCampaign&&<>
-        {!isFinalized&&<Card style={{padding:16,marginTop:4}}>
-          <SectionTitle sub="Finaliza a encomenda e arquiva">Finalizar Encomenda</SectionTitle>
-          {!showArchiveConfirm?<Btn full variant="danger" onClick={()=>setShowArchiveConfirm(true)} sfx=""><Archive size={14}/> Arquivar encomenda</Btn>:<>
-            <div style={{fontSize:13,color:'rgba(255,255,255,0.55)',marginBottom:12,lineHeight:1.5}}>Isso marcará a campanha como DONE e excluirá todos os dados de pedidos e bônus. <b style={{color:'#ff6b7a'}}>Não pode ser desfeito.</b></div>
+      <AdminPanel title="Lista de compra" sub="Todas as cartas dos pedidos pagos da encomenda selecionada, em sequência" icon={ScrollText} accent="#c9a96e"
+        right={<Btn variant="secondary" onClick={loadFinalList} disabled={listLoading||!selectedCampaign} style={{padding:'6px 11px',fontSize:11}} sfx="click">{listLoading?<Spin size={12}/>:<><RefreshCw size={12}/> Gerar</>}</Btn>}>
+        {!selectedCampaign?<div style={{fontSize:12,color:'rgba(255,255,255,0.3)'}}>Selecione uma encomenda acima para gerar a lista.</div>:
+        finalList.length>0?<>
+          <div style={{fontSize:14,fontWeight:800,color:theme.primary,marginBottom:8}}>{finalList.reduce((s,c)=>s+c.qty,0)} cartas no total</div>
+          <div style={{maxHeight:380,overflowY:'auto',marginBottom:10}}>{finalList.map((c,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'4px 0',fontSize:12,borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
+              <div onClick={()=>c.image_url&&setZoomSrc(c.image_url)} style={{width:26,flexShrink:0,cursor:c.image_url?'zoom-in':'default'}}><CardThumb card={c} radius={5}/></div>
+              <span style={{flex:1,minWidth:0,color:'rgba(255,255,255,0.5)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.qty}x {c.name} <span style={{color:TC[c.type]||'rgba(255,255,255,0.3)',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
+              <span style={{fontSize:10,color:'rgba(255,255,255,0.2)',whiteSpace:'nowrap'}}>{c.userName}</span>
+            </div>
+          ))}</div>
+          <Btn full variant="success" onClick={copyFinalList} sfx="">{copied?<><Check size={14}/> Copiado!</>:<><Copy size={14}/> Copiar lista</>}</Btn>
+        </>:<div style={{fontSize:12,color:'rgba(255,255,255,0.2)',textAlign:'center',padding:16}}>{listLoading?<Spin size={20}/>:'Clique em "Gerar" para montar a lista de compra'}</div>}
+      </AdminPanel>
+
+      {selectedCampaign&&<AdminPanel title="Encerrar encomenda" sub="Arquiva a encomenda e libera espaço para a próxima" icon={Archive} accent="#ff6b7a">
+        {!isFinalized?(!showArchiveConfirm
+          ? <Btn full variant="danger" onClick={()=>setShowArchiveConfirm(true)} sfx=""><Archive size={14}/> Arquivar encomenda</Btn>
+          : <>
+            <div style={{fontSize:13,color:'rgba(255,255,255,0.55)',marginBottom:12,lineHeight:1.5}}>Isso marcará a encomenda como concluída e excluirá todos os dados de pedidos e bônus dela. <b style={{color:'#ff6b7a'}}>Não pode ser desfeito.</b></div>
             <div style={{display:'flex',gap:8}}>
               <Btn variant="secondary" onClick={()=>setShowArchiveConfirm(false)} style={{flex:1}} sfx="">Cancelar</Btn>
               <Btn variant="danger" onClick={archiveCampaign} disabled={archiving} style={{flex:1}} sfx="">{archiving?<Spin size={14}/>:'Sim, finalizar'}</Btn>
             </div>
-          </>}
-        </Card>}
-        {isFinalized&&<Btn full variant="danger" onClick={deleteCampaign} style={{marginTop:4}} sfx=""><Trash2 size={14}/> Excluir encomenda permanentemente</Btn>}
+          </>)
+        : <Btn full variant="danger" onClick={()=>deleteCampaign(selectedCampaign.id,selectedCampaign.name)} sfx=""><Trash2 size={14}/> Excluir encomenda permanentemente</Btn>}
+      </AdminPanel>}
+    </div>);
+  }
+
+  // ─── Seção: Ajustes ────────────────────────────────
+  function renderSettings(){
+    return(<div style={{display:'flex',flexDirection:'column',gap:10}}>
+      <AdminPills
+        options={[{key:'prices',label:'Preços',icon:DollarSign},{key:'notifications',label:'Notificações',icon:Bell},{key:'about',label:'Sobre',icon:HelpCircle}]}
+        value={settingsTab} onChange={setSettingsTab}/>
+
+      {settingsTab==='prices'&&<>
+        <AdminPanel title="Preços da Encomenda Coletiva" sub={`Preço fixo em R$ por tipo de carta. Mínimo de ${MIN_ORDER_CARDS} cartas por pedido.`} icon={Store} accent={theme.primary}>
+          {[
+            {k:'normal_price_brl',l:'Carta Normal',desc:'Cartas comuns, não-foil',color:'rgba(255,255,255,0.6)',def:16},
+            {k:'ouro_price_brl',l:'Carta Ouro / Holo',desc:'Cartas especiais (Holo)',color:'#c9a96e',def:16},
+            {k:'foil_price_brl',l:'Carta Foil',desc:'Cartas foil de qualquer tipo',color:'#d94452',def:18},
+          ].map(({k,l,desc,color,def})=>(<div key={k} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+            <div><div style={{fontSize:13,fontWeight:600,color}}>{l}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.25)'}}>{desc}</div></div>
+            <div style={{display:'flex',alignItems:'center',gap:6}}>
+              <span style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>R$</span>
+              <input type="number" step="0.50" min="0" value={editPricing[k]??def} onChange={e=>setEditPricing(p=>({...p,[k]:parseFloat(e.target.value)||0}))} style={{width:74,padding:'7px 8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.08)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:14,fontWeight:800,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/>
+            </div>
+          </div>))}
+          <Btn full variant="success" onClick={savePricing} disabled={saving} style={{marginTop:12}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar preços</>}</Btn>
+        </AdminPanel>
+
+        {indivCfg&&<AdminPanel title="Preços do Pedido Individual" sub="Desconto por volume — preço/carta = custo × multiplicador × dólar, com piso por tipo" icon={User} accent="#a78bfa">
+          <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginBottom:12}}>Dólar do dia em uso: <b style={{color:theme.primary}}>R$ {indivFx?Number(indivFx.rate).toFixed(2):'—'}</b>{indivFx?<span style={{opacity:0.6}}> ({indivFx.source})</span>:null}</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
+            {[
+              {k:'multiplier',l:'Multiplicador',step:'0.1'},
+              {k:'min_cards',l:'Mínimo de cartas',step:'1'},
+              {k:'normal_floor_brl',l:'Piso Normal (R$)',step:'0.5'},
+              {k:'holo_floor_brl',l:'Piso Holo (R$)',step:'0.5'},
+              {k:'foil_floor_brl',l:'Piso Foil (R$)',step:'0.5'},
+              {k:'fx_fallback_rate',l:'Dólar fallback',step:'0.01'},
+            ].map(({k,l,step})=>(<div key={k}>
+              <label style={{fontSize:10,color:'rgba(255,255,255,0.3)',display:'block',marginBottom:3}}>{l}</label>
+              <input type="number" step={step} min="0" value={indivCfg[k]??''} onChange={e=>setIndivCfg(c=>({...c,[k]:e.target.value===''?'':Number(e.target.value)}))} style={{...adminInputStyle,fontSize:14,fontWeight:700,padding:'8px 10px'}}/>
+            </div>))}
+          </div>
+          <div style={{fontSize:11,color:'rgba(255,255,255,0.4)',fontWeight:700,margin:'6px 0 4px'}}>Faixas de volume (custo USD/carta)</div>
+          <div style={{display:'flex',flexDirection:'column',gap:4}}>
+            <div style={{display:'flex',gap:6,fontSize:9,color:'rgba(255,255,255,0.25)',padding:'0 2px'}}><span style={{flex:1}}>Mín</span><span style={{flex:1}}>Máx (vazio=∞)</span><span style={{flex:1}}>USD/carta</span><span style={{width:28}}/></div>
+            {indivTiers.map((t,idx)=>(<div key={idx} style={{display:'flex',gap:6,alignItems:'center'}}>
+              {['min_qty','max_qty','usd_per_card'].map(field=>(
+                <input key={field} type="number" step={field==='usd_per_card'?'0.01':'1'} value={t[field]??''} onChange={e=>{const v=e.target.value;setIndivTiers(ts=>ts.map((x,i)=>i===idx?{...x,[field]:v===''?(field==='max_qty'?null:''):Number(v)}:x));}} style={{flex:1,minWidth:0,padding:'6px 8px',borderRadius:7,border:'1px solid rgba(255,255,255,0.07)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:12,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/>
+              ))}
+              <button onClick={()=>setIndivTiers(ts=>ts.filter((_,i)=>i!==idx))} title="Remover" style={{width:28,height:28,flexShrink:0,borderRadius:7,border:'1px solid rgba(217,68,82,0.15)',background:'rgba(217,68,82,0.08)',color:'#ff6b7a',cursor:'pointer',display:'grid',placeItems:'center'}}><Trash2 size={12}/></button>
+            </div>))}
+          </div>
+          <Btn full variant="ghost" onClick={()=>setIndivTiers(ts=>[...ts,{min_qty:'',max_qty:null,usd_per_card:''}])} style={{marginTop:8}} sfx=""><Plus size={13}/> Adicionar faixa</Btn>
+          <Btn full variant="success" onClick={saveIndividualPricing} disabled={savingIndiv} style={{marginTop:8}} sfx="">{savingIndiv?<Spin size={14}/>:<><Check size={14}/> Salvar pedido individual</>}</Btn>
+        </AdminPanel>}
       </>}
-    </>}
+
+      {settingsTab==='notifications'&&<>
+        <AdminPanel title="Notificações no celular" sub="Receba pedidos novos e logins direto no aparelho, mesmo com o app fechado" icon={Bell} accent="#2ee59d">
+          <AdminPushSettings token={token} toast={toastFn}/>
+        </AdminPanel>
+        <AdminPanel title="Histórico de eventos" sub="Tudo que aconteceu no portal, mesmo sem push ativado" icon={Activity} accent="#4a90d9">
+          <AdminNotificationFeed notifications={notifications} loading={notifLoading} unread={notifUnread} onRefresh={()=>loadNotifications()} onMarkAll={markAllNotificationsRead} onClear={clearReadNotifications} onOpenEvent={openNotification}/>
+        </AdminPanel>
+      </>}
+
+      {settingsTab==='about'&&<AdminPanel title="Como o console está organizado" sub="Um mapa rápido do painel" icon={HelpCircle} accent="rgba(255,255,255,0.4)">
+        <div style={{display:'flex',flexDirection:'column',gap:9}}>
+          {ADMIN_SECTIONS.map(s=>(
+            <div key={s.key} style={{display:'flex',gap:9,alignItems:'flex-start'}}>
+              <div style={{width:26,height:26,borderRadius:8,flexShrink:0,display:'grid',placeItems:'center',background:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.45)'}}><s.icon size={13}/></div>
+              <div><div style={{fontSize:12,fontWeight:700}}>{s.label}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.3)',lineHeight:1.45}}>{s.sub}</div></div>
+            </div>
+          ))}
+        </div>
+        <div style={{marginTop:12,paddingTop:10,borderTop:'1px solid rgba(255,255,255,0.05)',fontSize:11,color:'rgba(255,255,255,0.28)',lineHeight:1.6}}>
+          A <b style={{color:'rgba(255,255,255,0.5)'}}>encomenda em contexto</b> aparece no topo e vale para Pedidos (canal Coletiva), Envios, Bônus e Lista de compra. Pedidos Individuais não dependem de encomenda e aparecem sempre.
+        </div>
+      </AdminPanel>}
+    </div>);
+  }
+
+  // ─── Shell do console ──────────────────────────────
+  const currentSection=ADMIN_SECTIONS.find(s=>s.key===section)||ADMIN_SECTIONS[0];
+  const showCampaignContext=['overview','orders','shipping','clients','campaigns'].includes(section);
+
+  return(<div className="portal-page portal-admin" style={{display:'flex',flexDirection:'column',gap:12}}>
+    {/* Cabeçalho */}
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+      <div style={{display:'flex',alignItems:'center',gap:8,minWidth:0}}>
+        <button onClick={()=>nav('profile')} style={{background:'none',border:'none',color:'#fff',cursor:'pointer',padding:2}}><ChevronLeft size={18}/></button>
+        <Shield size={18} style={{color:theme.primary,flexShrink:0}}/>
+        <div style={{minWidth:0}}>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:16,fontWeight:700,lineHeight:1.1}}>Console</div>
+          <div style={{fontSize:10,color:'rgba(255,255,255,0.28)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{currentSection.sub}</div>
+        </div>
+      </div>
+      <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
+        <button onClick={()=>{SFX.click();setShowNotifications(v=>!v);if(!showNotifications)loadNotifications();}} title="Notificações" style={{position:'relative',background:showNotifications?theme.primary+'18':'rgba(255,255,255,0.04)',border:'1px solid '+(showNotifications?theme.primary+'40':'rgba(255,255,255,0.07)'),borderRadius:10,padding:'7px 9px',color:showNotifications?theme.primary:'rgba(255,255,255,0.45)',cursor:'pointer',display:'grid',placeItems:'center'}}>
+          <Bell size={15}/>
+          {notifUnread>0&&<span style={{position:'absolute',top:-4,right:-4,minWidth:16,height:16,padding:'0 4px',borderRadius:9,background:'#ff6b7a',color:'#fff',fontSize:9,fontWeight:800,display:'grid',placeItems:'center',fontFamily:"'Outfit',sans-serif"}}>{notifUnread>9?'9+':notifUnread}</span>}
+        </button>
+        <button onClick={()=>{SFX.click();reloadAll();}} title="Recarregar" style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:10,padding:'7px 9px',color:'rgba(255,255,255,0.45)',cursor:'pointer',display:'grid',placeItems:'center'}}><RefreshCw size={15}/></button>
+      </div>
+    </div>
+
+    {/* Navegação entre seções */}
+    <div style={{display:'flex',gap:4,overflowX:'auto',paddingBottom:2,margin:'0 -2px',WebkitOverflowScrolling:'touch'}}>
+      {ADMIN_SECTIONS.map(s=>{
+        const active=section===s.key;
+        const badge=s.key==='orders'?awaitingPaymentCount:s.key==='shipping'?pendingLabelCount:0;
+        return(<button key={s.key} onClick={()=>{SFX.toggle();setSection(s.key);setShowNotifications(false);}} style={{display:'inline-flex',alignItems:'center',gap:5,flexShrink:0,padding:'8px 12px',borderRadius:11,border:'1px solid '+(active?theme.primary+'45':'rgba(255,255,255,0.05)'),background:active?theme.primary+'16':'rgba(255,255,255,0.022)',color:active?theme.primary:'rgba(255,255,255,0.35)',fontWeight:700,fontSize:11.5,cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap',position:'relative'}}>
+          <s.icon size={13}/>{s.label}
+          {badge>0&&<span style={{marginLeft:1,minWidth:15,height:15,padding:'0 4px',borderRadius:8,background:active?theme.primary+'30':'rgba(255,255,255,0.07)',color:active?theme.primary:'rgba(255,255,255,0.4)',fontSize:9,fontWeight:800,display:'grid',placeItems:'center'}}>{badge}</span>}
+        </button>);
+      })}
+    </div>
+
+    {/* Encomenda em contexto */}
+    {showCampaignContext&&campaigns.length>0&&<div style={{display:'flex',alignItems:'center',gap:7,padding:'8px 11px',borderRadius:11,background:'rgba(255,255,255,0.022)',border:'1px solid rgba(255,255,255,0.05)'}}>
+      <Store size={13} style={{color:'rgba(255,255,255,0.28)',flexShrink:0}}/>
+      <span style={{fontSize:10,color:'rgba(255,255,255,0.28)',flexShrink:0}}>Encomenda</span>
+      <select value={selectedCampaign?.id||''} onChange={e=>{const c=campaigns.find(x=>String(x.id)===e.target.value);setSelectedCampaign(c||null);}} style={{flex:1,minWidth:0,padding:'4px 6px',borderRadius:8,border:'1px solid rgba(255,255,255,0.07)',background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:11,fontWeight:700,fontFamily:"'Outfit',sans-serif",outline:'none',cursor:'pointer'}}>
+        <option value="">Nenhuma (só individuais)</option>
+        {activeCampaigns.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+        {finalizedCampaigns.length>0&&<optgroup label="Finalizadas">{finalizedCampaigns.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>}
+      </select>
+      {selectedCampaign&&<Tag color={isFinalized?'rgba(255,255,255,0.3)':'#2ee59d'} style={{fontSize:9,flexShrink:0}}>{CAMPAIGN_STATUS_LABELS[selectedCampaign.status]||selectedCampaign.status}</Tag>}
+    </div>}
+
+    {/* Painel de notificações */}
+    {showNotifications&&<Card style={{padding:16,border:'1px solid '+theme.primary+'25'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+        <div style={{display:'flex',alignItems:'center',gap:7}}>
+          <Bell size={15} style={{color:theme.primary}}/>
+          <span style={{fontSize:14,fontFamily:"'Cinzel',serif",fontWeight:700}}>Notificações</span>
+          {notifUnread>0&&<Tag color="#ff6b7a" style={{fontSize:9}}>{notifUnread} nova(s)</Tag>}
+        </div>
+        <button onClick={()=>setShowNotifications(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',cursor:'pointer',padding:2}}><X size={16}/></button>
+      </div>
+      <AdminNotificationFeed notifications={notifications} loading={notifLoading} unread={notifUnread} onRefresh={()=>loadNotifications()} onMarkAll={markAllNotificationsRead} onClear={clearReadNotifications} onOpenEvent={openNotification} limit={30}/>
+      <button onClick={()=>{setSection('settings');setSettingsTab('notifications');setShowNotifications(false);}} style={{marginTop:10,width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:10,padding:'8px 0',color:'rgba(255,255,255,0.45)',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Configurar notificações do celular</button>
+    </Card>}
+
+    {/* Conteúdo da seção */}
+    {section==='overview'&&renderOverview()}
+    {section==='orders'&&renderOrders()}
+    {section==='shipping'&&renderShipping()}
+    {section==='clients'&&renderClients()}
+    {section==='catalog'&&renderCatalog()}
+    {section==='campaigns'&&renderCampaigns()}
+    {section==='settings'&&renderSettings()}
+
     <ImageLightbox src={zoomSrc} onClose={()=>setZoomSrc(null)}/>
   </div>);
 }
@@ -3010,6 +3373,7 @@ export default function MagicPortal(){
   const [appLoading,setAppLoading]=useState(false);
   const [toastMsg,setToastMsg]=useState(null);
   const [recoveryToken,setRecoveryToken]=useState(null);
+  const [adminTarget,setAdminTarget]=useState(null); // seção do console vinda de um push
 
   // Detect password recovery token in URL hash
   useEffect(()=>{
@@ -3022,6 +3386,28 @@ export default function MagicPortal(){
         window.history.replaceState(null,'',window.location.pathname);
       }
     }
+  },[]);
+
+  // Deep link do push: /?admin=orders abre o console direto na seção certa.
+  // Vale tanto para a notificação que abre o app do zero quanto para a que
+  // reaproveita uma janela já aberta (mensagem vinda do service worker).
+  useEffect(()=>{
+    function applyAdminTarget(rawUrl){
+      try{
+        const target=new URL(rawUrl,window.location.origin).searchParams.get('admin');
+        if(!target)return false;
+        setAdminTarget(target);
+        setPage('admin');
+        return true;
+      }catch{return false;}
+    }
+    if(applyAdminTarget(window.location.href)){
+      window.history.replaceState(null,'',window.location.pathname);
+    }
+    if(!('serviceWorker' in navigator))return;
+    const onMessage=e=>{if(e.data?.type==='NOTIFICATION_CLICK'&&e.data.url)applyAdminTarget(e.data.url);};
+    navigator.serviceWorker.addEventListener('message',onMessage);
+    return ()=>navigator.serviceWorker.removeEventListener('message',onMessage);
   },[]);
 
   // Re-load data when page is restored from back-forward cache (e.g. returning from Mercado Pago)
@@ -3288,6 +3674,9 @@ export default function MagicPortal(){
   async function handleLogin(res, type) {
     didAutoLoad.current = true; // prevent useEffect from firing a second loadAppData
     setSession(res);
+    // Avisa o admin do acesso (o servidor ignora logins do próprio admin e
+    // agrupa acessos repetidos do mesmo cliente).
+    reportAccess(res.access_token, type === 'signup' ? 'SIGNUP' : 'LOGIN');
     if (type === 'signup') {
       setIsNew(true);
       setPage('onboarding');
@@ -3607,7 +3996,7 @@ export default function MagicPortal(){
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
         {page === 'profile' && !profile && <div style={{padding:20,color:'#ff6b7a',fontSize:12}}><div>profile: null</div><div>token: {token?'ok':'null'}</div><div>appLoading: {String(appLoading)}</div><Btn onClick={()=>loadAppData(token,session?.user?.id)} sfx="click"><RefreshCw size={14}/> Recarregar</Btn></div>}
         {page === 'profile' && profile && (() => { try { return <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} campaign={campaign} />; } catch(e) { return <div style={{padding:20,color:'#ff6b7a',fontSize:12}}>Crash: {e.message}</div>; } })()}
-        {page === 'admin' && <AdminPage pool={pool} pricing={pricing} campaign={campaign} theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} toast={toast} />}
+        {page === 'admin' && <AdminPage pool={pool} pricing={pricing} campaign={campaign} theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} toast={toast} initialSection={adminTarget} />}
         {page === 'onboarding' && <OnboardingPage onComplete={handleOnboardingComplete} theme={theme} />}
       </main>
     </>}

@@ -1,6 +1,7 @@
 import { incrementPoolOnPaid } from './_pool-helper.js';
 import { grantTierBonusToAll } from './_tier-bonus-helper.js';
 import { authoritativeBatchTotal } from './_campaign-helper.js';
+import { notifyOrderEvent } from './_notify.js';
 
 // Verificação da assinatura do webhook do Mercado Pago (x-signature).
 // Manifesto: id:<data.id>;request-id:<x-request-id>;ts:<ts>;  (HMAC-SHA256)
@@ -156,6 +157,11 @@ export async function onRequest(context) {
           const campaignId = Array.isArray(orderArr2) && orderArr2.length ? orderArr2[0].campaign_id : null;
           if (campaignId) await grantTierBonusToAll(SB_URL, SB_SERVICE_ROLE_KEY, campaignId);
         } catch (e) { console.error('Webhook: tier bonus error:', e); }
+
+        // Notifica o admin do pagamento confirmado (idempotente por lote).
+        try {
+          await notifyOrderEvent(context.env, orderId, 'ORDER_PAID');
+        } catch (e) { console.error('Webhook: falha ao notificar pagamento:', e); }
       }
     }
 
