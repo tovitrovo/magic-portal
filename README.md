@@ -212,7 +212,69 @@ A paleta de guilda (`GT`/`GT_LIGHT`) continua em hex justamente porque
 
 `test/theme.test.js` trava esse contrato: os dois modos precisam definir os
 mesmos tokens, e um `rgba(255,255,255,…)` novo no JSX quebra o teste antes de
-quebrar o modo claro silenciosamente.
+quebrar o modo claro silenciosamente. O mesmo teste também barra **hex escuro
+cravado** (foi assim que a folha de detalhe da carta e a barra sticky do admin
+ficaram pretas sobre o creme) — superfície escura sempre vira token.
+
+## 🎨 Tokens de design
+
+Além das cores, `src/theme.css` define tokens independentes de tema, num
+bloco `:root` próprio. Código novo deve consumir estes em vez de cravar
+números:
+
+| Papel | Tokens |
+|---|---|
+| Tipo | `--fs-2xs` 11 · `--fs-xs` 12 · `--fs-sm` 13 · `--fs-md` 15 · `--fs-lg` 18 · `--fs-xl` 22 · `--fs-2xl` 28 |
+| Texto | `--text-strong` · `--text` · `--text-muted` · `--text-dim` · `--text-faint` |
+| Traço/fundo neutro | `--line` · `--line-soft` · `--fill` · `--fill-soft` |
+| Raio | `--r-control` 10 · `--r-card` 16 · `--r-sheet` 24 · `--r-pill` |
+| Espaço | `--sp-1` 4 → `--sp-6` 32 |
+
+O piso de tipo é 11px, e só para rótulo de aba e badge — texto corrido começa
+em `--fs-sm`. Os tokens de texto substituem os 14 níveis de opacidade que
+existiam espalhados pelo JSX; o olho lê três, não catorze.
+
+### Tinta sobre a cor da guilda
+
+`--gp` (cor primária da guilda do usuário) pinta superfícies sólidas, e a cor
+do texto por cima **não pode ser fixa**: em Orzhov, `--gp` é um creme
+(`#f0e6b2`) e branco nele dá 1.2:1.
+
+`src/guildTheme.js` resolve isso — `inkOn(cor)` devolve, entre branco e uma
+tinta escura, a de maior contraste. O shell publica o resultado como
+`--gp-ink`, e todo preenchimento sólido consome essa variável:
+
+```jsx
+{ background: 'var(--gp)', color: 'var(--gp-ink)' }
+```
+
+`test/guildTheme.test.js` verifica que as 10 guildas × 2 modos alcançam 4.5:1
+(WCAG AA para texto normal). O mesmo vale para `--ok-ink`, a tinta sobre o
+verde de sucesso, que inverte junto com o tema.
+
+## ♿ Acessibilidade
+
+`src/ui.css` é a camada de estado. Ela existe porque estilo inline não
+consegue expressar `:hover`, `:focus-visible` nem `@media` — antes dela o
+portal não tinha nenhum foco visível e a navegação por teclado era invisível.
+As regras são genéricas de propósito (elemento, não classe) para cobrir os
+~60 botões do app sem tocar em cada um.
+
+Convenções para código novo:
+
+- **Botão só de ícone precisa de `aria-label`.** `title` não substitui.
+- **Alvo de toque de 44px**: a classe `.mp-tap` já entrega isso.
+- **Modal** usa `useDialogA11y(onClose)` — o hook cuida de Escape, trap de
+  Tab, trava do scroll de fundo e devolução do foco. Some com `role="dialog"`
+  + `aria-modal="true"` + `aria-labelledby`.
+- **Toggle** é `role="switch"` + `aria-checked`, não um `<button>` mudo.
+- **Aba ativa** marca `aria-current="page"`; cor sozinha não comunica estado.
+- O `<meta name="viewport">` **não** pode voltar a ter `maximum-scale` ou
+  `user-scalable=no` — travar o zoom reprova a WCAG 1.4.4.
+
+Quem pede `prefers-reduced-motion` recebe o app parado (mana flutuante, pulso
+do tutorial, carta voando); só o spinner continua girando, porque sem giro ele
+vira um ícone sem significado.
 
 ## 🔔 Notificações (Web Push + PWA)
 

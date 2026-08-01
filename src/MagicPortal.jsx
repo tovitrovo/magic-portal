@@ -6,8 +6,10 @@ import { buildCardsFromCsv, parseCardLinkList } from '../shared/cardImport';
 import { pricePerCard as indivPricePerCard } from '../shared/individualPricing';
 import { DEFAULT_WHATSAPP_MESSAGES, WHATSAPP_AUDIENCES, buildShipmentWhatsAppUrl, buildWhatsAppUrl, getWhatsAppRecipients } from './whatsappCommunication';
 import { PUSH_NEEDS_INSTALL, disablePush, enablePush, getPushState, reportAccess, sendTestPush, updatePushPrefs } from './push';
+import { GT, GT_LIGHT, inkOn } from './guildTheme';
 import './theme.css';
 import './responsive.css';
+import './ui.css';
 
 // ══════════════════════════════════════════════════════
 // SUPABASE REST CLIENT
@@ -238,11 +240,9 @@ const SFX = {
 
 const MANA_COLORS=[{key:'W',emoji:'☀️',color:'#f0e6b2'},{key:'U',emoji:'💧',color:'var(--info)'},{key:'B',emoji:'💀',color:'#9b8ec0'},{key:'R',emoji:'🔥',color:'#d94452'},{key:'G',emoji:'🌿',color:'#2d8f4e'}];
 const GUILD_MAP={'WU':'Azorius','UW':'Azorius','UB':'Dimir','BU':'Dimir','BR':'Rakdos','RB':'Rakdos','RG':'Gruul','GR':'Gruul','GW':'Selesnya','WG':'Selesnya','WB':'Orzhov','BW':'Orzhov','UR':'Izzet','RU':'Izzet','BG':'Golgari','GB':'Golgari','RW':'Boros','WR':'Boros','GU':'Simic','UG':'Simic'};
-// Paleta por guilda. `theme.primary` é concatenado com opacidade em vários
-// lugares, então precisa continuar sendo hex — por isso o modo claro tem um
-// mapa próprio, com as mesmas cores escurecidas para contrastar no off-white.
-const GT={Azorius:{primary:'#4a90d9',secondary:'#f0e6b2',glow:'rgba(74,144,217,0.25)'},Dimir:{primary:'#5b6abf',secondary:'#9b8ec0',glow:'rgba(91,106,191,0.25)'},Rakdos:{primary:'#d94452',secondary:'#9b8ec0',glow:'rgba(217,68,82,0.25)'},Gruul:{primary:'#d94452',secondary:'#2d8f4e',glow:'rgba(45,143,78,0.25)'},Selesnya:{primary:'#2d8f4e',secondary:'#f0e6b2',glow:'rgba(45,143,78,0.25)'},Orzhov:{primary:'#f0e6b2',secondary:'#9b8ec0',glow:'rgba(201,169,110,0.25)'},Izzet:{primary:'#4a90d9',secondary:'#d94452',glow:'rgba(74,144,217,0.25)'},Golgari:{primary:'#2d8f4e',secondary:'#9b8ec0',glow:'rgba(45,143,78,0.25)'},Boros:{primary:'#d94452',secondary:'#f0e6b2',glow:'rgba(217,68,82,0.25)'},Simic:{primary:'#2d8f4e',secondary:'#4a90d9',glow:'rgba(45,143,78,0.25)'}};
-const GT_LIGHT={Azorius:{primary:'#2b6cb0',secondary:'#8a6a26',glow:'rgba(43,108,176,0.18)'},Dimir:{primary:'#414f9e',secondary:'#65558c',glow:'rgba(65,79,158,0.18)'},Rakdos:{primary:'#b32c3c',secondary:'#65558c',glow:'rgba(179,44,60,0.18)'},Gruul:{primary:'#b32c3c',secondary:'#1e7a3d',glow:'rgba(30,122,61,0.18)'},Selesnya:{primary:'#1e7a3d',secondary:'#8a6a26',glow:'rgba(30,122,61,0.18)'},Orzhov:{primary:'#8a6a26',secondary:'#65558c',glow:'rgba(138,106,38,0.18)'},Izzet:{primary:'#2b6cb0',secondary:'#b32c3c',glow:'rgba(43,108,176,0.18)'},Golgari:{primary:'#1e7a3d',secondary:'#65558c',glow:'rgba(30,122,61,0.18)'},Boros:{primary:'#b32c3c',secondary:'#8a6a26',glow:'rgba(179,44,60,0.18)'},Simic:{primary:'#1e7a3d',secondary:'#2b6cb0',glow:'rgba(30,122,61,0.18)'}};
+// A paleta por guilda mora em ./guildTheme.js junto com inkOn(), que resolve
+// a tinta legível sobre cada cor. `theme.primary` continua sendo hex porque é
+// concatenado com opacidade em vários lugares.
 
 // Modo em vigor. É lido por componentes que não recebem `theme` via prop
 // (GuildBadge, por exemplo) e atualizado no render do MagicPortal.
@@ -274,6 +274,47 @@ function wa(color,hexAlpha){
   const pct=Math.round(parseInt(hexAlpha,16)/255*100);
   return `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 }
+// Acessibilidade de diálogo, num hook só: Escape fecha, Tab circula dentro da
+// folha em vez de vazar para a página atrás dela, o fundo para de rolar e o
+// foco volta para o elemento que abriu o modal. Sem isso, quem navega por
+// teclado ou leitor de tela continua "dentro" do catálogo com a folha aberta.
+//
+// `onClose` fica num ref para o efeito rodar só na montagem: como os call
+// sites passam arrow function inline, uma dependência normal remontaria o
+// trap (e re-focaria o primeiro elemento) a cada render.
+const FOCUSABLE='button:not(:disabled),[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])';
+function useDialogA11y(onClose){
+  const ref=useRef(null);
+  const closeRef=useRef(onClose);
+  closeRef.current=onClose;
+  useEffect(()=>{
+    const node=ref.current;
+    const previous=typeof document!=='undefined'?document.activeElement:null;
+    const bodyOverflow=document.body.style.overflow;
+    document.body.style.overflow='hidden';
+    const focusables=()=>Array.from(node?.querySelectorAll(FOCUSABLE)||[]).filter(el=>el.offsetParent!==null);
+    const first=focusables()[0];
+    if(first)first.focus();
+    else if(node){node.setAttribute('tabindex','-1');node.focus();}
+    function onKey(e){
+      if(e.key==='Escape'){e.stopPropagation();if(closeRef.current)closeRef.current();return;}
+      if(e.key!=='Tab')return;
+      const f=focusables();
+      if(!f.length)return;
+      const i=f.indexOf(document.activeElement);
+      if(e.shiftKey&&i<=0){e.preventDefault();f[f.length-1].focus();}
+      else if(!e.shiftKey&&i===f.length-1){e.preventDefault();f[0].focus();}
+    }
+    document.addEventListener('keydown',onKey);
+    return()=>{
+      document.removeEventListener('keydown',onKey);
+      document.body.style.overflow=bodyOverflow;
+      if(previous&&typeof previous.focus==='function')previous.focus();
+    };
+  },[]);
+  return ref;
+}
+
 function getGuild(a,b){return a&&b&&a!==b?(GUILD_MAP[a+b]||null):null;}
 const TC={Normal:'rgba(var(--ink),calc(0.4*var(--ink-a)))',Holo:'var(--gold)',Foil:'var(--tc-foil)',English:'var(--tc-blue)',Chinese:'var(--tc-red)',Japanese:'var(--tc-amber)',Promo:'var(--tc-pink)','Showcase Foil':'var(--tc-violet)',Regular:'rgba(var(--ink),calc(0.4*var(--ink-a)))','Enchanted Foil':'var(--tc-purple)','Cold Foil':'var(--tc-sky)'};
 const TCG_LIST=[
@@ -379,7 +420,7 @@ function FloatingMana({theme}){
 // ══════════════════════════════════════════════════════
 
 const Card=({children,style,glow,onClick,id})=><div id={id} onClick={onClick} style={{background:'var(--card-bg)',border:'1px solid '+(glow||'var(--card-border)'),borderRadius:16,padding:16,boxShadow:glow?'0 0 20px '+glow:'var(--card-shadow)',...(onClick?{cursor:'pointer'}:{}),...style}}>{children}</div>;
-const Btn=({children,variant='primary',disabled,onClick,style,full,sfx='click',id})=>{const v={primary:{background:'var(--gp)',color:'#fff',boxShadow:'0 4px 18px var(--gg)'},secondary:{background:'rgba(var(--ink),calc(0.06*var(--ink-a)))',color:'var(--text-strong)',border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))'},ghost:{background:'transparent',color:'var(--gp)',padding:'12px'},danger:{background:'rgba(var(--danger-rgb),0.1)',color:'var(--danger)',border:'1px solid rgba(var(--danger-rgb),0.15)'},success:{background:'rgba(var(--ok-rgb),0.1)',color:'var(--ok)',border:'1px solid rgba(var(--ok-rgb),0.15)'},pix:{background:'rgba(var(--pix-rgb),0.12)',color:'var(--pix)',border:'1px solid rgba(var(--pix-rgb),0.2)'},warn:{background:'rgba(var(--gold-rgb),0.1)',color:'var(--gold)',border:'1px solid rgba(var(--gold-rgb),0.15)'}};return <button id={id} onClick={e=>{if(!disabled&&sfx&&SFX[sfx])SFX[sfx]();if(onClick)onClick(e);}} disabled={disabled} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,border:'none',borderRadius:14,padding:'13px 20px',fontWeight:700,fontSize:14,cursor:disabled?'not-allowed':'pointer',opacity:disabled?.4:1,transition:'all .15s',fontFamily:"'Outfit',sans-serif",...(full?{width:'100%'}:{}),...v[variant],...style}}>{children}</button>;};
+const Btn=({children,variant='primary',disabled,onClick,style,full,sfx='click',id})=>{const v={primary:{background:'var(--gp)',color:'var(--gp-ink)',boxShadow:'0 4px 18px var(--gg)'},secondary:{background:'rgba(var(--ink),calc(0.06*var(--ink-a)))',color:'var(--text-strong)',border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))'},ghost:{background:'transparent',color:'var(--gp)',padding:'12px'},danger:{background:'rgba(var(--danger-rgb),0.1)',color:'var(--danger)',border:'1px solid rgba(var(--danger-rgb),0.15)'},success:{background:'rgba(var(--ok-rgb),0.1)',color:'var(--ok)',border:'1px solid rgba(var(--ok-rgb),0.15)'},pix:{background:'rgba(var(--pix-rgb),0.12)',color:'var(--pix)',border:'1px solid rgba(var(--pix-rgb),0.2)'},warn:{background:'rgba(var(--gold-rgb),0.1)',color:'var(--gold)',border:'1px solid rgba(var(--gold-rgb),0.15)'}};return <button id={id} onClick={e=>{if(!disabled&&sfx&&SFX[sfx])SFX[sfx]();if(onClick)onClick(e);}} disabled={disabled} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,border:'none',borderRadius:14,padding:'13px 20px',fontWeight:700,fontSize:14,cursor:disabled?'not-allowed':'pointer',opacity:disabled?.4:1,transition:'all .15s',fontFamily:"'Outfit',sans-serif",...(full?{width:'100%'}:{}),...v[variant],...style}}>{children}</button>;};
 const Input=({icon:Icon,...p})=><div style={{position:'relative'}}>{Icon&&<Icon size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'rgba(var(--ink),calc(0.22*var(--ink-a)))',pointerEvents:'none'}}/>}<input {...p} style={{width:'100%',padding:Icon?'13px 14px 13px 42px':'13px 14px',borderRadius:14,border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',background:'var(--field-bg)',color:'var(--text)',fontSize:15,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box',...p.style}}/></div>;
 const Tag=({children,color,style})=><span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:99,background:color?wa(color,'14'):'rgba(var(--ink),calc(0.04*var(--ink-a)))',border:'1px solid '+(color?wa(color,'22'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),fontSize:12,color:color||'rgba(var(--ink),calc(0.55*var(--ink-a)))',fontWeight:600,whiteSpace:'nowrap',...style}}>{children}</span>;
 const SectionTitle=({children,sub})=><div style={{marginBottom:12}}><h2 style={{margin:0,fontSize:17,fontFamily:"'Cinzel',serif",color:'var(--text-strong)',letterSpacing:.3}}>{children}</h2>{sub&&<p style={{margin:'3px 0 0',fontSize:12,color:'rgba(var(--ink),calc(0.33*var(--ink-a)))'}}>{sub}</p>}</div>;
@@ -652,9 +693,17 @@ function CardThumb({card,radius=12,style}){
 }
 
 // Fullscreen image zoom — replaces opening card images in a new browser tab.
+// A casca só decide se abre; o conteúdo é um componente à parte porque
+// `useDialogA11y` é um hook e não pode ficar depois de um `return null`.
 function ImageLightbox({src,alt,onClose}){
   if(!src)return null;
-  return(<div onClick={onClose} style={{position:'fixed',inset:0,zIndex:140,background:'rgba(var(--sunk),calc(0.93*var(--sunk-a)))',display:'grid',placeItems:'center',cursor:'zoom-out',padding:20,animation:'fadeIn .15s ease'}}>
+  return <ImageLightboxOpen src={src} alt={alt} onClose={onClose}/>;
+}
+
+function ImageLightboxOpen({src,alt,onClose}){
+  const dialogRef=useDialogA11y(onClose);
+  return(<div ref={dialogRef} role="dialog" aria-modal="true" aria-label={alt?`Imagem ampliada: ${alt}`:'Imagem ampliada'} onClick={onClose} style={{position:'fixed',inset:0,zIndex:140,background:'rgba(var(--sunk),calc(0.93*var(--sunk-a)))',display:'grid',placeItems:'center',cursor:'zoom-out',padding:20,animation:'fadeIn .15s ease'}}>
+    <button onClick={onClose} aria-label="Fechar imagem" className="mp-tap" style={{position:'absolute',top:14,right:14,borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'var(--overlay-bg)',backdropFilter:'blur(6px)',color:'var(--text-strong)',cursor:'pointer'}}><X size={18}/></button>
     <img src={src} alt={alt||''} style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',borderRadius:12}}/>
   </div>);
 }
@@ -727,7 +776,7 @@ function CatalogPage({token,wants,onAddWant,priceBRL,theme,campaignStatus,orderM
             <div style={{position:'relative'}}>
               <CardThumb card={c}/>
               {existsInWants&&<div style={{position:'absolute',top:7,left:7}}><Tag color="var(--ok)" style={{fontSize:9,padding:'2px 7px'}}>{existsInWants.quantity}</Tag></div>}
-              <button ref={i===0?firstAddBtnRef:null} id={i===0?'tut-add-btn':undefined} title="Adicionar aos wants" onClick={e=>{e.stopPropagation();add(c,1);}} style={{position:'absolute',right:7,bottom:7,width:36,height:36,border:'none',borderRadius:12,background:existsInWants?'rgba(var(--ok-rgb),0.92)':'var(--gp)',color:'#1a1407',display:'grid',placeItems:'center',cursor:'pointer',boxShadow:'0 6px 16px var(--gg)'}}><Plus size={18}/></button>
+              <button ref={i===0?firstAddBtnRef:null} id={i===0?'tut-add-btn':undefined} title="Adicionar aos wants" aria-label={`Adicionar ${c.name} aos wants`} onClick={e=>{e.stopPropagation();add(c,1);}} style={{position:'absolute',right:7,bottom:7,width:36,height:36,border:'none',borderRadius:12,background:existsInWants?'rgba(var(--ok-rgb),0.92)':'var(--gp)',color:'var(--gp-ink)',display:'grid',placeItems:'center',cursor:'pointer',boxShadow:'0 6px 16px var(--gg)'}}><Plus size={18}/></button>
             </div>
             <div style={{padding:'9px 3px 2px'}}>
               <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</div>
@@ -755,27 +804,28 @@ function CardDetailModal({card,priceBRL,existing,campaignOpen,onClose,onAdd}){
   const [qty,setQty]=useState(1);
   const [zoom,setZoom]=useState(false);
   const tc=TC[card.type]||'rgba(var(--ink),calc(0.4*var(--ink-a)))';
-  return(<div role="dialog" style={{position:'fixed',inset:0,zIndex:120,display:'flex',alignItems:'flex-end',justifyContent:'center',animation:'fadeIn .15s ease'}}>
-    <div onClick={onClose} style={{position:'absolute',inset:0,background:'rgba(var(--sunk),calc(0.72*var(--sunk-a)))',backdropFilter:'blur(6px)'}}/>
-    <div className="portal-modal" style={{position:'relative',width:'100%',maxWidth:480,maxHeight:'92vh',overflowY:'auto',background:'#0f0f17',borderRadius:'24px 24px 0 0',border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',padding:'12px 18px 24px',animation:'sheetUp .22s ease'}}>
+  const dialogRef=useDialogA11y(onClose);
+  return(<div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="card-detail-title" style={{position:'fixed',inset:0,zIndex:120,display:'flex',alignItems:'flex-end',justifyContent:'center',animation:'fadeIn .15s ease'}}>
+    <div onClick={onClose} aria-hidden="true" style={{position:'absolute',inset:0,background:'rgba(var(--sunk),calc(0.72*var(--sunk-a)))',backdropFilter:'blur(6px)'}}/>
+    <div className="portal-modal" style={{position:'relative',width:'100%',maxWidth:480,maxHeight:'92vh',overflowY:'auto',background:'var(--sheet-bg)',borderRadius:'24px 24px 0 0',border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',padding:'12px 18px 24px',animation:'sheetUp .22s ease'}}>
       <div style={{display:'flex',justifyContent:'center',marginBottom:6}}><div style={{width:40,height:5,borderRadius:99,background:'rgba(var(--ink),calc(0.14*var(--ink-a)))'}}/></div>
-      <button onClick={onClose} title="Fechar" style={{position:'absolute',top:14,right:14,width:34,height:34,borderRadius:11,border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',background:'rgba(var(--ink),calc(0.05*var(--ink-a)))',color:'rgba(var(--ink),calc(0.6*var(--ink-a)))',display:'grid',placeItems:'center',cursor:'pointer'}}><X size={16}/></button>
-      <div style={{maxWidth:230,margin:'2px auto 0',position:'relative',cursor:card.image_url?'zoom-in':'default'}} onClick={()=>card.image_url&&setZoom(true)}>
+      <button onClick={onClose} title="Fechar" aria-label="Fechar detalhe da carta" style={{position:'absolute',top:14,right:14,width:44,height:44,borderRadius:11,border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',background:'rgba(var(--ink),calc(0.05*var(--ink-a)))',color:'rgba(var(--ink),calc(0.6*var(--ink-a)))',display:'grid',placeItems:'center',cursor:'pointer'}}><X size={16}/></button>
+      <div role={card.image_url?'button':undefined} tabIndex={card.image_url?0:undefined} aria-label={card.image_url?`Ampliar imagem de ${card.name}`:undefined} onKeyDown={e=>{if(card.image_url&&(e.key==='Enter'||e.key===' ')){e.preventDefault();setZoom(true);}}} style={{maxWidth:230,margin:'2px auto 0',position:'relative',cursor:card.image_url?'zoom-in':'default'}} onClick={()=>card.image_url&&setZoom(true)}>
         <CardThumb card={card} radius={18}/>
         {card.image_url&&<div style={{position:'absolute',right:8,bottom:8,width:32,height:32,borderRadius:10,background:'var(--overlay-bg)',backdropFilter:'blur(6px)',border:'1px solid rgba(var(--ink),calc(0.15*var(--ink-a)))',display:'grid',placeItems:'center',color:'#fff'}}><Search size={14}/></div>}
       </div>
       <div style={{marginTop:16}}>
         <div style={{fontSize:11,letterSpacing:1.5,textTransform:'uppercase',color:tc,fontWeight:700}}>{card.type}</div>
-        <div style={{fontFamily:"'Cinzel',serif",fontSize:22,color:'var(--text-strong)',marginTop:3,lineHeight:1.15}}>{card.name}</div>
+        <div id="card-detail-title" style={{fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)',color:'var(--text-strong)',marginTop:3,lineHeight:1.15}}>{card.name}</div>
         {existing&&<div style={{display:'flex',alignItems:'center',gap:10,marginTop:10}}>
           <Tag color="var(--ok)" style={{fontSize:11}}>{existing.quantity} nos wants</Tag>
         </div>}
       </div>
       <div style={{display:'flex',gap:10,alignItems:'stretch',marginTop:20}}>
         <div style={{display:'flex',alignItems:'center',gap:14,background:'rgba(var(--ink),calc(0.05*var(--ink-a)))',border:'1px solid rgba(var(--ink),calc(0.09*var(--ink-a)))',borderRadius:14,padding:'0 14px'}}>
-          <button onClick={()=>{SFX.toggle();setQty(q=>Math.max(1,q-1));}} style={{background:'none',border:'none',color:'rgba(var(--ink),calc(0.6*var(--ink-a)))',cursor:'pointer',display:'grid',padding:6}}><Minus size={16}/></button>
-          <span style={{minWidth:18,textAlign:'center',fontWeight:700,fontSize:15,color:'var(--text-strong)'}}>{qty}</span>
-          <button onClick={()=>{SFX.toggle();setQty(q=>q+1);}} style={{background:'none',border:'none',color:'var(--text-strong)',cursor:'pointer',display:'grid',padding:6}}><Plus size={16}/></button>
+          <button onClick={()=>{SFX.toggle();setQty(q=>Math.max(1,q-1));}} aria-label="Diminuir quantidade" style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',display:'grid',padding:10}}><Minus size={16}/></button>
+          <span aria-live="polite" aria-label={`Quantidade: ${qty}`} style={{minWidth:18,textAlign:'center',fontWeight:700,fontSize:'var(--fs-md)',color:'var(--text-strong)'}}>{qty}</span>
+          <button onClick={()=>{SFX.toggle();setQty(q=>q+1);}} aria-label="Aumentar quantidade" style={{background:'none',border:'none',color:'var(--text-strong)',cursor:'pointer',display:'grid',padding:10}}><Plus size={16}/></button>
         </div>
         <Btn full disabled={!campaignOpen} sfx={null} onClick={()=>{onAdd(card,qty);onClose();}} style={{flex:1}}><Plus size={16}/> {campaignOpen?'Adicionar aos Wants':'Encomenda fechada'}</Btn>
       </div>
@@ -810,19 +860,19 @@ function WantsPage({wants,onMoveToCart,onMoveAllToCart,onRemoveWant,onUpdateWant
         {fW.map((w)=>{const img=w.card_image_url;return(
           <Card key={w.id} style={{padding:9}}>
             <div style={{display:'flex',alignItems:'center',gap:11}}>
-              <div onClick={()=>img&&setZoomSrc(img)} style={{width:54,flexShrink:0,cursor:img?'zoom-in':'default'}}><CardThumb card={w} radius={9}/></div>
+              <div onClick={()=>img&&setZoomSrc(img)} role={img?'button':undefined} tabIndex={img?0:undefined} aria-label={img?`Ampliar imagem de ${w.card_name}`:undefined} onKeyDown={e=>{if(img&&(e.key==='Enter'||e.key===' ')){e.preventDefault();setZoomSrc(img);}}} style={{width:54,flexShrink:0,cursor:img?'zoom-in':'default'}}><CardThumb card={w} radius={9}/></div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{w.card_name}</div>
                 <span style={{fontSize:10,color:TC[w.card_type],fontWeight:700}}>{w.card_type}</span>
                 <div style={{display:'flex',alignItems:'center',gap:0,background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',borderRadius:10,border:'1px solid rgba(var(--ink),calc(0.05*var(--ink-a)))',width:'fit-content',marginTop:7}}>
-                  <button onClick={()=>onUpdateWantQty(w.id,w.quantity-1)} style={{background:'none',border:'none',color:'var(--text-strong)',padding:'5px 11px',cursor:'pointer'}}><Minus size={12}/></button>
-                  <span style={{minWidth:18,textAlign:'center',fontSize:13,fontWeight:700}}>{w.quantity}</span>
-                  <button onClick={()=>onUpdateWantQty(w.id,w.quantity+1)} style={{background:'none',border:'none',color:'var(--text-strong)',padding:'5px 11px',cursor:'pointer'}}><Plus size={12}/></button>
+                  <button onClick={()=>onUpdateWantQty(w.id,w.quantity-1)} aria-label={`Diminuir quantidade de ${w.card_name}`} style={{background:'none',border:'none',color:'var(--text-strong)',padding:'10px 12px',cursor:'pointer'}}><Minus size={12}/></button>
+                  <span aria-label={`Quantidade de ${w.card_name}: ${w.quantity}`} style={{minWidth:18,textAlign:'center',fontSize:'var(--fs-sm)',fontWeight:700}}>{w.quantity}</span>
+                  <button onClick={()=>onUpdateWantQty(w.id,w.quantity+1)} aria-label={`Aumentar quantidade de ${w.card_name}`} style={{background:'none',border:'none',color:'var(--text-strong)',padding:'10px 12px',cursor:'pointer'}}><Plus size={12}/></button>
                 </div>
               </div>
               <div style={{display:'flex',flexDirection:'column',gap:6,alignItems:'stretch'}}>
-                <button onClick={()=>onMoveToCart(w)} title="Mover para o carrinho" style={{background:'var(--gp)',border:'none',borderRadius:11,padding:'9px 13px',cursor:'pointer',color:'#1a1407',display:'flex',alignItems:'center',gap:5,fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",boxShadow:'0 4px 14px var(--gg)'}}><ShoppingCart size={14}/></button>
-                <button onClick={()=>onRemoveWant(w.id)} title="Remover" style={{background:'rgba(var(--danger-rgb),0.08)',border:'1px solid rgba(var(--danger-rgb),0.15)',borderRadius:11,padding:'8px 13px',cursor:'pointer',color:'var(--danger)',display:'flex',alignItems:'center',justifyContent:'center'}}><Trash2 size={13}/></button>
+                <button onClick={()=>onMoveToCart(w)} title="Mover para o carrinho" aria-label={`Mover ${w.card_name} para o carrinho`} style={{background:'var(--gp)',border:'none',borderRadius:11,padding:'9px 13px',cursor:'pointer',color:'var(--gp-ink)',display:'flex',alignItems:'center',gap:5,fontSize:12,fontWeight:700,fontFamily:"'Outfit',sans-serif",boxShadow:'0 4px 14px var(--gg)'}}><ShoppingCart size={14}/></button>
+                <button onClick={()=>onRemoveWant(w.id)} title="Remover" aria-label={`Remover ${w.card_name} dos wants`} style={{background:'rgba(var(--danger-rgb),0.08)',border:'1px solid rgba(var(--danger-rgb),0.15)',borderRadius:11,padding:'8px 13px',cursor:'pointer',color:'var(--danger)',display:'flex',alignItems:'center',justifyContent:'center'}}><Trash2 size={13}/></button>
               </div>
             </div>
           </Card>
@@ -1165,7 +1215,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
             <div style={{fontSize:13,fontWeight:700,color:useJointShipping?'var(--ok)':'var(--text-strong)',marginBottom:2,display:'flex',alignItems:'center',gap:6}}><Truck size={14} style={{flexShrink:0}}/> Envio conjunto</div>
             <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))',lineHeight:1.4}}>Você já tem pedidos nesta encomenda. Envie tudo junto sem custo de frete adicional.</div>
           </div>
-          <button onClick={()=>{SFX.toggle();setUseJointShipping(v=>!v);}} style={{flexShrink:0,width:44,height:26,borderRadius:13,border:'none',background:useJointShipping?'var(--ok)':'rgba(var(--ink),calc(0.1*var(--ink-a)))',cursor:'pointer',position:'relative',transition:'background .2s'}}>
+          <button onClick={()=>{SFX.toggle();setUseJointShipping(v=>!v);}} role="switch" aria-checked={useJointShipping} aria-label="Enviar junto com pedidos anteriores desta encomenda" style={{flexShrink:0,width:44,height:26,borderRadius:13,border:'none',background:useJointShipping?'var(--ok)':'rgba(var(--ink),calc(0.1*var(--ink-a)))',cursor:'pointer',position:'relative',transition:'background .2s'}}>
             <div style={{position:'absolute',top:3,left:useJointShipping?22:4,width:20,height:20,borderRadius:10,background:'#fff',transition:'left .2s',boxShadow:'0 1px 4px rgba(var(--sunk),calc(0.3*var(--sunk-a)))'}}/>
           </button>
         </div>
@@ -1178,7 +1228,7 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
             <div style={{fontSize:13,fontWeight:700,color:alreadyPaidShipping?'var(--ok)':'rgba(var(--ink),calc(0.5*var(--ink-a)))',marginBottom:2,display:'flex',alignItems:'center',gap:6}}><CheckCircle size={14} style={{flexShrink:0,color:alreadyPaidShipping?'var(--ok)':'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}/> Já paguei o frete</div>
             <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))',lineHeight:1.4}}>Marque se o frete deste envio já foi pago em um pedido anterior.</div>
           </div>
-          <button onClick={()=>{SFX.toggle();setAlreadyPaidShipping(v=>!v);if(useJointShipping)setUseJointShipping(false);}} style={{flexShrink:0,width:44,height:26,borderRadius:13,border:'none',background:alreadyPaidShipping?'var(--ok)':'rgba(var(--ink),calc(0.1*var(--ink-a)))',cursor:'pointer',position:'relative',transition:'background .2s'}}>
+          <button onClick={()=>{SFX.toggle();setAlreadyPaidShipping(v=>!v);if(useJointShipping)setUseJointShipping(false);}} role="switch" aria-checked={alreadyPaidShipping} aria-label="O frete deste envio já foi pago em um pedido anterior" style={{flexShrink:0,width:44,height:26,borderRadius:13,border:'none',background:alreadyPaidShipping?'var(--ok)':'rgba(var(--ink),calc(0.1*var(--ink-a)))',cursor:'pointer',position:'relative',transition:'background .2s'}}>
             <div style={{position:'absolute',top:3,left:alreadyPaidShipping?22:4,width:20,height:20,borderRadius:10,background:'#fff',transition:'left .2s',boxShadow:'0 1px 4px rgba(var(--sunk),calc(0.3*var(--sunk-a)))'}}/>
           </button>
         </div>
@@ -1442,7 +1492,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
                   {INDIV_FULFILLMENT_STAGES.map((s,i)=>(<Fragment key={s.key}>
                     {i>0&&<div style={{flex:1,height:2,background:i<=idx?'var(--ok)':'rgba(var(--ink),calc(0.08*var(--ink-a)))',marginTop:7}}/>}
                     <div style={{display:'flex',flexDirection:'column',alignItems:'center',width:44,flexShrink:0}}>
-                      <div style={{width:15,height:15,borderRadius:8,background:i<=idx?'var(--ok)':'rgba(var(--ink),calc(0.08*var(--ink-a)))',display:'grid',placeItems:'center'}}>{i<idx?<Check size={9} style={{color:'#04120c'}}/>:null}</div>
+                      <div style={{width:15,height:15,borderRadius:8,background:i<=idx?'var(--ok)':'rgba(var(--ink),calc(0.08*var(--ink-a)))',display:'grid',placeItems:'center'}}>{i<idx?<Check size={9} style={{color:'var(--ok-ink)'}}/>:null}</div>
                       <div style={{fontSize:8,color:i<=idx?'var(--ok)':'rgba(var(--ink),calc(0.25*var(--ink-a)))',marginTop:3,textAlign:'center',lineHeight:1.2}}>{s.short}</div>
                     </div>
                   </Fragment>))}
@@ -3945,9 +3995,9 @@ export default function MagicPortal(){
   });
   const bottomTabs = [{ key: 'home', icon: Home, label: 'Início' }, { key: 'catalog', icon: BookOpen, label: 'Catálogo' }, { key: 'wants', icon: ScrollText, label: 'Wants' }, { key: 'cart', icon: ShoppingCart, label: 'Carrinho' }, { key: 'profile', icon: User, label: 'Perfil' }];
 
-  return (<div className="portal-shell" data-page={page} style={{ '--gp': theme.primary, '--gs': theme.secondary, '--gg': theme.glow, minHeight: '100vh', background: `radial-gradient(ellipse at 50% -20%,${theme.primary}12 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,${theme.secondary}08 0%,transparent 40%),var(--bg)`, color: 'var(--text)', fontFamily: "'Outfit',sans-serif", maxWidth: 480, margin: '0 auto', position: 'relative', paddingBottom: 78 }}>
+  return (<div className="portal-shell" data-page={page} style={{ '--gp': theme.primary, '--gs': theme.secondary, '--gg': theme.glow, '--gp-ink': inkOn(theme.primary), minHeight: '100vh', background: `radial-gradient(ellipse at 50% -20%,${theme.primary}12 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,${theme.secondary}08 0%,transparent 40%),var(--bg)`, color: 'var(--text)', fontFamily: "'Outfit',sans-serif", maxWidth: 480, margin: '0 auto', position: 'relative', paddingBottom: 78 }}>
     <FloatingMana theme={theme}/>
-    <style>{"@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Outfit:wght@300;400;600;700;800&display=swap');*{box-sizing:border-box;margin:0;padding:0}body{background:var(--bg);margin:0}input:focus{border-color:var(--gp)!important;outline:none}button:active:not(:disabled){transform:scale(.97)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(var(--ink),calc(.07*var(--ink-a)));border-radius:3px}@keyframes spin{to{transform:rotate(360deg)}}@keyframes tutPulse{0%,100%{opacity:1;box-shadow:0 0 0 9999px var(--scrim),0 0 30px var(--gg)}50%{opacity:.85;box-shadow:0 0 0 9999px var(--scrim),0 0 50px var(--gg)}}@keyframes tutArrowBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}@keyframes tutHandBounce{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-6px) scale(1.15)}}@keyframes manaFloat{0%{transform:translateY(0) translateX(0) rotate(0deg);opacity:0}10%{opacity:0.06}90%{opacity:0.03}100%{transform:translateY(-110vh) translateX(var(--drift,20px)) rotate(360deg);opacity:0}}@keyframes flyToWants{0%{transform:translate(-50%,-50%) scale(1);opacity:1}50%{transform:translate(calc(-50vw + 160px),-60vh) scale(0.6);opacity:0.8}100%{transform:translate(calc(-50vw + 160px),-80vh) scale(0.2);opacity:0}}@keyframes sheetUp{from{transform:translateY(48px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}"}</style>
+    <style>{"*{box-sizing:border-box;margin:0;padding:0}body{background:var(--bg);margin:0}input:focus{border-color:var(--gp)!important;outline:none}button:active:not(:disabled){transform:scale(.97)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(var(--ink),calc(.07*var(--ink-a)));border-radius:3px}@keyframes spin{to{transform:rotate(360deg)}}@keyframes tutPulse{0%,100%{opacity:1;box-shadow:0 0 0 9999px var(--scrim),0 0 30px var(--gg)}50%{opacity:.85;box-shadow:0 0 0 9999px var(--scrim),0 0 50px var(--gg)}}@keyframes tutArrowBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}@keyframes tutHandBounce{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-6px) scale(1.15)}}@keyframes manaFloat{0%{transform:translateY(0) translateX(0) rotate(0deg);opacity:0}10%{opacity:0.06}90%{opacity:0.03}100%{transform:translateY(-110vh) translateX(var(--drift,20px)) rotate(360deg);opacity:0}}@keyframes flyToWants{0%{transform:translate(-50%,-50%) scale(1);opacity:1}50%{transform:translate(calc(-50vw + 160px),-60vh) scale(0.6);opacity:0.8}100%{transform:translate(calc(-50vw + 160px),-80vh) scale(0.2);opacity:0}}@keyframes sheetUp{from{transform:translateY(48px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}"}</style>
 
     {toastMsg && <Toast msg={toastMsg.msg} type={toastMsg.type} onClose={() => setToastMsg(null)} />}
     {showTutorial && <TutorialOverlay step={tutStep} steps={TUTORIAL_STEPS} onNext={tutNext} onSkip={tutSkip} theme={theme} onNavTo={p => setPage(p)} isFirstTime={isFirstTimeTut} />}
@@ -3979,12 +4029,12 @@ export default function MagicPortal(){
           {bottomTabs.map((t) => {
             const active = page === t.key;
             const badge = t.key === 'cart' && cartCount > 0;
-            return <button key={t.key} className={active ? 'is-active' : ''} onClick={() => nav(t.key)}>
+            return <button key={t.key} className={active ? 'is-active' : ''} aria-current={active ? 'page' : undefined} onClick={() => nav(t.key)}>
               <t.icon size={18}/><span>{t.label}</span>
               {badge && <b>{cartCount}</b>}
             </button>;
           })}
-          {isAdmin && <button className={page === 'admin' ? 'is-active' : ''} onClick={() => nav('admin')}><Shield size={18}/><span>Admin</span></button>}
+          {isAdmin && <button className={page === 'admin' ? 'is-active' : ''} aria-current={page === 'admin' ? 'page' : undefined} onClick={() => nav('admin')}><Shield size={18}/><span>Admin</span></button>}
         </nav>
         <div className="portal-sidebar-footer">
           <GuildBadge guild={profile?.guild} size={28}/><div><strong>{profile?.name || 'Minha conta'}</strong><span>{profile?.email || session?.user?.email || ''}</span></div>
@@ -3994,25 +4044,25 @@ export default function MagicPortal(){
       {/* Header */}
       {page !== 'onboarding' && <div className="portal-header" style={{ padding: '13px 20px 11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(var(--ink),calc(0.035*var(--ink-a)))', position: 'sticky', top: 0, zIndex: 10, background: 'var(--chrome-bg)', backdropFilter: 'blur(20px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {(page === 'success' || page === 'admin' || page === 'checkout') && <button onClick={() => nav(page === 'admin' ? 'profile' : page === 'checkout' ? 'cart' : 'home')} style={{ background: 'none', border: 'none', color: 'var(--text-strong)', cursor: 'pointer', padding: 2 }}><ChevronLeft size={20} /></button>}
+          {(page === 'success' || page === 'admin' || page === 'checkout') && <button onClick={() => nav(page === 'admin' ? 'profile' : page === 'checkout' ? 'cart' : 'home')} className="mp-tap" aria-label="Voltar" style={{ background: 'none', border: 'none', color: 'var(--text-strong)', cursor: 'pointer' }}><ChevronLeft size={20} /></button>}
           <span style={{ fontFamily: "'Cinzel',serif", fontSize: 15, fontWeight: 700, letterSpacing: .3 }}>{({ home: 'Cartas para Jogar', catalog: 'Catálogo', wants: 'Wants', cart: 'Carrinho', checkout: 'Checkout', success: '', profile: 'Perfil', admin: 'Admin', onboarding: '' })[page] || ''}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button onClick={() => { SFX.toggle(); setColorMode(m => m === 'light' ? 'dark' : 'light'); }} title={colorMode === 'light' ? 'Mudar para o modo escuro' : 'Mudar para o modo claro'} aria-label={colorMode === 'light' ? 'Mudar para o modo escuro' : 'Mudar para o modo claro'} style={{ background: 'none', border: 'none', color: 'rgba(var(--ink),calc(0.3*var(--ink-a)))', cursor: 'pointer', padding: 2, display: 'grid', placeItems: 'center' }}>{colorMode === 'light' ? <Moon size={14} /> : <Sun size={14} />}</button>
-          <button onClick={() => setSoundOn(s => !s)} style={{ background: 'none', border: 'none', color: soundOn ? 'rgba(var(--ink),calc(0.3*var(--ink-a)))' : 'rgba(var(--ink),calc(0.1*var(--ink-a)))', cursor: 'pointer', padding: 2 }}>{soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}</button>
+          <button onClick={() => { SFX.toggle(); setColorMode(m => m === 'light' ? 'dark' : 'light'); }} className="mp-tap" title={colorMode === 'light' ? 'Mudar para o modo escuro' : 'Mudar para o modo claro'} aria-label={colorMode === 'light' ? 'Mudar para o modo escuro' : 'Mudar para o modo claro'} style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer' }}>{colorMode === 'light' ? <Moon size={16} /> : <Sun size={16} />}</button>
+          <button onClick={() => setSoundOn(s => !s)} className="mp-tap" role="switch" aria-checked={soundOn} title={soundOn ? 'Desligar sons' : 'Ligar sons'} aria-label={soundOn ? 'Desligar sons' : 'Ligar sons'} style={{ background: 'none', border: 'none', color: soundOn ? 'var(--text-faint)' : 'rgba(var(--ink),calc(0.14*var(--ink-a)))', cursor: 'pointer' }}>{soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>
         </div>
       </div>}
 
       {/* Bottom tabs */}
-      {page !== 'onboarding' && page !== 'success' && page !== 'admin' && page !== 'checkout' && <div className="portal-bottom-tabs" id="tut-bottom-tabs" style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: 'var(--chrome-bg-strong)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(var(--ink),calc(0.04*var(--ink-a)))', display: 'flex', justifyContent: 'space-around', padding: '5px 0 10px', zIndex: 20 }}>
+      {page !== 'onboarding' && page !== 'success' && page !== 'admin' && page !== 'checkout' && <nav className="portal-bottom-tabs" id="tut-bottom-tabs" aria-label="Navegação principal" style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: 'var(--chrome-bg-strong)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(var(--ink),calc(0.04*var(--ink-a)))', display: 'flex', justifyContent: 'space-around', padding: '5px 0 10px', zIndex: 20 }}>
         {bottomTabs.map((t, ti) => {
           const active = page === t.key; const badge = t.key === 'cart' && cartCount > 0;
-          return (<button key={t.key} id={'tut-tab-' + ti} onClick={() => nav(t.key)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '4px 10px', borderRadius: 10, position: 'relative', color: active ? theme.primary : 'rgba(var(--ink),calc(0.22*var(--ink-a)))', transition: 'all .2s' }}>
-            <t.icon size={20} />{badge && <div style={{ position: 'absolute', top: 0, right: 3, width: 15, height: 15, borderRadius: 8, background: theme.primary, fontSize: 9, fontWeight: 800, color: '#fff', display: 'grid', placeItems: 'center' }}>{cartCount}</div>}
-            <span style={{ fontSize: 9, fontWeight: active ? 700 : 400 }}>{t.label}</span>{active && <div style={{ width: 4, height: 4, borderRadius: 2, background: theme.primary }} />}
+          return (<button key={t.key} id={'tut-tab-' + ti} onClick={() => nav(t.key)} aria-current={active ? 'page' : undefined} aria-label={badge ? `${t.label}, ${cartCount} ${cartCount === 1 ? 'item' : 'itens'}` : t.label} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '4px 10px', borderRadius: 10, position: 'relative', color: active ? theme.primary : 'rgba(var(--ink),calc(0.22*var(--ink-a)))', transition: 'all .2s' }}>
+            <t.icon size={20} />{badge && <div style={{ position: 'absolute', top: 0, right: 3, minWidth: 17, height: 17, padding: '0 4px', borderRadius: 9, background: theme.primary, fontSize: 'var(--fs-2xs)', fontWeight: 800, color: 'var(--gp-ink)', display: 'grid', placeItems: 'center' }}>{cartCount}</div>}
+            <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: active ? 700 : 400 }}>{t.label}</span>{active && <div style={{ width: 4, height: 4, borderRadius: 2, background: theme.primary }} />}
           </button>);
         })}
-      </div>}
+      </nav>}
 
       {/* Pages */}
       <main className="portal-content" style={{ padding: page === 'onboarding' ? '0 20px' : '14px 20px' }}>

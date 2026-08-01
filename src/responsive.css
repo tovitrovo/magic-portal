@@ -76,7 +76,7 @@
   }
   .portal-sidebar-nav button:hover { color:var(--text-strong); background:rgba(var(--ink),calc(.045*var(--ink-a))); }
   .portal-sidebar-nav button.is-active { color:var(--gp); border-color:color-mix(in srgb,var(--gp) 24%,transparent); background:color-mix(in srgb,var(--gp) 11%,transparent); }
-  .portal-sidebar-nav button b { margin-left:auto; min-width:20px; padding:2px 6px; border-radius:20px; color:#fff; background:var(--gp); font-size:10px; text-align:center; }
+  .portal-sidebar-nav button b { margin-left:auto; min-width:20px; padding:2px 6px; border-radius:20px; color:var(--gp-ink); background:var(--gp); font-size:11px; text-align:center; }
   .portal-sidebar-footer { margin-top:auto; display:flex; gap:9px; align-items:center; min-width:0; padding:15px 8px 0; border-top:1px solid rgba(var(--ink),calc(.055*var(--ink-a))); }
   .portal-sidebar-footer > div:last-child { min-width:0; }
   .portal-sidebar-footer strong { display:block; overflow:hidden; color:rgba(var(--ink),calc(.68*var(--ink-a))); font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
@@ -112,7 +112,9 @@
   .portal-profile > button { min-height:48px; }
 
   .portal-admin > div[style*="grid-template-columns"] { grid-template-columns:repeat(4,minmax(0,1fr)) !important; }
-  .portal-admin > div[style*="gap: 3px"], .portal-admin > div[style*="gap:3px"] { position:sticky; top:76px; z-index:8; padding:6px; border:1px solid rgba(var(--ink),calc(.055*var(--ink-a))); border-radius:14px; background:rgba(8,8,15,.88); backdrop-filter:blur(18px); }
+  /* `background` era rgba(8,8,15,.88) cravado — a barra ficava preta sobre o
+     creme do modo claro. `--chrome-bg` já é a superfície de cromo dos dois temas. */
+  .portal-admin > div[style*="gap: 3px"], .portal-admin > div[style*="gap:3px"] { position:sticky; top:76px; z-index:8; padding:6px; border:1px solid rgba(var(--ink),calc(.055*var(--ink-a))); border-radius:14px; background:var(--chrome-bg); backdrop-filter:blur(18px); }
 
   .portal-shell [role="dialog"], .portal-modal { left:calc(50% + 124px) !important; max-width:min(620px,calc(100vw - 320px)) !important; }
 }
