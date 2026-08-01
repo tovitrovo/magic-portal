@@ -112,13 +112,13 @@ O bônus permite conceder cartas grátis a um usuário em uma campanha. Pode ser
 
 #### Bônus Automático
 
-1. **Configure**: no painel admin, aba **Configurações**, defina o campo **"Bônus automático (%)"** na campanha (ex: `10` = a cada 10 cartas pagas, 1 bônus grátis)
+1. **Configure**: no painel admin, seção **Encomendas → Configuração da encomenda**, defina o campo **"Bônus automático (%)"** na campanha (ex: `10` = a cada 10 cartas pagas, 1 bônus grátis)
 2. **Trigger**: quando um pagamento é confirmado (via Mercado Pago webhook, sync ou marcação manual), o sistema calcula `floor(qty_in_batch × bonus_pct / 100)` e cria automaticamente um `bonus_grant` para o usuário
 3. **Idempotência**: o bônus é concedido uma única vez por batch (verificado via `batch_id`)
 
 #### Bônus Manual
 
-1. **Admin concede bônus**: no painel admin, aba **Clientes**, expanda um cliente e clique em **"Dar bônus"**
+1. **Admin concede bônus**: no painel admin, seção **Clientes**, expanda um cliente e clique em **"Dar bônus"**
 
 #### Uso do Bônus
 
@@ -153,9 +153,126 @@ O Pedido Individual (modo e-commerce, sem campanha) tem um pipeline de status si
 
 **Banco já existente?** Execute `supabase/migrations/add-individual-fulfillment-status.sql` no SQL Editor do Supabase. Adiciona a coluna `order_batches.fulfillment_status`.
 
-- **Admin**: aba **👤 Pedidos Individuais** (independente de campanha selecionada) agrupa os pedidos pagos por dia de pagamento, com avanço de status em lote por grupo ou individual.
+- **Admin**: em **Pedidos → Compras do dia**, os pedidos individuais pagos aparecem agrupados por dia de pagamento, com avanço de status em lote por grupo ou individual.
 - **API**: `/api/admin-individual-orders` lista os pedidos; `/api/admin-update-fulfillment` avança o status de um ou mais lotes.
 - **Cliente**: em "Meus Pedidos", pedidos Individuais pagos mostram uma barra de progresso com o status atual.
+
+## 🎛️ Console de Administração
+
+O painel admin é organizado em sete seções fixas. A **encomenda em contexto**
+(seletor no topo) vale para as seções coletivas; Pedidos Individuais não
+dependem de encomenda e aparecem sempre.
+
+| Seção | O que tem lá |
+|-------|--------------|
+| **Visão geral** | KPIs consolidados (receita, hoje, aguardando pagamento, cartas vendidas), lista de pendências acionáveis, progresso da encomenda ativa e atividade recente |
+| **Pedidos** | Lista unificada Coletiva + Individual com filtro por canal/status, busca e ordenação. A aba **Compras do dia** agrupa individuais por dia para a compra no fornecedor |
+| **Envios** | Etiquetas MandaBem: agrupadas por frete na coletiva, uma a uma no individual |
+| **Clientes** | Contatos, histórico de compras nos dois canais, bônus e disparo assistido de WhatsApp |
+| **Catálogo** | Importação por CSV e adição de cartas avulsas por link de imagem |
+| **Encomendas** | Criar/editar/arquivar campanhas + lista de compra da encomenda selecionada |
+| **Ajustes** | Preços da coletiva, preços do individual, notificações e mapa do console |
+
+## 🌗 Tema claro e escuro
+
+O portal abre no tema que o sistema do aparelho pede e lembra a escolha do
+usuário (`localStorage`, chave `cpj_color_mode`). Dá para trocar no ícone
+☀️/🌙 do cabeçalho ou em **Perfil → Aparência**. O modo claro usa um
+off-white quente (`#f6f1e6`) com tinta marrom, não branco/cinza.
+
+### Como as cores funcionam
+
+O app é quase todo estilo inline, então as cores vivem em variáveis CSS
+definidas em `src/theme.css` e trocadas pelo atributo `data-theme` no `<html>`
+(aplicado antes do primeiro paint por um script em `index.html`, para o claro
+não piscar escuro).
+
+Duas convenções valem para qualquer código novo:
+
+| Precisa de… | Use |
+|---|---|
+| Texto/borda/fundo neutro | `rgba(var(--ink), calc(0.3 * var(--ink-a)))` |
+| Superfície rebaixada (campo, sombra) | `rgba(var(--sunk), calc(0.3 * var(--sunk-a)))` |
+| Texto principal | `var(--text)` · `var(--text-strong)` |
+| Cartão, campo, cabeçalho | `var(--card-bg)`, `var(--field-bg)`, `var(--chrome-bg)` |
+| Acento sólido | `var(--ok)`, `var(--gold)`, `var(--danger)`, `var(--info)`, `var(--indiv)`, `var(--wa)` |
+| Acento translúcido | `rgba(var(--ok-rgb), 0.08)` |
+| Opacidade sobre cor variável | `wa(theme.primary, '30')` |
+
+O multiplicador `--ink-a` compensa contraste: a mesma opacidade que funciona
+sobre preto some sobre um fundo creme, então no claro ela é escalada.
+
+`--ink`/`--sunk` guardam **tripletes RGB** (`255, 255, 255`), não cores — é o
+que permite reaproveitar as dezenas de opacidades diferentes do layout.
+
+Cores de acento com opacidade não podem ser concatenadas (`var(--ok)+'14'`
+não é CSS válido): use `wa(cor, '14')`, que aceita tanto hex quanto `var()`.
+A paleta de guilda (`GT`/`GT_LIGHT`) continua em hex justamente porque
+`theme.primary` é concatenado em vários lugares.
+
+`test/theme.test.js` trava esse contrato: os dois modos precisam definir os
+mesmos tokens, e um `rgba(255,255,255,…)` novo no JSX quebra o teste antes de
+quebrar o modo claro silenciosamente.
+
+## 🔔 Notificações (Web Push + PWA)
+
+O admin recebe no celular: **pedido novo**, **pagamento confirmado**,
+**pedido bônus**, **login** e **nova conta**. Tudo também fica no histórico em
+**Ajustes → Notificações**, mesmo sem push ativado.
+
+### 1. Banco
+
+Execute `supabase/migrations/notifications-and-push.sql` no SQL Editor do
+Supabase. Cria `app_notifications` (histórico) e `push_subscriptions`
+(aparelhos inscritos). Ambas ficam com RLS ligado e sem policies — só as
+Functions, com a service role, acessam.
+
+### 2. Chaves VAPID
+
+```bash
+node scripts/generate-vapid-keys.mjs
+```
+
+Cadastre a saída nas variáveis de ambiente do Cloudflare Pages:
+
+| Variável | Observação |
+|----------|------------|
+| `VAPID_PUBLIC_KEY` | Também é servida ao navegador via `/api/push-config` |
+| `VAPID_PRIVATE_KEY` | **Segredo** — nunca commitar |
+| `VAPID_SUBJECT` | `mailto:seu@email.com` |
+
+Trocar as chaves invalida as inscrições: cada aparelho precisa ativar de novo.
+
+### 3. Ativar no aparelho
+
+Abra **Admin → Ajustes → Notificações → Ativar neste aparelho**. Cada
+aparelho é inscrito separadamente e escolhe quais eventos recebe (pedidos
+e/ou logins). O botão **Enviar teste** confirma a entrega ponta a ponta.
+
+> **iPhone/iPad**: o Safari só entrega push quando o site está **instalado na
+> tela de início** (iOS 16.4+). Abra pelo app instalado antes de ativar.
+
+### Como funciona
+
+- `functions/api/_webpush.js` — VAPID (RFC 8292, JWT ES256) e criptografia do
+  payload (RFC 8291, ECDH P-256 + HKDF + AES-128-GCM) só com WebCrypto, sem
+  dependências. Coberto por `test/webpush.test.js`, que faz o round-trip de
+  cifrar/decifrar e verifica a assinatura do JWT.
+- `functions/api/_notify.js` — grava o evento e dispara push para os admins.
+  Endpoints expirados (404/410) são removidos do banco automaticamente.
+- Gatilhos no servidor: `mp-create.js` (pedido novo), `mp-webhook.js`
+  (pagamento confirmado) e `confirm-bonus-batch.js` (pedido bônus). São
+  idempotentes por lote — repetir a chamada não gera notificação duplicada.
+- Logins vêm de `/api/notify-event`, chamado pelo app após o login. O usuário
+  é identificado pelo token (não dá para forjar), logins de admin são
+  ignorados e o mesmo cliente só gera um evento a cada 30 minutos.
+- `public/sw.js` — service worker que mostra a notificação e, no clique, abre
+  o console direto na seção certa (`/?admin=orders`).
+
+### Ícones do PWA
+
+`public/icons/*` é gerado por `node scripts/generate-icons.mjs` (sem
+dependências de imagem). Rode de novo se mudar a identidade visual.
 
 ### Como executar:
 

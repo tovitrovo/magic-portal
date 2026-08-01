@@ -14,6 +14,7 @@
 
 import { incrementPoolOnPaid } from './_pool-helper.js';
 import { grantTierBonusToAll } from './_tier-bonus-helper.js';
+import { notifyOrderEvent } from './_notify.js';
 
 export async function onRequest(context) {
   const CORS = {
@@ -133,6 +134,10 @@ export async function onRequest(context) {
       await grantTierBonusToAll(SB_URL, SB_SERVICE_ROLE_KEY, campaignId)
         .catch(e => console.error("confirm-bonus-batch: tier bonus error:", e));
     }
+
+    // ─── Notifica o admin (nunca bloqueia a confirmação) ─
+    await notifyOrderEvent(context.env, batchId, "BONUS_ORDER")
+      .catch(e => console.error("confirm-bonus-batch: notify error:", e));
 
     return json({ ok: true }, 200, CORS);
   } catch (e) {
