@@ -940,7 +940,9 @@ function CheckoutPage({cartItems=[],wants,cartQtyByItem,pricing,bonusAvail,theme
   const bd=cart.map(c=>{const bq=Math.min(c.quantity,bL);bL-=bq;return{...c,bonusQty:bq,paidQty:c.quantity-bq};});
   const totalQty=cart.reduce((s,c)=>s+c.quantity,0);
   const totalBonus=bd.reduce((s,c)=>s+c.bonusQty,0);const totalPaid=bd.reduce((s,c)=>s+c.paidQty,0);
-  const campaignOpen = campaignCanOrder(campaignStatus);
+  // Pedido individual não depende do status da encomenda coletiva: sem isso o botão
+  // de pagar fica desabilitado sempre que a campanha não está ACTIVE.
+  const campaignOpen = isIndividual || campaignCanOrder(campaignStatus);
   const campaignStatusText = campaignLabel(campaignStatus);
   const isFullBonus=totalPaid===0&&totalBonus>0;
   const previousPaidCards=(previousPaidBatches||[]).reduce((s,b)=>s+(b.qty_in_batch||0),0);
