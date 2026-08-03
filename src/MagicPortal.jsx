@@ -2470,10 +2470,22 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     catch(e){console.error('Sync error:',e);if(toastFn)toastFn('Erro ao sincronizar com o Mercado Pago','error');}
   }
 
-  // Avança o estágio de importação de um ou vários lotes individuais.
-  async function setFulfillment(batchIds,status,busyId){
+  // Move o estágio de importação de um ou vários lotes individuais — pra frente
+  // ou pra trás. Sempre pede confirmação: o cliente vê essa barra em "Meus
+  // Pedidos", então um clique errado conta uma história errada pra ele.
+  async function setFulfillment(batchIds,status,busyId,opts={}){
+    const stage=INDIV_FULFILLMENT_STAGES.find(s=>s.key===status);
+    const alvo=batchIds.length>1?`os ${batchIds.length} pedidos`:'o pedido';
+    const acao=opts.back?'Voltar':'Avançar';
+    const aviso=opts.hasLabel&&opts.back?'\n\nAtenção: a etiqueta do MandaBem já foi gerada e continua valendo — voltar o status não cancela o envio.':'';
+    if(!confirm(`${acao} ${alvo} para "${stage?.label||status}"?${aviso}`))return;
     setBusyBatch(busyId);
-    try{await apiPost('/api/admin-update-fulfillment',{batchIds,fulfillmentStatus:status});SFX.success();await loadIndivOrders();}
+    try{
+      await apiPost('/api/admin-update-fulfillment',{batchIds,fulfillmentStatus:status});
+      SFX.success();
+      if(toastFn)toastFn(`${batchIds.length>1?`${batchIds.length} pedidos`:'Pedido'} em "${stage?.label||status}"`,'success');
+      await loadIndivOrders();
+    }
     catch(e){console.error(e);if(toastFn)toastFn('Erro ao atualizar status: '+(e.message||String(e)),'error');}
     setBusyBatch(null);
   }
@@ -2747,6 +2759,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     const isIndiv=b.channel==='INDIVIDUAL';
     const stageInfo=isIndiv?INDIV_FULFILLMENT_STAGES[indivStageIndex(b.fulfillment_status)]:null;
     const nextStage=isIndiv?INDIV_FULFILLMENT_STAGES[indivStageIndex(b.fulfillment_status)+1]:null;
+    const prevStage=isIndiv&&indivStageIndex(b.fulfillment_status)>0?INDIV_FULFILLMENT_STAGES[indivStageIndex(b.fulfillment_status)-1]:null;
     const tracking=getBatchTrackingInfo(b);
     const canMandaBem=!isIndiv&&paid&&!cancelled&&!b.shipping_already_paid&&ship>0;
     const busy=busyBatch===b.id||!!labelLoading[b.id];
@@ -2824,6 +2837,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
           {pendingPay&&<Btn variant="success" onClick={e=>{e.stopPropagation();markBatchPaid(b.id);}} style={{padding:'6px 12px',fontSize:'var(--fs-2xs)'}} sfx=""><CheckCircle size={12}/> Marcar pago</Btn>}
           {b.payment_method==='MERCADO_PAGO'&&!cancelled&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();syncBatchMP(b.id);}} style={{padding:'6px 12px',fontSize:'var(--fs-2xs)'}} sfx=""><RefreshCw size={12}/> Sync MP</Btn>}
+          {isIndiv&&prevStage&&<Btn variant="ghost" onClick={e=>{e.stopPropagation();setFulfillment([b.id],prevStage.key,b.id,{back:true,hasLabel:!!b.mandabem_envio_id});}} disabled={busy} style={{padding:'6px 12px',fontSize:'var(--fs-2xs)'}} sfx="">{busy?<Spin size={12}/>:<><ArrowLeft size={12}/> Voltar p/ {prevStage.label}</>}</Btn>}
           {isIndiv&&nextStage&&nextStage.key!=='LABEL_GENERATED'&&<Btn variant="ghost" onClick={e=>{e.stopPropagation();setFulfillment([b.id],nextStage.key,b.id);}} disabled={busy} style={{padding:'6px 12px',fontSize:'var(--fs-2xs)'}} sfx="">{busy?<Spin size={12}/>:<><ArrowRight size={12}/> {nextStage.label}</>}</Btn>}
           {isIndiv&&['PREPARING','LABEL_GENERATED'].includes(b.fulfillment_status)&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();generateIndividualLabel(b);}} disabled={busy} style={{padding:'6px 12px',fontSize:'var(--fs-2xs)'}} sfx="">{busy?<Spin size={12}/>:b.mandabem_envio_id?<><RefreshCw size={12}/> Atualizar envio</>:<><Truck size={12}/> Gerar etiqueta</>}</Btn>}
           {canMandaBem&&!b.mandabem_envio_id&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleMandaBemLabel(b.id,'generate');}} disabled={busy} style={{padding:'6px 12px',fontSize:'var(--fs-2xs)'}} sfx="">{busy?<Spin size={12}/>:<><Truck size={12}/> Gerar etiqueta</>}</Btn>}
@@ -2941,6 +2955,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
           const stageIdxs=group.batches.map(b=>indivStageIndex(b.fulfillment_status));
           const minIdx=Math.min(...stageIdxs);
           const nextStage=INDIV_FULFILLMENT_STAGES[minIdx+1];
+          const prevStage=minIdx>0?INDIV_FULFILLMENT_STAGES[minIdx-1]:null;
           const bulkTargets=group.batches.filter(b=>indivStageIndex(b.fulfillment_status)===minIdx).map(b=>b.id);
           return(<Card key={group.dayKey} style={{padding:14}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,gap:8}}>
@@ -2948,15 +2963,21 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
                 <div style={{fontSize:'var(--fs-sm)',fontWeight:800}}>{group.dayKey}</div>
                 <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{group.batches.length} pedido(s) · {group.batches.reduce((s,b)=>s+Number(b.qty_in_batch||0),0)} cartas · {brl(group.batches.reduce((s,b)=>s+Number(b.total_locked||0),0))}</div>
               </div>
-              {nextStage&&nextStage.key!=='LABEL_GENERATED'&&bulkTargets.length>0&&<Btn variant="secondary" onClick={()=>setFulfillment(bulkTargets,nextStage.key,group.dayKey)} disabled={busyBatch===group.dayKey} style={{padding:'6px 10px',fontSize:'var(--fs-2xs)',flexShrink:0}} sfx="">
-                {busyBatch===group.dayKey?<Spin size={12}/>:<><ArrowRight size={12}/> {nextStage.label}</>}
-              </Btn>}
+              <div style={{display:'flex',alignItems:'center',gap:5,flexShrink:0}}>
+                {prevStage&&bulkTargets.length>0&&<Btn variant="ghost" onClick={()=>setFulfillment(bulkTargets,prevStage.key,group.dayKey,{back:true,hasLabel:group.batches.some(b=>bulkTargets.includes(b.id)&&b.mandabem_envio_id)})} disabled={busyBatch===group.dayKey} title={`Voltar para ${prevStage.label}`} style={{padding:'6px 10px',fontSize:'var(--fs-2xs)'}} sfx="">
+                  {busyBatch===group.dayKey?<Spin size={12}/>:<><ArrowLeft size={12}/> Voltar</>}
+                </Btn>}
+                {nextStage&&nextStage.key!=='LABEL_GENERATED'&&bulkTargets.length>0&&<Btn variant="secondary" onClick={()=>setFulfillment(bulkTargets,nextStage.key,group.dayKey)} disabled={busyBatch===group.dayKey} style={{padding:'6px 10px',fontSize:'var(--fs-2xs)'}} sfx="">
+                  {busyBatch===group.dayKey?<Spin size={12}/>:<><ArrowRight size={12}/> {nextStage.label}</>}
+                </Btn>}
+              </div>
             </div>
             <div style={{display:'flex',flexDirection:'column',gap:2}}>
               {group.batches.map(b=>{
                 const idx=indivStageIndex(b.fulfillment_status);
                 const stageInfo=INDIV_FULFILLMENT_STAGES[idx];
                 const next=INDIV_FULFILLMENT_STAGES[idx+1];
+                const prev=idx>0?INDIV_FULFILLMENT_STAGES[idx-1]:null;
                 return(<div key={b.id} style={{borderTop:'1px solid rgba(var(--ink),calc(0.04*var(--ink-a)))',paddingTop:7,paddingBottom:3}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
                     <div style={{display:'flex',alignItems:'center',gap:6,minWidth:0}}>
@@ -2966,6 +2987,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
                     </div>
                     <div style={{display:'flex',alignItems:'center',gap:5,flexShrink:0}}>
                       <Tag color={idx>=5?'var(--ok)':'var(--indiv)'} style={{fontSize:'var(--fs-2xs)',padding:'3px 7px'}}>{stageInfo.short}</Tag>
+                      {prev&&<button onClick={()=>setFulfillment([b.id],prev.key,b.id,{back:true,hasLabel:!!b.mandabem_envio_id})} disabled={busyBatch===b.id} title={`Voltar para ${prev.label}`} style={{background:'var(--fill)',border:'1px solid var(--line)',borderRadius:'var(--r-control)',padding:'4px 6px',color:'var(--text-dim)',cursor:'pointer',display:'grid',placeItems:'center'}}>{busyBatch===b.id?<Spin size={11}/>:<ArrowLeft size={11}/>}</button>}
                       {next&&next.key!=='LABEL_GENERATED'&&<button onClick={()=>setFulfillment([b.id],next.key,b.id)} disabled={busyBatch===b.id} title={next.label} style={{background:'var(--fill)',border:'1px solid var(--line)',borderRadius:'var(--r-control)',padding:'4px 6px',color:'var(--text-dim)',cursor:'pointer',display:'grid',placeItems:'center'}}>{busyBatch===b.id?<Spin size={11}/>:<ArrowRight size={11}/>}</button>}
                     </div>
                   </div>
