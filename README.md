@@ -157,7 +157,8 @@ O Pedido Individual (modo e-commerce, sem campanha) tem um pipeline de status si
 **Banco já existente?** Execute `supabase/migrations/add-individual-fulfillment-status.sql` no SQL Editor do Supabase. Adiciona a coluna `order_batches.fulfillment_status`.
 
 - **Admin**: em **Pedidos → Compras do dia**, os pedidos individuais pagos aparecem agrupados por dia de pagamento, com avanço de status em lote por grupo ou individual.
-- **API**: `/api/admin-individual-orders` lista os pedidos; `/api/admin-update-fulfillment` avança o status de um ou mais lotes.
+- **Errou o clique?** O status anda nos dois sentidos: ao lado do botão de avançar há um **Voltar** que devolve o pedido (ou o grupo do dia inteiro) ao estágio anterior. Avançar e voltar sempre pedem confirmação antes de gravar — o cliente enxerga essa barra em "Meus Pedidos". Voltar um pedido que já tem etiqueta MandaBem **não** cancela o envio; o aviso na confirmação lembra disso.
+- **API**: `/api/admin-individual-orders` lista os pedidos; `/api/admin-update-fulfillment` grava o status de um ou mais lotes (qualquer estágio válido, pra frente ou pra trás).
 - **Cliente**: em "Meus Pedidos", pedidos Individuais pagos mostram uma barra de progresso com o status atual.
 
 ## 💚 Lista de desejos
