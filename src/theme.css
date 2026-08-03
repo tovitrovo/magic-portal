@@ -177,9 +177,11 @@
   --sp-6: 32px;
 
   /* ── Foco ────────────────────────────────────────────
-     Um anel só, usado por tudo que é focável. O halo interno separa o anel
-     da cor de fundo do próprio controle. */
-  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--gp, var(--info));
+     Só a cor: o anel em si é `outline` no ui.css, e não box-shadow, porque
+     estilo inline já ocupa box-shadow em vários botões e ganharia da regra.
+     O fallback cobre a tela de login, que renderiza fora do shell que define
+     `--gp`. */
+  --focus-color: var(--gp, var(--info));
 }
 
 /* O tema pinta a página inteira, não só o app. */

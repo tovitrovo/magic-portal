@@ -18,7 +18,7 @@
    teclado vê. `--gp` é a cor da guilda; o fallback cobre a tela de login,
    que renderiza fora do shell que define a variável. */
 :where(button, a, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--gp, var(--info)) !important;
+  outline: 2px solid var(--focus-color) !important;
   outline-offset: 2px !important;
   border-radius: var(--r-control);
 }
@@ -100,4 +100,23 @@ select:focus-visible {
 @keyframes skPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
+}
+
+/* ── Título com gradiente ────────────────────────────
+   O recorte do gradiente no texto exige `-webkit-text-fill-color:
+   transparent`, e é aí que mora o risco: se o recorte não pintar, o título
+   fica invisível — não degradado, invisível. Por isso a transparência só é
+   aplicada dentro do @supports, e o `color` do estilo inline (a cor da
+   guilda) é o fallback sólido de quem não suporta. */
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .mp-gradient-text {
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+/* Sem o recorte, o gradiente de fundo atrás do texto atrapalharia a leitura. */
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  .mp-gradient-text { background: none !important; }
 }

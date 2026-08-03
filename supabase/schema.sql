@@ -383,15 +383,26 @@ CREATE POLICY "Users can delete own wishlist" ON public.wishlist_items
 -- ══════════════════════════════════════════════════════════════
 -- TRIGGER: auto-criar perfil ao registrar usuário
 -- ══════════════════════════════════════════════════════════════
+-- `SET search_path` é obrigatório numa SECURITY DEFINER: sem ele, o search_path
+-- de quem dispara o gatilho decide quais objetos o corpo enxerga.
+-- O REVOKE tira a função da API: ela é gatilho (AFTER INSERT em auth.users) e
+-- não deveria ser chamável em /rest/v1/rpc por visitante nenhum. Isso não
+-- afeta o disparo — o Postgres não exige EXECUTE do autor do INSERT.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger AS $$
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 BEGIN
   INSERT INTO public.profiles (id, email)
   VALUES (NEW.id, NEW.email)
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM anon, authenticated, PUBLIC;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created

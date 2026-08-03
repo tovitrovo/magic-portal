@@ -325,7 +325,7 @@ function useDialogA11y(onClose){
 }
 
 function getGuild(a,b){return a&&b&&a!==b?(GUILD_MAP[a+b]||null):null;}
-const TC={Normal:'rgba(var(--ink),calc(0.4*var(--ink-a)))',Holo:'var(--gold)',Foil:'var(--tc-foil)',English:'var(--tc-blue)',Chinese:'var(--tc-red)',Japanese:'var(--tc-amber)',Promo:'var(--tc-pink)','Showcase Foil':'var(--tc-violet)',Regular:'rgba(var(--ink),calc(0.4*var(--ink-a)))','Enchanted Foil':'var(--tc-purple)','Cold Foil':'var(--tc-sky)'};
+const TC={Normal:'var(--text-dim)',Holo:'var(--gold)',Foil:'var(--tc-foil)',English:'var(--tc-blue)',Chinese:'var(--tc-red)',Japanese:'var(--tc-amber)',Promo:'var(--tc-pink)','Showcase Foil':'var(--tc-violet)',Regular:'var(--text-dim)','Enchanted Foil':'var(--tc-purple)','Cold Foil':'var(--tc-sky)'};
 const TCG_LIST=[
   {key:'Magic',color:'var(--indiv)',types:['Todos','Normal','Holo','Foil']},
   {key:'Pokemon',color:'#facc15',types:['Todos','English','Chinese','Japanese']},
@@ -428,17 +428,17 @@ function FloatingMana({theme}){
 // UI PRIMITIVES
 // ══════════════════════════════════════════════════════
 
-const Card=({children,style,glow,onClick,id})=><div id={id} onClick={onClick} style={{background:'var(--card-bg)',border:'1px solid '+(glow||'var(--card-border)'),borderRadius:16,padding:16,boxShadow:glow?'0 0 20px '+glow:'var(--card-shadow)',...(onClick?{cursor:'pointer'}:{}),...style}}>{children}</div>;
-const Btn=({children,variant='primary',disabled,onClick,style,full,sfx='click',id})=>{const v={primary:{background:'var(--gp)',color:'var(--gp-ink)',boxShadow:'0 4px 18px var(--gg)'},secondary:{background:'var(--fill)',color:'var(--text-strong)',border:'1px solid var(--line)'},ghost:{background:'transparent',color:'var(--gp)',padding:'12px'},danger:{background:'rgba(var(--danger-rgb),0.1)',color:'var(--danger)',border:'1px solid rgba(var(--danger-rgb),0.15)'},success:{background:'rgba(var(--ok-rgb),0.1)',color:'var(--ok)',border:'1px solid rgba(var(--ok-rgb),0.15)'},pix:{background:'rgba(var(--pix-rgb),0.12)',color:'var(--pix)',border:'1px solid rgba(var(--pix-rgb),0.2)'},warn:{background:'rgba(var(--gold-rgb),0.1)',color:'var(--gold)',border:'1px solid rgba(var(--gold-rgb),0.15)'}};return <button id={id} onClick={e=>{if(!disabled&&sfx&&SFX[sfx])SFX[sfx]();if(onClick)onClick(e);}} disabled={disabled} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,border:'none',borderRadius:14,padding:'13px 20px',fontWeight:700,fontSize:14,cursor:disabled?'not-allowed':'pointer',opacity:disabled?.4:1,transition:'all .15s',fontFamily:"'Outfit',sans-serif",...(full?{width:'100%'}:{}),...v[variant],...style}}>{children}</button>;};
-const Input=({icon:Icon,...p})=><div style={{position:'relative'}}>{Icon&&<Icon size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)',pointerEvents:'none'}}/>}<input {...p} style={{width:'100%',padding:Icon?'13px 14px 13px 42px':'13px 14px',borderRadius:14,border:'1px solid var(--line)',background:'var(--field-bg)',color:'var(--text)',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box',...p.style}}/></div>;
-const Tag=({children,color,style})=><span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:99,background:color?wa(color,'14'):'rgba(var(--ink),calc(0.04*var(--ink-a)))',border:'1px solid '+(color?wa(color,'22'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),fontSize:'var(--fs-xs)',color:color||'rgba(var(--ink),calc(0.55*var(--ink-a)))',fontWeight:600,whiteSpace:'nowrap',...style}}>{children}</span>;
+const Card=({children,style,glow,onClick,id})=><div id={id} onClick={onClick} style={{background:'var(--card-bg)',border:'1px solid '+(glow||'var(--card-border)'),borderRadius:'var(--r-card)',padding:'var(--sp-4)',boxShadow:glow?'0 0 20px '+glow:'var(--card-shadow)',...(onClick?{cursor:'pointer'}:{}),...style}}>{children}</div>;
+const Btn=({children,variant='primary',disabled,onClick,style,full,sfx='click',id})=>{const v={primary:{background:'var(--gp)',color:'var(--gp-ink)',boxShadow:'0 4px 18px var(--gg)'},secondary:{background:'var(--fill)',color:'var(--text-strong)',border:'1px solid var(--line)'},ghost:{background:'transparent',color:'var(--gp)',padding:'12px'},danger:{background:'rgba(var(--danger-rgb),0.1)',color:'var(--danger)',border:'1px solid rgba(var(--danger-rgb),0.15)'},success:{background:'rgba(var(--ok-rgb),0.1)',color:'var(--ok)',border:'1px solid rgba(var(--ok-rgb),0.15)'},pix:{background:'rgba(var(--pix-rgb),0.12)',color:'var(--pix)',border:'1px solid rgba(var(--pix-rgb),0.2)'},warn:{background:'rgba(var(--gold-rgb),0.1)',color:'var(--gold)',border:'1px solid rgba(var(--gold-rgb),0.15)'}};return <button id={id} onClick={e=>{if(!disabled&&sfx&&SFX[sfx])SFX[sfx]();if(onClick)onClick(e);}} disabled={disabled} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:'var(--sp-2)',border:'none',borderRadius:'var(--r-card)',padding:'13px 20px',fontWeight:700,fontSize:14,cursor:disabled?'not-allowed':'pointer',opacity:disabled?.4:1,transition:'all .15s',fontFamily:"'Outfit',sans-serif",...(full?{width:'100%'}:{}),...v[variant],...style}}>{children}</button>;};
+const Input=({icon:Icon,...p})=><div style={{position:'relative'}}>{Icon&&<Icon size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)',pointerEvents:'none'}}/>}<input {...p} style={{width:'100%',padding:Icon?'13px 14px 13px 42px':'13px 14px',borderRadius:'var(--r-card)',border:'1px solid var(--line)',background:'var(--field-bg)',color:'var(--text)',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box',...p.style}}/></div>;
+const Tag=({children,color,style})=><span style={{display:'inline-flex',alignItems:'center',gap:'var(--sp-1)',padding:'5px 11px',borderRadius:'var(--r-pill)',background:color?wa(color,'14'):'var(--fill-soft)',border:'1px solid '+(color?wa(color,'22'):'var(--line-soft)'),fontSize:'var(--fs-xs)',color:color||'var(--text-muted)',fontWeight:600,whiteSpace:'nowrap',...style}}>{children}</span>;
 const SectionTitle=({children,sub})=><div style={{marginBottom:12}}><h2 style={{margin:0,fontSize:'var(--fs-lg)',fontFamily:"'Cinzel',serif",color:'var(--text-strong)',letterSpacing:.3}}>{children}</h2>{sub&&<p style={{margin:'3px 0 0',fontSize:'var(--fs-xs)',color:'var(--text-faint)'}}>{sub}</p>}</div>;
-const EmptyState=({icon:Icon,title,sub})=><div style={{textAlign:'center',padding:'32px 20px',opacity:.5}}><Icon size={34} style={{marginBottom:8,color:'var(--gp)'}}/><div style={{fontSize:'var(--fs-md)',fontWeight:700,marginBottom:4}}>{title}</div><div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}>{sub}</div></div>;
-const ManaOrb=({mana,selected,onClick,size=44})=>{const m=MANA_COLORS.find(c=>c.key===mana);return <button onClick={()=>{SFX.toggle();onClick&&onClick();}} style={{width:size,height:size,borderRadius:size,background:selected?wa(m.color,'28'):'rgba(var(--ink),calc(0.03*var(--ink-a)))',border:'2.5px solid '+(selected?m.color:'var(--text-faint)'),display:'grid',placeItems:'center',cursor:'pointer',fontSize:size*.4,transition:'all .2s',boxShadow:selected?'0 0 14px '+wa(m.color,'35'):'none'}}>{m.emoji}</button>;};
+const EmptyState=({icon:Icon,title,sub,action})=><div style={{textAlign:'center',padding:'var(--sp-6) var(--sp-5)'}}><Icon size={34} style={{marginBottom:'var(--sp-2)',color:'var(--text-faint)'}}/><div style={{fontSize:'var(--fs-md)',fontWeight:700,marginBottom:'var(--sp-1)',color:'var(--text-strong)'}}>{title}</div><div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}>{sub}</div>{action&&<div style={{marginTop:'var(--sp-4)',display:'flex',justifyContent:'center'}}>{action}</div>}</div>;
+const ManaOrb=({mana,selected,onClick,size=44})=>{const m=MANA_COLORS.find(c=>c.key===mana);return <button onClick={()=>{SFX.toggle();onClick&&onClick();}} style={{width:size,height:size,borderRadius:size,background:selected?wa(m.color,'28'):'var(--fill-soft)',border:'2.5px solid '+(selected?m.color:'var(--text-faint)'),display:'grid',placeItems:'center',cursor:'pointer',fontSize:size*.4,transition:'all .2s',boxShadow:selected?'0 0 14px '+wa(m.color,'35'):'none'}}>{m.emoji}</button>;};
 const GuildBadge=({guild,size=22})=>{if(!guild||!GT[guild])return null;const t=guildTheme(guild);return <div style={{width:size,height:size,borderRadius:size,background:'linear-gradient(135deg,'+t.primary+','+t.secondary+')',boxShadow:'0 0 '+size*.5+'px '+t.glow,flexShrink:0}}/>;};
 const Spin=({size=18,color})=><Loader size={size} style={{color:color||'var(--gp)',animation:'spin 1s linear infinite'}}/>;
 
-const Toast=({msg,type='info',onClose})=>{const bg=type==='error'?'rgba(var(--danger-rgb),0.15)':type==='success'?'rgba(var(--ok-rgb),0.15)':'rgba(var(--info-rgb),0.15)';const c=type==='error'?'var(--danger)':type==='success'?'var(--ok)':'var(--info)';return <div style={{position:'fixed',top:16,left:'50%',transform:'translateX(-50%)',zIndex:200,padding:'10px 18px',borderRadius:14,background:bg,border:'1px solid '+wa(c,'30'),color:c,fontSize:'var(--fs-sm)',fontWeight:600,display:'flex',alignItems:'center',gap:8,backdropFilter:'blur(12px)',maxWidth:'90%'}}>{type==='error'?<AlertTriangle size={15}/>:<Check size={15}/>}{msg}<button onClick={onClose} style={{background:'none',border:'none',color:c,cursor:'pointer',padding:2}}><X size={14}/></button></div>;};
+const Toast=({msg,type='info',onClose})=>{const bg=type==='error'?'rgba(var(--danger-rgb),0.15)':type==='success'?'rgba(var(--ok-rgb),0.15)':'rgba(var(--info-rgb),0.15)';const c=type==='error'?'var(--danger)':type==='success'?'var(--ok)':'var(--info)';return <div style={{position:'fixed',top:16,left:'50%',transform:'translateX(-50%)',zIndex:200,padding:'10px 18px',borderRadius:'var(--r-card)',background:bg,border:'1px solid '+wa(c,'30'),color:c,fontSize:'var(--fs-sm)',fontWeight:600,display:'flex',alignItems:'center',gap:'var(--sp-2)',backdropFilter:'blur(12px)',maxWidth:'90%'}}>{type==='error'?<AlertTriangle size={15}/>:<Check size={15}/>}{msg}<button onClick={onClose} style={{background:'none',border:'none',color:c,cursor:'pointer',padding:'var(--sp-1)'}}><X size={14}/></button></div>;};
 
 const AddressForm=({address,setAddress})=>{
   const [cepLoading,setCepLoading]=useState(false);
@@ -463,18 +463,18 @@ const AddressForm=({address,setAddress})=>{
     }
   }
 
-  return(<div style={{display:'flex',flexDirection:'column',gap:8}}>
+  return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)'}}>
     <div style={{position:'relative'}}>
       <Input icon={MapPin} placeholder="CEP" value={address.cep||''} onChange={e=>handleCepChange(e.target.value)} inputMode="numeric"/>
       {cepLoading&&<div style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50)'}}><Spin size={14}/></div>}
     </div>
     <Input icon={MapPin} placeholder="Rua" value={address.rua||''} onChange={e=>u('rua',e.target.value)}/>
-    <div style={{display:'flex',gap:8}}>
+    <div style={{display:'flex',gap:'var(--sp-2)'}}>
       <div style={{flex:'0 0 90px'}}><Input placeholder="Nº" value={address.numero||''} onChange={e=>u('numero',e.target.value)}/></div>
       <div style={{flex:1}}><Input placeholder="Complemento" value={address.complemento||''} onChange={e=>u('complemento',e.target.value)}/></div>
     </div>
     <Input placeholder="Bairro" value={address.bairro||''} onChange={e=>u('bairro',e.target.value)}/>
-    <div style={{display:'flex',gap:8}}>
+    <div style={{display:'flex',gap:'var(--sp-2)'}}>
       <div style={{flex:1}}><Input placeholder="Cidade" value={address.cidade||''} onChange={e=>u('cidade',e.target.value)}/></div>
       <div style={{flex:'0 0 72px'}}><Input placeholder="UF" value={address.uf||''} onChange={e=>u('uf',e.target.value.toUpperCase().slice(0,2))}/></div>
     </div>
@@ -483,7 +483,7 @@ const AddressForm=({address,setAddress})=>{
 
 const AddressDisplay=({address,onEdit})=>{
   const has=address&&(address.rua||address.cep);
-  return(<div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10}}>
+  return(<div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:'var(--sp-2)'}}>
     <div style={{fontSize:'var(--fs-sm)',color:'var(--text-muted)',lineHeight:1.6}}>
       {has?<>
         {address.rua&&<div>{address.rua}{address.numero?', '+address.numero:''}{address.complemento?' · '+address.complemento:''}</div>}
@@ -491,7 +491,7 @@ const AddressDisplay=({address,onEdit})=>{
         {address.cep&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>CEP {address.cep}</div>}
       </>:<span style={{color:'var(--text-faint)'}}>Nenhum endereço cadastrado</span>}
     </div>
-    <button onClick={onEdit} style={{background:'var(--fill)',border:'1px solid var(--line)',borderRadius:10,padding:'6px 10px',cursor:'pointer',color:'var(--text-dim)',display:'flex',alignItems:'center',gap:4,fontSize:'var(--fs-2xs)',flexShrink:0}}><Edit3 size={12}/> Editar</button>
+    <button onClick={onEdit} style={{background:'var(--fill)',border:'1px solid var(--line)',borderRadius:'var(--r-control)',padding:'6px 10px',cursor:'pointer',color:'var(--text-dim)',display:'flex',alignItems:'center',gap:'var(--sp-1)',fontSize:'var(--fs-2xs)',flexShrink:0}}><Edit3 size={12}/> Editar</button>
   </div>);
 };
 
@@ -514,21 +514,21 @@ function SwipeableCard({children,onSwipeLeft,onSwipeRight,leftLabel='Excluir',ri
     setDx(0);setSwiping(false);
   }
   const bgColor=dx<-30?wa(leftColor,'20'):dx>30?wa((rightColor||'var(--gp)'),'20'):'transparent';
-  return(<div style={{position:'relative',overflow:'hidden',borderRadius:16,background:bgColor,transition:swiping?'none':'background .3s'}}>
-    {dx<-20&&<div style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',color:leftColor,fontSize:'var(--fs-2xs)',fontWeight:700,display:'flex',alignItems:'center',gap:4}}><Trash2 size={14}/>{leftLabel}</div>}
-    {dx>20&&<div style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',color:rightColor||'var(--gp)',fontSize:'var(--fs-2xs)',fontWeight:700,display:'flex',alignItems:'center',gap:4}}><ShoppingCart size={14}/>{rightLabel}</div>}
+  return(<div style={{position:'relative',overflow:'hidden',borderRadius:'var(--r-card)',background:bgColor,transition:swiping?'none':'background .3s'}}>
+    {dx<-20&&<div style={{position:'absolute',right:16,top:'50%',transform:'translateY(-50%)',color:leftColor,fontSize:'var(--fs-2xs)',fontWeight:700,display:'flex',alignItems:'center',gap:'var(--sp-1)'}}><Trash2 size={14}/>{leftLabel}</div>}
+    {dx>20&&<div style={{position:'absolute',left:16,top:'50%',transform:'translateY(-50%)',color:rightColor||'var(--gp)',fontSize:'var(--fs-2xs)',fontWeight:700,display:'flex',alignItems:'center',gap:'var(--sp-1)'}}><ShoppingCart size={14}/>{rightLabel}</div>}
     <div ref={ref} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} style={{transform:`translateX(${dx}px)`,transition:swiping?'none':'transform .3s',position:'relative',zIndex:1}}>{children}</div>
   </div>);
 }
 
 function VirtualKeyboard({onKey,onBackspace,onDone,maxLen=6,currentLen=0,doneLabel='OK'}){
   const rows=[['1','2','3'],['4','5','6'],['7','8','9'],['⌫','0',doneLabel]];
-  return(<div style={{background:'rgba(var(--sunk),calc(0.6*var(--sunk-a)))',backdropFilter:'blur(10px)',borderRadius:16,padding:10,border:'1px solid var(--line-soft)',maxWidth:220,margin:'0 auto'}}>
-    {rows.map((row,ri)=>(<div key={ri} style={{display:'flex',justifyContent:'center',gap:4,marginBottom:4}}>
+  return(<div style={{background:'rgba(var(--sunk),calc(0.6*var(--sunk-a)))',backdropFilter:'blur(10px)',borderRadius:'var(--r-card)',padding:'var(--sp-2)',border:'1px solid var(--line-soft)',maxWidth:220,margin:'0 auto'}}>
+    {rows.map((row,ri)=>(<div key={ri} style={{display:'flex',justifyContent:'center',gap:'var(--sp-1)',marginBottom:4}}>
       {row.map(k=>{
         const isBack=k==='⌫';const isOk=k===doneLabel;const isNum=!isBack&&!isOk;
         const disabled=isNum&&currentLen>=maxLen;
-        return <button key={k} onClick={()=>{if(isBack){SFX.click();onBackspace();}else if(isOk){SFX.confirm();onDone();}else if(!disabled){SFX.click();onKey(k);}}} disabled={disabled} style={{width:60,height:48,borderRadius:12,border:isOk?'none':'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',background:isOk?'var(--gp)':isBack?'rgba(var(--danger-rgb),0.1)':'rgba(var(--ink),calc(0.05*var(--ink-a)))',color:isOk?'#fff':isBack?'var(--danger)':'var(--text)',fontSize:isNum?20:isOk?13:18,fontWeight:700,cursor:disabled?'not-allowed':'pointer',fontFamily:"'Outfit',sans-serif",display:'grid',placeItems:'center',opacity:disabled?.3:1}}>{k}</button>;})}
+        return <button key={k} onClick={()=>{if(isBack){SFX.click();onBackspace();}else if(isOk){SFX.confirm();onDone();}else if(!disabled){SFX.click();onKey(k);}}} disabled={disabled} style={{width:60,height:48,borderRadius:'var(--r-control)',border:isOk?'none':'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',background:isOk?'var(--gp)':isBack?'rgba(var(--danger-rgb),0.1)':'var(--text-faint)',color:isOk?'#fff':isBack?'var(--danger)':'var(--text)',fontSize:isNum?20:isOk?13:18,fontWeight:700,cursor:disabled?'not-allowed':'pointer',fontFamily:"'Outfit',sans-serif",display:'grid',placeItems:'center',opacity:disabled?.3:1}}>{k}</button>;})}
     </div>))}
   </div>);
 }
@@ -546,25 +546,25 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
   const msgTop=rect?(cardAbove?Math.max(60,rect.top-220):rect.top+rect.height+20):null;
   return(<div style={{position:'fixed',inset:0,zIndex:100,pointerEvents:s.interactive?'none':'auto'}}>
     <div style={{position:'absolute',inset:0,pointerEvents:s.interactive?'none':'auto'}} onClick={isFirstTime||s.interactive?undefined:onSkip}/>
-    {rect&&<div style={{position:'absolute',top:rect.top,left:rect.left,width:rect.width,height:rect.height,borderRadius:14,border:'2.5px solid '+theme.primary,boxShadow:'0 0 30px '+theme.glow+', inset 0 0 20px '+theme.glow,background:'transparent',zIndex:101,pointerEvents:'none',animation:'tutPulse 1.5s ease-in-out infinite'}}/>}
+    {rect&&<div style={{position:'absolute',top:rect.top,left:rect.left,width:rect.width,height:rect.height,borderRadius:'var(--r-card)',border:'2.5px solid '+theme.primary,boxShadow:'0 0 30px '+theme.glow+', inset 0 0 20px '+theme.glow,background:'transparent',zIndex:101,pointerEvents:'none',animation:'tutPulse 1.5s ease-in-out infinite'}}/>}
     <div style={{position:'fixed',bottom:70,left:'50%',transform:'translateX(-50%)',width:'calc(100% - 40px)',maxWidth:420,zIndex:102}}>
-      <Card glow={theme.glow} style={{padding:18,background:'var(--sheet-bg)',border:'1px solid '+wa(theme.primary,'30')}}>
+      <Card glow={theme.glow} style={{padding:'var(--sp-4)',background:'var(--sheet-bg)',border:'1px solid '+wa(theme.primary,'30')}}>
         <div style={{fontSize:'var(--fs-md)',fontWeight:700,color:theme.primary,marginBottom:6}}>{s.title}</div>
         <div style={{fontSize:'var(--fs-sm)',lineHeight:1.7,color:'var(--text-muted)',marginBottom:8}}>{s.body}</div>
-        {s.gesture==='swipe'&&<div style={{display:'flex',justifyContent:'center',gap:20,padding:'10px 0',marginBottom:6}}>
-          <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:10,background:'rgba(var(--danger-rgb),0.08)',border:'1px solid rgba(var(--danger-rgb),0.15)'}}>
+        {s.gesture==='swipe'&&<div style={{display:'flex',justifyContent:'center',gap:'var(--sp-4)',padding:'10px 0',marginBottom:6}}>
+          <div style={{display:'flex',alignItems:'center',gap:'var(--sp-1)',padding:'6px 12px',borderRadius:'var(--r-control)',background:'rgba(var(--danger-rgb),0.08)',border:'1px solid rgba(var(--danger-rgb),0.15)'}}>
             <span style={{fontSize:14}}>👈</span><span style={{fontSize:'var(--fs-2xs)',color:'var(--danger)',fontWeight:600}}>Excluir</span>
           </div>
-          <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:10,background:'rgba(var(--ok-rgb),0.08)',border:'1px solid rgba(var(--ok-rgb),0.15)'}}>
+          <div style={{display:'flex',alignItems:'center',gap:'var(--sp-1)',padding:'6px 12px',borderRadius:'var(--r-control)',background:'rgba(var(--ok-rgb),0.08)',border:'1px solid rgba(var(--ok-rgb),0.15)'}}>
             <span style={{fontSize:'var(--fs-2xs)',color:'var(--ok)',fontWeight:600}}>Carrinho</span><span style={{fontSize:14}}>👉</span>
           </div>
         </div>}
-        {s.tip&&<div style={{display:'flex',alignItems:'center',gap:6,padding:'7px 10px',borderRadius:10,background:wa(theme.primary,'0a'),border:'1px solid '+wa(theme.primary,'15'),marginBottom:10}}>
+        {s.tip&&<div style={{display:'flex',alignItems:'center',gap:'var(--sp-1)',padding:'7px 10px',borderRadius:'var(--r-control)',background:wa(theme.primary,'0a'),border:'1px solid '+wa(theme.primary,'15'),marginBottom:10}}>
           <HelpCircle size={13} style={{color:theme.primary,flexShrink:0}}/>
           <span style={{fontSize:'var(--fs-2xs)',color:theme.primary,fontWeight:600}}>{s.tip}</span>
         </div>}
-        <div style={{display:'flex',gap:5,justifyContent:'center',marginBottom:12}}>{steps.map((_,i)=><div key={i} style={{width:i===step?18:6,height:5,borderRadius:3,background:i===step?theme.primary:'rgba(var(--ink),calc(0.08*var(--ink-a)))',transition:'all .3s'}}/>)}</div>
-        <div style={{display:'flex',gap:8}}>
+        <div style={{display:'flex',gap:'var(--sp-1)',justifyContent:'center',marginBottom:12}}>{steps.map((_,i)=><div key={i} style={{width:i===step?18:6,height:5,borderRadius:3,background:i===step?theme.primary:'var(--fill)',transition:'all .3s'}}/>)}</div>
+        <div style={{display:'flex',gap:'var(--sp-2)'}}>
           {!isFirstTime&&<Btn variant="ghost" onClick={onSkip} style={{width:'100%',fontSize:'var(--fs-2xs)',whiteSpace:'nowrap',justifyContent:'center'}} sfx="nav">Pular</Btn>}
           {s.interactive?<div style={{flex:2,textAlign:'center',fontSize:'var(--fs-2xs)',color:'var(--text-faint)',fontStyle:'italic',padding:'10px 0'}}>Toque no + para continuar</div>:isLast?<Btn onClick={onNext} style={{flex:2,fontSize:'var(--fs-sm)'}} sfx="confirm"><BookOpen size={15}/> Ver cartas!</Btn>:
           <Btn onClick={onNext} style={{flex:isFirstTime?1:2,fontSize:'var(--fs-sm)'}} sfx="click">Entendi <ArrowRight size={14}/></Btn>}
@@ -603,28 +603,28 @@ function HomePage({pool,minCards,pricing,closeDate,theme,nav,wishlistCount,cartC
   const normalPrice=Number(pricing?.normal_price_brl)||16;
   const outerPrice=Number(pricing?.ouro_price_brl)||16;
   const foilPrice=Number(pricing?.foil_price_brl)||18;
-  return(<div className="portal-page portal-home" style={{display:'flex',flexDirection:'column',gap:14}}>
+  return(<div className="portal-page portal-home" style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)'}}>
     <div style={{textAlign:'center',padding:'6px 0 0'}}>
       <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>
-      <h1 style={{margin:'5px 0 0',fontSize:'var(--fs-2xl)',fontFamily:"'Cinzel',serif",background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Cartas para Jogar</h1>
+      <h1 className="mp-gradient-text" style={{margin:'5px 0 0',fontSize:'var(--fs-2xl)',fontFamily:"'Cinzel',serif",background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',color:theme.primary}}>Cartas para Jogar</h1>
     </div>
 
     {/* Status da campanha se não estiver ativa */}
-    {campaign_status&&campaign_status!=='ACTIVE'&&<Card style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:8,background:'rgba(var(--danger-rgb),0.06)',borderColor:'rgba(var(--danger-rgb),0.15)'}}>
+    {campaign_status&&campaign_status!=='ACTIVE'&&<Card style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:'var(--sp-2)',background:'rgba(var(--danger-rgb),0.06)',borderColor:'rgba(var(--danger-rgb),0.15)'}}>
       <AlertTriangle size={16} style={{color:'#d94452'}}/><div><div style={{fontSize:'var(--fs-sm)',fontWeight:700,color:'var(--danger)'}}>{campaignLabel(campaign_status)}</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>Novos pedidos disponíveis apenas quando a encomenda estiver ativa.</div></div>
     </Card>}
 
     {/* Progresso da meta mínima */}
-    <Card style={{padding:18,borderColor:isViable?'rgba(var(--ok-rgb),0.2)':undefined,background:isViable?'rgba(var(--ok-rgb),0.04)':undefined}}>
+    <Card style={{padding:'var(--sp-4)',borderColor:isViable?'rgba(var(--ok-rgb),0.2)':undefined,background:isViable?'rgba(var(--ok-rgb),0.04)':undefined}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
         <div>
           <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',textTransform:'uppercase',letterSpacing:1,marginBottom:3,fontWeight:600}}>Progresso da encomenda</div>
           <div style={{fontSize:'var(--fs-xl)',fontWeight:800,color:isViable?'var(--ok)':theme.primary}}>{pool} <span style={{fontSize:14,color:'var(--text-faint)',fontWeight:400}}>/ {goalCards} cartas</span></div>
         </div>
-        {isViable?<div style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:99,background:'rgba(var(--ok-rgb),0.12)',border:'1px solid rgba(var(--ok-rgb),0.25)'}}><Check size={12} style={{color:'var(--ok)'}}/><span style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--ok)'}}>Meta atingida</span></div>:<div style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:99,background:'var(--fill-soft)',border:'1px solid var(--line)'}}><span style={{fontSize:'var(--fs-2xs)',fontWeight:600,color:'var(--text-dim)'}}>Meta: {goalCards} cartas</span></div>}
+        {isViable?<div style={{display:'flex',alignItems:'center',gap:'var(--sp-1)',padding:'5px 10px',borderRadius:'var(--r-pill)',background:'rgba(var(--ok-rgb),0.12)',border:'1px solid rgba(var(--ok-rgb),0.25)'}}><Check size={12} style={{color:'var(--ok)'}}/><span style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--ok)'}}>Meta atingida</span></div>:<div style={{display:'flex',alignItems:'center',gap:'var(--sp-1)',padding:'5px 10px',borderRadius:'var(--r-pill)',background:'var(--fill-soft)',border:'1px solid var(--line)'}}><span style={{fontSize:'var(--fs-2xs)',fontWeight:600,color:'var(--text-dim)'}}>Meta: {goalCards} cartas</span></div>}
       </div>
-      <div style={{background:'rgba(var(--sunk),calc(0.35*var(--sunk-a)))',borderRadius:99,height:8,overflow:'hidden',marginBottom:10}}>
-        <div style={{width:progress+'%',height:'100%',borderRadius:99,background:isViable?'linear-gradient(90deg,var(--ok),var(--ok-2))':'linear-gradient(90deg,'+theme.primary+','+theme.secondary+')',transition:'width .5s',boxShadow:'0 0 10px '+(isViable?'rgba(var(--ok-rgb),0.3)':theme.glow)}}/>
+      <div style={{background:'rgba(var(--sunk),calc(0.35*var(--sunk-a)))',borderRadius:'var(--r-pill)',height:8,overflow:'hidden',marginBottom:10}}>
+        <div style={{width:progress+'%',height:'100%',borderRadius:'var(--r-pill)',background:isViable?'linear-gradient(90deg,var(--ok),var(--ok-2))':'linear-gradient(90deg,'+theme.primary+','+theme.secondary+')',transition:'width .5s',boxShadow:'0 0 10px '+(isViable?'rgba(var(--ok-rgb),0.3)':theme.glow)}}/>
       </div>
       <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',lineHeight:1.5}}>
         {isViable
@@ -635,7 +635,7 @@ function HomePage({pool,minCards,pricing,closeDate,theme,nav,wishlistCount,cartC
     </Card>
 
     {/* Data prevista de fechamento */}
-    {closeD&&<Card style={{padding:'12px 16px',display:'flex',alignItems:'flex-start',gap:10}}>
+    {closeD&&<Card style={{padding:'12px 16px',display:'flex',alignItems:'flex-start',gap:'var(--sp-2)'}}>
       <Calendar size={16} style={{color:theme.primary,flexShrink:0,marginTop:1}}/>
       <div>
         <div style={{fontSize:'var(--fs-sm)',fontWeight:700,marginBottom:2}}>
@@ -652,20 +652,20 @@ function HomePage({pool,minCards,pricing,closeDate,theme,nav,wishlistCount,cartC
     </Card>}
 
     {/* Resumo stats */}
-    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
-      {[{icon:ScrollText,val:wishlistCount,lbl:'Desejos',c:theme.primary},{icon:ShoppingCart,val:cartCount,lbl:'Carrinho',c:'var(--gold)'},{icon:Gift,val:bonusAvail,lbl:'Bônus',c:'var(--ok)'}].map(s=>(<Card key={s.lbl} style={{textAlign:'center',padding:12}}><s.icon size={16} style={{color:s.c,marginBottom:3}}/><div style={{fontSize:'var(--fs-lg)',fontWeight:800}}>{s.val}</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{s.lbl}</div></Card>))}
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'var(--sp-2)'}}>
+      {[{icon:ScrollText,val:wishlistCount,lbl:'Desejos',c:theme.primary},{icon:ShoppingCart,val:cartCount,lbl:'Carrinho',c:'var(--gold)'},{icon:Gift,val:bonusAvail,lbl:'Bônus',c:'var(--ok)'}].map(s=>(<Card key={s.lbl} style={{textAlign:'center',padding:'var(--sp-3)'}}><s.icon size={16} style={{color:s.c,marginBottom:3}}/><div style={{fontSize:'var(--fs-lg)',fontWeight:800}}>{s.val}</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{s.lbl}</div></Card>))}
     </div>
 
     {/* Bônus disponíveis */}
-    {bonusAvail>0&&<Card style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:10,background:'rgba(var(--ok-rgb),0.06)',borderColor:'rgba(var(--ok-rgb),0.18)'}}>
+    {bonusAvail>0&&<Card style={{padding:'12px 16px',display:'flex',alignItems:'center',gap:'var(--sp-2)',background:'rgba(var(--ok-rgb),0.06)',borderColor:'rgba(var(--ok-rgb),0.18)'}}>
       <Gift size={18} style={{color:'var(--ok)',flexShrink:0}}/><div><div style={{fontSize:'var(--fs-sm)',fontWeight:700,color:'var(--ok)'}}>Você tem {bonusAvail} carta{bonusAvail!==1?'s':''} bônus! 🎉</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>Serão incluídas automaticamente no seu próximo checkout.</div></div>
     </Card>}
 
     {/* Tabela de preços por tipo */}
-    <Card style={{padding:16}}>
+    <Card style={{padding:'var(--sp-4)'}}>
       <SectionTitle sub="Preços fixos por tipo de carta">Preços</SectionTitle>
       {[{label:'Carta Normal',price:normalPrice,color:'var(--text-muted)',desc:'Cartas comuns e não-foil'},{label:'Carta Holo',price:outerPrice,color:'var(--gold)',desc:'Cartas Holo / especiais'},{label:'Carta Foil',price:foilPrice,color:'#d94452',desc:'Cartas foil de qualquer tipo'}].map(t=>(
-        <div key={t.label} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 12px',borderRadius:10,marginBottom:3,background:'var(--fill-soft)',border:'1px solid var(--line-soft)'}}>
+        <div key={t.label} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 12px',borderRadius:'var(--r-control)',marginBottom:3,background:'var(--fill-soft)',border:'1px solid var(--line-soft)'}}>
           <div><div style={{fontSize:'var(--fs-sm)',fontWeight:600,color:t.color}}>{t.label}</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{t.desc}</div></div>
           <span style={{fontSize:'var(--fs-md)',fontWeight:800,color:t.color}}>R$ {t.price.toFixed(2)}</span>
         </div>
@@ -689,11 +689,11 @@ function CardThumb({card,radius=12,style}){
   const name=card.name||card.card_name||'';
   const type=card.type||card.card_type||'Normal';
   const img=card.image_url||card.card_image_url;
-  const tc=TC[type]||'rgba(var(--ink),calc(0.4*var(--ink-a)))';
+  const tc=TC[type]||'var(--text-dim)';
   return(<div style={{position:'relative',width:'100%',aspectRatio:'0.72',borderRadius:radius,overflow:'hidden',background:'linear-gradient(150deg,rgba(var(--ink),calc(0.07*var(--ink-a))),rgba(var(--ink),calc(0.02*var(--ink-a))))',border:'1px solid var(--line-soft)',...style}}>
     {img&&!err
       ? <img src={img} alt={name} loading="lazy" onError={()=>setErr(true)} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
-      : <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:6,padding:8,textAlign:'center'}}>
+      : <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'var(--sp-1)',padding:'var(--sp-2)',textAlign:'center'}}>
           <div style={{fontSize:24,opacity:.45}}>🃏</div>
           <div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-muted)',lineHeight:1.15,wordBreak:'break-word'}}>{name}</div>
           <div style={{fontSize:8,fontWeight:700,color:tc,textTransform:'uppercase',letterSpacing:.4}}>{type}</div>
@@ -711,9 +711,9 @@ function ImageLightbox({src,alt,onClose}){
 
 function ImageLightboxOpen({src,alt,onClose}){
   const dialogRef=useDialogA11y(onClose);
-  return(<div ref={dialogRef} role="dialog" aria-modal="true" aria-label={alt?`Imagem ampliada: ${alt}`:'Imagem ampliada'} onClick={onClose} style={{position:'fixed',inset:0,zIndex:140,background:'rgba(var(--sunk),calc(0.93*var(--sunk-a)))',display:'grid',placeItems:'center',cursor:'zoom-out',padding:20,animation:'fadeIn .15s ease'}}>
+  return(<div ref={dialogRef} role="dialog" aria-modal="true" aria-label={alt?`Imagem ampliada: ${alt}`:'Imagem ampliada'} onClick={onClose} style={{position:'fixed',inset:0,zIndex:140,background:'rgba(var(--sunk),calc(0.93*var(--sunk-a)))',display:'grid',placeItems:'center',cursor:'zoom-out',padding:'var(--sp-4)',animation:'fadeIn .15s ease'}}>
     <button onClick={onClose} aria-label="Fechar imagem" className="mp-tap" style={{position:'absolute',top:14,right:14,borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'var(--overlay-bg)',backdropFilter:'blur(6px)',color:'var(--text-strong)',cursor:'pointer'}}><X size={18}/></button>
-    <img src={src} alt={alt||''} style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',borderRadius:12}}/>
+    <img src={src} alt={alt||''} style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',borderRadius:'var(--r-control)'}}/>
   </div>);
 }
 
@@ -766,16 +766,16 @@ function CatalogPage({token,wishlist,cartItems=[],onAddToWishlist,priceBRL,theme
   const getQ=id=>addQty[id]||1;const setQ=(id,v)=>setAddQty(q=>({...q,[id]:Math.max(1,v)}));
   function add(card,qty){SFX.addCard();setFlyAnim(true);onAddToWishlist(card,qty);setQ(card.id,1);if(tutStep===2&&onTutNext)onTutNext();}
 
-  return(<div className="portal-page portal-catalog" style={{display:'flex',flexDirection:'column',gap:12}}>
-    {!isIndividual&&!campaignOpen&&<Card style={{padding:14,borderColor:'rgba(var(--gold-rgb),0.25)',background:'rgba(var(--gold-rgb),0.08)'}}><div style={{fontSize:'var(--fs-sm)',fontWeight:700,color:'var(--gold)'}}>Encomenda fechada no momento</div><div style={{fontSize:'var(--fs-xs)',color:'var(--text-muted)',marginTop:4}}>{campaignStatusText} Você ainda pode montar sua lista de desejos.</div></Card>}
+  return(<div className="portal-page portal-catalog" style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)'}}>
+    {!isIndividual&&!campaignOpen&&<Card style={{padding:'var(--sp-3)',borderColor:'rgba(var(--gold-rgb),0.25)',background:'rgba(var(--gold-rgb),0.08)'}}><div style={{fontSize:'var(--fs-sm)',fontWeight:700,color:'var(--gold)'}}>Encomenda fechada no momento</div><div style={{fontSize:'var(--fs-xs)',color:'var(--text-muted)',marginTop:4}}>{campaignStatusText} Você ainda pode montar sua lista de desejos.</div></Card>}
     <FlyingCard show={flyAnim} onDone={()=>setFlyAnim(false)}/>
-    <div style={{display:'flex',gap:5,overflowX:'auto',WebkitOverflowScrolling:'touch',paddingBottom:2}}>
-      {TCG_LIST.map(t=>(<button key={t.key} onClick={()=>{SFX.toggle();setTcgFilter(t.key);setTypeF(current=>current===RECENT_CARDS_FILTER?current:'Todos');}} style={{padding:'7px 12px',borderRadius:10,border:'none',background:tcgFilter===t.key?wa(t.color,'22'):'rgba(var(--ink),calc(0.04*var(--ink-a)))',color:tcgFilter===t.key?t.color:'var(--text-faint)',fontWeight:700,fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap',flexShrink:0,boxShadow:tcgFilter===t.key?`0 0 0 1.5px ${t.color}60`:'none'}}>{t.key}</button>))}
+    <div style={{display:'flex',gap:'var(--sp-1)',overflowX:'auto',WebkitOverflowScrolling:'touch',paddingBottom:2}}>
+      {TCG_LIST.map(t=>(<button key={t.key} onClick={()=>{SFX.toggle();setTcgFilter(t.key);setTypeF(current=>current===RECENT_CARDS_FILTER?current:'Todos');}} style={{padding:'7px 12px',borderRadius:'var(--r-control)',border:'none',background:tcgFilter===t.key?wa(t.color,'22'):'var(--text-faint)',color:tcgFilter===t.key?t.color:'var(--text-faint)',fontWeight:700,fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap',flexShrink:0,boxShadow:tcgFilter===t.key?`0 0 0 1.5px ${t.color}60`:'none'}}>{t.key}</button>))}
     </div>
-    <div id="tut-search-area" style={{display:'flex',flexDirection:'column',gap:8}}>
+    <div id="tut-search-area" style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)'}}>
       <Input icon={Search} placeholder="Buscar carta..." value={search} onChange={e=>setSearch(e.target.value)}/>
-      <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
-        {catalogFilters.map(t=>(<button key={t} onClick={()=>{SFX.toggle();setTypeF(t);}} style={{flex:'1 1 64px',minWidth:t===RECENT_CARDS_FILTER?96:64,padding:'7px 6px',borderRadius:10,border:'none',background:typeF===t?currentTcg.color:'var(--text-faint)',color:typeF===t?'#fff':'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontWeight:600,fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap'}}>{t}</button>))}
+      <div style={{display:'flex',gap:'var(--sp-1)',flexWrap:'wrap'}}>
+        {catalogFilters.map(t=>(<button key={t} onClick={()=>{SFX.toggle();setTypeF(t);}} style={{flex:'1 1 64px',minWidth:t===RECENT_CARDS_FILTER?96:64,padding:'7px 6px',borderRadius:'var(--r-control)',border:'none',background:typeF===t?currentTcg.color:'var(--text-faint)',color:typeF===t?'#fff':'var(--text-faint)',fontWeight:600,fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap'}}>{t}</button>))}
       </div>
     </div>
     {loading&&cards.length===0?(
@@ -783,8 +783,8 @@ function CatalogPage({token,wishlist,cartItems=[],onAddToWishlist,priceBRL,theme
       // tecla digitada e a página saltava. Mantendo a altura, nada pula.
       <div className="portal-card-grid portal-catalog-grid" aria-hidden="true">
         {Array.from({length:6}).map((_,i)=>(
-          <Card key={'sk'+i} style={{padding:8}}>
-            <div style={{width:'100%',aspectRatio:'0.72',borderRadius:12,background:'var(--fill)',animation:'skPulse 1.2s ease-in-out infinite'}}/>
+          <Card key={'sk'+i} style={{padding:'var(--sp-2)'}}>
+            <div style={{width:'100%',aspectRatio:'0.72',borderRadius:'var(--r-control)',background:'var(--fill)',animation:'skPulse 1.2s ease-in-out infinite'}}/>
             <div style={{padding:'9px 3px 2px'}}>
               <div style={{height:11,width:'78%',borderRadius:4,background:'var(--fill)',animation:'skPulse 1.2s ease-in-out infinite'}}/>
               <div style={{height:9,width:'42%',borderRadius:4,background:'var(--fill)',marginTop:6,animation:'skPulse 1.2s ease-in-out infinite'}}/>
@@ -805,11 +805,11 @@ function CatalogPage({token,wishlist,cartItems=[],onAddToWishlist,priceBRL,theme
             :inCart?{color:'var(--gold)',icon:ShoppingCart,text:String(inCart.quantity)}
             :wish?{color:theme.primary,icon:ScrollText,text:String(wish.quantity)}
             :null;
-          return(<Card key={c.id} onClick={()=>{SFX.nav();setDetail(c);}} style={{padding:8}}>
+          return(<Card key={c.id} onClick={()=>{SFX.nav();setDetail(c);}} style={{padding:'var(--sp-2)'}}>
             <div style={{position:'relative'}}>
               <CardThumb card={c}/>
               {badge&&<div style={{position:'absolute',top:7,left:7}}><Tag color={badge.color} style={{fontSize:'var(--fs-2xs)',padding:'2px 7px'}}><badge.icon size={10}/> {badge.text}</Tag></div>}
-              <button ref={i===0?firstAddBtnRef:null} id={i===0?'tut-add-btn':undefined} title="Adicionar à lista de desejos" aria-label={`Adicionar ${c.name} à lista de desejos`} onClick={e=>{e.stopPropagation();add(c,1);}} style={{position:'absolute',right:7,bottom:7,width:40,height:40,border:'none',borderRadius:12,background:wish?'rgba(var(--ok-rgb),0.92)':'var(--gp)',color:'var(--gp-ink)',display:'grid',placeItems:'center',cursor:'pointer',boxShadow:'0 6px 16px var(--gg)'}}><Plus size={18}/></button>
+              <button ref={i===0?firstAddBtnRef:null} id={i===0?'tut-add-btn':undefined} title="Adicionar à lista de desejos" aria-label={`Adicionar ${c.name} à lista de desejos`} onClick={e=>{e.stopPropagation();add(c,1);}} style={{position:'absolute',right:7,bottom:7,width:40,height:40,border:'none',borderRadius:'var(--r-control)',background:wish?'rgba(var(--ok-rgb),0.92)':'var(--gp)',color:'var(--gp-ink)',display:'grid',placeItems:'center',cursor:'pointer',boxShadow:'0 6px 16px var(--gg)'}}><Plus size={18}/></button>
             </div>
             <div style={{padding:'9px 3px 2px'}}>
               <div style={{fontWeight:700,fontSize:'var(--fs-sm)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</div>
@@ -822,7 +822,7 @@ function CatalogPage({token,wishlist,cartItems=[],onAddToWishlist,priceBRL,theme
         {cards.length===0&&!loading&&<div style={{gridColumn:'1 / -1'}}><EmptyState icon={Search} title="Nenhuma carta encontrada" sub="Tente outro termo"/></div>}
       </div>
     )}
-    {cards.length>0&&<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,padding:'4px 0 8px'}}>
+    {cards.length>0&&<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'var(--sp-2)',padding:'4px 0 8px'}}>
       <div aria-live="polite" style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)'}}>
         {cards.length} de {total} carta{total!==1?'s':''}
       </div>
@@ -839,29 +839,29 @@ function CatalogPage({token,wishlist,cartItems=[],onAddToWishlist,priceBRL,theme
 function CardDetailModal({card,priceBRL,existing,campaignOpen,onClose,onAdd}){
   const [qty,setQty]=useState(1);
   const [zoom,setZoom]=useState(false);
-  const tc=TC[card.type]||'rgba(var(--ink),calc(0.4*var(--ink-a)))';
+  const tc=TC[card.type]||'var(--text-dim)';
   const dialogRef=useDialogA11y(onClose);
   return(<div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="card-detail-title" style={{position:'fixed',inset:0,zIndex:120,display:'flex',alignItems:'flex-end',justifyContent:'center',animation:'fadeIn .15s ease'}}>
     <div onClick={onClose} aria-hidden="true" style={{position:'absolute',inset:0,background:'rgba(var(--sunk),calc(0.72*var(--sunk-a)))',backdropFilter:'blur(6px)'}}/>
     <div className="portal-modal" style={{position:'relative',width:'100%',maxWidth:480,maxHeight:'92vh',overflowY:'auto',background:'var(--sheet-bg)',borderRadius:'24px 24px 0 0',border:'1px solid var(--line)',padding:'12px 18px 24px',animation:'sheetUp .22s ease'}}>
-      <div style={{display:'flex',justifyContent:'center',marginBottom:6}}><div style={{width:40,height:5,borderRadius:99,background:'var(--fill)'}}/></div>
-      <button onClick={onClose} title="Fechar" aria-label="Fechar detalhe da carta" style={{position:'absolute',top:14,right:14,width:44,height:44,borderRadius:11,border:'1px solid var(--line)',background:'var(--fill)',color:'var(--text-muted)',display:'grid',placeItems:'center',cursor:'pointer'}}><X size={16}/></button>
+      <div style={{display:'flex',justifyContent:'center',marginBottom:6}}><div style={{width:40,height:5,borderRadius:'var(--r-pill)',background:'var(--fill)'}}/></div>
+      <button onClick={onClose} title="Fechar" aria-label="Fechar detalhe da carta" style={{position:'absolute',top:14,right:14,width:44,height:44,borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'var(--fill)',color:'var(--text-muted)',display:'grid',placeItems:'center',cursor:'pointer'}}><X size={16}/></button>
       <div role={card.image_url?'button':undefined} tabIndex={card.image_url?0:undefined} aria-label={card.image_url?`Ampliar imagem de ${card.name}`:undefined} onKeyDown={e=>{if(card.image_url&&(e.key==='Enter'||e.key===' ')){e.preventDefault();setZoom(true);}}} style={{maxWidth:230,margin:'2px auto 0',position:'relative',cursor:card.image_url?'zoom-in':'default'}} onClick={()=>card.image_url&&setZoom(true)}>
         <CardThumb card={card} radius={18}/>
-        {card.image_url&&<div style={{position:'absolute',right:8,bottom:8,width:32,height:32,borderRadius:10,background:'var(--overlay-bg)',backdropFilter:'blur(6px)',border:'1px solid var(--line)',display:'grid',placeItems:'center',color:'#fff'}}><Search size={14}/></div>}
+        {card.image_url&&<div style={{position:'absolute',right:8,bottom:8,width:32,height:32,borderRadius:'var(--r-control)',background:'var(--overlay-bg)',backdropFilter:'blur(6px)',border:'1px solid var(--line)',display:'grid',placeItems:'center',color:'#fff'}}><Search size={14}/></div>}
       </div>
       <div style={{marginTop:16}}>
         <div style={{fontSize:'var(--fs-2xs)',letterSpacing:1.5,textTransform:'uppercase',color:tc,fontWeight:700}}>{card.type}</div>
         <div id="card-detail-title" style={{fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)',color:'var(--text-strong)',marginTop:3,lineHeight:1.15}}>{card.name}</div>
-        {existing&&<div style={{display:'flex',alignItems:'center',gap:10,marginTop:10}}>
+        {existing&&<div style={{display:'flex',alignItems:'center',gap:'var(--sp-2)',marginTop:10}}>
           <Tag color="var(--ok)" style={{fontSize:'var(--fs-2xs)'}}>{existing.quantity} na sua lista</Tag>
         </div>}
       </div>
-      <div style={{display:'flex',gap:10,alignItems:'stretch',marginTop:20}}>
-        <div style={{display:'flex',alignItems:'center',gap:14,background:'var(--fill)',border:'1px solid var(--line)',borderRadius:14,padding:'0 14px'}}>
-          <button onClick={()=>{SFX.toggle();setQty(q=>Math.max(1,q-1));}} aria-label="Diminuir quantidade" style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',display:'grid',padding:10}}><Minus size={16}/></button>
+      <div style={{display:'flex',gap:'var(--sp-2)',alignItems:'stretch',marginTop:20}}>
+        <div style={{display:'flex',alignItems:'center',gap:'var(--sp-3)',background:'var(--fill)',border:'1px solid var(--line)',borderRadius:'var(--r-card)',padding:'0 14px'}}>
+          <button onClick={()=>{SFX.toggle();setQty(q=>Math.max(1,q-1));}} aria-label="Diminuir quantidade" style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',display:'grid',padding:'var(--sp-2)'}}><Minus size={16}/></button>
           <span aria-live="polite" aria-label={`Quantidade: ${qty}`} style={{minWidth:18,textAlign:'center',fontWeight:700,fontSize:'var(--fs-md)',color:'var(--text-strong)'}}>{qty}</span>
-          <button onClick={()=>{SFX.toggle();setQty(q=>q+1);}} aria-label="Aumentar quantidade" style={{background:'none',border:'none',color:'var(--text-strong)',cursor:'pointer',display:'grid',padding:10}}><Plus size={16}/></button>
+          <button onClick={()=>{SFX.toggle();setQty(q=>q+1);}} aria-label="Aumentar quantidade" style={{background:'none',border:'none',color:'var(--text-strong)',cursor:'pointer',display:'grid',padding:'var(--sp-2)'}}><Plus size={16}/></button>
         </div>
         {/* Sem `disabled`: a lista de desejos é do usuário e não depende de
             encomenda aberta. O aviso de encomenda fechada, no topo da página,
@@ -897,18 +897,18 @@ function WishlistPage({wishlist,cartItems,onAddToCart,onAddAllToCart,onRemove,on
   const filtered=searchW?visible.filter(w=>w.card_name.toLowerCase().includes(searchW.toLowerCase())):visible;
   const addableCount=pending.filter(w=>!w.inCartQty).length;
 
-  return(<div className="portal-page portal-wants" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:pending.length>0?86:0}}>
-    <div id="tut-wants-tags" style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
+  return(<div className="portal-page portal-wants" style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingBottom:pending.length>0?86:0}}>
+    <div id="tut-wants-tags" style={{display:'flex',gap:'var(--sp-1)',flexWrap:'wrap',alignItems:'center'}}>
       <Tag color={theme.primary}><ScrollText size={11}/> {pendingUnits} na lista</Tag>
       <Tag color="var(--gold)"><ShoppingCart size={11}/> {cartCount} no carrinho</Tag>
       {bonus>0&&<Tag color="var(--ok)"><Gift size={11}/> {bonus} bônus</Tag>}
     </div>
 
-    {bonus>0&&<Card id="tut-bonus-card" glow="rgba(var(--ok-rgb),0.12)" style={{padding:12,background:'rgba(var(--ok-rgb),0.03)'}}>
-      <div style={{display:'flex',alignItems:'center',gap:8}}><Gift size={16} style={{color:'var(--ok)'}}/><div style={{fontSize:'var(--fs-sm)'}}><span style={{fontWeight:700,color:'var(--ok)'}}>{bonus} carta(s) bônus</span><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginTop:2}}>Primeiras do carrinho saem grátis!</div></div></div>
+    {bonus>0&&<Card id="tut-bonus-card" glow="rgba(var(--ok-rgb),0.12)" style={{padding:'var(--sp-3)',background:'rgba(var(--ok-rgb),0.03)'}}>
+      <div style={{display:'flex',alignItems:'center',gap:'var(--sp-2)'}}><Gift size={16} style={{color:'var(--ok)'}}/><div style={{fontSize:'var(--fs-sm)'}}><span style={{fontWeight:700,color:'var(--ok)'}}>{bonus} carta(s) bônus</span><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginTop:2}}>Primeiras do carrinho saem grátis!</div></div></div>
     </Card>}
 
-    {acquired.length>0&&<div role="tablist" aria-label="Filtrar lista de desejos" style={{display:'flex',gap:6}}>
+    {acquired.length>0&&<div role="tablist" aria-label="Filtrar lista de desejos" style={{display:'flex',gap:'var(--sp-1)'}}>
       {[{key:false,label:`Quero (${pending.length})`},{key:true,label:`Já comprei (${acquired.length})`}].map(t=>(
         <button key={String(t.key)} role="tab" aria-selected={showAcquired===t.key} onClick={()=>{SFX.toggle();setShowAcquired(t.key);}} style={{flex:1,padding:'9px 10px',borderRadius:'var(--r-control)',border:'1px solid '+(showAcquired===t.key?wa(theme.primary,'55'):'var(--line-soft)'),background:showAcquired===t.key?wa(theme.primary,'18'):'var(--fill-soft)',color:showAcquired===t.key?theme.primary:'var(--text-dim)',fontWeight:700,fontSize:'var(--fs-xs)',fontFamily:"'Outfit',sans-serif",cursor:'pointer'}}>{t.label}</button>
       ))}
@@ -916,24 +916,24 @@ function WishlistPage({wishlist,cartItems,onAddToCart,onAddAllToCart,onRemove,on
 
     {visible.length>3&&<Input icon={Search} placeholder="Buscar na lista..." value={searchW} onChange={e=>setSearchW(e.target.value)}/>}
 
-    {filtered.length>0&&<div className="portal-card-grid portal-wants-grid" style={{display:'flex',flexDirection:'column',gap:8}}>
+    {filtered.length>0&&<div className="portal-card-grid portal-wants-grid" style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)'}}>
       {filtered.map((w)=>{const img=w.card_image_url;const done=w.pending<=0;return(
-        <Card key={w.id} style={{padding:9,opacity:done?0.72:1}}>
-          <div style={{display:'flex',alignItems:'center',gap:11}}>
+        <Card key={w.id} style={{padding:'var(--sp-2)',opacity:done?0.72:1}}>
+          <div style={{display:'flex',alignItems:'center',gap:'var(--sp-3)'}}>
             <div onClick={()=>img&&setZoomSrc(img)} role={img?'button':undefined} tabIndex={img?0:undefined} aria-label={img?`Ampliar imagem de ${w.card_name}`:undefined} onKeyDown={e=>{if(img&&(e.key==='Enter'||e.key===' ')){e.preventDefault();setZoomSrc(img);}}} style={{width:54,flexShrink:0,cursor:img?'zoom-in':'default'}}><CardThumb card={w} radius={9}/></div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontWeight:700,fontSize:'var(--fs-sm)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{w.card_name}</div>
               <span style={{fontSize:'var(--fs-2xs)',color:TC[w.card_type],fontWeight:700}}>{w.card_type}</span>
-              {w.acquiredQty>0&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--ok)',fontWeight:700,marginTop:2,display:'flex',alignItems:'center',gap:4}}><Check size={11}/> {w.acquiredQty} de {w.quantity} já comprada{w.acquiredQty!==1?'s':''}</div>}
-              {w.inCartQty>0&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--gold)',fontWeight:700,marginTop:2,display:'flex',alignItems:'center',gap:4}}><ShoppingCart size={11}/> {w.inCartQty} no carrinho</div>}
-              {!done&&<div style={{display:'flex',alignItems:'center',gap:0,background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',borderRadius:'var(--r-control)',border:'1px solid var(--line-soft)',width:'fit-content',marginTop:7}}>
+              {w.acquiredQty>0&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--ok)',fontWeight:700,marginTop:2,display:'flex',alignItems:'center',gap:'var(--sp-1)'}}><Check size={11}/> {w.acquiredQty} de {w.quantity} já comprada{w.acquiredQty!==1?'s':''}</div>}
+              {w.inCartQty>0&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--gold)',fontWeight:700,marginTop:2,display:'flex',alignItems:'center',gap:'var(--sp-1)'}}><ShoppingCart size={11}/> {w.inCartQty} no carrinho</div>}
+              {!done&&<div style={{display:'flex',alignItems:'center',gap:'var(--sp-1)',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',borderRadius:'var(--r-control)',border:'1px solid var(--line-soft)',width:'fit-content',marginTop:7}}>
                 <button onClick={()=>onUpdateQty(w.id,w.quantity-1)} aria-label={`Diminuir quantidade desejada de ${w.card_name}`} style={{background:'none',border:'none',color:'var(--text-strong)',padding:'10px 12px',cursor:'pointer'}}><Minus size={12}/></button>
                 <span aria-label={`Quantidade desejada de ${w.card_name}: ${w.quantity}`} style={{minWidth:18,textAlign:'center',fontSize:'var(--fs-sm)',fontWeight:700}}>{w.quantity}</span>
                 <button onClick={()=>onUpdateQty(w.id,w.quantity+1)} aria-label={`Aumentar quantidade desejada de ${w.card_name}`} style={{background:'none',border:'none',color:'var(--text-strong)',padding:'10px 12px',cursor:'pointer'}}><Plus size={12}/></button>
               </div>}
             </div>
-            <div style={{display:'flex',flexDirection:'column',gap:6,alignItems:'stretch'}}>
-              {!done&&<button onClick={()=>onAddToCart(w,w.pending)} title="Adicionar ao carrinho" aria-label={`Adicionar ${w.card_name} ao carrinho`} style={{background:'var(--gp)',border:'none',borderRadius:'var(--r-control)',padding:'11px 13px',cursor:'pointer',color:'var(--gp-ink)',display:'flex',alignItems:'center',gap:5,fontSize:'var(--fs-xs)',fontWeight:700,fontFamily:"'Outfit',sans-serif",boxShadow:'0 4px 14px var(--gg)'}}><ShoppingCart size={14}/></button>}
+            <div style={{display:'flex',flexDirection:'column',gap:'var(--sp-1)',alignItems:'stretch'}}>
+              {!done&&<button onClick={()=>onAddToCart(w,w.pending)} title="Adicionar ao carrinho" aria-label={`Adicionar ${w.card_name} ao carrinho`} style={{background:'var(--gp)',border:'none',borderRadius:'var(--r-control)',padding:'11px 13px',cursor:'pointer',color:'var(--gp-ink)',display:'flex',alignItems:'center',gap:'var(--sp-1)',fontSize:'var(--fs-xs)',fontWeight:700,fontFamily:"'Outfit',sans-serif",boxShadow:'0 4px 14px var(--gg)'}}><ShoppingCart size={14}/></button>}
               <button onClick={()=>onRemove(w.id)} title="Tirar da lista" aria-label={`Tirar ${w.card_name} da lista de desejos`} style={{background:'rgba(var(--danger-rgb),0.08)',border:'1px solid rgba(var(--danger-rgb),0.15)',borderRadius:'var(--r-control)',padding:'10px 13px',cursor:'pointer',color:'var(--danger)',display:'flex',alignItems:'center',justifyContent:'center'}}><Trash2 size={13}/></button>
             </div>
           </div>
@@ -945,7 +945,7 @@ function WishlistPage({wishlist,cartItems,onAddToCart,onAddAllToCart,onRemove,on
       ?<EmptyState icon={Check} title="Nada comprado ainda" sub="As cartas que você comprar ficam registradas aqui"/>
       :<EmptyState icon={ScrollText} title={searchW?'Nenhuma carta encontrada':'Sua lista de desejos está vazia'} sub={searchW?'Tente outro termo':'Adicione cartas pelo catálogo'}/>)}
 
-    {pending.length>0&&!showAcquired&&<div style={{position:'fixed',bottom:78,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:480,padding:'10px 16px 12px',background:'var(--fade-to-bg)',zIndex:15,display:'flex',gap:9}}>
+    {pending.length>0&&!showAcquired&&<div style={{position:'fixed',bottom:78,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:480,padding:'10px 16px 12px',background:'var(--fade-to-bg)',zIndex:15,display:'flex',gap:'var(--sp-2)'}}>
       <Btn variant="secondary" onClick={onAddAllToCart} disabled={addableCount===0} sfx="addCard" style={{flex:'0 0 auto',padding:'13px 14px'}}><CheckCircle size={15}/> Tudo</Btn>
       <Btn full onClick={()=>nav&&nav('cart')} sfx="nav" style={{flex:1}}><ShoppingCart size={15}/> Ver carrinho{cartCount>0?` (${cartCount})`:''}</Btn>
     </div>}
@@ -977,32 +977,32 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onRemov
   const canGoCheckout=isIndividual||campaignOpen;
   const [zoomSrc,setZoomSrc]=useState(null);
 
-  return(<div className="portal-page portal-cart" style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:cartItems.length>0?(canGoCheckout?168:120):0}}>
-    {!isIndividual&&!campaignOpen&&<Card style={{padding:12,borderColor:'rgba(var(--gold-rgb),0.25)',background:'rgba(var(--gold-rgb),0.06)'}}>
-      <div style={{display:'flex',alignItems:'center',gap:8}}><AlertTriangle size={14} style={{color:'var(--gold)'}}/><div style={{fontSize:'var(--fs-xs)',color:'var(--gold)',fontWeight:600}}>{campaignStatus?campaignLabel(campaignStatus):'Nenhuma encomenda ativa'}<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',fontWeight:400,marginTop:2}}>Continue montando seu carrinho. O checkout estará disponível quando a encomenda abrir.</div></div></div>
+  return(<div className="portal-page portal-cart" style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingBottom:cartItems.length>0?(canGoCheckout?168:120):0}}>
+    {!isIndividual&&!campaignOpen&&<Card style={{padding:'var(--sp-3)',borderColor:'rgba(var(--gold-rgb),0.25)',background:'rgba(var(--gold-rgb),0.06)'}}>
+      <div style={{display:'flex',alignItems:'center',gap:'var(--sp-2)'}}><AlertTriangle size={14} style={{color:'var(--gold)'}}/><div style={{fontSize:'var(--fs-xs)',color:'var(--gold)',fontWeight:600}}>{campaignStatus?campaignLabel(campaignStatus):'Nenhuma encomenda ativa'}<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',fontWeight:400,marginTop:2}}>Continue montando seu carrinho. O checkout estará disponível quando a encomenda abrir.</div></div></div>
     </Card>}
     {cartItems.length>0&&<>
-      <div className="portal-card-grid portal-cart-grid" style={{display:'flex',flexDirection:'column',gap:8}}>
+      <div className="portal-card-grid portal-cart-grid" style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)'}}>
         {bd.map((c)=>{const itemPrice=unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv);const baseItemPrice=baseUnitPriceFor(c.card_type,orderMode,pricing,indiv);return(
-          <Card key={c.id} style={{padding:9}}>
-            <div style={{display:'flex',alignItems:'center',gap:11}}>
+          <Card key={c.id} style={{padding:'var(--sp-2)'}}>
+            <div style={{display:'flex',alignItems:'center',gap:'var(--sp-3)'}}>
               <div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:54,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={9}/></div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:700,fontSize:'var(--fs-sm)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name}</div>
-                <div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap',marginTop:2}}>
+                <div style={{display:'flex',gap:'var(--sp-1)',alignItems:'center',flexWrap:'wrap',marginTop:2}}>
                   <span style={{fontSize:'var(--fs-2xs)',color:TC[c.card_type],fontWeight:700}}>{c.card_type}</span>
                   {c.bonusQty>0&&<Tag color="var(--ok)" style={{fontSize:'var(--fs-2xs)',padding:'1px 5px'}}>🎁 {c.bonusQty} grátis</Tag>}
                 </div>
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginTop:7}}>
-                  <div style={{display:'flex',alignItems:'center',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',borderRadius:10,border:'1px solid var(--line-soft)'}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'var(--sp-2)',marginTop:7}}>
+                  <div style={{display:'flex',alignItems:'center',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',borderRadius:'var(--r-control)',border:'1px solid var(--line-soft)'}}>
                     <button onClick={()=>onUpdateCartQty(c.id,c.quantity-1)} style={{background:'none',border:'none',color:'var(--text-strong)',padding:'5px 11px',cursor:'pointer'}}><Minus size={12}/></button>
                     <span style={{minWidth:18,textAlign:'center',fontSize:'var(--fs-sm)',fontWeight:700}}>{c.quantity}</span>
                     <button onClick={()=>onUpdateCartQty(c.id,c.quantity+1)} style={{background:'none',border:'none',color:'var(--text-strong)',padding:'5px 11px',cursor:'pointer'}}><Plus size={12}/></button>
                   </div>
                   {c.paidQty>0
-                    ?<div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:1}}>
+                    ?<div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'var(--sp-1)'}}>
                       <span style={{fontSize:'var(--fs-sm)',fontWeight:800,color:'var(--text-strong)',whiteSpace:'nowrap'}}>R$ {(c.paidQty*itemPrice).toFixed(2).replace('.',',')}</span>
-                      <span style={{fontSize:'var(--fs-2xs)',color:'var(--text-dim)',whiteSpace:'nowrap'}}>{baseItemPrice>itemPrice&&<span style={{textDecoration:'line-through',marginRight:4,color:'var(--text-faint)'}}>R$ {baseItemPrice.toFixed(2).replace('.',',')}</span>}<span style={{color:baseItemPrice>itemPrice?'var(--ok)':'rgba(var(--ink),calc(0.4*var(--ink-a)))',fontWeight:baseItemPrice>itemPrice?700:400}}>R$ {itemPrice.toFixed(2).replace('.',',')}</span> /un</span>
+                      <span style={{fontSize:'var(--fs-2xs)',color:'var(--text-dim)',whiteSpace:'nowrap'}}>{baseItemPrice>itemPrice&&<span style={{textDecoration:'line-through',marginRight:4,color:'var(--text-faint)'}}>R$ {baseItemPrice.toFixed(2).replace('.',',')}</span>}<span style={{color:baseItemPrice>itemPrice?'var(--ok)':'var(--text-dim)',fontWeight:baseItemPrice>itemPrice?700:400}}>R$ {itemPrice.toFixed(2).replace('.',',')}</span> /un</span>
                     </div>
                     :<span style={{fontSize:'var(--fs-sm)',fontWeight:800,color:'var(--ok)',whiteSpace:'nowrap'}}>Grátis</span>}
                 </div>
@@ -1021,7 +1021,7 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onRemov
           const atuais=isIndividual?totalQty:totalPaid;
           const pct=Math.min(100,Math.round((atuais/minCards)*100));
           return(<div style={{marginBottom:10,padding:'9px 11px',borderRadius:'var(--r-control)',background:'rgba(var(--gold-rgb),0.08)',border:'1px solid rgba(var(--gold-rgb),0.2)'}}>
-            <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:7}}>
+            <div style={{display:'flex',alignItems:'center',gap:'var(--sp-2)',marginBottom:7}}>
               <AlertTriangle size={13} style={{color:'var(--gold)',flexShrink:0}}/>
               <span style={{fontSize:'var(--fs-xs)',color:'var(--gold)',fontWeight:600}}>Faltam {missingCards} carta{missingCards!==1?'s':''} para o mínimo de {minCards}{isIndividual?'':' pagas'}</span>
             </div>
@@ -1032,7 +1032,7 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onRemov
           </div>);
         })()}
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:11}}>
-          <div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-dim)'}}>{totalQty} carta{totalQty!==1?'s':''}{totalBonus>0?` · ${totalBonus} bônus`:''}</div>{volumeDiscount>0&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--ok)',fontWeight:700,marginTop:2,display:'flex',alignItems:'center',gap:4}}><Gift size={11}/> Desconto por volume −R$ {volumeDiscount.toFixed(2).replace('.',',')}</div>}<div style={{fontSize:'var(--fs-xl)',fontWeight:800,color:'var(--text-strong)',marginTop:1}}>≈ R$ {totalBRL.toFixed(2).replace('.',',')}</div></div>
+          <div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-dim)'}}>{totalQty} carta{totalQty!==1?'s':''}{totalBonus>0?` · ${totalBonus} bônus`:''}</div>{volumeDiscount>0&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--ok)',fontWeight:700,marginTop:2,display:'flex',alignItems:'center',gap:'var(--sp-1)'}}><Gift size={11}/> Desconto por volume −R$ {volumeDiscount.toFixed(2).replace('.',',')}</div>}<div style={{fontSize:'var(--fs-xl)',fontWeight:800,color:'var(--text-strong)',marginTop:1}}>≈ R$ {totalBRL.toFixed(2).replace('.',',')}</div></div>
           {totalBonus>0&&<Tag color="var(--ok)"><Gift size={12}/> {totalBonus} grátis</Tag>}
         </div>
         {canGoCheckout&&<Btn full onClick={()=>nav('checkout')} disabled={!canCheckout} sfx="nav"><CreditCard size={15}/> {canCheckout?'Ir para checkout':`Mínimo ${minCards} (faltam ${missingCards})`}</Btn>}
@@ -1227,7 +1227,7 @@ function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,o
   }
 
   if(!isIndividual&&!campaignOpen)return(<div style={{paddingTop:40}}>
-    <Card style={{padding:20,textAlign:'center',borderColor:'rgba(var(--gold-rgb),0.25)',background:'rgba(var(--gold-rgb),0.08)'}}>
+    <Card style={{padding:'var(--sp-4)',textAlign:'center',borderColor:'rgba(var(--gold-rgb),0.25)',background:'rgba(var(--gold-rgb),0.08)'}}>
       <AlertTriangle size={32} style={{color:'var(--gold)',marginBottom:8}}/>
       <div style={{fontWeight:700,fontSize:'var(--fs-md)',color:'var(--gold)',marginBottom:6}}>Encomenda fechada</div>
       <div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}>{campaignStatusText}</div>
@@ -1235,11 +1235,11 @@ function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,o
     </Card>
     <div style={{textAlign:'center',marginTop:16}}><Btn onClick={()=>nav('catalog')} sfx="nav"><BookOpen size={16}/> Ver catálogo</Btn></div>
   </div>);
-  if(totalQty===0)return(<div style={{paddingTop:40}}><EmptyState icon={ShoppingCart} title="Carrinho vazio" sub="Escolha cartas na sua lista de desejos"/><div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'center',marginTop:16}}><Btn onClick={()=>nav('wants')} sfx="nav"><ScrollText size={14}/> Ir para Wants</Btn></div></div>);
+  if(totalQty===0)return(<div style={{paddingTop:40}}><EmptyState icon={ShoppingCart} title="Carrinho vazio" sub="Escolha cartas na sua lista de desejos"/><div style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)',alignItems:'center',marginTop:16}}><Btn onClick={()=>nav('wants')} sfx="nav"><ScrollText size={14}/> Ir para Wants</Btn></div></div>);
 
   // Bloquear checkout se mínimo não atingido
   if(!canCheckout&&!isFullBonus)return(<div style={{paddingTop:20}}>
-    <Card style={{padding:20,textAlign:'center',borderColor:'rgba(var(--gold-rgb),0.3)',background:'rgba(var(--gold-rgb),0.06)'}}>
+    <Card style={{padding:'var(--sp-4)',textAlign:'center',borderColor:'rgba(var(--gold-rgb),0.3)',background:'rgba(var(--gold-rgb),0.06)'}}>
       <AlertTriangle size={32} style={{color:'var(--gold)',marginBottom:8}}/>
       <div style={{fontWeight:700,fontSize:'var(--fs-md)',color:'var(--gold)',marginBottom:6}}>Mínimo não atingido</div>
       <div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',lineHeight:1.5}}>Cada pedido precisa ter pelo menos <b style={{color:'var(--gold)'}}>{minCards} cartas{isIndividual?'':' pagas'}</b>.<br/>Seu carrinho tem {isIndividual?totalQty:totalPaid} carta{(isIndividual?totalQty:totalPaid)!==1?'s':''}{isIndividual?'':' paga'+(totalPaid!==1?'s':'')}. Adicione mais <b style={{color:'var(--gold)'}}>{missingCards}</b>.</div>
@@ -1248,14 +1248,14 @@ function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,o
     <div style={{textAlign:'center',marginTop:16}}><Btn onClick={()=>nav('cart')} sfx="nav"><ShoppingCart size={16}/> Voltar ao carrinho</Btn></div>
   </div>);
 
-  return(<div className="portal-page portal-checkout" style={{display:'flex',flexDirection:'column',gap:14}}>
-    <Card id="tut-checkout-summary" style={{padding:18}}>
+  return(<div className="portal-page portal-checkout" style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)'}}>
+    <Card id="tut-checkout-summary" style={{padding:'var(--sp-4)'}}>
       <SectionTitle sub={totalQty+' cartas ('+totalBonus+' bônus + '+totalPaid+' pagas)'}>Resumo do pedido</SectionTitle>
-      {totalBonus>0&&<><div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--ok)',marginBottom:6,display:'flex',alignItems:'center',gap:5}}><Gift size={12}/> Bônus (grátis)</div>
-        {bd.filter(c=>c.bonusQty>0).map((c,i)=>(<div key={'b'+i} style={{display:'flex',alignItems:'center',gap:9,padding:'5px 0',fontSize:'var(--fs-sm)',borderBottom:'1px solid rgba(var(--ok-rgb),0.08)'}}><div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:30,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={6}/></div><span style={{flex:1,minWidth:0,color:'var(--text-muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:'var(--fs-2xs)',fontWeight:700}}>{c.card_type}</span> x{c.bonusQty}</span><span style={{fontWeight:700,color:'var(--ok)'}}>R$ 0,00</span></div>))}</>}
-      {totalPaid>0&&<><div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-dim)',marginTop:totalBonus>0?12:0,marginBottom:6,display:'flex',alignItems:'center',gap:5}}><CreditCard size={12}/> Pagas</div>
-        {bd.filter(c=>c.paidQty>0).map((c,i)=>{const ip=unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv);return(<div key={'p'+i} style={{display:'flex',alignItems:'center',gap:9,padding:'5px 0',fontSize:'var(--fs-sm)',borderBottom:'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))'}}><div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:30,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={6}/></div><span style={{flex:1,minWidth:0,color:'var(--text-muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:'var(--fs-2xs)',fontWeight:700}}>{c.card_type}</span> x{c.paidQty}<span style={{color:'var(--text-faint)',fontSize:'var(--fs-2xs)'}}> · R$ {ip.toFixed(2).replace('.',',')}/un</span></span><span style={{fontWeight:700,whiteSpace:'nowrap'}}>R$ {(c.paidQty*ip).toFixed(2)}</span></div>);})}</>}
-      <div style={{marginTop:14,display:'flex',flexDirection:'column',gap:5}}>
+      {totalBonus>0&&<><div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--ok)',marginBottom:6,display:'flex',alignItems:'center',gap:'var(--sp-1)'}}><Gift size={12}/> Bônus (grátis)</div>
+        {bd.filter(c=>c.bonusQty>0).map((c,i)=>(<div key={'b'+i} style={{display:'flex',alignItems:'center',gap:'var(--sp-2)',padding:'5px 0',fontSize:'var(--fs-sm)',borderBottom:'1px solid rgba(var(--ok-rgb),0.08)'}}><div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:30,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={6}/></div><span style={{flex:1,minWidth:0,color:'var(--text-muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:'var(--fs-2xs)',fontWeight:700}}>{c.card_type}</span> x{c.bonusQty}</span><span style={{fontWeight:700,color:'var(--ok)'}}>R$ 0,00</span></div>))}</>}
+      {totalPaid>0&&<><div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-dim)',marginTop:totalBonus>0?12:0,marginBottom:6,display:'flex',alignItems:'center',gap:'var(--sp-1)'}}><CreditCard size={12}/> Pagas</div>
+        {bd.filter(c=>c.paidQty>0).map((c,i)=>{const ip=unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv);return(<div key={'p'+i} style={{display:'flex',alignItems:'center',gap:'var(--sp-2)',padding:'5px 0',fontSize:'var(--fs-sm)',borderBottom:'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))'}}><div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:30,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={6}/></div><span style={{flex:1,minWidth:0,color:'var(--text-muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:'var(--fs-2xs)',fontWeight:700}}>{c.card_type}</span> x{c.paidQty}<span style={{color:'var(--text-faint)',fontSize:'var(--fs-2xs)'}}> · R$ {ip.toFixed(2).replace('.',',')}/un</span></span><span style={{fontWeight:700,whiteSpace:'nowrap'}}>R$ {(c.paidQty*ip).toFixed(2)}</span></div>);})}</>}
+      <div style={{marginTop:14,display:'flex',flexDirection:'column',gap:'var(--sp-1)'}}>
         {totalPaid>0&&volumeDiscount>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}><span>Subtotal (sem desconto)</span><span style={{color:'var(--text-faint)',textDecoration:'line-through'}}>R$ {baseSub.toFixed(2)}</span></div>}
         {totalPaid>0&&volumeDiscount>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-sm)',color:'var(--ok)',fontWeight:700}}><span>Desconto por volume</span><span>−R$ {volumeDiscount.toFixed(2)}</span></div>}
         {totalPaid>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}><span>Subtotal</span><span style={{color:'var(--text-strong)',fontWeight:600}}>R$ {sub.toFixed(2)}</span></div>}
@@ -1266,49 +1266,49 @@ function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,o
       {step==='review'&&<Btn full onClick={()=>setStep('address')} style={{marginTop:12}} sfx="nav"><ArrowRight size={16}/> Avançar para endereço e frete</Btn>}
     </Card>
 
-    {step==='address'&&<Card style={{padding:16}}>
+    {step==='address'&&<Card style={{padding:'var(--sp-4)'}}>
       <SectionTitle>Endereço de entrega</SectionTitle>
 
       {!shippingSkipped&&(profileHasSavedAddress&&!editingAddr?<AddressDisplay address={addr} onEdit={()=>{setEditingAddr(true);setFreteOptions([]);setSelectedFrete(null);}}/>:<AddressForm address={addr} setAddress={(a)=>setAddr(a)}/>)}
       {!shippingSkipped&&(editingAddr||!profileHasSavedAddress)&&<Btn full variant="secondary" onClick={calcFrete} disabled={cepClean.length<8||lF} style={{marginTop:10}} sfx="click">{lF?<Spin size={14}/>:<><Truck size={15}/> Calcular frete</>}</Btn>}
-      {!shippingSkipped&&profileHasSavedAddress&&!editingAddr&&lF&&<div style={{marginTop:10,textAlign:'center',color:'var(--text-dim)',fontSize:'var(--fs-sm)',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><Spin size={14}/> Calculando frete...</div>}
+      {!shippingSkipped&&profileHasSavedAddress&&!editingAddr&&lF&&<div style={{marginTop:10,textAlign:'center',color:'var(--text-dim)',fontSize:'var(--fs-sm)',display:'flex',alignItems:'center',justifyContent:'center',gap:'var(--sp-1)'}}><Spin size={14}/> Calculando frete...</div>}
       {!shippingSkipped&&freteOptions.length>0&&<div style={{marginTop:12}}>
         <div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-dim)',marginBottom:8}}>Opções de envio</div>
-        {freteOptions.map((opt,i)=>(<button key={i} onClick={()=>{SFX.toggle();setSelectedFrete(opt);}} style={{width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',borderRadius:12,border:'1px solid '+(selectedFrete===opt?wa(theme.primary,'30'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),background:selectedFrete===opt?wa(theme.primary,'10'):'rgba(var(--ink),calc(0.02*var(--ink-a)))',cursor:'pointer',marginBottom:4,fontFamily:"'Outfit',sans-serif"}}>
-          <div style={{textAlign:'left'}}><div style={{fontSize:'var(--fs-sm)',fontWeight:600,color:selectedFrete===opt?'var(--text-strong)':'rgba(var(--ink),calc(0.5*var(--ink-a)))'}}>{opt.carrier}</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{opt.deadline_days} dias úteis</div></div>
-          <div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:14,fontWeight:800,color:selectedFrete===opt?theme.primary:'rgba(var(--ink),calc(0.5*var(--ink-a)))'}}>R$ {Number(opt.price).toFixed(2)}</span>{selectedFrete===opt&&<CheckCircle size={16} style={{color:theme.primary}}/>}</div>
+        {freteOptions.map((opt,i)=>(<button key={i} onClick={()=>{SFX.toggle();setSelectedFrete(opt);}} style={{width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',borderRadius:'var(--r-control)',border:'1px solid '+(selectedFrete===opt?wa(theme.primary,'30'):'var(--line-soft)'),background:selectedFrete===opt?wa(theme.primary,'10'):'var(--text-faint)',cursor:'pointer',marginBottom:4,fontFamily:"'Outfit',sans-serif"}}>
+          <div style={{textAlign:'left'}}><div style={{fontSize:'var(--fs-sm)',fontWeight:600,color:selectedFrete===opt?'var(--text-strong)':'var(--text-dim)'}}>{opt.carrier}</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{opt.deadline_days} dias úteis</div></div>
+          <div style={{display:'flex',alignItems:'center',gap:'var(--sp-1)'}}><span style={{fontSize:14,fontWeight:800,color:selectedFrete===opt?theme.primary:'var(--text-dim)'}}>R$ {Number(opt.price).toFixed(2)}</span>{selectedFrete===opt&&<CheckCircle size={16} style={{color:theme.primary}}/>}</div>
         </button>))}
       </div>}
-      {selectedFrete&&!shippingSkipped&&!addressUnchanged&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:10,background:'var(--fill-soft)',border:'1px solid var(--line-soft)'}}>
+      {selectedFrete&&!shippingSkipped&&!addressUnchanged&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:'var(--r-control)',background:'var(--fill-soft)',border:'1px solid var(--line-soft)'}}>
         <div style={{fontSize:'var(--fs-xs)',fontWeight:700,marginBottom:8}}>Quer salvar esse endereço?</div>
-        <div style={{display:'flex',gap:8}}>
+        <div style={{display:'flex',gap:'var(--sp-2)'}}>
           <Btn variant={saveAddressChoice===true?'success':'ghost'} onClick={()=>setSaveAddressChoice(true)} style={{flex:1,padding:'8px 10px',fontSize:'var(--fs-xs)'}} sfx="">Sim</Btn>
           <Btn variant={saveAddressChoice===false?'secondary':'ghost'} onClick={()=>setSaveAddressChoice(false)} style={{flex:1,padding:'8px 10px',fontSize:'var(--fs-xs)'}} sfx="">Não</Btn>
         </div>
       </div>}
 
       {/* Frete conjunto — aparece automaticamente se houver pedidos anteriores nesta encomenda */}
-      {hasPreviousOrders&&!alreadyPaidShipping&&<div style={{marginTop:14,padding:'12px 14px',borderRadius:12,background:useJointShipping?'rgba(var(--ok-rgb),0.06)':'rgba(var(--ink),calc(0.03*var(--ink-a)))',border:'1px solid '+(useJointShipping?'rgba(var(--ok-rgb),0.2)':'rgba(var(--ink),calc(0.08*var(--ink-a)))')}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
+      {hasPreviousOrders&&!alreadyPaidShipping&&<div style={{marginTop:14,padding:'12px 14px',borderRadius:'var(--r-control)',background:useJointShipping?'rgba(var(--ok-rgb),0.06)':'var(--text-faint)',border:'1px solid '+(useJointShipping?'rgba(var(--ok-rgb),0.2)':'var(--line)')}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'var(--sp-2)'}}>
           <div>
-            <div style={{fontSize:'var(--fs-sm)',fontWeight:700,color:useJointShipping?'var(--ok)':'var(--text-strong)',marginBottom:2,display:'flex',alignItems:'center',gap:6}}><Truck size={14} style={{flexShrink:0}}/> Envio conjunto</div>
+            <div style={{fontSize:'var(--fs-sm)',fontWeight:700,color:useJointShipping?'var(--ok)':'var(--text-strong)',marginBottom:2,display:'flex',alignItems:'center',gap:'var(--sp-1)'}}><Truck size={14} style={{flexShrink:0}}/> Envio conjunto</div>
             <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',lineHeight:1.4}}>Você já tem pedidos nesta encomenda. Envie tudo junto sem custo de frete adicional.</div>
           </div>
-          <button onClick={()=>{SFX.toggle();setUseJointShipping(v=>!v);}} role="switch" aria-checked={useJointShipping} aria-label="Enviar junto com pedidos anteriores desta encomenda" style={{flexShrink:0,width:44,height:26,borderRadius:13,border:'none',background:useJointShipping?'var(--ok)':'rgba(var(--ink),calc(0.1*var(--ink-a)))',cursor:'pointer',position:'relative',transition:'background .2s'}}>
-            <div style={{position:'absolute',top:3,left:useJointShipping?22:4,width:20,height:20,borderRadius:10,background:'#fff',transition:'left .2s',boxShadow:'0 1px 4px rgba(var(--sunk),calc(0.3*var(--sunk-a)))'}}/>
+          <button onClick={()=>{SFX.toggle();setUseJointShipping(v=>!v);}} role="switch" aria-checked={useJointShipping} aria-label="Enviar junto com pedidos anteriores desta encomenda" style={{flexShrink:0,width:44,height:26,borderRadius:'var(--r-control)',border:'none',background:useJointShipping?'var(--ok)':'var(--fill)',cursor:'pointer',position:'relative',transition:'background .2s'}}>
+            <div style={{position:'absolute',top:3,left:useJointShipping?22:4,width:20,height:20,borderRadius:'var(--r-control)',background:'#fff',transition:'left .2s',boxShadow:'0 1px 4px rgba(var(--sunk),calc(0.3*var(--sunk-a)))'}}/>
           </button>
         </div>
       </div>}
 
       {/* Já paguei o frete — só aparece se há uma compra ativa nesta encomenda ainda não enviada */}
-      {hasUnshippedPaidOrder&&<div style={{marginTop:14,padding:'12px 14px',borderRadius:12,background:alreadyPaidShipping?'rgba(var(--ok-rgb),0.06)':'rgba(var(--ink),calc(0.03*var(--ink-a)))',border:'1px solid '+(alreadyPaidShipping?'rgba(var(--ok-rgb),0.2)':'rgba(var(--ink),calc(0.08*var(--ink-a)))')}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
+      {hasUnshippedPaidOrder&&<div style={{marginTop:14,padding:'12px 14px',borderRadius:'var(--r-control)',background:alreadyPaidShipping?'rgba(var(--ok-rgb),0.06)':'var(--text-faint)',border:'1px solid '+(alreadyPaidShipping?'rgba(var(--ok-rgb),0.2)':'var(--line)')}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'var(--sp-2)'}}>
           <div>
-            <div style={{fontSize:'var(--fs-sm)',fontWeight:700,color:alreadyPaidShipping?'var(--ok)':'rgba(var(--ink),calc(0.5*var(--ink-a)))',marginBottom:2,display:'flex',alignItems:'center',gap:6}}><CheckCircle size={14} style={{flexShrink:0,color:alreadyPaidShipping?'var(--ok)':'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}/> Já paguei o frete</div>
+            <div style={{fontSize:'var(--fs-sm)',fontWeight:700,color:alreadyPaidShipping?'var(--ok)':'var(--text-dim)',marginBottom:2,display:'flex',alignItems:'center',gap:'var(--sp-1)'}}><CheckCircle size={14} style={{flexShrink:0,color:alreadyPaidShipping?'var(--ok)':'var(--text-faint)'}}/> Já paguei o frete</div>
             <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',lineHeight:1.4}}>Marque se o frete deste envio já foi pago em um pedido anterior.</div>
           </div>
-          <button onClick={()=>{SFX.toggle();setAlreadyPaidShipping(v=>!v);if(useJointShipping)setUseJointShipping(false);}} role="switch" aria-checked={alreadyPaidShipping} aria-label="O frete deste envio já foi pago em um pedido anterior" style={{flexShrink:0,width:44,height:26,borderRadius:13,border:'none',background:alreadyPaidShipping?'var(--ok)':'rgba(var(--ink),calc(0.1*var(--ink-a)))',cursor:'pointer',position:'relative',transition:'background .2s'}}>
-            <div style={{position:'absolute',top:3,left:alreadyPaidShipping?22:4,width:20,height:20,borderRadius:10,background:'#fff',transition:'left .2s',boxShadow:'0 1px 4px rgba(var(--sunk),calc(0.3*var(--sunk-a)))'}}/>
+          <button onClick={()=>{SFX.toggle();setAlreadyPaidShipping(v=>!v);if(useJointShipping)setUseJointShipping(false);}} role="switch" aria-checked={alreadyPaidShipping} aria-label="O frete deste envio já foi pago em um pedido anterior" style={{flexShrink:0,width:44,height:26,borderRadius:'var(--r-control)',border:'none',background:alreadyPaidShipping?'var(--ok)':'var(--text-faint)',cursor:'pointer',position:'relative',transition:'background .2s'}}>
+            <div style={{position:'absolute',top:3,left:alreadyPaidShipping?22:4,width:20,height:20,borderRadius:'var(--r-control)',background:'#fff',transition:'left .2s',boxShadow:'0 1px 4px rgba(var(--sunk),calc(0.3*var(--sunk-a)))'}}/>
           </button>
         </div>
       </div>}
@@ -1316,7 +1316,7 @@ function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,o
       <Btn full variant="ghost" onClick={()=>setStep('review')} style={{marginTop:10}} sfx="nav"><ChevronLeft size={14}/> Voltar para revisão</Btn>
     </Card>}
 
-    <Card id="tut-payment" style={{padding:16}}>
+    <Card id="tut-payment" style={{padding:'var(--sp-4)'}}>
       {payViaBonusFlow?<Btn full variant="success" onClick={finalize} disabled={submitting || !campaignOpen} sfx="">{submitting?<Spin size={16}/>:<><Gift size={18}/> Finalizar pedido bônus</>}</Btn>:
       <><SectionTitle sub={isFullBonus?'Pagamento do frete via Mercado Pago':'Pagamento seguro via Mercado Pago'}>Pagamento</SectionTitle>
       <Btn full onClick={finalize} disabled={submitting||!campaignOpen||(!shippingSkipped&&!selectedFrete)} sfx="">{submitting?<Spin size={16}/>:<><CreditCard size={18}/> Pagar R$ {total.toFixed(2)}</>}</Btn></>}
@@ -1384,8 +1384,8 @@ async function pagarAgoraPedido(p, toastFn) {
 function SuccessPage({lastOrder,theme,nav}){
   if(!lastOrder)return <EmptyState icon={Check} title="Sem pedido" sub=""/>;
   const isBonus=lastOrder.isFullBonus;
-  return(<div style={{display:'flex',flexDirection:'column',gap:16,alignItems:'center',textAlign:'center',paddingTop:20}}>
-    <div style={{width:72,height:72,borderRadius:36,background:isBonus?'linear-gradient(135deg,var(--ok),var(--pix))':'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',display:'grid',placeItems:'center',boxShadow:'0 0 36px '+(isBonus?'rgba(var(--ok-rgb),0.3)':theme.glow)}}>{isBonus?<Gift size={32} color="#fff"/>:<Check size={32} color="#fff"/>}</div>
+  return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-4)',alignItems:'center',textAlign:'center',paddingTop:20}}>
+    <div style={{width:72,height:72,borderRadius:'var(--r-sheet)',background:isBonus?'linear-gradient(135deg,var(--ok),var(--pix))':'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',display:'grid',placeItems:'center',boxShadow:'0 0 36px '+(isBonus?'rgba(var(--ok-rgb),0.3)':theme.glow)}}>{isBonus?<Gift size={32} color="#fff"/>:<Check size={32} color="#fff"/>}</div>
     <div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)'}}>{isBonus?'Pedido Bônus!':'Pedido Registrado!'}</h1><p style={{color:'var(--text-faint)',fontSize:'var(--fs-sm)',margin:'6px 0 0'}}>{isBonus?'Bônus escolhidos':lastOrder.totalPaid+' cartas a R$ '+lastOrder.priceBRL.toFixed(2)}</p></div>
     <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)'}}>Pedido salvo no banco de dados.</div>
     <Btn full onClick={()=>nav('home')} sfx="nav"><Home size={16}/> Voltar</Btn>
@@ -1398,9 +1398,9 @@ function SuccessPage({lastOrder,theme,nav}){
 
 function ProfileSection({title,icon:Icon,color,children,defaultOpen=false}){
   const [open,setOpen]=useState(defaultOpen);
-  return(<div style={{borderRadius:16,border:'1px solid var(--line-soft)',overflow:'hidden',background:'var(--fill-soft)'}}>
-    <button onClick={()=>setOpen(o=>!o)} style={{width:'100%',background:'none',border:'none',padding:'14px 16px',display:'flex',alignItems:'center',gap:10,cursor:'pointer',color:'var(--text)'}}>
-      <div style={{width:32,height:32,borderRadius:10,background:wa(color,'18'),border:'1px solid '+wa(color,'30'),display:'grid',placeItems:'center',flexShrink:0}}><Icon size={15} style={{color}}/></div>
+  return(<div style={{borderRadius:'var(--r-card)',border:'1px solid var(--line-soft)',overflow:'hidden',background:'var(--fill-soft)'}}>
+    <button onClick={()=>setOpen(o=>!o)} style={{width:'100%',background:'none',border:'none',padding:'14px 16px',display:'flex',alignItems:'center',gap:'var(--sp-2)',cursor:'pointer',color:'var(--text)'}}>
+      <div style={{width:32,height:32,borderRadius:'var(--r-control)',background:wa(color,'18'),border:'1px solid '+wa(color,'30'),display:'grid',placeItems:'center',flexShrink:0}}><Icon size={15} style={{color}}/></div>
       <span style={{flex:1,textAlign:'left',fontWeight:700,fontSize:14,fontFamily:"'Outfit',sans-serif"}}>{title}</span>
       <ChevronRight size={15} style={{color:'var(--text-faint)',transform:open?'rotate(90deg)':'none',transition:'transform .2s'}}/>
     </button>
@@ -1443,16 +1443,16 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
   async function savePessoal(){setSaving(true);await onSaveProfile({name:nameVal,whatsapp:wppVal});setEditName(false);setSaving(false);}
 
   const campOpen=campaignCanOrder(campaign?.status);
-  const campColor=campOpen?'var(--ok)':campaign?.status?'var(--gold)':'rgba(var(--ink),calc(0.2*var(--ink-a)))';
+  const campColor=campOpen?'var(--ok)':campaign?.status?'var(--gold)':'var(--text-faint)';
   const campLabel=campaign?.status?campaignLabel(campaign.status):'Sem encomenda ativa';
 
-  return(<div className="portal-page portal-profile" style={{display:'flex',flexDirection:'column',gap:10}}>
+  return(<div className="portal-page portal-profile" style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)'}}>
 
     {/* Hero card */}
-    <div style={{borderRadius:20,padding:20,background:`linear-gradient(135deg,${gT?wa(gT.primary,'22'):'rgba(var(--ink),calc(0.04*var(--ink-a)))'} 0%,rgba(var(--sunk),0) 100%)`,border:`1px solid ${gT?wa(gT.primary,'30'):'rgba(var(--ink),calc(0.07*var(--ink-a)))'}`,position:'relative',overflow:'hidden'}}>
+    <div style={{borderRadius:'var(--r-card)',padding:'var(--sp-4)',background:`linear-gradient(135deg,${gT?wa(gT.primary,'22'):'var(--text-faint)'} 0%,rgba(var(--sunk),0) 100%)`,border:`1px solid ${gT?wa(gT.primary,'30'):'var(--line)'}`,position:'relative',overflow:'hidden'}}>
       {gT&&<div style={{position:'absolute',inset:0,background:`radial-gradient(ellipse at 80% 50%,${gT.glow||gT.primary}18 0%,transparent 70%)`,pointerEvents:'none'}}/>}
-      <div style={{display:'flex',alignItems:'center',gap:14}}>
-        <div style={{width:56,height:56,borderRadius:18,background:gT?`linear-gradient(135deg,${gT.primary},${gT.secondary})`:'rgba(var(--ink),calc(0.07*var(--ink-a)))',display:'grid',placeItems:'center',fontSize:24,flexShrink:0,boxShadow:gT?`0 0 20px ${gT.glow||gT.primary}40`:'none'}}>
+      <div style={{display:'flex',alignItems:'center',gap:'var(--sp-3)'}}>
+        <div style={{width:56,height:56,borderRadius:'var(--r-card)',background:gT?`linear-gradient(135deg,${gT.primary},${gT.secondary})`:'var(--text-faint)',display:'grid',placeItems:'center',fontSize:24,flexShrink:0,boxShadow:gT?`0 0 20px ${gT.glow||gT.primary}40`:'none'}}>
           {guild?'⚔️':'👤'}
         </div>
         <div style={{flex:1,minWidth:0}}>
@@ -1468,11 +1468,11 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
 
     {/* Dados pessoais */}
     <ProfileSection title="Dados Pessoais" icon={User} color={theme.primary} defaultOpen={true}>
-      <div style={{display:'flex',flexDirection:'column',gap:10,marginTop:12}}>
+      <div style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)',marginTop:12}}>
         {editName?<>
           <Input icon={User} placeholder="Seu nome" value={nameVal} onChange={e=>setNameVal(e.target.value)}/>
           <Input icon={Phone} placeholder="WhatsApp" value={wppVal} onChange={e=>setWppVal(e.target.value.replace(/\D/g,'').slice(0,11))}/>
-          <div style={{display:'flex',gap:8}}>
+          <div style={{display:'flex',gap:'var(--sp-2)'}}>
             <Btn variant="success" onClick={savePessoal} disabled={saving} style={{flex:1}} sfx="success">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar</>}</Btn>
             <Btn variant="ghost" onClick={()=>setEditName(false)} style={{flex:1}} sfx="click">Cancelar</Btn>
           </div>
@@ -1486,7 +1486,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
               <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginBottom:2}}>WhatsApp</div>
               <div style={{fontSize:14,fontWeight:600}}>{profile?.whatsapp||'—'}</div>
             </div>
-            <button onClick={()=>setEditName(true)} style={{background:'var(--fill)',border:'1px solid var(--line)',borderRadius:10,padding:'6px 10px',cursor:'pointer',color:'var(--text-dim)',display:'flex',alignItems:'center',gap:4,fontSize:'var(--fs-2xs)'}}><Edit3 size={12}/> Editar</button>
+            <button onClick={()=>setEditName(true)} style={{background:'var(--fill)',border:'1px solid var(--line)',borderRadius:'var(--r-control)',padding:'6px 10px',cursor:'pointer',color:'var(--text-dim)',display:'flex',alignItems:'center',gap:'var(--sp-1)',fontSize:'var(--fs-2xs)'}}><Edit3 size={12}/> Editar</button>
           </div>
         </>}
       </div>
@@ -1497,7 +1497,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
       <div style={{marginTop:12}}>
         {editAddr?<>
           <AddressForm address={addr} setAddress={setAddr} onCalcFrete={()=>{}} frete={null} loadingFrete={false}/>
-          <div style={{display:'flex',gap:8,marginTop:10}}>
+          <div style={{display:'flex',gap:'var(--sp-2)',marginTop:10}}>
             <Btn variant="success" onClick={saveAddr} disabled={saving} style={{flex:1}} sfx="success">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar</>}</Btn>
             <Btn variant="ghost" onClick={()=>setEditAddr(false)} style={{flex:1}} sfx="click">Cancelar</Btn>
           </div>
@@ -1508,10 +1508,10 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
     {/* Guilda */}
     <ProfileSection title="Aparência" icon={colorMode==='light'?Sun:Moon} color="var(--gold)">
       <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',marginBottom:10,lineHeight:1.5}}>Escolha como o portal aparece neste aparelho. A preferência fica salva aqui mesmo.</div>
-      <div style={{display:'flex',gap:6}}>
+      <div style={{display:'flex',gap:'var(--sp-1)'}}>
         {[{key:'dark',label:'Escuro',icon:Moon},{key:'light',label:'Claro',icon:Sun}].map(opt=>{
           const active=colorMode===opt.key;
-          return(<button key={opt.key} onClick={()=>{SFX.toggle();onColorModeChange(opt.key);}} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'11px 8px',borderRadius:12,border:'1px solid '+(active?wa(theme.primary,'55'):'rgba(var(--ink),calc(0.07*var(--ink-a)))'),background:active?wa(theme.primary,'18'):'rgba(var(--ink),calc(0.02*var(--ink-a)))',color:active?theme.primary:'rgba(var(--ink),calc(0.4*var(--ink-a)))',fontSize:'var(--fs-sm)',fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>
+          return(<button key={opt.key} onClick={()=>{SFX.toggle();onColorModeChange(opt.key);}} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:'var(--sp-1)',padding:'11px 8px',borderRadius:'var(--r-control)',border:'1px solid '+(active?wa(theme.primary,'55'):'var(--line)'),background:active?wa(theme.primary,'18'):'var(--text-faint)',color:active?theme.primary:'var(--text-dim)',fontSize:'var(--fs-sm)',fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>
             <opt.icon size={15}/>{opt.label}
           </button>);
         })}
@@ -1520,8 +1520,8 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
 
     <ProfileSection title="Guilda & Mana" icon={Sparkles} color="var(--indiv)">
       <div style={{marginTop:12}}>
-        <div style={{display:'flex',justifyContent:'center',gap:12,margin:'10px 0'}}>{MANA_COLORS.map(m=><ManaOrb key={m.key} mana={m.key} selected={colors.includes(m.key)} onClick={()=>toggleC(m.key)} size={44}/>)}</div>
-        {guild&&<div style={{textAlign:'center',marginBottom:10,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}><GuildBadge guild={guild} size={16}/><span style={{fontWeight:700,fontSize:14,color:gT?gT.primary:'var(--text-strong)'}}>{guild}</span></div>}
+        <div style={{display:'flex',justifyContent:'center',gap:'var(--sp-3)',margin:'10px 0'}}>{MANA_COLORS.map(m=><ManaOrb key={m.key} mana={m.key} selected={colors.includes(m.key)} onClick={()=>toggleC(m.key)} size={44}/>)}</div>
+        {guild&&<div style={{textAlign:'center',marginBottom:10,display:'flex',alignItems:'center',justifyContent:'center',gap:'var(--sp-2)'}}><GuildBadge guild={guild} size={16}/><span style={{fontWeight:700,fontSize:14,color:gT?gT.primary:'var(--text-strong)'}}>{guild}</span></div>}
         {changed&&guild&&<Btn full variant="success" onClick={saveGuild} disabled={saving} sfx="success">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar guilda</>}</Btn>}
       </div>
     </ProfileSection>
@@ -1537,18 +1537,18 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
         const paySt=String(o.payment_status||'').toLowerCase();
         const isPaid=(st==='PAID'||st==='CONFIRMED'||st==='APPROVED')||paySt==='approved';
         const isPending=!isPaid&&(st===''||st==='DRAFT'||st==='AWAITING_PAYMENT'||st==='IN_PROCESS'||paySt==='pending'||paySt==='in_process');
-        return(<div key={o.id} style={{borderRadius:12,border:`1px solid ${isPending?'rgba(var(--gold-rgb),0.2)':isPaid?'rgba(var(--ok-rgb),0.12)':'rgba(var(--ink),calc(0.05*var(--ink-a)))'}`,overflow:'hidden',background:'rgba(var(--sunk),calc(0.2*var(--sunk-a)))',cursor:'pointer'}} onClick={async()=>{const next=isExp?null:o.id;setExpandedOrder(next);if(next!==null&&!o.cards&&!orderCardsCache[String(o.id)]){const cards=await loadOrderCards(o,token);setOrderCardsCache(prev=>({...prev,[String(o.id)]:cards}));}}}>
+        return(<div key={o.id} style={{borderRadius:'var(--r-control)',border:`1px solid ${isPending?'rgba(var(--gold-rgb),0.2)':isPaid?'rgba(var(--ok-rgb),0.12)':'var(--text-faint)'}`,overflow:'hidden',background:'rgba(var(--sunk),calc(0.2*var(--sunk-a)))',cursor:'pointer'}} onClick={async()=>{const next=isExp?null:o.id;setExpandedOrder(next);if(next!==null&&!o.cards&&!orderCardsCache[String(o.id)]){const cards=await loadOrderCards(o,token);setOrderCardsCache(prev=>({...prev,[String(o.id)]:cards}));}}}>
           <div style={{padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <div style={{width:36,height:36,borderRadius:10,background:isPaid?'rgba(var(--ok-rgb),0.1)':isPending?'rgba(var(--gold-rgb),0.1)':'rgba(var(--ink),calc(0.04*var(--ink-a)))',display:'grid',placeItems:'center'}}>
-                <Package size={15} style={{color:isPaid?'var(--ok)':isPending?'var(--gold)':'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}/>
+            <div style={{display:'flex',alignItems:'center',gap:'var(--sp-2)'}}>
+              <div style={{width:36,height:36,borderRadius:'var(--r-control)',background:isPaid?'rgba(var(--ok-rgb),0.1)':isPending?'rgba(var(--gold-rgb),0.1)':'var(--text-faint)',display:'grid',placeItems:'center'}}>
+                <Package size={15} style={{color:isPaid?'var(--ok)':isPending?'var(--gold)':'var(--text-faint)'}}/>
               </div>
               <div>
                 <div style={{fontSize:'var(--fs-xs)',fontWeight:700}}>{Number(o.total_locked)>0?'R$ '+Number(o.total_locked).toFixed(2):'Bônus'}</div>
                 <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{o.qty_in_batch} cartas · {new Date(o.created_at).toLocaleDateString('pt-BR')}</div>
               </div>
             </div>
-            <div style={{display:'flex',alignItems:'center',gap:6}}>
+            <div style={{display:'flex',alignItems:'center',gap:'var(--sp-1)'}}>
               <Tag color={isPending?'var(--gold)':isPaid?'var(--ok)':'var(--info)'} style={{fontSize:'var(--fs-2xs)'}}>{isPending?'Pendente':isPaid?'Pago':o.status}</Tag>
               <ChevronRight size={13} style={{color:'var(--text-faint)',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
             </div>
@@ -1557,7 +1557,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
             {((o.cards&&o.cards.length>0)?o.cards:(orderCardsCache[String(o.id)]||[])).length>0?
               <div style={{marginTop:8}}>{((o.cards&&o.cards.length>0)?o.cards:(orderCardsCache[String(o.id)]||[])).map((c,ci,arr)=>(
                 <div key={ci} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:'var(--fs-xs)',borderBottom:ci<arr.length-1?'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))':'none'}}>
-                  <span style={{color:'var(--text-dim)'}}>{c.name} <span style={{color:TC[c.type]||'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:'var(--fs-2xs)',fontWeight:700}}>{c.type||''}</span></span>
+                  <span style={{color:'var(--text-dim)'}}>{c.name} <span style={{color:TC[c.type]||'var(--text-faint)',fontSize:'var(--fs-2xs)',fontWeight:700}}>{c.type||''}</span></span>
                   <span style={{fontWeight:700}}>x{c.qty}</span>
                 </div>
               ))}</div>
@@ -1565,21 +1565,21 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
             {o.orderKind==='INDIVIDUAL'&&isPaid&&(()=>{
               const idx=indivStageIndex(o.fulfillment_status);
               const trackingCode=o.mandabem_rastreamento||o.mandabem_etiqueta;
-              return(<div style={{marginTop:10,padding:'10px 12px',borderRadius:10,background:'rgba(var(--sunk),calc(0.2*var(--sunk-a)))'}}>
+              return(<div style={{marginTop:10,padding:'10px 12px',borderRadius:'var(--r-control)',background:'rgba(var(--sunk),calc(0.2*var(--sunk-a)))'}}>
                 <div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-faint)',marginBottom:8,textTransform:'uppercase',letterSpacing:1}}>Status do pedido</div>
                 <div style={{display:'flex',alignItems:'flex-start'}}>
                   {INDIV_FULFILLMENT_STAGES.map((s,i)=>(<Fragment key={s.key}>
-                    {i>0&&<div style={{flex:1,height:2,background:i<=idx?'var(--ok)':'rgba(var(--ink),calc(0.08*var(--ink-a)))',marginTop:7}}/>}
+                    {i>0&&<div style={{flex:1,height:2,background:i<=idx?'var(--ok)':'var(--fill)',marginTop:7}}/>}
                     <div style={{display:'flex',flexDirection:'column',alignItems:'center',width:44,flexShrink:0}}>
-                      <div style={{width:15,height:15,borderRadius:8,background:i<=idx?'var(--ok)':'rgba(var(--ink),calc(0.08*var(--ink-a)))',display:'grid',placeItems:'center'}}>{i<idx?<Check size={9} style={{color:'var(--ok-ink)'}}/>:null}</div>
-                      <div style={{fontSize:8,color:i<=idx?'var(--ok)':'rgba(var(--ink),calc(0.25*var(--ink-a)))',marginTop:3,textAlign:'center',lineHeight:1.2}}>{s.short}</div>
+                      <div style={{width:15,height:15,borderRadius:'var(--r-control)',background:i<=idx?'var(--ok)':'var(--fill)',display:'grid',placeItems:'center'}}>{i<idx?<Check size={9} style={{color:'var(--ok-ink)'}}/>:null}</div>
+                      <div style={{fontSize:8,color:i<=idx?'var(--ok)':'var(--text-faint)',marginTop:3,textAlign:'center',lineHeight:1.2}}>{s.short}</div>
                     </div>
                   </Fragment>))}
                 </div>
                 {trackingCode&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--ok)',marginTop:10}}>Rastreio: {trackingCode}{o.mandabem_status?` · ${o.mandabem_status}`:''}</div>}
               </div>);
             })()}
-            {showActions&&isPending&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginTop:10}}>
+            {showActions&&isPending&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'var(--sp-2)',marginTop:10}}>
               <Btn variant="warn" onClick={(e)=>{e.stopPropagation();pagarAgoraPedido(o,toastFn);}} style={{width:'100%',fontSize:'var(--fs-2xs)',whiteSpace:'nowrap',justifyContent:'center'}} sfx="nav"><CreditCard size={12}/> Pagar</Btn>
               <Btn variant="ghost" onClick={async(e)=>{e.stopPropagation();try{await mpSync(o.id);onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:'var(--fs-2xs)',justifyContent:'center'}} sfx=""><RefreshCw size={12}/></Btn>
               <Btn variant="danger" onClick={async(e)=>{e.stopPropagation();if(!confirm('Cancelar este pedido?'))return;try{const res=await fetch('/api/cancel-order',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:String(o.id),orderId:String(o.order_id||'')})});const j=await res.json().catch(()=>({}));if(!res.ok||!j.ok)throw new Error(j.error||'Falha');toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:'100%',fontSize:'var(--fs-2xs)',justifyContent:'center'}} sfx=""><X size={12}/> Cancelar</Btn>
@@ -1589,13 +1589,13 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
       }
       return(<>
         <ProfileSection title={`Meus Pedidos${activeOrders.length>0?' ('+activeOrders.length+')':''}`} icon={Package} color="var(--info)">
-          <div style={{marginTop:12,display:'flex',flexDirection:'column',gap:6}}>
-            {activeOrders.length===0?<div style={{fontSize:'var(--fs-sm)',color:'var(--text-faint)',textAlign:'center',padding:12}}>Nenhum pedido ativo</div>:
+          <div style={{marginTop:12,display:'flex',flexDirection:'column',gap:'var(--sp-1)'}}>
+            {activeOrders.length===0?<div style={{fontSize:'var(--fs-sm)',color:'var(--text-faint)',textAlign:'center',padding:'var(--sp-3)'}}>Nenhum pedido ativo</div>:
             activeOrders.map(o=>renderOrder(o,true))}
           </div>
         </ProfileSection>
         {archivedOrders.length>0&&<ProfileSection title={`Arquivados (${archivedOrders.length})`} icon={Archive} color="rgba(var(--ink),calc(0.25*var(--ink-a)))">
-          <div style={{marginTop:12,display:'flex',flexDirection:'column',gap:6}}>
+          <div style={{marginTop:12,display:'flex',flexDirection:'column',gap:'var(--sp-1)'}}>
             {archivedOrders.map(o=>renderOrder(o,false))}
           </div>
         </ProfileSection>}
@@ -1606,18 +1606,18 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
     <ProfileSection title="Alterar Senha" icon={Lock} color="var(--danger)">
       <div style={{marginTop:12}}>
         {!showChangePw?<Btn full variant="ghost" onClick={()=>setShowChangePw(true)} sfx="click"><Lock size={14}/> Alterar senha</Btn>:<>
-          <div style={{display:'flex',flexDirection:'column',gap:8}}>
-            <div onClick={()=>{setPwVKTarget('pw1');setPwVK(true);}} style={{padding:'12px 14px 12px 42px',borderRadius:12,border:'1px solid var(--line)',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',cursor:'pointer',position:'relative',minHeight:44}}>
+          <div style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)'}}>
+            <div onClick={()=>{setPwVKTarget('pw1');setPwVK(true);}} style={{padding:'12px 14px 12px 42px',borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',cursor:'pointer',position:'relative',minHeight:44}}>
               <Lock size={16} style={{position:'absolute',left:13,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
               {newPw?<span style={{letterSpacing:6}}>{'●'.repeat(newPw.length)}</span>:<span style={{color:'var(--text-faint)',fontSize:'var(--fs-sm)'}}>Nova senha (6 dígitos)</span>}
             </div>
-            <div onClick={()=>{setPwVKTarget('pw2');setPwVK(true);}} style={{padding:'12px 14px 12px 42px',borderRadius:12,border:'1px solid var(--line)',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',cursor:'pointer',position:'relative',minHeight:44}}>
+            <div onClick={()=>{setPwVKTarget('pw2');setPwVK(true);}} style={{padding:'12px 14px 12px 42px',borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',cursor:'pointer',position:'relative',minHeight:44}}>
               <Lock size={16} style={{position:'absolute',left:13,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
               {newPw2?<span style={{letterSpacing:6}}>{'●'.repeat(newPw2.length)}</span>:<span style={{color:'var(--text-faint)',fontSize:'var(--fs-sm)'}}>Confirmar senha</span>}
             </div>
             {pwVK&&<VirtualKeyboard onKey={pwVKKey} onBackspace={pwVKBack} onDone={()=>setPwVK(false)} maxLen={6} currentLen={pwVKTarget==='pw1'?newPw.length:newPw2.length} doneLabel="Fechar"/>}
             {pwMsg&&<div style={{fontSize:'var(--fs-xs)',color:pwMsg.t==='error'?'var(--danger)':'var(--ok)',textAlign:'center'}}>{pwMsg.m}</div>}
-            <div style={{display:'flex',gap:8}}>
+            <div style={{display:'flex',gap:'var(--sp-2)'}}>
               <Btn variant="success" onClick={changePassword} disabled={pwLoading} style={{flex:1}} sfx="success">{pwLoading?<Spin size={14}/>:<><Check size={14}/> Confirmar</>}</Btn>
               <Btn variant="ghost" onClick={()=>{setShowChangePw(false);setNewPw('');setNewPw2('');setPwMsg(null);}} style={{flex:1}} sfx="click">Cancelar</Btn>
             </div>
@@ -1627,7 +1627,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
     </ProfileSection>
 
     {/* Ações */}
-    <div style={{display:'flex',flexDirection:'column',gap:8,marginTop:4}}>
+    <div style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)',marginTop:4}}>
       <Btn full variant="secondary" onClick={()=>{SFX.nav();setShowTutorial(true);}} sfx=""><HelpCircle size={15}/> Ver tutorial</Btn>
       {isAdmin&&<Btn full variant="warn" onClick={()=>nav('admin')} sfx="nav"><Shield size={15}/> Painel Admin</Btn>}
       <Btn full variant="danger" onClick={onLogout} sfx="click"><LogOut size={14}/> Sair</Btn>
@@ -1698,9 +1698,9 @@ function AuthPage({onLogin,theme}){
     setLoading(false);
   }
 
-  if(forgotMode)return(<div style={{display:'flex',flexDirection:'column',gap:14,paddingTop:16}}>
+  if(forgotMode)return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingTop:16}}>
     <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>🔑</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)'}}>Recuperar Senha</h1></div>
-    {resetSent?<Card glow="rgba(var(--ok-rgb),0.15)" style={{padding:20,textAlign:'center'}}>
+    {resetSent?<Card glow="rgba(var(--ok-rgb),0.15)" style={{padding:'var(--sp-4)',textAlign:'center'}}>
       <Check size={32} style={{color:'var(--ok)',marginBottom:8}}/>
       <div style={{fontWeight:700,color:'var(--ok)',fontSize:'var(--fs-md)'}}>Email enviado!</div>
       <div style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)',marginTop:6}}>Verifique sua caixa de entrada e spam. Clique no link para redefinir sua senha.</div>
@@ -1708,35 +1708,35 @@ function AuthPage({onLogin,theme}){
     </Card>:<>
       <div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',textAlign:'center'}}>Digite seu email e enviaremos um link para redefinir sua senha.</div>
       <Input icon={Mail} type="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="seu@email.com" value={email} onChange={e=>setEmail(e.target.value)}/>
-      {err&&<div style={{fontSize:'var(--fs-xs)',color:'var(--danger)',textAlign:'center',padding:4}}><AlertTriangle size={12}/> {err}</div>}
+      {err&&<div style={{fontSize:'var(--fs-xs)',color:'var(--danger)',textAlign:'center',padding:'var(--sp-1)'}}><AlertTriangle size={12}/> {err}</div>}
       <Btn full onClick={handleForgot} disabled={!email.includes('@')||loading} sfx="">{loading?<Spin size={16}/>:<><Mail size={16}/> Enviar link de recuperação</>}</Btn>
-      <button onClick={()=>{setForgotMode(false);setErr('');}} style={{background:'none',border:'none',color:'var(--gp)',fontSize:'var(--fs-sm)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",padding:8,textAlign:'center'}}>Voltar ao login</button>
+      <button onClick={()=>{setForgotMode(false);setErr('');}} style={{background:'none',border:'none',color:'var(--gp)',fontSize:'var(--fs-sm)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",padding:'var(--sp-2)',textAlign:'center'}}>Voltar ao login</button>
     </>}
   </div>);
 
-  return(<div style={{display:'flex',flexDirection:'column',gap:14,paddingTop:16}}>
+  return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingTop:16}}>
     <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>⚔️</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)'}}>{mode==='login'?'Bem-vindo':'Junte-se'}</h1></div>
-    <div style={{display:'flex',borderRadius:12,background:'var(--fill-soft)',padding:3,gap:3}}>{['login','signup'].map(m=>(<button key={m} onClick={()=>{SFX.toggle();setMode(m);setErr('');setSenha('');setSenha2('');setShowVK(false);}} style={{flex:1,padding:'9px 0',borderRadius:10,border:'none',background:mode===m?'rgba(var(--ink),calc(0.07*var(--ink-a)))':'transparent',color:mode===m?'var(--text-strong)':'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontWeight:700,fontSize:'var(--fs-sm)',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{m==='login'?'Entrar':'Criar conta'}</button>))}</div>
+    <div style={{display:'flex',borderRadius:'var(--r-control)',background:'var(--fill-soft)',padding:'var(--sp-1)',gap:'var(--sp-1)'}}>{['login','signup'].map(m=>(<button key={m} onClick={()=>{SFX.toggle();setMode(m);setErr('');setSenha('');setSenha2('');setShowVK(false);}} style={{flex:1,padding:'9px 0',borderRadius:'var(--r-control)',border:'none',background:mode===m?'var(--fill)':'transparent',color:mode===m?'var(--text-strong)':'var(--text-faint)',fontWeight:700,fontSize:'var(--fs-sm)',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{m==='login'?'Entrar':'Criar conta'}</button>))}</div>
     {mode==='signup'&&<Input icon={User} placeholder="Seu nome" value={name} onChange={e=>setName(e.target.value)}/>}
     <Input icon={Mail} type="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="seu@email.com" value={email} onChange={e=>setEmail(e.target.value)}/>
     {mode==='signup'&&<Input icon={Phone} placeholder="WhatsApp (11999999999)" value={whatsapp} onChange={e=>setWhatsapp(e.target.value.replace(/\D/g,'').slice(0,11))}/>}
     <div>
-      <div onClick={()=>openVK('senha')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='senha'?'var(--gp)':'rgba(var(--ink),calc(0.08*var(--ink-a)))'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:senha?'var(--text)':'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+      <div onClick={()=>openVK('senha')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-card)',border:'1px solid '+(showVK&&vkTarget==='senha'?'var(--gp)':'var(--line)'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:senha?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
         <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
         {senha?<span style={{letterSpacing:6}}>{'●'.repeat(senha.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-senha.length)}</span></span>:'Senha (6 dígitos)'}
       </div>
     </div>
     {mode==='signup'&&<div>
-      <div onClick={()=>openVK('senha2')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='senha2'?'var(--gp)':'rgba(var(--ink),calc(0.08*var(--ink-a)))'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:senha2?'var(--text)':'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+      <div onClick={()=>openVK('senha2')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-card)',border:'1px solid '+(showVK&&vkTarget==='senha2'?'var(--gp)':'var(--line)'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:senha2?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
         <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
         {senha2?<span style={{letterSpacing:6}}>{'●'.repeat(senha2.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-senha2.length)}</span></span>:'Confirmar senha'}
       </div>
       {senha2.length===6&&senha!==senha2&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--danger)',marginTop:4,textAlign:'center'}}>As senhas não coincidem</div>}
     </div>}
     {showVK&&<div style={{marginTop:4}}><VirtualKeyboard onKey={vkKey} onBackspace={vkBack} onDone={()=>setShowVK(false)} maxLen={6} currentLen={currentVKLen} doneLabel="Fechar"/></div>}
-    {err&&<div style={{fontSize:'var(--fs-xs)',color:'var(--danger)',textAlign:'center',padding:4}}><AlertTriangle size={12}/> {err}</div>}
+    {err&&<div style={{fontSize:'var(--fs-xs)',color:'var(--danger)',textAlign:'center',padding:'var(--sp-1)'}}><AlertTriangle size={12}/> {err}</div>}
     <Btn full onClick={submit} disabled={!canSubmit} sfx="">{loading?<Spin size={16}/>:<>{mode==='login'?'Entrar':'Criar conta'} <ArrowRight size={16}/></>}</Btn>
-    {mode==='login'&&<button onClick={()=>{setForgotMode(true);setErr('');}} style={{background:'none',border:'none',color:'var(--text-faint)',fontSize:'var(--fs-xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",padding:4,textAlign:'center'}}>Esqueci minha senha</button>}
+    {mode==='login'&&<button onClick={()=>{setForgotMode(true);setErr('');}} style={{background:'none',border:'none',color:'var(--text-faint)',fontSize:'var(--fs-xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",padding:'var(--sp-1)',textAlign:'center'}}>Esqueci minha senha</button>}
   </div>);
 }
 
@@ -1759,13 +1759,13 @@ function RecoveryPage({token,onDone,theme}){
     catch(e){setErr(e.message);}
     setLoading(false);
   }
-  return(<div style={{display:'flex',flexDirection:'column',gap:14,paddingTop:16}}>
+  return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingTop:16}}>
     <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>🔑</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)'}}>Nova Senha</h1><p style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',marginTop:6}}>Digite sua nova senha de 6 dígitos</p></div>
-    <div onClick={()=>{setVkTarget('pw');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='pw'?'var(--gp)':'rgba(var(--ink),calc(0.08*var(--ink-a)))'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:pw?'var(--text)':'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+    <div onClick={()=>{setVkTarget('pw');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-card)',border:'1px solid '+(showVK&&vkTarget==='pw'?'var(--gp)':'var(--line)'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:pw?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
       <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
       {pw?<span style={{letterSpacing:6}}>{'●'.repeat(pw.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-pw.length)}</span></span>:'Nova senha'}
     </div>
-    <div onClick={()=>{setVkTarget('pw2');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:14,border:'1px solid '+(showVK&&vkTarget==='pw2'?'var(--gp)':'rgba(var(--ink),calc(0.08*var(--ink-a)))'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:pw2?'var(--text)':'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+    <div onClick={()=>{setVkTarget('pw2');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-card)',border:'1px solid '+(showVK&&vkTarget==='pw2'?'var(--gp)':'var(--line)'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:pw2?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
       <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
       {pw2?<span style={{letterSpacing:6}}>{'●'.repeat(pw2.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-pw2.length)}</span></span>:'Confirmar senha'}
     </div>
@@ -1792,27 +1792,27 @@ function OnboardingPage({onComplete,theme}){
   ];
   const s=steps[step];
 
-  if(askTutorial)return(<div style={{display:'flex',flexDirection:'column',gap:16,paddingTop:40,alignItems:'center',textAlign:'center'}}>
-    <div style={{width:56,height:56,borderRadius:14,background:'var(--fill-soft)',border:'1px solid var(--line-soft)',display:'grid',placeItems:'center',fontSize:28}}>🧙</div>
+  if(askTutorial)return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-4)',paddingTop:40,alignItems:'center',textAlign:'center'}}>
+    <div style={{width:56,height:56,borderRadius:'var(--r-card)',background:'var(--fill-soft)',border:'1px solid var(--line-soft)',display:'grid',placeItems:'center',fontSize:28}}>🧙</div>
     <h2 style={{fontFamily:"'Cinzel',serif",fontSize:20}}>"Vamos explorar o portal juntos!"</h2>
     <p style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',maxWidth:300,fontStyle:'italic'}}>Um guia rápido sobre o ritual da encomenda — leva menos de 1 minuto</p>
-    <div style={{display:'flex',gap:10,width:'100%',maxWidth:300}}>
+    <div style={{display:'flex',gap:'var(--sp-2)',width:'100%',maxWidth:300}}>
       <Btn onClick={()=>onComplete(colors,guild,true)} style={{flex:1}} sfx="confirm">Vamos lá! 🔮</Btn>
     </div>
     <button onClick={()=>onComplete(colors,guild,false)} style={{background:'none',border:'none',color:'var(--text-faint)',fontSize:'var(--fs-xs)',cursor:'pointer',marginTop:4}}>Pular tutorial</button>
   </div>);
 
-  return(<div style={{display:'flex',flexDirection:'column',gap:16,paddingTop:16,minHeight:'70vh',justifyContent:'space-between'}}>
+  return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-4)',paddingTop:16,minHeight:'70vh',justifyContent:'space-between'}}>
     <div>
-      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:18}}><div style={{width:44,height:44,borderRadius:12,background:'var(--fill-soft)',border:'1px solid var(--line-soft)',display:'grid',placeItems:'center',fontSize:'var(--fs-xl)'}}>{s.mood}</div><div><div style={{fontWeight:800,fontSize:14}}>Goblin Guia</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>Guardião do Portal</div></div></div>
+      <div style={{display:'flex',alignItems:'center',gap:'var(--sp-2)',marginBottom:18}}><div style={{width:44,height:44,borderRadius:'var(--r-control)',background:'var(--fill-soft)',border:'1px solid var(--line-soft)',display:'grid',placeItems:'center',fontSize:'var(--fs-xl)'}}>{s.mood}</div><div><div style={{fontWeight:800,fontSize:14}}>Goblin Guia</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>Guardião do Portal</div></div></div>
       <h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)'}}>{s.title}</h1>
       <p style={{fontSize:14,lineHeight:1.7,color:'var(--text-muted)',marginTop:10,fontStyle:'italic'}}>{s.body}</p>
       {s.illus&&s.illus()}
-      {s.hasColors&&<div style={{marginTop:18}}><div style={{display:'flex',justifyContent:'center',gap:14,marginBottom:14}}>{MANA_COLORS.map(m=><ManaOrb key={m.key} mana={m.key} selected={colors.includes(m.key)} onClick={()=>toggleC(m.key)} size={50}/>)}</div>{guild&&<div style={{textAlign:'center'}}><GuildBadge guild={guild} size={24}/><span style={{fontFamily:"'Cinzel',serif",fontSize:'var(--fs-lg)',fontWeight:700,color:gT.primary,marginLeft:8}}>{guild}</span></div>}</div>}
+      {s.hasColors&&<div style={{marginTop:18}}><div style={{display:'flex',justifyContent:'center',gap:'var(--sp-3)',marginBottom:14}}>{MANA_COLORS.map(m=><ManaOrb key={m.key} mana={m.key} selected={colors.includes(m.key)} onClick={()=>toggleC(m.key)} size={50}/>)}</div>{guild&&<div style={{textAlign:'center'}}><GuildBadge guild={guild} size={24}/><span style={{fontFamily:"'Cinzel',serif",fontSize:'var(--fs-lg)',fontWeight:700,color:gT.primary,marginLeft:8}}>{guild}</span></div>}</div>}
     </div>
     <div>
-      <div style={{display:'flex',gap:5,justifyContent:'center',marginBottom:12}}>{steps.map((_,i)=><div key={i} style={{width:i===step?20:6,height:6,borderRadius:3,background:i===step?gT.primary:'rgba(var(--ink),calc(0.1*var(--ink-a)))'}}/>)}</div>
-      <div style={{display:'flex',gap:10}}>{step>0&&<Btn variant="secondary" onClick={()=>setStep(s=>s-1)} style={{flex:1}} sfx="nav"><ChevronLeft size={15}/></Btn>}{step<steps.length-1?<Btn onClick={()=>setStep(s=>s+1)} style={{flex:1}} sfx="click">Próximo <ChevronRight size={15}/></Btn>:<Btn onClick={()=>{if(!guild)return;SFX.confirm();setAskTutorial(true);}} disabled={!guild} style={{flex:1}} sfx=""><Sparkles size={15}/> Continuar</Btn>}</div>
+      <div style={{display:'flex',gap:'var(--sp-1)',justifyContent:'center',marginBottom:12}}>{steps.map((_,i)=><div key={i} style={{width:i===step?20:6,height:6,borderRadius:3,background:i===step?gT.primary:'var(--fill)'}}/>)}</div>
+      <div style={{display:'flex',gap:'var(--sp-2)'}}>{step>0&&<Btn variant="secondary" onClick={()=>setStep(s=>s-1)} style={{flex:1}} sfx="nav"><ChevronLeft size={15}/></Btn>}{step<steps.length-1?<Btn onClick={()=>setStep(s=>s+1)} style={{flex:1}} sfx="click">Próximo <ChevronRight size={15}/></Btn>:<Btn onClick={()=>{if(!guild)return;SFX.confirm();setAskTutorial(true);}} disabled={!guild} style={{flex:1}} sfx=""><Sparkles size={15}/> Continuar</Btn>}</div>
     </div>
   </div>);
 }
@@ -1893,11 +1893,11 @@ function isToday(iso){
 // ── Blocos visuais do console ─────────────────────────
 const AdminStat=({label,value,sub,color,icon:Icon,onClick,accent})=>(
   <Card onClick={onClick} style={{padding:'12px 14px',display:'flex',flexDirection:'column',gap:2,borderLeft:'3px solid '+((accent||color||'rgba(var(--ink),calc(0.12*var(--ink-a)))')+(accent?'':'55'))}}>
-    <div style={{display:'flex',alignItems:'center',gap:5,fontSize:10,color:'rgba(var(--ink),calc(0.32*var(--ink-a)))',fontWeight:600,textTransform:'uppercase',letterSpacing:.6}}>
+    <div style={{display:'flex',alignItems:'center',gap:5,fontSize:'var(--fs-2xs)',color:'var(--text-faint)',fontWeight:600,textTransform:'uppercase',letterSpacing:.6}}>
       {Icon&&<Icon size={11}/>}{label}
     </div>
-    <div style={{fontSize:22,fontWeight:800,color:color||'var(--text-strong)',lineHeight:1.1}}>{value}</div>
-    {sub&&<div style={{fontSize:10,color:'rgba(var(--ink),calc(0.25*var(--ink-a)))'}}>{sub}</div>}
+    <div style={{fontSize:'var(--fs-xl)',fontWeight:800,color:color||'var(--text-strong)',lineHeight:1.1}}>{value}</div>
+    {sub&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{sub}</div>}
   </Card>
 );
 
@@ -1905,10 +1905,10 @@ const AdminPanel=({title,sub,icon:Icon,accent,right,children,style})=>(
   <Card style={{padding:16,...style}}>
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10,marginBottom:12}}>
       <div style={{display:'flex',gap:10,alignItems:'flex-start',minWidth:0}}>
-        {Icon&&<div style={{width:30,height:30,borderRadius:9,flexShrink:0,display:'grid',placeItems:'center',background:wa((accent||'var(--gp)'),'14'),border:'1px solid '+wa((accent||'var(--gp)'),'22'),color:accent||'var(--gp)'}}><Icon size={15}/></div>}
+        {Icon&&<div style={{width:30,height:30,borderRadius:'var(--r-control)',flexShrink:0,display:'grid',placeItems:'center',background:wa((accent||'var(--gp)'),'14'),border:'1px solid '+wa((accent||'var(--gp)'),'22'),color:accent||'var(--gp)'}}><Icon size={15}/></div>}
         <div style={{minWidth:0}}>
-          <h2 style={{margin:0,fontSize:15,fontFamily:"'Cinzel',serif",color:'var(--text-strong)',letterSpacing:.3}}>{title}</h2>
-          {sub&&<p style={{margin:'3px 0 0',fontSize:11,color:'rgba(var(--ink),calc(0.33*var(--ink-a)))',lineHeight:1.45}}>{sub}</p>}
+          <h2 style={{margin:0,fontSize:'var(--fs-md)',fontFamily:"'Cinzel',serif",color:'var(--text-strong)',letterSpacing:.3}}>{title}</h2>
+          {sub&&<p style={{margin:'3px 0 0',fontSize:'var(--fs-2xs)',color:'var(--text-faint)',lineHeight:1.45}}>{sub}</p>}
         </div>
       </div>
       {right&&<div style={{flexShrink:0}}>{right}</div>}
@@ -1923,8 +1923,8 @@ const AdminPills=({options,value,onChange,style})=>(
     {options.map(opt=>{
       const active=value===opt.key;
       const color=opt.color||'var(--gp)';
-      return(<button key={opt.key} onClick={()=>{SFX.toggle();onChange(opt.key);}} style={{display:'inline-flex',alignItems:'center',gap:5,padding:'6px 11px',borderRadius:99,border:'1px solid '+(active?wa(color,'45'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),background:active?wa(color,'16'):'rgba(var(--ink),calc(0.022*var(--ink-a)))',color:active?color:'rgba(var(--ink),calc(0.34*var(--ink-a)))',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap'}}>
-        {opt.icon&&<opt.icon size={11}/>}{opt.label}{opt.count!==undefined&&<span style={{fontSize:9,opacity:.65}}>({opt.count})</span>}
+      return(<button key={opt.key} onClick={()=>{SFX.toggle();onChange(opt.key);}} style={{display:'inline-flex',alignItems:'center',gap:5,padding:'6px 11px',borderRadius:'var(--r-pill)',border:'1px solid '+(active?wa(color,'45'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),background:active?wa(color,'16'):'rgba(var(--ink),calc(0.022*var(--ink-a)))',color:active?color:'var(--text-faint)',fontSize:'var(--fs-2xs)',fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap'}}>
+        {opt.icon&&<opt.icon size={11}/>}{opt.label}{opt.count!==undefined&&<span style={{fontSize:'var(--fs-2xs)',opacity:.65}}>({opt.count})</span>}
       </button>);
     })}
   </div>
@@ -1932,23 +1932,23 @@ const AdminPills=({options,value,onChange,style})=>(
 
 const AdminField=({label,hint,children})=>(
   <div style={{marginBottom:10}}>
-    <label style={{fontSize:11,color:'rgba(var(--ink),calc(0.32*var(--ink-a)))',display:'block',marginBottom:4,fontWeight:600}}>{label}</label>
+    <label style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',display:'block',marginBottom:4,fontWeight:600}}>{label}</label>
     {children}
-    {hint&&<div style={{fontSize:10,color:'rgba(var(--ink),calc(0.2*var(--ink-a)))',marginTop:3,lineHeight:1.45}}>{hint}</div>}
+    {hint&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginTop:3,lineHeight:1.45}}>{hint}</div>}
   </div>
 );
 
-const adminInputStyle={width:'100%',padding:'9px 12px',borderRadius:10,border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:'var(--text-strong)',fontSize:13,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'};
+const adminInputStyle={width:'100%',padding:'9px 12px',borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:'var(--text-strong)',fontSize:'var(--fs-sm)',fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'};
 
 // Linha "isso aqui precisa de você" da visão geral.
 const AdminTodo=({icon:Icon,color,title,detail,actionLabel,onAction})=>(
   <div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:'1px solid rgba(var(--ink),calc(0.04*var(--ink-a)))'}}>
-    <div style={{width:26,height:26,borderRadius:8,flexShrink:0,display:'grid',placeItems:'center',background:wa(color,'14'),color}}><Icon size={13}/></div>
+    <div style={{width:26,height:26,borderRadius:'var(--r-control)',flexShrink:0,display:'grid',placeItems:'center',background:wa(color,'14'),color}}><Icon size={13}/></div>
     <div style={{flex:1,minWidth:0}}>
-      <div style={{fontSize:12,fontWeight:700}}>{title}</div>
-      <div style={{fontSize:10,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}>{detail}</div>
+      <div style={{fontSize:'var(--fs-xs)',fontWeight:700}}>{title}</div>
+      <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{detail}</div>
     </div>
-    {onAction&&<button onClick={onAction} style={{flexShrink:0,display:'inline-flex',alignItems:'center',gap:3,background:'rgba(var(--ink),calc(0.05*var(--ink-a)))',border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',borderRadius:8,padding:'5px 9px',color:'rgba(var(--ink),calc(0.55*var(--ink-a)))',fontSize:10,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{actionLabel||'Abrir'} <ChevronRight size={11}/></button>}
+    {onAction&&<button onClick={onAction} style={{flexShrink:0,display:'inline-flex',alignItems:'center',gap:3,background:'var(--fill)',border:'1px solid var(--line)',borderRadius:'var(--r-control)',padding:'5px 9px',color:'var(--text-muted)',fontSize:'var(--fs-2xs)',fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{actionLabel||'Abrir'} <ChevronRight size={11}/></button>}
   </div>
 );
 
@@ -1969,25 +1969,25 @@ function AdminNotificationFeed({notifications,loading,unread,onRefresh,onMarkAll
   const list=limit?notifications.slice(0,limit):notifications;
   return(<div style={{display:'flex',flexDirection:'column'}}>
     {!compact&&<div style={{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap'}}>
-      <Btn variant="secondary" onClick={onRefresh} disabled={loading} style={{padding:'6px 11px',fontSize:11}} sfx="click">{loading?<Spin size={12}/>:<RefreshCw size={12}/>} Atualizar</Btn>
-      <Btn variant="secondary" onClick={onMarkAll} disabled={!unread} style={{padding:'6px 11px',fontSize:11}} sfx=""><CheckCircle size={12}/> Marcar tudo lido</Btn>
-      <Btn variant="ghost" onClick={onClear} style={{padding:'6px 11px',fontSize:11}} sfx=""><Trash2 size={12}/> Limpar lidas</Btn>
+      <Btn variant="secondary" onClick={onRefresh} disabled={loading} style={{padding:'6px 11px',fontSize:'var(--fs-2xs)'}} sfx="click">{loading?<Spin size={12}/>:<RefreshCw size={12}/>} Atualizar</Btn>
+      <Btn variant="secondary" onClick={onMarkAll} disabled={!unread} style={{padding:'6px 11px',fontSize:'var(--fs-2xs)'}} sfx=""><CheckCircle size={12}/> Marcar tudo lido</Btn>
+      <Btn variant="ghost" onClick={onClear} style={{padding:'6px 11px',fontSize:'var(--fs-2xs)'}} sfx=""><Trash2 size={12}/> Limpar lidas</Btn>
     </div>}
     {loading&&list.length===0?<div style={{textAlign:'center',padding:24}}><Spin size={20}/></div>:
     list.length===0?<EmptyState icon={Inbox} title="Nada por aqui" sub="Pedidos novos e logins aparecem nesta lista"/>:
     list.map(n=>{
-      const meta=NOTIF_META[n.type]||{icon:Bell,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))',label:n.type};
+      const meta=NOTIF_META[n.type]||{icon:Bell,color:'var(--text-dim)',label:n.type};
       const isUnread=!n.read_at;
       return(<div key={n.id} onClick={()=>onOpenEvent&&onOpenEvent(n)} style={{display:'flex',gap:10,alignItems:'flex-start',padding:'9px 0',borderBottom:'1px solid rgba(var(--ink),calc(0.04*var(--ink-a)))',cursor:onOpenEvent?'pointer':'default',opacity:isUnread?1:0.55}}>
-        <div style={{width:28,height:28,borderRadius:9,flexShrink:0,display:'grid',placeItems:'center',background:wa(meta.color,'14'),color:meta.color}}><meta.icon size={13}/></div>
+        <div style={{width:28,height:28,borderRadius:'var(--r-control)',flexShrink:0,display:'grid',placeItems:'center',background:wa(meta.color,'14'),color:meta.color}}><meta.icon size={13}/></div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{display:'flex',alignItems:'center',gap:6}}>
-            <span style={{fontSize:12,fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{n.title}</span>
+            <span style={{fontSize:'var(--fs-xs)',fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{n.title}</span>
             {isUnread&&<span style={{width:6,height:6,borderRadius:3,background:meta.color,flexShrink:0}}/>}
           </div>
-          {n.body&&<div style={{fontSize:11,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))',marginTop:1,lineHeight:1.4}}>{n.body}</div>}
+          {n.body&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginTop:1,lineHeight:1.4}}>{n.body}</div>}
         </div>
-        <span style={{fontSize:10,color:'rgba(var(--ink),calc(0.22*var(--ink-a)))',flexShrink:0,marginTop:2}}>{timeAgo(n.created_at)}</span>
+        <span style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',flexShrink:0,marginTop:2}}>{timeAgo(n.created_at)}</span>
       </div>);
     })}
   </div>);
@@ -2039,44 +2039,44 @@ function AdminPushSettings({token,toast:toastFn}){
 
   if(!state)return <div style={{textAlign:'center',padding:16}}><Spin size={18}/></div>;
 
-  if(!state.supported)return(<div style={{fontSize:12,color:'rgba(var(--ink),calc(0.45*var(--ink-a)))',lineHeight:1.6}}>
+  if(!state.supported)return(<div style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)',lineHeight:1.6}}>
     {state.reason===PUSH_NEEDS_INSTALL
       ? <>No iPhone/iPad o push só funciona com o portal <b style={{color:'var(--text-strong)'}}>instalado na tela de início</b>. Abra o site no Safari, toque em <b style={{color:'var(--text-strong)'}}>Compartilhar → Adicionar à Tela de Início</b> e ative as notificações por dentro do app instalado.</>
       : <>Este navegador não suporta notificações push. Abra o portal no Chrome (Android/desktop) ou no app instalado do iPhone.</>}
   </div>);
 
-  if(!state.serverConfigured)return(<div style={{fontSize:12,color:'var(--gold)',lineHeight:1.6}}>
+  if(!state.serverConfigured)return(<div style={{fontSize:'var(--fs-xs)',color:'var(--gold)',lineHeight:1.6}}>
     O servidor ainda não tem as chaves VAPID. Rode <b style={{fontFamily:'monospace'}}>node scripts/generate-vapid-keys.mjs</b> e cadastre <b style={{fontFamily:'monospace'}}>VAPID_PUBLIC_KEY</b>, <b style={{fontFamily:'monospace'}}>VAPID_PRIVATE_KEY</b> e <b style={{fontFamily:'monospace'}}>VAPID_SUBJECT</b> nas variáveis do Cloudflare Pages.
   </div>);
 
   return(<div style={{display:'flex',flexDirection:'column',gap:10}}>
     <div style={{display:'flex',alignItems:'center',gap:9}}>
-      <div style={{width:32,height:32,borderRadius:10,display:'grid',placeItems:'center',background:state.subscribed?'rgba(var(--ok-rgb),0.1)':'rgba(var(--ink),calc(0.04*var(--ink-a)))',color:state.subscribed?'var(--ok)':'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}>{state.subscribed?<BellRing size={15}/>:<BellOff size={15}/>}</div>
+      <div style={{width:32,height:32,borderRadius:'var(--r-control)',display:'grid',placeItems:'center',background:state.subscribed?'rgba(var(--ok-rgb),0.1)':'rgba(var(--ink),calc(0.04*var(--ink-a)))',color:state.subscribed?'var(--ok)':'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}>{state.subscribed?<BellRing size={15}/>:<BellOff size={15}/>}</div>
       <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:13,fontWeight:700,color:state.subscribed?'var(--ok)':'rgba(var(--ink),calc(0.6*var(--ink-a)))'}}>{state.subscribed?'Este aparelho recebe notificações':'Notificações desligadas neste aparelho'}</div>
-        <div style={{fontSize:10,color:'rgba(var(--ink),calc(0.28*var(--ink-a)))'}}>{state.permission==='denied'?'Permissão bloqueada nas configurações do navegador':'Cada aparelho é ativado separadamente'}</div>
+        <div style={{fontSize:'var(--fs-sm)',fontWeight:700,color:state.subscribed?'var(--ok)':'rgba(var(--ink),calc(0.6*var(--ink-a)))'}}>{state.subscribed?'Este aparelho recebe notificações':'Notificações desligadas neste aparelho'}</div>
+        <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{state.permission==='denied'?'Permissão bloqueada nas configurações do navegador':'Cada aparelho é ativado separadamente'}</div>
       </div>
     </div>
 
     {state.subscribed&&<div style={{display:'flex',flexDirection:'column',gap:6}}>
       {[{k:'newOrders',label:'Pedidos novos e pagamentos',icon:ShoppingBag},{k:'logins',label:'Logins e novas contas',icon:LogIn}].map(({k,label,icon:Icon})=>(
-        <label key={k} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px',borderRadius:10,background:'rgba(var(--ink),calc(0.025*var(--ink-a)))',cursor:'pointer',fontSize:12}}>
+        <label key={k} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px',borderRadius:'var(--r-control)',background:'var(--fill-soft)',cursor:'pointer',fontSize:'var(--fs-xs)'}}>
           <input type="checkbox" checked={!!state.prefs[k]} onChange={()=>togglePref(k)} style={{cursor:'pointer'}}/>
-          <Icon size={13} style={{color:'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}/>
-          <span style={{color:'rgba(var(--ink),calc(0.6*var(--ink-a)))'}}>{label}</span>
+          <Icon size={13} style={{color:'var(--text-faint)'}}/>
+          <span style={{color:'var(--text-muted)'}}>{label}</span>
         </label>
       ))}
     </div>}
 
     <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
       {!state.subscribed
-        ? <Btn variant="success" onClick={handleEnable} disabled={busy==='enable'||state.permission==='denied'} style={{padding:'8px 13px',fontSize:12}} sfx="">{busy==='enable'?<Spin size={13}/>:<><Bell size={13}/> Ativar neste aparelho</>}</Btn>
+        ? <Btn variant="success" onClick={handleEnable} disabled={busy==='enable'||state.permission==='denied'} style={{padding:'8px 13px',fontSize:'var(--fs-xs)'}} sfx="">{busy==='enable'?<Spin size={13}/>:<><Bell size={13}/> Ativar neste aparelho</>}</Btn>
         : <>
-            <Btn variant="secondary" onClick={handleTest} disabled={busy==='test'} style={{padding:'8px 13px',fontSize:12}} sfx="">{busy==='test'?<Spin size={13}/>:<><Zap size={13}/> Enviar teste</>}</Btn>
-            <Btn variant="ghost" onClick={handleDisable} disabled={busy==='disable'} style={{padding:'8px 13px',fontSize:12}} sfx=""><BellOff size={13}/> Desligar</Btn>
+            <Btn variant="secondary" onClick={handleTest} disabled={busy==='test'} style={{padding:'8px 13px',fontSize:'var(--fs-xs)'}} sfx="">{busy==='test'?<Spin size={13}/>:<><Zap size={13}/> Enviar teste</>}</Btn>
+            <Btn variant="ghost" onClick={handleDisable} disabled={busy==='disable'} style={{padding:'8px 13px',fontSize:'var(--fs-xs)'}} sfx=""><BellOff size={13}/> Desligar</Btn>
           </>}
     </div>
-    {state.permission==='denied'&&<div style={{fontSize:10,color:'var(--gold)',lineHeight:1.5}}>A permissão foi negada. Libere as notificações do site nas configurações do navegador/aparelho e volte aqui.</div>}
+    {state.permission==='denied'&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--gold)',lineHeight:1.5}}>A permissão foi negada. Libere as notificações do site nas configurações do navegador/aparelho e volte aqui.</div>}
   </div>);
 }
 
@@ -2753,80 +2753,80 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       <div onClick={async()=>{const next=isExp?null:b.id;setExpandedOrdBatch(next);if(next)await loadBatchCards(b.id);}} style={{padding:'11px 14px',cursor:'pointer'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4,gap:8}}>
           <div style={{display:'flex',alignItems:'center',gap:6,minWidth:0}}>
-            <span style={{fontSize:11,fontWeight:800,fontFamily:'monospace',color:'rgba(var(--ink),calc(0.5*var(--ink-a)))'}}>#{sid}</span>
-            <span style={{fontSize:13,fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.clientName}</span>
+            <span style={{fontSize:'var(--fs-2xs)',fontWeight:800,fontFamily:'monospace',color:'var(--text-dim)'}}>#{sid}</span>
+            <span style={{fontSize:'var(--fs-sm)',fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.clientName}</span>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
-            <Tag color={isIndiv?'var(--indiv)':theme.primary} style={{fontSize:9,padding:'3px 7px'}}>{CHANNEL_LABEL[b.channel]}</Tag>
-            <Tag color={statusColor} style={{fontSize:9,padding:'3px 7px'}}>{paid?'Pago':cancelled?'Cancelado':'Pendente'}</Tag>
-            <ChevronRight size={12} style={{color:'rgba(var(--ink),calc(0.15*var(--ink-a)))',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
+            <Tag color={isIndiv?'var(--indiv)':theme.primary} style={{fontSize:'var(--fs-2xs)',padding:'3px 7px'}}>{CHANNEL_LABEL[b.channel]}</Tag>
+            <Tag color={statusColor} style={{fontSize:'var(--fs-2xs)',padding:'3px 7px'}}>{paid?'Pago':cancelled?'Cancelado':'Pendente'}</Tag>
+            <ChevronRight size={12} style={{color:'var(--text-faint)',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
           </div>
         </div>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
-          <div style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',minWidth:0,flexWrap:'wrap'}}>
+          <div style={{display:'flex',alignItems:'center',gap:6,fontSize:'var(--fs-2xs)',color:'var(--text-faint)',minWidth:0,flexWrap:'wrap'}}>
             <span>{b.qty_in_batch} cartas</span><span>•</span>
             <span>{new Date(batchDateOf(b)).toLocaleDateString('pt-BR')}</span>
             {b.payment_method&&<><span>•</span><span>{b.payment_method==='MERCADO_PAGO'?'MP':b.payment_method==='BONUS'?'Bônus':'Outro'}</span></>}
             {isIndiv&&stageInfo&&<><span>•</span><span style={{color:indivStageIndex(b.fulfillment_status)>=5?'var(--ok)':'var(--gp)'}}>{stageInfo.short}</span></>}
           </div>
-          <span style={{fontSize:13,fontWeight:800,color:paid?'var(--ok)':'rgba(var(--ink),calc(0.6*var(--ink-a)))',flexShrink:0}}>{brl(total)}</span>
+          <span style={{fontSize:'var(--fs-sm)',fontWeight:800,color:paid?'var(--ok)':'rgba(var(--ink),calc(0.6*var(--ink-a)))',flexShrink:0}}>{brl(total)}</span>
         </div>
         {isIndiv&&paid&&<IndivStageTrack status={b.fulfillment_status}/>}
       </div>
 
       {isExp&&<div style={{borderTop:'1px solid rgba(var(--ink),calc(0.04*var(--ink-a)))',padding:'12px 14px'}}>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
-          <div style={{padding:'8px 10px',borderRadius:10,background:'rgba(var(--sunk),calc(0.2*var(--sunk-a)))'}}><div style={{fontSize:9,color:'rgba(var(--ink),calc(0.25*var(--ink-a)))',marginBottom:2}}>Subtotal</div><div style={{fontSize:13,fontWeight:700}}>{brl(valNoShip)}</div></div>
-          <div style={{padding:'8px 10px',borderRadius:10,background:b.shipping_already_paid?'rgba(var(--ok-rgb),0.06)':'rgba(var(--sunk),calc(0.2*var(--sunk-a)))',border:b.shipping_already_paid?'1px solid rgba(var(--ok-rgb),0.2)':'none'}}>
-            <div style={{fontSize:9,color:'rgba(var(--ink),calc(0.25*var(--ink-a)))',marginBottom:2}}>Frete</div>
-            <div style={{fontSize:13,fontWeight:700,color:b.shipping_already_paid?'var(--ok)':undefined}}>{b.shipping_already_paid?'Já pago ✓':brl(ship)}</div>
-            {!b.shipping_already_paid&&b.shipping_service&&<div style={{fontSize:9,color:'rgba(var(--ink),calc(0.28*var(--ink-a)))',marginTop:2}}>{b.shipping_service}</div>}
+          <div style={{padding:'8px 10px',borderRadius:'var(--r-control)',background:'rgba(var(--sunk),calc(0.2*var(--sunk-a)))'}}><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginBottom:2}}>Subtotal</div><div style={{fontSize:'var(--fs-sm)',fontWeight:700}}>{brl(valNoShip)}</div></div>
+          <div style={{padding:'8px 10px',borderRadius:'var(--r-control)',background:b.shipping_already_paid?'rgba(var(--ok-rgb),0.06)':'rgba(var(--sunk),calc(0.2*var(--sunk-a)))',border:b.shipping_already_paid?'1px solid rgba(var(--ok-rgb),0.2)':'none'}}>
+            <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginBottom:2}}>Frete</div>
+            <div style={{fontSize:'var(--fs-sm)',fontWeight:700,color:b.shipping_already_paid?'var(--ok)':undefined}}>{b.shipping_already_paid?'Já pago ✓':brl(ship)}</div>
+            {!b.shipping_already_paid&&b.shipping_service&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginTop:2}}>{b.shipping_service}</div>}
           </div>
-          <div style={{padding:'8px 10px',borderRadius:10,background:'rgba(var(--sunk),calc(0.2*var(--sunk-a)))'}}><div style={{fontSize:9,color:'rgba(var(--ink),calc(0.25*var(--ink-a)))',marginBottom:2}}>Total</div><div style={{fontSize:13,fontWeight:800,color:theme.primary}}>{brl(total)}</div></div>
-          <div style={{padding:'8px 10px',borderRadius:10,background:'rgba(var(--sunk),calc(0.2*var(--sunk-a)))'}}><div style={{fontSize:9,color:'rgba(var(--ink),calc(0.25*var(--ink-a)))',marginBottom:2}}>Status</div><div style={{fontSize:12,fontWeight:700,color:statusColor}}>{statusLabel}</div></div>
+          <div style={{padding:'8px 10px',borderRadius:'var(--r-control)',background:'rgba(var(--sunk),calc(0.2*var(--sunk-a)))'}}><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginBottom:2}}>Total</div><div style={{fontSize:'var(--fs-sm)',fontWeight:800,color:theme.primary}}>{brl(total)}</div></div>
+          <div style={{padding:'8px 10px',borderRadius:'var(--r-control)',background:'rgba(var(--sunk),calc(0.2*var(--sunk-a)))'}}><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginBottom:2}}>Status</div><div style={{fontSize:'var(--fs-xs)',fontWeight:700,color:statusColor}}>{statusLabel}</div></div>
         </div>
 
-        {mpCode&&<div style={{padding:'6px 10px',borderRadius:8,background:'rgba(var(--sunk),calc(0.15*var(--sunk-a)))',marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div><div style={{fontSize:9,color:'rgba(var(--ink),calc(0.25*var(--ink-a)))'}}>Código MP</div><div style={{fontSize:11,fontFamily:'monospace',color:'rgba(var(--ink),calc(0.5*var(--ink-a)))'}}>{mpCode}</div></div>
-          <button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(mpCode);SFX.success();}} style={{background:'rgba(var(--ink),calc(0.05*var(--ink-a)))',border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',borderRadius:6,padding:'3px 6px',color:'rgba(var(--ink),calc(0.4*var(--ink-a)))',fontSize:10,cursor:'pointer'}}><Copy size={10}/></button>
+        {mpCode&&<div style={{padding:'6px 10px',borderRadius:'var(--r-control)',background:'rgba(var(--sunk),calc(0.15*var(--sunk-a)))',marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>Código MP</div><div style={{fontSize:'var(--fs-2xs)',fontFamily:'monospace',color:'var(--text-dim)'}}>{mpCode}</div></div>
+          <button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(mpCode);SFX.success();}} style={{background:'var(--fill)',border:'1px solid var(--line)',borderRadius:6,padding:'3px 6px',color:'var(--text-dim)',fontSize:'var(--fs-2xs)',cursor:'pointer'}}><Copy size={10}/></button>
         </div>}
 
-        {tracking.code&&<div style={{padding:'8px 10px',borderRadius:8,background:'rgba(var(--ok-rgb),0.06)',border:'1px solid rgba(var(--ok-rgb),0.14)',marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
+        {tracking.code&&<div style={{padding:'8px 10px',borderRadius:'var(--r-control)',background:'rgba(var(--ok-rgb),0.06)',border:'1px solid rgba(var(--ok-rgb),0.14)',marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
           <div>
-            <div style={{fontSize:9,color:'rgba(var(--ok-rgb),0.6)',marginBottom:2}}>MandaBem · Rastreamento</div>
-            <div style={{fontSize:12,fontFamily:'monospace',fontWeight:800,color:'var(--ok)'}}>{tracking.code}</div>
-            {tracking.status&&<div style={{fontSize:10,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))'}}>{tracking.status}</div>}
+            <div style={{fontSize:'var(--fs-2xs)',color:'rgba(var(--ok-rgb),0.6)',marginBottom:2}}>MandaBem · Rastreamento</div>
+            <div style={{fontSize:'var(--fs-xs)',fontFamily:'monospace',fontWeight:800,color:'var(--ok)'}}>{tracking.code}</div>
+            {tracking.status&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{tracking.status}</div>}
           </div>
           <div style={{display:'flex',gap:5,flexShrink:0}}>
-            <button title="Copiar rastreamento" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(tracking.code);SFX.success();}} style={{background:'rgba(var(--ink),calc(0.05*var(--ink-a)))',border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',borderRadius:6,padding:'4px 7px',color:'rgba(var(--ink),calc(0.45*var(--ink-a)))',cursor:'pointer'}}><Copy size={10}/></button>
-            {b.clientWhatsapp&&<button title="Enviar rastreamento" onClick={e=>{e.stopPropagation();openShipmentWhatsAppFor(b);}} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(var(--wa-rgb),0.08)',border:'1px solid rgba(var(--wa-rgb),0.18)',borderRadius:6,padding:'4px 7px',color:'var(--wa)',fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={10}/> Enviar</button>}
+            <button title="Copiar rastreamento" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(tracking.code);SFX.success();}} style={{background:'var(--fill)',border:'1px solid var(--line)',borderRadius:6,padding:'4px 7px',color:'var(--text-dim)',cursor:'pointer'}}><Copy size={10}/></button>
+            {b.clientWhatsapp&&<button title="Enviar rastreamento" onClick={e=>{e.stopPropagation();openShipmentWhatsAppFor(b);}} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(var(--wa-rgb),0.08)',border:'1px solid rgba(var(--wa-rgb),0.18)',borderRadius:6,padding:'4px 7px',color:'var(--wa)',fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={10}/> Enviar</button>}
           </div>
         </div>}
 
         <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10,flexWrap:'wrap'}}>
-          {b.clientEmail&&<span style={{fontSize:11,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',display:'flex',alignItems:'center',gap:3}}><Mail size={10}/>{b.clientEmail}</span>}
-          {b.clientWhatsapp&&<a href={buildWhatsAppUrl({name:b.clientName,whatsapp:b.clientWhatsapp},whatsappMessages[whatsappAudience],b.channel==='INDIVIDUAL'?'':selectedCampaign?.name)} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:'var(--wa)',textDecoration:'none',display:'flex',alignItems:'center',gap:3}}><MessageCircle size={10}/> WhatsApp</a>}
+          {b.clientEmail&&<span style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',display:'flex',alignItems:'center',gap:3}}><Mail size={10}/>{b.clientEmail}</span>}
+          {b.clientWhatsapp&&<a href={buildWhatsAppUrl({name:b.clientName,whatsapp:b.clientWhatsapp},whatsappMessages[whatsappAudience],b.channel==='INDIVIDUAL'?'':selectedCampaign?.name)} target="_blank" rel="noopener noreferrer" style={{fontSize:'var(--fs-2xs)',color:'var(--wa)',textDecoration:'none',display:'flex',alignItems:'center',gap:3}}><MessageCircle size={10}/> WhatsApp</a>}
         </div>
 
         <div style={{marginBottom:10}}>
-          <div style={{fontSize:10,fontWeight:700,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',marginBottom:4}}>Itens do pedido</div>
+          <div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-faint)',marginBottom:4}}>Itens do pedido</div>
           {(batchCards[b.id]||[]).length>0?batchCards[b.id].map((c,ci)=>(
-            <div key={ci} style={{display:'flex',alignItems:'center',gap:8,padding:'3px 0',fontSize:12,borderBottom:'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))'}}>
+            <div key={ci} style={{display:'flex',alignItems:'center',gap:8,padding:'3px 0',fontSize:'var(--fs-xs)',borderBottom:'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))'}}>
               <div onClick={e=>{e.stopPropagation();c.image_url&&setZoomSrc(c.image_url);}} style={{width:26,flexShrink:0,cursor:c.image_url?'zoom-in':'default'}}><CardThumb card={c} radius={5}/></div>
-              <span style={{flex:1,minWidth:0,color:'rgba(var(--ink),calc(0.5*var(--ink-a)))',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name} <span style={{color:TC[c.type]||'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
+              <span style={{flex:1,minWidth:0,color:'var(--text-dim)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name} <span style={{color:TC[c.type]||'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:'var(--fs-2xs)',fontWeight:700}}>{c.type||''}</span></span>
               <span style={{fontWeight:700}}>x{c.qty}</span>
             </div>
-          )):<div style={{fontSize:11,color:'rgba(var(--ink),calc(0.2*var(--ink-a)))'}}>Carregando itens...</div>}
+          )):<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>Carregando itens...</div>}
         </div>
 
         <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-          {pendingPay&&<Btn variant="success" onClick={e=>{e.stopPropagation();markBatchPaid(b.id);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><CheckCircle size={12}/> Marcar pago</Btn>}
-          {b.payment_method==='MERCADO_PAGO'&&!cancelled&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();syncBatchMP(b.id);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><RefreshCw size={12}/> Sync MP</Btn>}
-          {isIndiv&&nextStage&&nextStage.key!=='LABEL_GENERATED'&&<Btn variant="ghost" onClick={e=>{e.stopPropagation();setFulfillment([b.id],nextStage.key,b.id);}} disabled={busy} style={{padding:'6px 12px',fontSize:11}} sfx="">{busy?<Spin size={12}/>:<><ArrowRight size={12}/> {nextStage.label}</>}</Btn>}
-          {isIndiv&&['PREPARING','LABEL_GENERATED'].includes(b.fulfillment_status)&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();generateIndividualLabel(b);}} disabled={busy} style={{padding:'6px 12px',fontSize:11}} sfx="">{busy?<Spin size={12}/>:b.mandabem_envio_id?<><RefreshCw size={12}/> Atualizar envio</>:<><Truck size={12}/> Gerar etiqueta</>}</Btn>}
-          {canMandaBem&&!b.mandabem_envio_id&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleMandaBemLabel(b.id,'generate');}} disabled={busy} style={{padding:'6px 12px',fontSize:11}} sfx="">{busy?<Spin size={12}/>:<><Truck size={12}/> Gerar etiqueta</>}</Btn>}
-          {canMandaBem&&b.mandabem_envio_id&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleMandaBemLabel(b.id,'refresh');}} disabled={busy} style={{padding:'6px 12px',fontSize:11}} sfx="">{busy?<Spin size={12}/>:<><RefreshCw size={12}/> Atualizar envio</>}</Btn>}
-          {!cancelled&&<Btn variant="danger" onClick={e=>{e.stopPropagation();cancelBatch(b.id,paid);}} style={{padding:'6px 12px',fontSize:11}} sfx=""><X size={12}/> {paid?'Cancelar (reembolso manual)':'Cancelar'}</Btn>}
+          {pendingPay&&<Btn variant="success" onClick={e=>{e.stopPropagation();markBatchPaid(b.id);}} style={{padding:'6px 12px',fontSize:'var(--fs-2xs)'}} sfx=""><CheckCircle size={12}/> Marcar pago</Btn>}
+          {b.payment_method==='MERCADO_PAGO'&&!cancelled&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();syncBatchMP(b.id);}} style={{padding:'6px 12px',fontSize:'var(--fs-2xs)'}} sfx=""><RefreshCw size={12}/> Sync MP</Btn>}
+          {isIndiv&&nextStage&&nextStage.key!=='LABEL_GENERATED'&&<Btn variant="ghost" onClick={e=>{e.stopPropagation();setFulfillment([b.id],nextStage.key,b.id);}} disabled={busy} style={{padding:'6px 12px',fontSize:'var(--fs-2xs)'}} sfx="">{busy?<Spin size={12}/>:<><ArrowRight size={12}/> {nextStage.label}</>}</Btn>}
+          {isIndiv&&['PREPARING','LABEL_GENERATED'].includes(b.fulfillment_status)&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();generateIndividualLabel(b);}} disabled={busy} style={{padding:'6px 12px',fontSize:'var(--fs-2xs)'}} sfx="">{busy?<Spin size={12}/>:b.mandabem_envio_id?<><RefreshCw size={12}/> Atualizar envio</>:<><Truck size={12}/> Gerar etiqueta</>}</Btn>}
+          {canMandaBem&&!b.mandabem_envio_id&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleMandaBemLabel(b.id,'generate');}} disabled={busy} style={{padding:'6px 12px',fontSize:'var(--fs-2xs)'}} sfx="">{busy?<Spin size={12}/>:<><Truck size={12}/> Gerar etiqueta</>}</Btn>}
+          {canMandaBem&&b.mandabem_envio_id&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleMandaBemLabel(b.id,'refresh');}} disabled={busy} style={{padding:'6px 12px',fontSize:'var(--fs-2xs)'}} sfx="">{busy?<Spin size={12}/>:<><RefreshCw size={12}/> Atualizar envio</>}</Btn>}
+          {!cancelled&&<Btn variant="danger" onClick={e=>{e.stopPropagation();cancelBatch(b.id,paid);}} style={{padding:'6px 12px',fontSize:'var(--fs-2xs)'}} sfx=""><X size={12}/> {paid?'Cancelar (reembolso manual)':'Cancelar'}</Btn>}
         </div>
       </div>}
     </Card>);
@@ -2845,7 +2845,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
 
       <AdminPanel title="Precisa de você" sub="As pendências abertas nos dois canais de venda" icon={Zap} accent="var(--gold)">
         {awaitingPaymentCount===0&&pendingLabelCount===0&&supplierPendingCount===0&&indivToPrepareCount===0
-          ? <div style={{fontSize:12,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))',padding:'8px 0'}}>Tudo em dia. Nenhuma pendência aberta. ✨</div>
+          ? <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',padding:'8px 0'}}>Tudo em dia. Nenhuma pendência aberta. ✨</div>
           : <>
             {awaitingPaymentCount>0&&<AdminTodo icon={Clock} color="var(--gold)" title={`${awaitingPaymentCount} pedido(s) aguardando pagamento`} detail={`${brl(stats.all.pendingRevenue)} pendentes de confirmação`} actionLabel="Ver pedidos" onAction={goTo('orders',()=>{setOrdStatusFilter('AWAITING_PAYMENT');setChannelFilter('ALL');})}/>}
             {supplierPendingCount>0&&<AdminTodo icon={ShoppingCart} color="var(--indiv)" title={`${supplierPendingCount} pedido(s) individuais para comprar`} detail="Ainda não chegaram ao estágio de preparação" actionLabel="Compras do dia" onAction={goTo('orders',()=>{setOrderView('supplier');setSupplierFilter('PENDING');})}/>}
@@ -2855,19 +2855,19 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       </AdminPanel>
 
       {selectedCampaign&&<AdminPanel title={selectedCampaign.name} sub="Encomenda coletiva em contexto" icon={Calendar} accent={theme.primary}
-        right={<Tag color={isFinalized?'rgba(var(--ink),calc(0.3*var(--ink-a)))':'var(--ok)'} style={{fontSize:9}}>{CAMPAIGN_STATUS_LABELS[selectedCampaign.status]||selectedCampaign.status}</Tag>}>
-        <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:8}}>
-          <div><span style={{color:'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}>Cartas pagas</span> <b style={{color:isViableAdmin?'var(--ok)':theme.primary}}>{pool||0}</b><span style={{color:'rgba(var(--ink),calc(0.2*var(--ink-a)))',fontSize:10}}> / {minCards}</span></div>
-          <div><span style={{color:'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}>Clientes</span> <b style={{color:theme.primary}}>{clientGroups.filter(c=>c.hasOrder).length}</b></div>
-          <div>{isViableAdmin?<Tag color="var(--ok)" style={{fontSize:9}}>Meta atingida</Tag>:<Tag color="var(--gold)" style={{fontSize:9}}>Faltam {minCards-(pool||0)}</Tag>}</div>
+        right={<Tag color={isFinalized?'rgba(var(--ink),calc(0.3*var(--ink-a)))':'var(--ok)'} style={{fontSize:'var(--fs-2xs)'}}>{CAMPAIGN_STATUS_LABELS[selectedCampaign.status]||selectedCampaign.status}</Tag>}>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-xs)',marginBottom:8}}>
+          <div><span style={{color:'var(--text-faint)'}}>Cartas pagas</span> <b style={{color:isViableAdmin?'var(--ok)':theme.primary}}>{pool||0}</b><span style={{color:'var(--text-faint)',fontSize:'var(--fs-2xs)'}}> / {minCards}</span></div>
+          <div><span style={{color:'var(--text-faint)'}}>Clientes</span> <b style={{color:theme.primary}}>{clientGroups.filter(c=>c.hasOrder).length}</b></div>
+          <div>{isViableAdmin?<Tag color="var(--ok)" style={{fontSize:'var(--fs-2xs)'}}>Meta atingida</Tag>:<Tag color="var(--gold)" style={{fontSize:'var(--fs-2xs)'}}>Faltam {minCards-(pool||0)}</Tag>}</div>
         </div>
-        <div style={{background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',borderRadius:99,height:5,overflow:'hidden'}}>
-          <div style={{width:Math.min(100,(pool||0)/minCards*100)+'%',height:'100%',borderRadius:99,background:isViableAdmin?'linear-gradient(90deg,var(--ok),var(--ok-2))':'linear-gradient(90deg,'+theme.primary+','+theme.secondary+')',transition:'width .5s'}}/>
+        <div style={{background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',borderRadius:'var(--r-pill)',height:5,overflow:'hidden'}}>
+          <div style={{width:Math.min(100,(pool||0)/minCards*100)+'%',height:'100%',borderRadius:'var(--r-pill)',background:isViableAdmin?'linear-gradient(90deg,var(--ok),var(--ok-2))':'linear-gradient(90deg,'+theme.primary+','+theme.secondary+')',transition:'width .5s'}}/>
         </div>
       </AdminPanel>}
 
       <AdminPanel title="Atividade recente" sub="Pedidos, pagamentos e acessos ao portal" icon={Activity} accent="var(--info)"
-        right={<button onClick={()=>setShowNotifications(true)} style={{background:'none',border:'none',color:'rgba(var(--ink),calc(0.35*var(--ink-a)))',fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif",display:'inline-flex',alignItems:'center',gap:3}}>Ver tudo <ChevronRight size={11}/></button>}>
+        right={<button onClick={()=>setShowNotifications(true)} style={{background:'none',border:'none',color:'var(--text-faint)',fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",display:'inline-flex',alignItems:'center',gap:3}}>Ver tudo <ChevronRight size={11}/></button>}>
         <AdminNotificationFeed notifications={notifications} loading={notifLoading} unread={notifUnread} compact limit={6} onOpenEvent={openNotification}/>
       </AdminPanel>
 
@@ -2904,7 +2904,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
 
         <AdminPills
           options={[
-            {key:'ALL',label:'Todos',color:'rgba(var(--ink),calc(0.5*var(--ink-a)))'},
+            {key:'ALL',label:'Todos',color:'var(--text-dim)'},
             {key:'PAID',label:'Pagos',color:'var(--ok)'},
             {key:'AWAITING_PAYMENT',label:'Pendentes',color:'var(--gold)'},
             {key:'CANCELLED',label:'Cancelados',color:'var(--danger)'},
@@ -2913,7 +2913,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
 
         <div style={{display:'flex',gap:6,alignItems:'center'}}>
           <div style={{flex:1}}><Input icon={Search} placeholder="Buscar pedido, cliente, código MP..." value={searchOrders} onChange={e=>setSearchOrders(e.target.value)}/></div>
-          <select value={ordSort} onChange={e=>setOrdSort(e.target.value)} style={{padding:'10px 8px',borderRadius:12,border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:'var(--text-strong)',fontSize:11,fontFamily:"'Outfit',sans-serif",outline:'none',cursor:'pointer'}}>
+          <select value={ordSort} onChange={e=>setOrdSort(e.target.value)} style={{padding:'10px 8px',borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:'var(--text-strong)',fontSize:'var(--fs-2xs)',fontFamily:"'Outfit',sans-serif",outline:'none',cursor:'pointer'}}>
             <option value="date_desc">Mais recente</option>
             <option value="date_asc">Mais antigo</option>
             <option value="value_desc">Maior valor</option>
@@ -2921,7 +2921,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
           </select>
         </div>
 
-        {channelFilter!=='INDIVIDUAL'&&!selectedCampaign&&<div style={{fontSize:11,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',padding:'2px 2px 4px',lineHeight:1.5}}>Nenhuma encomenda coletiva selecionada — só aparecem aqui os pedidos individuais. Escolha uma encomenda em <b style={{color:'rgba(var(--ink),calc(0.55*var(--ink-a)))'}}>Encomendas</b>.</div>}
+        {channelFilter!=='INDIVIDUAL'&&!selectedCampaign&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',padding:'2px 2px 4px',lineHeight:1.5}}>Nenhuma encomenda coletiva selecionada — só aparecem aqui os pedidos individuais. Escolha uma encomenda em <b style={{color:'var(--text-muted)'}}>Encomendas</b>.</div>}
 
         {listLoadingNow&&filteredBatches.length===0?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:
         filteredBatches.length===0?<EmptyState icon={Package} title="Nenhum pedido" sub={searchOrders||ordStatusFilter!=='ALL'||channelFilter!=='ALL'?'Tente outro filtro':'Ainda não há pedidos por aqui'}/>:
@@ -2929,7 +2929,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       </>:<>
         {/* Compras no fornecedor: pedidos individuais pagos agrupados por dia */}
         <AdminPanel title="Compras no fornecedor" sub="Pedidos individuais pagos agrupados por dia de pagamento — compre tudo do dia de uma vez e avance o grupo inteiro." icon={ShoppingCart} accent="var(--indiv)"
-          right={<button onClick={loadIndivOrders} style={{background:'none',border:'none',color:'rgba(var(--ink),calc(0.35*var(--ink-a)))',cursor:'pointer'}}><RefreshCw size={15}/></button>}>
+          right={<button onClick={loadIndivOrders} style={{background:'none',border:'none',color:'var(--text-faint)',cursor:'pointer'}}><RefreshCw size={15}/></button>}>
           <AdminPills options={[{key:'PENDING',label:'Em aberto',color:'var(--indiv)'},{key:'ALL',label:'Todos',count:individualBatches.length}]} value={supplierFilter} onChange={setSupplierFilter}/>
         </AdminPanel>
 
@@ -2943,10 +2943,10 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
           return(<Card key={group.dayKey} style={{padding:14}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,gap:8}}>
               <div>
-                <div style={{fontSize:13,fontWeight:800}}>{group.dayKey}</div>
-                <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}>{group.batches.length} pedido(s) · {group.batches.reduce((s,b)=>s+Number(b.qty_in_batch||0),0)} cartas · {brl(group.batches.reduce((s,b)=>s+Number(b.total_locked||0),0))}</div>
+                <div style={{fontSize:'var(--fs-sm)',fontWeight:800}}>{group.dayKey}</div>
+                <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{group.batches.length} pedido(s) · {group.batches.reduce((s,b)=>s+Number(b.qty_in_batch||0),0)} cartas · {brl(group.batches.reduce((s,b)=>s+Number(b.total_locked||0),0))}</div>
               </div>
-              {nextStage&&nextStage.key!=='LABEL_GENERATED'&&bulkTargets.length>0&&<Btn variant="secondary" onClick={()=>setFulfillment(bulkTargets,nextStage.key,group.dayKey)} disabled={busyBatch===group.dayKey} style={{padding:'6px 10px',fontSize:11,flexShrink:0}} sfx="">
+              {nextStage&&nextStage.key!=='LABEL_GENERATED'&&bulkTargets.length>0&&<Btn variant="secondary" onClick={()=>setFulfillment(bulkTargets,nextStage.key,group.dayKey)} disabled={busyBatch===group.dayKey} style={{padding:'6px 10px',fontSize:'var(--fs-2xs)',flexShrink:0}} sfx="">
                 {busyBatch===group.dayKey?<Spin size={12}/>:<><ArrowRight size={12}/> {nextStage.label}</>}
               </Btn>}
             </div>
@@ -2958,13 +2958,13 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
                 return(<div key={b.id} style={{borderTop:'1px solid rgba(var(--ink),calc(0.04*var(--ink-a)))',paddingTop:7,paddingBottom:3}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
                     <div style={{display:'flex',alignItems:'center',gap:6,minWidth:0}}>
-                      <span style={{fontSize:11,fontWeight:800,fontFamily:'monospace',color:'rgba(var(--ink),calc(0.5*var(--ink-a)))'}}>#{shortBatchId(b.id)}</span>
-                      <span style={{fontSize:12,fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.clientName}</span>
-                      <span style={{fontSize:10,color:'rgba(var(--ink),calc(0.28*var(--ink-a)))',flexShrink:0}}>{b.qty_in_batch} cartas</span>
+                      <span style={{fontSize:'var(--fs-2xs)',fontWeight:800,fontFamily:'monospace',color:'var(--text-dim)'}}>#{shortBatchId(b.id)}</span>
+                      <span style={{fontSize:'var(--fs-xs)',fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.clientName}</span>
+                      <span style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',flexShrink:0}}>{b.qty_in_batch} cartas</span>
                     </div>
                     <div style={{display:'flex',alignItems:'center',gap:5,flexShrink:0}}>
-                      <Tag color={idx>=5?'var(--ok)':'var(--indiv)'} style={{fontSize:9,padding:'3px 7px'}}>{stageInfo.short}</Tag>
-                      {next&&next.key!=='LABEL_GENERATED'&&<button onClick={()=>setFulfillment([b.id],next.key,b.id)} disabled={busyBatch===b.id} title={next.label} style={{background:'rgba(var(--ink),calc(0.05*var(--ink-a)))',border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',borderRadius:7,padding:'4px 6px',color:'rgba(var(--ink),calc(0.5*var(--ink-a)))',cursor:'pointer',display:'grid',placeItems:'center'}}>{busyBatch===b.id?<Spin size={11}/>:<ArrowRight size={11}/>}</button>}
+                      <Tag color={idx>=5?'var(--ok)':'var(--indiv)'} style={{fontSize:'var(--fs-2xs)',padding:'3px 7px'}}>{stageInfo.short}</Tag>
+                      {next&&next.key!=='LABEL_GENERATED'&&<button onClick={()=>setFulfillment([b.id],next.key,b.id)} disabled={busyBatch===b.id} title={next.label} style={{background:'var(--fill)',border:'1px solid var(--line)',borderRadius:'var(--r-control)',padding:'4px 6px',color:'var(--text-dim)',cursor:'pointer',display:'grid',placeItems:'center'}}>{busyBatch===b.id?<Spin size={11}/>:<ArrowRight size={11}/>}</button>}
                     </div>
                   </div>
                   <IndivStageTrack status={b.fulfillment_status}/>
@@ -2989,13 +2989,13 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
 
       {shippingTab==='CAMPAIGN'?<>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-          <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))'}}>
+          <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-dim)'}}>
             <span style={{color:'var(--gold)',fontWeight:700}}>{labelGroups.filter(g=>!g.hasLabel).length}</span> pendentes
             {' · '}<span style={{color:'var(--ok)',fontWeight:700}}>{labelGroups.filter(g=>g.hasLabel).length}</span> com etiqueta
           </div>
           <div style={{display:'flex',gap:6}}>
-            {labelGroups.filter(g=>!g.hasLabel).length>0&&<Btn variant="secondary" onClick={handleToggleAllPendingLabels} style={{padding:'6px 10px',fontSize:11}} sfx="">{labelGroups.filter(g=>!g.hasLabel).every(g=>labelSelected.has(g.key))?'Desmarcar':'Selecionar pendentes'}</Btn>}
-            <Btn variant="success" onClick={handleBulkLabels} disabled={labelSelected.size===0} style={{padding:'6px 12px',fontSize:11}} sfx=""><Truck size={12}/> Gerar ({labelSelected.size})</Btn>
+            {labelGroups.filter(g=>!g.hasLabel).length>0&&<Btn variant="secondary" onClick={handleToggleAllPendingLabels} style={{padding:'6px 10px',fontSize:'var(--fs-2xs)'}} sfx="">{labelGroups.filter(g=>!g.hasLabel).every(g=>labelSelected.has(g.key))?'Desmarcar':'Selecionar pendentes'}</Btn>}
+            <Btn variant="success" onClick={handleBulkLabels} disabled={labelSelected.size===0} style={{padding:'6px 12px',fontSize:'var(--fs-2xs)'}} sfx=""><Truck size={12}/> Gerar ({labelSelected.size})</Btn>
           </div>
         </div>
 
@@ -3020,49 +3020,49 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
                 : <div style={{width:14,height:14,flexShrink:0}}/>}
               <div style={{width:8,height:8,borderRadius:'50%',background:statusColor,flexShrink:0,boxShadow:isDone?'0 0 6px '+wa(statusColor,'80'):''}}/>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{group.clientName}</div>
-                <div style={{fontSize:10,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))'}}>
+                <div style={{fontSize:'var(--fs-sm)',fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{group.clientName}</div>
+                <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>
                   {group.batches.length===1?'1 pedido':`${group.batches.length} pedidos agrupados`} · {brl(group.totalValue)}
                   <span style={{color:group.shippingService===SHIPPING_SERVICE_UNKNOWN?'var(--gold)':'rgba(var(--ink),calc(0.5*var(--ink-a)))'}}> · {group.shippingService==='PACMINI'?'PAC Mini':group.shippingService==='SEDEX'?'Sedex':group.shippingService==='PAC'?'PAC':group.shippingService===SHIPPING_SERVICE_UNKNOWN?'Serviço não identificado':'Identificando serviço...'}</span>
-                  {addr.cidade&&<span style={{color:'rgba(var(--ink),calc(0.25*var(--ink-a)))'}}> · {addr.cidade}{addr.uf?' / '+addr.uf:''}</span>}
+                  {addr.cidade&&<span style={{color:'var(--text-faint)'}}> · {addr.cidade}{addr.uf?' / '+addr.uf:''}</span>}
                   {isDone&&!isGenerating&&<span style={{color:'var(--ok)'}}> · Etiqueta gerada ✓</span>}
                   {isError&&<span style={{color:'var(--danger)'}}> · Erro</span>}
                 </div>
               </div>
               <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
                 {isGenerating&&<Spin size={14}/>}
-                {!isDone&&!isGenerating&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleGroupLabel(group.key);}} style={{padding:'5px 9px',fontSize:10}} sfx=""><Truck size={10}/> Gerar</Btn>}
-                {isError&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleGroupLabel(group.key);}} style={{padding:'5px 9px',fontSize:10,background:'rgba(var(--danger-rgb),0.1)',border:'1px solid rgba(var(--danger-rgb),0.2)',color:'var(--danger)'}} sfx=""><RefreshCw size={10}/> Tentar de novo</Btn>}
-                {isDone&&!isGenerating&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleGroupLabel(group.key,true);}} style={{padding:'5px 9px',fontSize:10,opacity:0.55}} sfx=""><RefreshCw size={10}/> Regerar</Btn>}
-                <ChevronRight size={12} style={{color:'rgba(var(--ink),calc(0.15*var(--ink-a)))',transform:isGroupExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
+                {!isDone&&!isGenerating&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleGroupLabel(group.key);}} style={{padding:'5px 9px',fontSize:'var(--fs-2xs)'}} sfx=""><Truck size={10}/> Gerar</Btn>}
+                {isError&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleGroupLabel(group.key);}} style={{padding:'5px 9px',fontSize:'var(--fs-2xs)',background:'rgba(var(--danger-rgb),0.1)',border:'1px solid rgba(var(--danger-rgb),0.2)',color:'var(--danger)'}} sfx=""><RefreshCw size={10}/> Tentar de novo</Btn>}
+                {isDone&&!isGenerating&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();handleGroupLabel(group.key,true);}} style={{padding:'5px 9px',fontSize:'var(--fs-2xs)',opacity:0.55}} sfx=""><RefreshCw size={10}/> Regerar</Btn>}
+                <ChevronRight size={12} style={{color:'var(--text-faint)',transform:isGroupExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
               </div>
             </div>
 
             {isGroupExp&&<div style={{borderTop:'1px solid rgba(var(--ink),calc(0.04*var(--ink-a)))',padding:'10px 14px'}}>
               <div style={{display:'flex',flexDirection:'column',gap:3,marginBottom:10}}>
-                {group.email&&<div style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))'}}><Mail size={10}/>{group.email}</div>}
-                {group.whatsapp&&<div style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))'}}><Phone size={10}/>{group.whatsapp}</div>}
-                {addrLine&&<div style={{display:'flex',alignItems:'flex-start',gap:5,fontSize:11,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))'}}><MapPin size={10} style={{marginTop:1,flexShrink:0}}/><span>{addrLine}{addr.cep?<span style={{color:'rgba(var(--ink),calc(0.2*var(--ink-a)))'}}> · CEP {addr.cep}</span>:null}</span></div>}
+                {group.email&&<div style={{display:'flex',alignItems:'center',gap:5,fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}><Mail size={10}/>{group.email}</div>}
+                {group.whatsapp&&<div style={{display:'flex',alignItems:'center',gap:5,fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}><Phone size={10}/>{group.whatsapp}</div>}
+                {addrLine&&<div style={{display:'flex',alignItems:'flex-start',gap:5,fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}><MapPin size={10} style={{marginTop:1,flexShrink:0}}/><span>{addrLine}{addr.cep?<span style={{color:'var(--text-faint)'}}> · CEP {addr.cep}</span>:null}</span></div>}
               </div>
-              {isError&&<div style={{padding:'7px 10px',borderRadius:8,background:'rgba(var(--danger-rgb),0.08)',border:'1px solid rgba(var(--danger-rgb),0.18)',marginBottom:10,fontSize:11,color:'var(--danger-soft)',lineHeight:1.5}}><b>Erro ao gerar etiqueta:</b> {gs.message}</div>}
-              <div style={{fontSize:10,fontWeight:700,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',marginBottom:5}}>Pedidos incluídos:</div>
+              {isError&&<div style={{padding:'7px 10px',borderRadius:'var(--r-control)',background:'rgba(var(--danger-rgb),0.08)',border:'1px solid rgba(var(--danger-rgb),0.18)',marginBottom:10,fontSize:'var(--fs-2xs)',color:'var(--danger-soft)',lineHeight:1.5}}><b>Erro ao gerar etiqueta:</b> {gs.message}</div>}
+              <div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-faint)',marginBottom:5}}>Pedidos incluídos:</div>
               {group.batches.map(b=>(
-                <div key={b.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 0',fontSize:11,borderBottom:'1px solid rgba(var(--ink),calc(0.04*var(--ink-a)))'}}>
-                  <span style={{fontFamily:'monospace',color:'rgba(var(--ink),calc(0.5*var(--ink-a)))'}}>#{shortBatchId(b.id)}</span>
-                  <span style={{color:'rgba(var(--ink),calc(0.35*var(--ink-a)))'}}>{b.qty_in_batch} cartas</span>
+                <div key={b.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 0',fontSize:'var(--fs-2xs)',borderBottom:'1px solid rgba(var(--ink),calc(0.04*var(--ink-a)))'}}>
+                  <span style={{fontFamily:'monospace',color:'var(--text-dim)'}}>#{shortBatchId(b.id)}</span>
+                  <span style={{color:'var(--text-faint)'}}>{b.qty_in_batch} cartas</span>
                   <span style={{fontWeight:700,color:isPaidBatch(b.status)?'var(--ok)':'rgba(var(--ink),calc(0.4*var(--ink-a)))'}}>{brl(b.total_locked)}</span>
                   {b.mandabem_envio_id?<Tag color="var(--ok)" style={{fontSize:8,padding:'2px 5px'}}>✓ etiqueta</Tag>:<Tag color="rgba(var(--ink),calc(0.2*var(--ink-a)))" style={{fontSize:8,padding:'2px 5px'}}>sem etiqueta</Tag>}
                 </div>
               ))}
-              {labeledBatch&&<div style={{marginTop:10,padding:'8px 10px',borderRadius:8,background:'rgba(var(--ok-rgb),0.06)',border:'1px solid rgba(var(--ok-rgb),0.14)',display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
+              {labeledBatch&&<div style={{marginTop:10,padding:'8px 10px',borderRadius:'var(--r-control)',background:'rgba(var(--ok-rgb),0.06)',border:'1px solid rgba(var(--ok-rgb),0.14)',display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
                 <div>
-                  <div style={{fontSize:9,color:'rgba(var(--ok-rgb),0.6)',marginBottom:2}}>MandaBem · Rastreamento</div>
-                  {(labeledBatch.mandabem_rastreamento||labeledBatch.mandabem_etiqueta)&&<div style={{fontSize:12,fontFamily:'monospace',fontWeight:800,color:'var(--ok)'}}>{labeledBatch.mandabem_rastreamento||labeledBatch.mandabem_etiqueta}</div>}
-                  <div style={{fontSize:10,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}>{labeledBatch.mandabem_status||'Envio gerado'}{labeledBatch.mandabem_envio_id&&<span> · ID {labeledBatch.mandabem_envio_id}</span>}</div>
+                  <div style={{fontSize:'var(--fs-2xs)',color:'rgba(var(--ok-rgb),0.6)',marginBottom:2}}>MandaBem · Rastreamento</div>
+                  {(labeledBatch.mandabem_rastreamento||labeledBatch.mandabem_etiqueta)&&<div style={{fontSize:'var(--fs-xs)',fontFamily:'monospace',fontWeight:800,color:'var(--ok)'}}>{labeledBatch.mandabem_rastreamento||labeledBatch.mandabem_etiqueta}</div>}
+                  <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{labeledBatch.mandabem_status||'Envio gerado'}{labeledBatch.mandabem_envio_id&&<span> · ID {labeledBatch.mandabem_envio_id}</span>}</div>
                 </div>
                 {(labeledBatch.mandabem_rastreamento||labeledBatch.mandabem_etiqueta)&&<div style={{display:'flex',gap:5,flexShrink:0}}>
-                  <button title="Copiar rastreamento" onClick={()=>{navigator.clipboard.writeText(labeledBatch.mandabem_rastreamento||labeledBatch.mandabem_etiqueta);SFX.success();}} style={{background:'rgba(var(--ink),calc(0.05*var(--ink-a)))',border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',borderRadius:6,padding:'3px 6px',color:'rgba(var(--ink),calc(0.4*var(--ink-a)))',cursor:'pointer'}}><Copy size={10}/></button>
-                  {group.whatsapp&&<button title="Enviar rastreamento" onClick={()=>openShipmentWhatsAppFor({...labeledBatch,clientName:group.clientName,clientWhatsapp:group.whatsapp,channel:'CAMPAIGN'})} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(var(--wa-rgb),0.08)',border:'1px solid rgba(var(--wa-rgb),0.18)',borderRadius:6,padding:'3px 6px',color:'var(--wa)',fontSize:10,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={10}/> Enviar</button>}
+                  <button title="Copiar rastreamento" onClick={()=>{navigator.clipboard.writeText(labeledBatch.mandabem_rastreamento||labeledBatch.mandabem_etiqueta);SFX.success();}} style={{background:'var(--fill)',border:'1px solid var(--line)',borderRadius:6,padding:'3px 6px',color:'var(--text-dim)',cursor:'pointer'}}><Copy size={10}/></button>
+                  {group.whatsapp&&<button title="Enviar rastreamento" onClick={()=>openShipmentWhatsAppFor({...labeledBatch,clientName:group.clientName,clientWhatsapp:group.whatsapp,channel:'CAMPAIGN'})} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(var(--wa-rgb),0.08)',border:'1px solid rgba(var(--wa-rgb),0.18)',borderRadius:6,padding:'3px 6px',color:'var(--wa)',fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={10}/> Enviar</button>}
                 </div>}
               </div>}
             </div>}
@@ -3079,17 +3079,17 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
           return(<Card key={b.id} style={{padding:'12px 14px',marginBottom:4,borderLeft:'3px solid '+wa((done?'var(--ok)':'var(--indiv)'),'60')}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,marginBottom:5}}>
               <div style={{display:'flex',alignItems:'center',gap:6,minWidth:0}}>
-                <span style={{fontSize:11,fontWeight:800,fontFamily:'monospace',color:'rgba(var(--ink),calc(0.5*var(--ink-a)))'}}>#{shortBatchId(b.id)}</span>
-                <span style={{fontSize:13,fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.clientName}</span>
+                <span style={{fontSize:'var(--fs-2xs)',fontWeight:800,fontFamily:'monospace',color:'var(--text-dim)'}}>#{shortBatchId(b.id)}</span>
+                <span style={{fontSize:'var(--fs-sm)',fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.clientName}</span>
               </div>
-              <Tag color={done?'var(--ok)':'var(--indiv)'} style={{fontSize:9,padding:'3px 7px',flexShrink:0}}>{done?'Etiqueta gerada':'Em preparação'}</Tag>
+              <Tag color={done?'var(--ok)':'var(--indiv)'} style={{fontSize:'var(--fs-2xs)',padding:'3px 7px',flexShrink:0}}>{done?'Etiqueta gerada':'Em preparação'}</Tag>
             </div>
-            <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',marginBottom:6}}>{b.qty_in_batch} cartas · {brl(b.total_locked)}{b.shipping_service?` · ${b.shipping_service}`:''}</div>
-            {addrLine&&<div style={{display:'flex',alignItems:'flex-start',gap:5,fontSize:11,color:'rgba(var(--ink),calc(0.32*var(--ink-a)))',marginBottom:8}}><MapPin size={10} style={{marginTop:1,flexShrink:0}}/><span>{addrLine}{addr.cep?` · CEP ${addr.cep}`:''}</span></div>}
-            {tracking.code&&<div style={{fontSize:11,color:'var(--ok)',marginBottom:8,fontFamily:'monospace'}}>{tracking.code}{tracking.status?<span style={{fontFamily:"'Outfit',sans-serif",color:'rgba(var(--ink),calc(0.35*var(--ink-a)))'}}> · {tracking.status}</span>:null}</div>}
+            <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginBottom:6}}>{b.qty_in_batch} cartas · {brl(b.total_locked)}{b.shipping_service?` · ${b.shipping_service}`:''}</div>
+            {addrLine&&<div style={{display:'flex',alignItems:'flex-start',gap:5,fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginBottom:8}}><MapPin size={10} style={{marginTop:1,flexShrink:0}}/><span>{addrLine}{addr.cep?` · CEP ${addr.cep}`:''}</span></div>}
+            {tracking.code&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--ok)',marginBottom:8,fontFamily:'monospace'}}>{tracking.code}{tracking.status?<span style={{fontFamily:"'Outfit',sans-serif",color:'var(--text-faint)'}}> · {tracking.status}</span>:null}</div>}
             <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-              <Btn variant="secondary" onClick={()=>generateIndividualLabel(b)} disabled={busyBatch===b.id} style={{padding:'6px 11px',fontSize:11}} sfx="">{busyBatch===b.id?<Spin size={12}/>:done?<><RefreshCw size={12}/> Atualizar envio</>:<><Truck size={12}/> Gerar etiqueta</>}</Btn>
-              {b.clientWhatsapp&&tracking.code&&<button onClick={()=>openShipmentWhatsAppFor(b)} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(var(--wa-rgb),0.08)',border:'1px solid rgba(var(--wa-rgb),0.18)',borderRadius:10,padding:'6px 11px',color:'var(--wa)',fontSize:11,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={12}/> Enviar rastreio</button>}
+              <Btn variant="secondary" onClick={()=>generateIndividualLabel(b)} disabled={busyBatch===b.id} style={{padding:'6px 11px',fontSize:'var(--fs-2xs)'}} sfx="">{busyBatch===b.id?<Spin size={12}/>:done?<><RefreshCw size={12}/> Atualizar envio</>:<><Truck size={12}/> Gerar etiqueta</>}</Btn>
+              {b.clientWhatsapp&&tracking.code&&<button onClick={()=>openShipmentWhatsAppFor(b)} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(var(--wa-rgb),0.08)',border:'1px solid rgba(var(--wa-rgb),0.18)',borderRadius:'var(--r-control)',padding:'6px 11px',color:'var(--wa)',fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={12}/> Enviar rastreio</button>}
             </div>
           </Card>);
         })}
@@ -3104,17 +3104,17 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         <AdminPills
           options={[{key:WHATSAPP_AUDIENCES.BUYERS,label:'Compradores pagos',color:'var(--wa)'},{key:WHATSAPP_AUDIENCES.ALL,label:'Todos os clientes',color:'var(--wa)'}]}
           value={whatsappAudience} onChange={setWhatsappAudience} style={{marginBottom:10}}/>
-        <textarea value={whatsappMessages[whatsappAudience]} onChange={e=>setWhatsappMessages(messages=>({...messages,[whatsappAudience]:e.target.value}))} rows={5} style={{width:'100%',boxSizing:'border-box',resize:'vertical',padding:'10px 12px',borderRadius:10,border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',background:'rgba(var(--sunk),calc(0.28*var(--sunk-a)))',color:'var(--text-strong)',fontSize:12,lineHeight:1.5,fontFamily:"'Outfit',sans-serif",outline:'none'}}/>
-        <div style={{fontSize:10,color:'rgba(var(--ink),calc(0.28*var(--ink-a)))',marginTop:5}}>Use <b style={{color:'rgba(var(--ink),calc(0.5*var(--ink-a)))'}}>{'{nome}'}</b> para o primeiro nome e <b style={{color:'rgba(var(--ink),calc(0.5*var(--ink-a)))'}}>{'{encomenda}'}</b> para o nome da encomenda.</div>
+        <textarea value={whatsappMessages[whatsappAudience]} onChange={e=>setWhatsappMessages(messages=>({...messages,[whatsappAudience]:e.target.value}))} rows={5} style={{width:'100%',boxSizing:'border-box',resize:'vertical',padding:'10px 12px',borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'rgba(var(--sunk),calc(0.28*var(--sunk-a)))',color:'var(--text-strong)',fontSize:'var(--fs-xs)',lineHeight:1.5,fontFamily:"'Outfit',sans-serif",outline:'none'}}/>
+        <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginTop:5}}>Use <b style={{color:'var(--text-dim)'}}>{'{nome}'}</b> para o primeiro nome e <b style={{color:'var(--text-dim)'}}>{'{encomenda}'}</b> para o nome da encomenda.</div>
         <div style={{display:'flex',justifyContent:'space-between',gap:8,alignItems:'center',marginTop:10,flexWrap:'wrap'}}>
-          <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))'}}><b style={{color:'var(--wa)'}}>{whatsappRecipients.length}</b> contatos com WhatsApp{whatsappMissingCount>0&&<span> · {whatsappMissingCount} sem número</span>}</div>
+          <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-dim)'}}><b style={{color:'var(--wa)'}}>{whatsappRecipients.length}</b> contatos com WhatsApp{whatsappMissingCount>0&&<span> · {whatsappMissingCount} sem número</span>}</div>
           <div style={{display:'flex',gap:6}}>
-            <Btn variant="secondary" onClick={copyWhatsAppMessage} style={{padding:'7px 10px',fontSize:10}} sfx=""><Copy size={11}/> Copiar</Btn>
-            <Btn variant="success" onClick={()=>nextWhatsappRecipient&&openWhatsAppFor(nextWhatsappRecipient)} disabled={!nextWhatsappRecipient||!whatsappMessages[whatsappAudience].trim()} style={{padding:'7px 10px',fontSize:10}} sfx=""><MessageCircle size={11}/> {nextWhatsappRecipient?'Abrir próximo':'Concluído'}</Btn>
+            <Btn variant="secondary" onClick={copyWhatsAppMessage} style={{padding:'7px 10px',fontSize:'var(--fs-2xs)'}} sfx=""><Copy size={11}/> Copiar</Btn>
+            <Btn variant="success" onClick={()=>nextWhatsappRecipient&&openWhatsAppFor(nextWhatsappRecipient)} disabled={!nextWhatsappRecipient||!whatsappMessages[whatsappAudience].trim()} style={{padding:'7px 10px',fontSize:'var(--fs-2xs)'}} sfx=""><MessageCircle size={11}/> {nextWhatsappRecipient?'Abrir próximo':'Concluído'}</Btn>
           </div>
         </div>
-        {nextWhatsappRecipient&&<div style={{marginTop:8,padding:'7px 9px',borderRadius:8,background:'rgba(var(--wa-rgb),0.06)',fontSize:10,color:'rgba(var(--ink),calc(0.38*var(--ink-a)))'}}>Próximo: <b style={{color:'rgba(var(--ink),calc(0.65*var(--ink-a)))'}}>{nextWhatsappRecipient.name}</b>. Ao voltar do WhatsApp, clique de novo para seguir para o próximo contato.</div>}
-        <div style={{fontSize:10,color:'rgba(var(--ink),calc(0.22*var(--ink-a)))',marginTop:8,lineHeight:1.4}}>O portal não envia mensagens automaticamente: cada conversa é aberta para você revisar e enviar, respeitando as regras do WhatsApp.</div>
+        {nextWhatsappRecipient&&<div style={{marginTop:8,padding:'7px 9px',borderRadius:'var(--r-control)',background:'rgba(var(--wa-rgb),0.06)',fontSize:'var(--fs-2xs)',color:'var(--text-dim)'}}>Próximo: <b style={{color:'var(--text-muted)'}}>{nextWhatsappRecipient.name}</b>. Ao voltar do WhatsApp, clique de novo para seguir para o próximo contato.</div>}
+        <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginTop:8,lineHeight:1.4}}>O portal não envia mensagens automaticamente: cada conversa é aberta para você revisar e enviar, respeitando as regras do WhatsApp.</div>
       </AdminPanel>
 
       <Input icon={Search} placeholder="Buscar por nome, email ou pedido..." value={searchOrd} onChange={e=>setSearchOrd(e.target.value)}/>
@@ -3133,18 +3133,18 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
             <div style={{display:'flex',alignItems:'center',gap:8,minWidth:0}}>
               {client.hasActiveOrder&&<span style={{display:'inline-block',width:8,height:8,borderRadius:'50%',background:'var(--ok)',boxShadow:'0 0 6px var(--ok)80',flexShrink:0}}/>}
               <div style={{minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{client.name}</div>
-                <div style={{fontSize:10,color:'rgba(var(--ink),calc(0.25*var(--ink-a)))'}}>{client.whatsapp||client.email||'sem contato'}</div>
+                <div style={{fontSize:'var(--fs-sm)',fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{client.name}</div>
+                <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{client.whatsapp||client.email||'sem contato'}</div>
               </div>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
-              {clientBonus>0&&<Tag color="var(--ok)" style={{fontSize:9}}><Gift size={9}/> {clientBonus}</Tag>}
-              {client.hasOrder?<Tag style={{fontSize:9}}>{client.totalCards} cartas</Tag>:<Tag color="rgba(var(--ink),calc(0.15*var(--ink-a)))" style={{fontSize:9,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}>sem pedido</Tag>}
-              <ChevronRight size={12} style={{color:'rgba(var(--ink),calc(0.15*var(--ink-a)))',transform:isClientExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
+              {clientBonus>0&&<Tag color="var(--ok)" style={{fontSize:'var(--fs-2xs)'}}><Gift size={9}/> {clientBonus}</Tag>}
+              {client.hasOrder?<Tag style={{fontSize:'var(--fs-2xs)'}}>{client.totalCards} cartas</Tag>:<Tag color="rgba(var(--ink),calc(0.15*var(--ink-a)))" style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>sem pedido</Tag>}
+              <ChevronRight size={12} style={{color:'var(--text-faint)',transform:isClientExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
             </div>
           </div>
           {isClientExp&&<div style={{borderTop:'1px solid rgba(var(--ink),calc(0.04*var(--ink-a)))'}}>
-            <div style={{padding:'8px 14px 0',display:'flex',gap:12,flexWrap:'wrap',fontSize:11,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}>
+            <div style={{padding:'8px 14px 0',display:'flex',gap:12,flexWrap:'wrap',fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>
               {client.email&&<span style={{display:'flex',alignItems:'center',gap:4}}><Mail size={10}/>{client.email}</span>}
               <span style={{display:'flex',alignItems:'center',gap:4}}><Wallet size={10}/>{brl(clientTotal)} em compras</span>
             </div>
@@ -3155,47 +3155,47 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
               return(<div key={b.id} style={{padding:'8px 14px',borderBottom:'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))'}}>
                 <div onClick={async()=>{const next=batchExp?null:b.id;setExpandedBatch(next);if(next)await loadBatchCards(b.id);}} style={{display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',gap:8}}>
                   <div style={{minWidth:0}}>
-                    <span style={{fontSize:12,fontWeight:700,fontFamily:'monospace'}}>#{shortBatchId(b.id)}</span>
-                    <span style={{fontSize:10,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',marginLeft:6}}>{b.qty_in_batch} cartas · {new Date(b.confirmed_at||b.created_at||o.created_at).toLocaleDateString('pt-BR')}</span>
+                    <span style={{fontSize:'var(--fs-xs)',fontWeight:700,fontFamily:'monospace'}}>#{shortBatchId(b.id)}</span>
+                    <span style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginLeft:6}}>{b.qty_in_batch} cartas · {new Date(b.confirmed_at||b.created_at||o.created_at).toLocaleDateString('pt-BR')}</span>
                   </div>
                   <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
                     <Tag color={o.channel==='INDIVIDUAL'?'var(--indiv)':theme.primary} style={{fontSize:8,padding:'2px 6px'}}>{CHANNEL_LABEL[o.channel]}</Tag>
-                    <span style={{fontSize:12,fontWeight:700}}>{brl(valNoShip)}</span>
-                    <Tag color={paid?'var(--ok)':'var(--gold)'} style={{fontSize:9}}>{paid?'Pago':'Pendente'}</Tag>
+                    <span style={{fontSize:'var(--fs-xs)',fontWeight:700}}>{brl(valNoShip)}</span>
+                    <Tag color={paid?'var(--ok)':'var(--gold)'} style={{fontSize:'var(--fs-2xs)'}}>{paid?'Pago':'Pendente'}</Tag>
                   </div>
                 </div>
                 {batchExp&&<div style={{marginTop:8,padding:'8px 0'}}>
-                  <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',marginBottom:6}}>Valor sem frete: {brl(valNoShip)}{ship>0&&<span> · Frete: {brl(ship)}</span>}</div>
-                  {b.shipping_already_paid&&<div style={{fontSize:11,color:'var(--ok)',marginBottom:8,display:'flex',alignItems:'center',gap:4}}><CheckCircle size={11}/> Frete marcado como já pago pelo cliente</div>}
+                  <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginBottom:6}}>Valor sem frete: {brl(valNoShip)}{ship>0&&<span> · Frete: {brl(ship)}</span>}</div>
+                  {b.shipping_already_paid&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--ok)',marginBottom:8,display:'flex',alignItems:'center',gap:4}}><CheckCircle size={11}/> Frete marcado como já pago pelo cliente</div>}
                   <div style={{marginBottom:8}}>{(batchCards[b.id]||[]).length>0?batchCards[b.id].map((c,ci)=>(
-                    <div key={ci} style={{display:'flex',alignItems:'center',gap:8,padding:'3px 0',fontSize:12,borderBottom:'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))'}}>
+                    <div key={ci} style={{display:'flex',alignItems:'center',gap:8,padding:'3px 0',fontSize:'var(--fs-xs)',borderBottom:'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))'}}>
                       <div onClick={e=>{e.stopPropagation();c.image_url&&setZoomSrc(c.image_url);}} style={{width:26,flexShrink:0,cursor:c.image_url?'zoom-in':'default'}}><CardThumb card={c} radius={5}/></div>
-                      <span style={{flex:1,minWidth:0,color:'rgba(var(--ink),calc(0.5*var(--ink-a)))',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name} <span style={{color:TC[c.type]||'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
+                      <span style={{flex:1,minWidth:0,color:'var(--text-dim)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name} <span style={{color:TC[c.type]||'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:'var(--fs-2xs)',fontWeight:700}}>{c.type||''}</span></span>
                       <span style={{fontWeight:700}}>x{c.qty}</span>
                     </div>
-                  )):<div style={{fontSize:11,color:'rgba(var(--ink),calc(0.2*var(--ink-a)))'}}>Carregando itens...</div>}</div>
-                  {!isCancelledBatch(b.status)&&<Btn variant="danger" onClick={e=>{e.stopPropagation();cancelBatch(b.id,paid);}} style={{padding:'5px 10px',fontSize:10}} sfx=""><X size={11}/> {paid?'Cancelar (reembolso manual MP)':'Cancelar pedido'}</Btn>}
+                  )):<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>Carregando itens...</div>}</div>
+                  {!isCancelledBatch(b.status)&&<Btn variant="danger" onClick={e=>{e.stopPropagation();cancelBatch(b.id,paid);}} style={{padding:'5px 10px',fontSize:'var(--fs-2xs)'}} sfx=""><X size={11}/> {paid?'Cancelar (reembolso manual MP)':'Cancelar pedido'}</Btn>}
                 </div>}
               </div>);
             }))}
-            {client.whatsapp&&<button onClick={()=>openWhatsAppFor(client)} style={{display:'inline-flex',alignItems:'center',gap:4,margin:'8px 14px 10px',padding:0,border:'none',background:'none',fontSize:11,color:'var(--wa)',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={12}/> WhatsApp com mensagem</button>}
+            {client.whatsapp&&<button onClick={()=>openWhatsAppFor(client)} style={{display:'inline-flex',alignItems:'center',gap:4,margin:'8px 14px 10px',padding:0,border:'none',background:'none',fontSize:'var(--fs-2xs)',color:'var(--wa)',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={12}/> WhatsApp com mensagem</button>}
             <div style={{padding:'8px 14px',borderTop:'1px solid rgba(var(--ink),calc(0.04*var(--ink-a)))'}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
-                <span style={{fontSize:11,fontWeight:700,color:'var(--ok)',display:'inline-flex',alignItems:'center',gap:4}}><Gift size={11}/> Bônus{selectedCampaign?` · ${selectedCampaign.name}`:''}</span>
-                {clientBonus>0&&<Tag color="var(--ok)" style={{fontSize:9}}>{clientBonus} disponível</Tag>}
+                <span style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--ok)',display:'inline-flex',alignItems:'center',gap:4}}><Gift size={11}/> Bônus{selectedCampaign?` · ${selectedCampaign.name}`:''}</span>
+                {clientBonus>0&&<Tag color="var(--ok)" style={{fontSize:'var(--fs-2xs)'}}>{clientBonus} disponível</Tag>}
               </div>
-              {!selectedCampaign?<div style={{fontSize:10,color:'rgba(var(--ink),calc(0.25*var(--ink-a)))'}}>Selecione uma encomenda para conceder bônus.</div>:<>
+              {!selectedCampaign?<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>Selecione uma encomenda para conceder bônus.</div>:<>
                 {adminBonusGrants.filter(g=>g.user_id===client.userId).map(g=>(
-                  <div key={g.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'3px 0',fontSize:11,borderBottom:'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))'}}>
+                  <div key={g.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'3px 0',fontSize:'var(--fs-2xs)',borderBottom:'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))'}}>
                     <span style={{color:g.status==='AVAILABLE'?'var(--ok)':'rgba(var(--ink),calc(0.25*var(--ink-a)))'}}>{g.bonus_qty} carta(s) — {g.status==='AVAILABLE'?'Disponível':g.status==='CONSUMED'||g.status==='USED'?'Usado':'Expirado'}</span>
-                    {g.status==='AVAILABLE'&&<button onClick={()=>revokeBonus(g.id)} style={{background:'none',border:'none',color:'var(--danger)',fontSize:10,cursor:'pointer',padding:'2px 4px'}}>Revogar</button>}
+                    {g.status==='AVAILABLE'&&<button onClick={()=>revokeBonus(g.id)} style={{background:'none',border:'none',color:'var(--danger)',fontSize:'var(--fs-2xs)',cursor:'pointer',padding:'2px 4px'}}>Revogar</button>}
                   </div>
                 ))}
                 {bonusForm.userId===client.userId?<div style={{display:'flex',gap:4,marginTop:6}}>
-                  <input type="number" min="1" value={bonusForm.qty} onChange={e=>setBonusForm(f=>({...f,qty:Math.max(1,parseInt(e.target.value)||1)}))} style={{width:50,padding:'4px 6px',borderRadius:6,border:'1px solid rgba(var(--ink),calc(0.1*var(--ink-a)))',background:'rgba(var(--ink),calc(0.05*var(--ink-a)))',color:'var(--text-strong)',fontSize:11,textAlign:'center'}}/>
-                  <Btn variant="success" onClick={()=>grantBonus(client.userId,bonusForm.qty)} style={{padding:'4px 10px',fontSize:10}} sfx=""><Gift size={10}/> Conceder</Btn>
-                  <button onClick={()=>setBonusForm({userId:null,qty:1})} style={{background:'none',border:'none',color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:10,cursor:'pointer'}}>Cancelar</button>
-                </div>:<Btn variant="secondary" onClick={()=>{setBonusForm({userId:client.userId,qty:1});if(adminBonusGrants.length===0)loadBonusGrants();}} style={{padding:'4px 10px',fontSize:10,marginTop:4}} sfx=""><Gift size={10}/> Dar bônus</Btn>}
+                  <input type="number" min="1" value={bonusForm.qty} onChange={e=>setBonusForm(f=>({...f,qty:Math.max(1,parseInt(e.target.value)||1)}))} style={{width:50,padding:'4px 6px',borderRadius:6,border:'1px solid var(--line)',background:'var(--fill)',color:'var(--text-strong)',fontSize:'var(--fs-2xs)',textAlign:'center'}}/>
+                  <Btn variant="success" onClick={()=>grantBonus(client.userId,bonusForm.qty)} style={{padding:'4px 10px',fontSize:'var(--fs-2xs)'}} sfx=""><Gift size={10}/> Conceder</Btn>
+                  <button onClick={()=>setBonusForm({userId:null,qty:1})} style={{background:'none',border:'none',color:'var(--text-faint)',fontSize:'var(--fs-2xs)',cursor:'pointer'}}>Cancelar</button>
+                </div>:<Btn variant="secondary" onClick={()=>{setBonusForm({userId:client.userId,qty:1});if(adminBonusGrants.length===0)loadBonusGrants();}} style={{padding:'4px 10px',fontSize:'var(--fs-2xs)',marginTop:4}} sfx=""><Gift size={10}/> Dar bônus</Btn>}
               </>}
             </div>
           </div>}
@@ -3208,45 +3208,45 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   function renderCatalog(){
     return(<div style={{display:'flex',flexDirection:'column',gap:10}}>
       <AdminPanel title="Importar catálogo (CSV)" sub="Substitui o catálogo de Magic a partir do CSV do fornecedor" icon={Upload} accent={theme.primary}>
-        <div style={{fontSize:12,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',marginBottom:12,lineHeight:1.5}}>O CSV deve ter as colunas <b>name, price, original_price, category, image_file</b>. As imagens devem estar no bucket <b>cards</b> com o mesmo nome do <b>image_file</b>. Re-enviar o mesmo CSV atualiza preços/imagens (não duplica).</div>
-        <label style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'12px',borderRadius:10,border:'1px dashed rgba(var(--ink),calc(0.15*var(--ink-a)))',background:'rgba(var(--ink),calc(0.02*var(--ink-a)))',color:'rgba(var(--ink),calc(0.5*var(--ink-a)))',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>
+        <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',marginBottom:12,lineHeight:1.5}}>O CSV deve ter as colunas <b>name, price, original_price, category, image_file</b>. As imagens devem estar no bucket <b>cards</b> com o mesmo nome do <b>image_file</b>. Re-enviar o mesmo CSV atualiza preços/imagens (não duplica).</div>
+        <label style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'12px',borderRadius:'var(--r-control)',border:'1px dashed rgba(var(--ink),calc(0.15*var(--ink-a)))',background:'var(--fill-soft)',color:'var(--text-dim)',fontSize:'var(--fs-sm)',fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>
           <Upload size={15}/>{importFileName||'Escolher arquivo CSV'}
           <input type="file" accept=".csv,text/csv" onChange={onImportFile} style={{display:'none'}}/>
         </label>
-        {importPreview&&!importPreview.error&&<div style={{marginTop:12,padding:'10px 12px',borderRadius:10,background:'rgba(var(--ink),calc(0.03*var(--ink-a)))',fontSize:12,color:'rgba(var(--ink),calc(0.55*var(--ink-a)))',lineHeight:1.6}}>
+        {importPreview&&!importPreview.error&&<div style={{marginTop:12,padding:'10px 12px',borderRadius:'var(--r-control)',background:'var(--fill-soft)',fontSize:'var(--fs-xs)',color:'var(--text-muted)',lineHeight:1.6}}>
           <div><b style={{color:theme.primary}}>{importPreview.valid}</b> cartas válidas de {importPreview.total} linhas{importPreview.skipped>0?<> · <span style={{color:'var(--gold)'}}>{importPreview.skipped} ignoradas</span></>:null}</div>
-          <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))'}}>Normal: {importPreview.types.Normal||0} · Holo: {importPreview.types.Holo||0} · Foil: {importPreview.types.Foil||0}</div>
+          <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>Normal: {importPreview.types.Normal||0} · Holo: {importPreview.types.Holo||0} · Foil: {importPreview.types.Foil||0}</div>
         </div>}
-        {importPreview&&importPreview.error&&<div style={{marginTop:12,fontSize:12,color:'var(--danger)'}}>Erro ao ler CSV: {importPreview.error}</div>}
-        <label style={{display:'flex',alignItems:'center',gap:8,marginTop:12,fontSize:12,color:'rgba(var(--ink),calc(0.5*var(--ink-a)))',cursor:'pointer'}}>
+        {importPreview&&importPreview.error&&<div style={{marginTop:12,fontSize:'var(--fs-xs)',color:'var(--danger)'}}>Erro ao ler CSV: {importPreview.error}</div>}
+        <label style={{display:'flex',alignItems:'center',gap:8,marginTop:12,fontSize:'var(--fs-xs)',color:'var(--text-dim)',cursor:'pointer'}}>
           <input type="checkbox" checked={importDeactivate} onChange={e=>setImportDeactivate(e.target.checked)}/>
           Desativar catálogo Magic anterior (cartas fora deste CSV ficam ocultas)
         </label>
         <Btn full variant="success" onClick={importCards} disabled={importing||!importPreview||!!(importPreview&&importPreview.error)||!(importPreview&&importPreview.valid>0)} style={{marginTop:12}} sfx="">{importing?<Spin size={14}/>:<><Upload size={14}/> Importar catálogo</>}</Btn>
-        {importResult&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:10,background:'rgba(var(--ok-rgb),0.08)',border:'1px solid rgba(var(--ok-rgb),0.2)',fontSize:12,color:'rgba(var(--ink),calc(0.7*var(--ink-a)))',lineHeight:1.6}}>
+        {importResult&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:'var(--r-control)',background:'rgba(var(--ok-rgb),0.08)',border:'1px solid rgba(var(--ok-rgb),0.2)',fontSize:'var(--fs-xs)',color:'var(--text-muted)',lineHeight:1.6}}>
           <Check size={13} style={{verticalAlign:'middle',color:'var(--ok)'}}/> Importado: <b>{importResult.upserted}</b> cartas{importResult.deactivated>0?<> · {importResult.deactivated} antigas desativadas</>:null}{importResult.skipped>0?<> · {importResult.skipped} ignoradas</>:null}
         </div>}
       </AdminPanel>
 
       <AdminPanel title="Adicionar cartas por link" sub="Cole nome + link da imagem — o servidor baixa e sobe a imagem" icon={Plus} accent="var(--indiv)">
-        <div style={{fontSize:12,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',marginBottom:12,lineHeight:1.5}}>Uma carta por linha, no formato <b>Nome da carta | link da imagem</b>. Aceita link direto ou resultado do Google Imagens. Máximo de 25 cartas por vez. O TCG e o tipo abaixo valem para toda a lista.</div>
+        <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',marginBottom:12,lineHeight:1.5}}>Uma carta por linha, no formato <b>Nome da carta | link da imagem</b>. Aceita link direto ou resultado do Google Imagens. Máximo de 25 cartas por vez. O TCG e o tipo abaixo valem para toda a lista.</div>
         <div style={{display:'flex',gap:8,marginBottom:10}}>
-          <select value={linkTcg} onChange={e=>{const tcg=e.target.value;setLinkTcg(tcg);const opts=(TCG_LIST.find(t=>t.key===tcg)?.types||[]).filter(t=>t!=='Todos');setLinkType(opts[0]||'Normal');}} style={{flex:1,padding:'10px 8px',borderRadius:12,border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:'var(--text-strong)',fontSize:11,fontFamily:"'Outfit',sans-serif",outline:'none',cursor:'pointer'}}>
+          <select value={linkTcg} onChange={e=>{const tcg=e.target.value;setLinkTcg(tcg);const opts=(TCG_LIST.find(t=>t.key===tcg)?.types||[]).filter(t=>t!=='Todos');setLinkType(opts[0]||'Normal');}} style={{flex:1,padding:'10px 8px',borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:'var(--text-strong)',fontSize:'var(--fs-2xs)',fontFamily:"'Outfit',sans-serif",outline:'none',cursor:'pointer'}}>
             {TCG_LIST.map(t=><option key={t.key} value={t.key}>{t.key}</option>)}
           </select>
-          <select value={linkType} onChange={e=>setLinkType(e.target.value)} style={{flex:1,padding:'10px 8px',borderRadius:12,border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:'var(--text-strong)',fontSize:11,fontFamily:"'Outfit',sans-serif",outline:'none',cursor:'pointer'}}>
+          <select value={linkType} onChange={e=>setLinkType(e.target.value)} style={{flex:1,padding:'10px 8px',borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:'var(--text-strong)',fontSize:'var(--fs-2xs)',fontFamily:"'Outfit',sans-serif",outline:'none',cursor:'pointer'}}>
             {linkTypeOptions.map(t=><option key={t} value={t}>{t}</option>)}
           </select>
         </div>
-        <textarea value={linkListText} onChange={e=>onLinkListChange(e.target.value)} placeholder={'Aragorn, King of Gondor | https://exemplo.com/aragorn.jpg'} rows={6} style={{width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid rgba(var(--ink),calc(0.1*var(--ink-a)))',background:'rgba(var(--ink),calc(0.02*var(--ink-a)))',color:'var(--text-strong)',fontSize:12,fontFamily:'monospace',resize:'vertical',boxSizing:'border-box'}}/>
-        {linkPreview&&<div style={{marginTop:12,padding:'10px 12px',borderRadius:10,background:'rgba(var(--ink),calc(0.03*var(--ink-a)))',fontSize:12,color:'rgba(var(--ink),calc(0.55*var(--ink-a)))',lineHeight:1.6}}>
+        <textarea value={linkListText} onChange={e=>onLinkListChange(e.target.value)} placeholder={'Aragorn, King of Gondor | https://exemplo.com/aragorn.jpg'} rows={6} style={{width:'100%',padding:'10px 12px',borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'var(--fill-soft)',color:'var(--text-strong)',fontSize:'var(--fs-xs)',fontFamily:'monospace',resize:'vertical',boxSizing:'border-box'}}/>
+        {linkPreview&&<div style={{marginTop:12,padding:'10px 12px',borderRadius:'var(--r-control)',background:'var(--fill-soft)',fontSize:'var(--fs-xs)',color:'var(--text-muted)',lineHeight:1.6}}>
           <div><b style={{color:theme.primary}}>{linkPreview.items.length}</b> carta(s) válida(s) de {linkPreview.total} linha(s){linkPreview.invalid.length>0?<> · <span style={{color:'var(--gold)'}}>{linkPreview.invalid.length} com erro</span></>:null}</div>
-          {linkPreview.invalid.length>0&&<div style={{marginTop:4,fontSize:11,color:'var(--gold)'}}>{linkPreview.invalid.map((inv,i)=><div key={i}>· {inv.raw||'(linha vazia)'}: {inv.error}</div>)}</div>}
+          {linkPreview.invalid.length>0&&<div style={{marginTop:4,fontSize:'var(--fs-2xs)',color:'var(--gold)'}}>{linkPreview.invalid.map((inv,i)=><div key={i}>· {inv.raw||'(linha vazia)'}: {inv.error}</div>)}</div>}
         </div>}
         <Btn full variant="success" onClick={addCardsByLink} disabled={linkAdding||!linkPreview||linkPreview.items.length===0||linkPreview.items.length>25} style={{marginTop:12}} sfx="">{linkAdding?<Spin size={14}/>:<><Upload size={14}/> Adicionar cartas</>}</Btn>
-        {linkResult&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:10,background:linkResult.failed>0?'rgba(var(--gold-rgb),0.08)':'rgba(var(--ok-rgb),0.08)',border:'1px solid '+(linkResult.failed>0?'rgba(var(--gold-rgb),0.2)':'rgba(var(--ok-rgb),0.2)'),fontSize:12,color:'rgba(var(--ink),calc(0.7*var(--ink-a)))',lineHeight:1.6}}>
+        {linkResult&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:'var(--r-control)',background:linkResult.failed>0?'rgba(var(--gold-rgb),0.08)':'rgba(var(--ok-rgb),0.08)',border:'1px solid '+(linkResult.failed>0?'rgba(var(--gold-rgb),0.2)':'rgba(var(--ok-rgb),0.2)'),fontSize:'var(--fs-xs)',color:'var(--text-muted)',lineHeight:1.6}}>
           <Check size={13} style={{verticalAlign:'middle',color:'var(--ok)'}}/> Adicionadas: <b>{linkResult.added}</b> carta(s){linkResult.failed>0?<> · {linkResult.failed} falharam</>:null}
-          {linkResult.results.filter(r=>!r.ok).map((r,i)=><div key={i} style={{marginTop:4,fontSize:11,color:'var(--danger)'}}>· {r.name||r.url}: {r.error}</div>)}
+          {linkResult.results.filter(r=>!r.ok).map((r,i)=><div key={i} style={{marginTop:4,fontSize:'var(--fs-2xs)',color:'var(--danger)'}}>· {r.name||r.url}: {r.error}</div>)}
         </div>}
       </AdminPanel>
     </div>);
@@ -3260,11 +3260,11 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
           <div style={{minWidth:0}}>
             <div style={{fontWeight:700,fontSize:14,display:'flex',alignItems:'center',gap:6}}>{c.name}{isSel&&<Tag color={theme.primary} style={{fontSize:8,padding:'2px 6px'}}>em contexto</Tag>}</div>
-            <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}>criada em {new Date(c.created_at).toLocaleDateString('pt-BR')}{c.close_at?` · fecha ${new Date(c.close_at).toLocaleDateString('pt-BR')}`:''}</div>
+            <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>criada em {new Date(c.created_at).toLocaleDateString('pt-BR')}{c.close_at?` · fecha ${new Date(c.close_at).toLocaleDateString('pt-BR')}`:''}</div>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
-            <Tag color={finalized?'rgba(var(--ink),calc(0.3*var(--ink-a)))':'var(--ok)'} style={{fontSize:10}}>{CAMPAIGN_STATUS_LABELS[c.status]||c.status}</Tag>
-            {finalized&&<button onClick={e=>{e.stopPropagation();deleteCampaign(c.id,c.name);}} style={{background:'rgba(var(--danger-rgb),0.1)',border:'1px solid rgba(var(--danger-rgb),0.15)',borderRadius:8,padding:'5px 7px',cursor:'pointer',color:'var(--danger)',display:'grid',placeItems:'center',flexShrink:0}}><Trash2 size={13}/></button>}
+            <Tag color={finalized?'rgba(var(--ink),calc(0.3*var(--ink-a)))':'var(--ok)'} style={{fontSize:'var(--fs-2xs)'}}>{CAMPAIGN_STATUS_LABELS[c.status]||c.status}</Tag>
+            {finalized&&<button onClick={e=>{e.stopPropagation();deleteCampaign(c.id,c.name);}} style={{background:'rgba(var(--danger-rgb),0.1)',border:'1px solid rgba(var(--danger-rgb),0.15)',borderRadius:'var(--r-control)',padding:'5px 7px',cursor:'pointer',color:'var(--danger)',display:'grid',placeItems:'center',flexShrink:0}}><Trash2 size={13}/></button>}
           </div>
         </div>
       </Card>);
@@ -3272,12 +3272,12 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
 
     return(<div style={{display:'flex',flexDirection:'column',gap:10}}>
       <AdminPanel title="Encomendas coletivas" sub="A encomenda selecionada define o contexto de pedidos, envios e bônus" icon={Calendar} accent={theme.primary}
-        right={<button onClick={()=>setShowCreateForm(v=>!v)} style={{width:30,height:30,borderRadius:9,border:'1px solid '+wa(theme.primary,'30'),background:wa(theme.primary,'15'),color:theme.primary,fontSize:18,display:'grid',placeItems:'center',cursor:'pointer'}}>{showCreateForm?'×':'+'}</button>}>
-        {showCreateForm&&<div style={{marginBottom:14,padding:'12px',borderRadius:12,background:'rgba(var(--sunk),calc(0.22*var(--sunk-a)))',border:'1px solid rgba(var(--ink),calc(0.05*var(--ink-a)))'}}>
-          <div style={{fontSize:12,fontWeight:700,marginBottom:10}}>Nova encomenda</div>
+        right={<button onClick={()=>setShowCreateForm(v=>!v)} style={{width:30,height:30,borderRadius:'var(--r-control)',border:'1px solid '+wa(theme.primary,'30'),background:wa(theme.primary,'15'),color:theme.primary,fontSize:'var(--fs-lg)',display:'grid',placeItems:'center',cursor:'pointer'}}>{showCreateForm?'×':'+'}</button>}>
+        {showCreateForm&&<div style={{marginBottom:14,padding:'12px',borderRadius:'var(--r-control)',background:'rgba(var(--sunk),calc(0.22*var(--sunk-a)))',border:'1px solid var(--line-soft)'}}>
+          <div style={{fontSize:'var(--fs-xs)',fontWeight:700,marginBottom:10}}>Nova encomenda</div>
           <AdminField label="Nome"><input value={newCamp.name} onChange={e=>setNewCamp(c=>({...c,name:e.target.value}))} placeholder="Ex: Encomenda Abril 26" style={adminInputStyle}/></AdminField>
           <AdminField label="Status inicial">
-            <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>{CAMPAIGN_STATUSES.map(s=>(<button key={s} onClick={()=>setNewCamp(c=>({...c,status:s}))} style={{padding:'5px 9px',borderRadius:8,border:'1px solid '+(newCamp.status===s?wa(theme.primary,'35'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),background:newCamp.status===s?wa(theme.primary,'15'):'rgba(var(--ink),calc(0.02*var(--ink-a)))',color:newCamp.status===s?theme.primary:'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:10,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{CAMPAIGN_STATUS_LABELS[s]||s}</button>))}</div>
+            <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>{CAMPAIGN_STATUSES.map(s=>(<button key={s} onClick={()=>setNewCamp(c=>({...c,status:s}))} style={{padding:'5px 9px',borderRadius:'var(--r-control)',border:'1px solid '+(newCamp.status===s?wa(theme.primary,'35'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),background:newCamp.status===s?wa(theme.primary,'15'):'rgba(var(--ink),calc(0.02*var(--ink-a)))',color:newCamp.status===s?theme.primary:'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:'var(--fs-2xs)',fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{CAMPAIGN_STATUS_LABELS[s]||s}</button>))}</div>
           </AdminField>
           <AdminField label="Data prevista de fechamento" hint="Não é encerramento automático. A encomenda só fecha quando a meta mínima for atingida.">
             <input type="date" value={newCamp.close_at} onChange={e=>setNewCamp(c=>({...c,close_at:e.target.value}))} style={adminInputStyle}/>
@@ -3289,8 +3289,8 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         </div>}
 
         {loading?<div style={{textAlign:'center',padding:20}}><Spin size={22}/></div>:<>
-          {activeCampaigns.length>0&&<><div style={{fontSize:11,fontWeight:700,color:theme.primary,marginBottom:5}}>Ativas</div>{activeCampaigns.map(c=>campaignCard(c,false))}</>}
-          {finalizedCampaigns.length>0&&<><div style={{fontSize:11,fontWeight:700,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',margin:'10px 0 5px'}}>Finalizadas</div>{finalizedCampaigns.map(c=>campaignCard(c,true))}</>}
+          {activeCampaigns.length>0&&<><div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:theme.primary,marginBottom:5}}>Ativas</div>{activeCampaigns.map(c=>campaignCard(c,false))}</>}
+          {finalizedCampaigns.length>0&&<><div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-faint)',margin:'10px 0 5px'}}>Finalizadas</div>{finalizedCampaigns.map(c=>campaignCard(c,true))}</>}
           {campaigns.length===0&&<EmptyState icon={Calendar} title="Nenhuma encomenda" sub="Crie a primeira encomenda coletiva no + acima"/>}
         </>}
       </AdminPanel>
@@ -3307,32 +3307,32 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
           <input type="number" value={editCamp.max_cards||''} onChange={e=>setEditCamp(c=>({...c,max_cards:parseInt(e.target.value)||0}))} style={adminInputStyle}/>
         </AdminField>
         <AdminField label="Status">
-          <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>{CAMPAIGN_STATUSES.map(s=>(<button key={s} onClick={()=>setEditCamp(c=>({...c,status:s}))} style={{padding:'5px 9px',borderRadius:8,border:'1px solid '+(editCamp.status===s?wa(theme.primary,'35'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),background:editCamp.status===s?wa(theme.primary,'15'):'rgba(var(--ink),calc(0.02*var(--ink-a)))',color:editCamp.status===s?theme.primary:'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:10,fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{CAMPAIGN_STATUS_LABELS[s]||s}</button>))}</div>
+          <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>{CAMPAIGN_STATUSES.map(s=>(<button key={s} onClick={()=>setEditCamp(c=>({...c,status:s}))} style={{padding:'5px 9px',borderRadius:'var(--r-control)',border:'1px solid '+(editCamp.status===s?wa(theme.primary,'35'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),background:editCamp.status===s?wa(theme.primary,'15'):'rgba(var(--ink),calc(0.02*var(--ink-a)))',color:editCamp.status===s?theme.primary:'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:'var(--fs-2xs)',fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{CAMPAIGN_STATUS_LABELS[s]||s}</button>))}</div>
         </AdminField>
         <Btn full variant="success" onClick={saveCampaign} disabled={saving} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar encomenda</>}</Btn>
       </AdminPanel>}
 
       <AdminPanel title="Lista de compra" sub="Todas as cartas dos pedidos pagos da encomenda selecionada, em sequência" icon={ScrollText} accent="var(--gold)"
-        right={<Btn variant="secondary" onClick={loadFinalList} disabled={listLoading||!selectedCampaign} style={{padding:'6px 11px',fontSize:11}} sfx="click">{listLoading?<Spin size={12}/>:<><RefreshCw size={12}/> Gerar</>}</Btn>}>
-        {!selectedCampaign?<div style={{fontSize:12,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}>Selecione uma encomenda acima para gerar a lista.</div>:
+        right={<Btn variant="secondary" onClick={loadFinalList} disabled={listLoading||!selectedCampaign} style={{padding:'6px 11px',fontSize:'var(--fs-2xs)'}} sfx="click">{listLoading?<Spin size={12}/>:<><RefreshCw size={12}/> Gerar</>}</Btn>}>
+        {!selectedCampaign?<div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)'}}>Selecione uma encomenda acima para gerar a lista.</div>:
         finalList.length>0?<>
           <div style={{fontSize:14,fontWeight:800,color:theme.primary,marginBottom:8}}>{finalList.reduce((s,c)=>s+c.qty,0)} cartas no total</div>
           <div style={{maxHeight:380,overflowY:'auto',marginBottom:10}}>{finalList.map((c,i)=>(
-            <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'4px 0',fontSize:12,borderBottom:'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))'}}>
+            <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'4px 0',fontSize:'var(--fs-xs)',borderBottom:'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))'}}>
               <div onClick={()=>c.image_url&&setZoomSrc(c.image_url)} style={{width:26,flexShrink:0,cursor:c.image_url?'zoom-in':'default'}}><CardThumb card={c} radius={5}/></div>
-              <span style={{flex:1,minWidth:0,color:'rgba(var(--ink),calc(0.5*var(--ink-a)))',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.qty}x {c.name} <span style={{color:TC[c.type]||'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:10,fontWeight:700}}>{c.type||''}</span></span>
-              <span style={{fontSize:10,color:'rgba(var(--ink),calc(0.2*var(--ink-a)))',whiteSpace:'nowrap'}}>{c.userName}</span>
+              <span style={{flex:1,minWidth:0,color:'var(--text-dim)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.qty}x {c.name} <span style={{color:TC[c.type]||'rgba(var(--ink),calc(0.3*var(--ink-a)))',fontSize:'var(--fs-2xs)',fontWeight:700}}>{c.type||''}</span></span>
+              <span style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',whiteSpace:'nowrap'}}>{c.userName}</span>
             </div>
           ))}</div>
           <Btn full variant="success" onClick={copyFinalList} sfx="">{copied?<><Check size={14}/> Copiado!</>:<><Copy size={14}/> Copiar lista</>}</Btn>
-        </>:<div style={{fontSize:12,color:'rgba(var(--ink),calc(0.2*var(--ink-a)))',textAlign:'center',padding:16}}>{listLoading?<Spin size={20}/>:'Clique em "Gerar" para montar a lista de compra'}</div>}
+        </>:<div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',textAlign:'center',padding:16}}>{listLoading?<Spin size={20}/>:'Clique em "Gerar" para montar a lista de compra'}</div>}
       </AdminPanel>
 
       {selectedCampaign&&<AdminPanel title="Encerrar encomenda" sub="Arquiva a encomenda e libera espaço para a próxima" icon={Archive} accent="var(--danger)">
         {!isFinalized?(!showArchiveConfirm
           ? <Btn full variant="danger" onClick={()=>setShowArchiveConfirm(true)} sfx=""><Archive size={14}/> Arquivar encomenda</Btn>
           : <>
-            <div style={{fontSize:13,color:'rgba(var(--ink),calc(0.55*var(--ink-a)))',marginBottom:12,lineHeight:1.5}}>Isso marcará a encomenda como concluída e excluirá todos os dados de pedidos e bônus dela. <b style={{color:'var(--danger)'}}>Não pode ser desfeito.</b></div>
+            <div style={{fontSize:'var(--fs-sm)',color:'var(--text-muted)',marginBottom:12,lineHeight:1.5}}>Isso marcará a encomenda como concluída e excluirá todos os dados de pedidos e bônus dela. <b style={{color:'var(--danger)'}}>Não pode ser desfeito.</b></div>
             <div style={{display:'flex',gap:8}}>
               <Btn variant="secondary" onClick={()=>setShowArchiveConfirm(false)} style={{flex:1}} sfx="">Cancelar</Btn>
               <Btn variant="danger" onClick={archiveCampaign} disabled={archiving} style={{flex:1}} sfx="">{archiving?<Spin size={14}/>:'Sim, finalizar'}</Btn>
@@ -3353,21 +3353,21 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       {settingsTab==='prices'&&<>
         <AdminPanel title="Preços da Encomenda Coletiva" sub={`Preço fixo em R$ por tipo de carta. Mínimo de ${MIN_ORDER_CARDS} cartas por pedido.`} icon={Store} accent={theme.primary}>
           {[
-            {k:'normal_price_brl',l:'Carta Normal',desc:'Cartas comuns, não-foil',color:'rgba(var(--ink),calc(0.6*var(--ink-a)))',def:16},
+            {k:'normal_price_brl',l:'Carta Normal',desc:'Cartas comuns, não-foil',color:'var(--text-muted)',def:16},
             {k:'ouro_price_brl',l:'Carta Ouro / Holo',desc:'Cartas especiais (Holo)',color:'var(--gold)',def:16},
             {k:'foil_price_brl',l:'Carta Foil',desc:'Cartas foil de qualquer tipo',color:'#d94452',def:18},
           ].map(({k,l,desc,color,def})=>(<div key={k} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:'1px solid rgba(var(--ink),calc(0.04*var(--ink-a)))'}}>
-            <div><div style={{fontSize:13,fontWeight:600,color}}>{l}</div><div style={{fontSize:10,color:'rgba(var(--ink),calc(0.25*var(--ink-a)))'}}>{desc}</div></div>
+            <div><div style={{fontSize:'var(--fs-sm)',fontWeight:600,color}}>{l}</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{desc}</div></div>
             <div style={{display:'flex',alignItems:'center',gap:6}}>
-              <span style={{fontSize:11,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))'}}>R$</span>
-              <input type="number" step="0.50" min="0" value={editPricing[k]??def} onChange={e=>setEditPricing(p=>({...p,[k]:parseFloat(e.target.value)||0}))} style={{width:74,padding:'7px 8px',borderRadius:8,border:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:'var(--text-strong)',fontSize:14,fontWeight:800,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/>
+              <span style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>R$</span>
+              <input type="number" step="0.50" min="0" value={editPricing[k]??def} onChange={e=>setEditPricing(p=>({...p,[k]:parseFloat(e.target.value)||0}))} style={{width:74,padding:'7px 8px',borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:'var(--text-strong)',fontSize:14,fontWeight:800,fontFamily:"'Outfit',sans-serif",textAlign:'right',outline:'none'}}/>
             </div>
           </div>))}
           <Btn full variant="success" onClick={savePricing} disabled={saving} style={{marginTop:12}} sfx="">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar preços</>}</Btn>
         </AdminPanel>
 
         {indivCfg&&<AdminPanel title="Preços do Pedido Individual" sub="Desconto por volume — preço/carta = custo × multiplicador × dólar, com piso por tipo" icon={User} accent="var(--indiv)">
-          <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))',marginBottom:12}}>Dólar do dia em uso: <b style={{color:theme.primary}}>R$ {indivFx?Number(indivFx.rate).toFixed(2):'—'}</b>{indivFx?<span style={{opacity:0.6}}> ({indivFx.source})</span>:null}</div>
+          <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginBottom:12}}>Dólar do dia em uso: <b style={{color:theme.primary}}>R$ {indivFx?Number(indivFx.rate).toFixed(2):'—'}</b>{indivFx?<span style={{opacity:0.6}}> ({indivFx.source})</span>:null}</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
             {[
               {k:'multiplier',l:'Multiplicador',step:'0.1'},
@@ -3377,18 +3377,18 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
               {k:'foil_floor_brl',l:'Piso Foil (R$)',step:'0.5'},
               {k:'fx_fallback_rate',l:'Dólar fallback',step:'0.01'},
             ].map(({k,l,step})=>(<div key={k}>
-              <label style={{fontSize:10,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',display:'block',marginBottom:3}}>{l}</label>
+              <label style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',display:'block',marginBottom:3}}>{l}</label>
               <input type="number" step={step} min="0" value={indivCfg[k]??''} onChange={e=>setIndivCfg(c=>({...c,[k]:e.target.value===''?'':Number(e.target.value)}))} style={{...adminInputStyle,fontSize:14,fontWeight:700,padding:'8px 10px'}}/>
             </div>))}
           </div>
-          <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.4*var(--ink-a)))',fontWeight:700,margin:'6px 0 4px'}}>Faixas de volume (custo USD/carta)</div>
+          <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-dim)',fontWeight:700,margin:'6px 0 4px'}}>Faixas de volume (custo USD/carta)</div>
           <div style={{display:'flex',flexDirection:'column',gap:4}}>
-            <div style={{display:'flex',gap:6,fontSize:9,color:'rgba(var(--ink),calc(0.25*var(--ink-a)))',padding:'0 2px'}}><span style={{flex:1}}>Mín</span><span style={{flex:1}}>Máx (vazio=∞)</span><span style={{flex:1}}>USD/carta</span><span style={{width:28}}/></div>
+            <div style={{display:'flex',gap:6,fontSize:'var(--fs-2xs)',color:'var(--text-faint)',padding:'0 2px'}}><span style={{flex:1}}>Mín</span><span style={{flex:1}}>Máx (vazio=∞)</span><span style={{flex:1}}>USD/carta</span><span style={{width:28}}/></div>
             {indivTiers.map((t,idx)=>(<div key={idx} style={{display:'flex',gap:6,alignItems:'center'}}>
               {['min_qty','max_qty','usd_per_card'].map(field=>(
-                <input key={field} type="number" step={field==='usd_per_card'?'0.01':'1'} value={t[field]??''} onChange={e=>{const v=e.target.value;setIndivTiers(ts=>ts.map((x,i)=>i===idx?{...x,[field]:v===''?(field==='max_qty'?null:''):Number(v)}:x));}} style={{flex:1,minWidth:0,padding:'6px 8px',borderRadius:7,border:'1px solid rgba(var(--ink),calc(0.07*var(--ink-a)))',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:'var(--text-strong)',fontSize:12,fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/>
+                <input key={field} type="number" step={field==='usd_per_card'?'0.01':'1'} value={t[field]??''} onChange={e=>{const v=e.target.value;setIndivTiers(ts=>ts.map((x,i)=>i===idx?{...x,[field]:v===''?(field==='max_qty'?null:''):Number(v)}:x));}} style={{flex:1,minWidth:0,padding:'6px 8px',borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:'var(--text-strong)',fontSize:'var(--fs-xs)',fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box'}}/>
               ))}
-              <button onClick={()=>setIndivTiers(ts=>ts.filter((_,i)=>i!==idx))} title="Remover" style={{width:28,height:28,flexShrink:0,borderRadius:7,border:'1px solid rgba(var(--danger-rgb),0.15)',background:'rgba(var(--danger-rgb),0.08)',color:'var(--danger)',cursor:'pointer',display:'grid',placeItems:'center'}}><Trash2 size={12}/></button>
+              <button onClick={()=>setIndivTiers(ts=>ts.filter((_,i)=>i!==idx))} title="Remover" style={{width:28,height:28,flexShrink:0,borderRadius:'var(--r-control)',border:'1px solid rgba(var(--danger-rgb),0.15)',background:'rgba(var(--danger-rgb),0.08)',color:'var(--danger)',cursor:'pointer',display:'grid',placeItems:'center'}}><Trash2 size={12}/></button>
             </div>))}
           </div>
           <Btn full variant="ghost" onClick={()=>setIndivTiers(ts=>[...ts,{min_qty:'',max_qty:null,usd_per_card:''}])} style={{marginTop:8}} sfx=""><Plus size={13}/> Adicionar faixa</Btn>
@@ -3409,13 +3409,13 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         <div style={{display:'flex',flexDirection:'column',gap:9}}>
           {ADMIN_SECTIONS.map(s=>(
             <div key={s.key} style={{display:'flex',gap:9,alignItems:'flex-start'}}>
-              <div style={{width:26,height:26,borderRadius:8,flexShrink:0,display:'grid',placeItems:'center',background:'rgba(var(--ink),calc(0.04*var(--ink-a)))',color:'rgba(var(--ink),calc(0.45*var(--ink-a)))'}}><s.icon size={13}/></div>
-              <div><div style={{fontSize:12,fontWeight:700}}>{s.label}</div><div style={{fontSize:11,color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',lineHeight:1.45}}>{s.sub}</div></div>
+              <div style={{width:26,height:26,borderRadius:'var(--r-control)',flexShrink:0,display:'grid',placeItems:'center',background:'var(--fill-soft)',color:'var(--text-dim)'}}><s.icon size={13}/></div>
+              <div><div style={{fontSize:'var(--fs-xs)',fontWeight:700}}>{s.label}</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',lineHeight:1.45}}>{s.sub}</div></div>
             </div>
           ))}
         </div>
-        <div style={{marginTop:12,paddingTop:10,borderTop:'1px solid rgba(var(--ink),calc(0.05*var(--ink-a)))',fontSize:11,color:'rgba(var(--ink),calc(0.28*var(--ink-a)))',lineHeight:1.6}}>
-          A <b style={{color:'rgba(var(--ink),calc(0.5*var(--ink-a)))'}}>encomenda em contexto</b> aparece no topo e vale para Pedidos (canal Coletiva), Envios, Bônus e Lista de compra. Pedidos Individuais não dependem de encomenda e aparecem sempre.
+        <div style={{marginTop:12,paddingTop:10,borderTop:'1px solid rgba(var(--ink),calc(0.05*var(--ink-a)))',fontSize:'var(--fs-2xs)',color:'var(--text-faint)',lineHeight:1.6}}>
+          A <b style={{color:'var(--text-dim)'}}>encomenda em contexto</b> aparece no topo e vale para Pedidos (canal Coletiva), Envios, Bônus e Lista de compra. Pedidos Individuais não dependem de encomenda e aparecem sempre.
         </div>
       </AdminPanel>}
     </div>);
@@ -3432,16 +3432,16 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         <button onClick={()=>nav('profile')} style={{background:'none',border:'none',color:'var(--text-strong)',cursor:'pointer',padding:2}}><ChevronLeft size={18}/></button>
         <Shield size={18} style={{color:theme.primary,flexShrink:0}}/>
         <div style={{minWidth:0}}>
-          <div style={{fontFamily:"'Cinzel',serif",fontSize:16,fontWeight:700,lineHeight:1.1}}>Console</div>
-          <div style={{fontSize:10,color:'rgba(var(--ink),calc(0.28*var(--ink-a)))',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{currentSection.sub}</div>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:'var(--fs-md)',fontWeight:700,lineHeight:1.1}}>Console</div>
+          <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{currentSection.sub}</div>
         </div>
       </div>
       <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
-        <button onClick={()=>{SFX.click();setShowNotifications(v=>!v);if(!showNotifications)loadNotifications();}} title="Notificações" style={{position:'relative',background:showNotifications?wa(theme.primary,'18'):'rgba(var(--ink),calc(0.04*var(--ink-a)))',border:'1px solid '+(showNotifications?wa(theme.primary,'40'):'rgba(var(--ink),calc(0.07*var(--ink-a)))'),borderRadius:10,padding:'7px 9px',color:showNotifications?theme.primary:'rgba(var(--ink),calc(0.45*var(--ink-a)))',cursor:'pointer',display:'grid',placeItems:'center'}}>
+        <button onClick={()=>{SFX.click();setShowNotifications(v=>!v);if(!showNotifications)loadNotifications();}} title="Notificações" style={{position:'relative',background:showNotifications?wa(theme.primary,'18'):'rgba(var(--ink),calc(0.04*var(--ink-a)))',border:'1px solid '+(showNotifications?wa(theme.primary,'40'):'rgba(var(--ink),calc(0.07*var(--ink-a)))'),borderRadius:'var(--r-control)',padding:'7px 9px',color:showNotifications?theme.primary:'rgba(var(--ink),calc(0.45*var(--ink-a)))',cursor:'pointer',display:'grid',placeItems:'center'}}>
           <Bell size={15}/>
-          {notifUnread>0&&<span style={{position:'absolute',top:-4,right:-4,minWidth:16,height:16,padding:'0 4px',borderRadius:9,background:'var(--danger)',color:'#fff',fontSize:9,fontWeight:800,display:'grid',placeItems:'center',fontFamily:"'Outfit',sans-serif"}}>{notifUnread>9?'9+':notifUnread}</span>}
+          {notifUnread>0&&<span style={{position:'absolute',top:-4,right:-4,minWidth:16,height:16,padding:'0 4px',borderRadius:'var(--r-control)',background:'var(--danger)',color:'#fff',fontSize:'var(--fs-2xs)',fontWeight:800,display:'grid',placeItems:'center',fontFamily:"'Outfit',sans-serif"}}>{notifUnread>9?'9+':notifUnread}</span>}
         </button>
-        <button onClick={()=>{SFX.click();reloadAll();}} title="Recarregar" style={{background:'rgba(var(--ink),calc(0.04*var(--ink-a)))',border:'1px solid rgba(var(--ink),calc(0.07*var(--ink-a)))',borderRadius:10,padding:'7px 9px',color:'rgba(var(--ink),calc(0.45*var(--ink-a)))',cursor:'pointer',display:'grid',placeItems:'center'}}><RefreshCw size={15}/></button>
+        <button onClick={()=>{SFX.click();reloadAll();}} title="Recarregar" style={{background:'var(--fill-soft)',border:'1px solid var(--line)',borderRadius:'var(--r-control)',padding:'7px 9px',color:'var(--text-dim)',cursor:'pointer',display:'grid',placeItems:'center'}}><RefreshCw size={15}/></button>
       </div>
     </div>
 
@@ -3450,23 +3450,23 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       {ADMIN_SECTIONS.map(s=>{
         const active=section===s.key;
         const badge=s.key==='orders'?awaitingPaymentCount:s.key==='shipping'?pendingLabelCount:0;
-        return(<button key={s.key} onClick={()=>{SFX.toggle();setSection(s.key);setShowNotifications(false);}} style={{display:'inline-flex',alignItems:'center',gap:5,flexShrink:0,padding:'8px 12px',borderRadius:11,border:'1px solid '+(active?wa(theme.primary,'45'):'rgba(var(--ink),calc(0.05*var(--ink-a)))'),background:active?wa(theme.primary,'16'):'rgba(var(--ink),calc(0.022*var(--ink-a)))',color:active?theme.primary:'rgba(var(--ink),calc(0.35*var(--ink-a)))',fontWeight:700,fontSize:11.5,cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap',position:'relative'}}>
+        return(<button key={s.key} onClick={()=>{SFX.toggle();setSection(s.key);setShowNotifications(false);}} style={{display:'inline-flex',alignItems:'center',gap:5,flexShrink:0,padding:'8px 12px',borderRadius:'var(--r-control)',border:'1px solid '+(active?wa(theme.primary,'45'):'rgba(var(--ink),calc(0.05*var(--ink-a)))'),background:active?wa(theme.primary,'16'):'rgba(var(--ink),calc(0.022*var(--ink-a)))',color:active?theme.primary:'rgba(var(--ink),calc(0.35*var(--ink-a)))',fontWeight:700,fontSize:11.5,cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap',position:'relative'}}>
           <s.icon size={13}/>{s.label}
-          {badge>0&&<span style={{marginLeft:1,minWidth:15,height:15,padding:'0 4px',borderRadius:8,background:active?wa(theme.primary,'30'):'rgba(var(--ink),calc(0.07*var(--ink-a)))',color:active?theme.primary:'rgba(var(--ink),calc(0.4*var(--ink-a)))',fontSize:9,fontWeight:800,display:'grid',placeItems:'center'}}>{badge}</span>}
+          {badge>0&&<span style={{marginLeft:1,minWidth:15,height:15,padding:'0 4px',borderRadius:'var(--r-control)',background:active?wa(theme.primary,'30'):'rgba(var(--ink),calc(0.07*var(--ink-a)))',color:active?theme.primary:'rgba(var(--ink),calc(0.4*var(--ink-a)))',fontSize:'var(--fs-2xs)',fontWeight:800,display:'grid',placeItems:'center'}}>{badge}</span>}
         </button>);
       })}
     </div>
 
     {/* Encomenda em contexto */}
-    {showCampaignContext&&campaigns.length>0&&<div style={{display:'flex',alignItems:'center',gap:7,padding:'8px 11px',borderRadius:11,background:'rgba(var(--ink),calc(0.022*var(--ink-a)))',border:'1px solid rgba(var(--ink),calc(0.05*var(--ink-a)))'}}>
-      <Store size={13} style={{color:'rgba(var(--ink),calc(0.28*var(--ink-a)))',flexShrink:0}}/>
-      <span style={{fontSize:10,color:'rgba(var(--ink),calc(0.28*var(--ink-a)))',flexShrink:0}}>Encomenda</span>
-      <select value={selectedCampaign?.id||''} onChange={e=>{const c=campaigns.find(x=>String(x.id)===e.target.value);setSelectedCampaign(c||null);}} style={{flex:1,minWidth:0,padding:'4px 6px',borderRadius:8,border:'1px solid rgba(var(--ink),calc(0.07*var(--ink-a)))',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:'var(--text-strong)',fontSize:11,fontWeight:700,fontFamily:"'Outfit',sans-serif",outline:'none',cursor:'pointer'}}>
+    {showCampaignContext&&campaigns.length>0&&<div style={{display:'flex',alignItems:'center',gap:7,padding:'8px 11px',borderRadius:'var(--r-control)',background:'var(--fill-soft)',border:'1px solid var(--line-soft)'}}>
+      <Store size={13} style={{color:'var(--text-faint)',flexShrink:0}}/>
+      <span style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',flexShrink:0}}>Encomenda</span>
+      <select value={selectedCampaign?.id||''} onChange={e=>{const c=campaigns.find(x=>String(x.id)===e.target.value);setSelectedCampaign(c||null);}} style={{flex:1,minWidth:0,padding:'4px 6px',borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:'var(--text-strong)',fontSize:'var(--fs-2xs)',fontWeight:700,fontFamily:"'Outfit',sans-serif",outline:'none',cursor:'pointer'}}>
         <option value="">Nenhuma (só individuais)</option>
         {activeCampaigns.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
         {finalizedCampaigns.length>0&&<optgroup label="Finalizadas">{finalizedCampaigns.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>}
       </select>
-      {selectedCampaign&&<Tag color={isFinalized?'rgba(var(--ink),calc(0.3*var(--ink-a)))':'var(--ok)'} style={{fontSize:9,flexShrink:0}}>{CAMPAIGN_STATUS_LABELS[selectedCampaign.status]||selectedCampaign.status}</Tag>}
+      {selectedCampaign&&<Tag color={isFinalized?'rgba(var(--ink),calc(0.3*var(--ink-a)))':'var(--ok)'} style={{fontSize:'var(--fs-2xs)',flexShrink:0}}>{CAMPAIGN_STATUS_LABELS[selectedCampaign.status]||selectedCampaign.status}</Tag>}
     </div>}
 
     {/* Painel de notificações */}
@@ -3475,12 +3475,12 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         <div style={{display:'flex',alignItems:'center',gap:7}}>
           <Bell size={15} style={{color:theme.primary}}/>
           <span style={{fontSize:14,fontFamily:"'Cinzel',serif",fontWeight:700}}>Notificações</span>
-          {notifUnread>0&&<Tag color="var(--danger)" style={{fontSize:9}}>{notifUnread} nova(s)</Tag>}
+          {notifUnread>0&&<Tag color="var(--danger)" style={{fontSize:'var(--fs-2xs)'}}>{notifUnread} nova(s)</Tag>}
         </div>
-        <button onClick={()=>setShowNotifications(false)} style={{background:'none',border:'none',color:'rgba(var(--ink),calc(0.3*var(--ink-a)))',cursor:'pointer',padding:2}}><X size={16}/></button>
+        <button onClick={()=>setShowNotifications(false)} style={{background:'none',border:'none',color:'var(--text-faint)',cursor:'pointer',padding:2}}><X size={16}/></button>
       </div>
       <AdminNotificationFeed notifications={notifications} loading={notifLoading} unread={notifUnread} onRefresh={()=>loadNotifications()} onMarkAll={markAllNotificationsRead} onClear={clearReadNotifications} onOpenEvent={openNotification} limit={30}/>
-      <button onClick={()=>{setSection('settings');setSettingsTab('notifications');setShowNotifications(false);}} style={{marginTop:10,width:'100%',background:'rgba(var(--ink),calc(0.04*var(--ink-a)))',border:'1px solid rgba(var(--ink),calc(0.07*var(--ink-a)))',borderRadius:10,padding:'8px 0',color:'rgba(var(--ink),calc(0.45*var(--ink-a)))',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Configurar notificações do celular</button>
+      <button onClick={()=>{setSection('settings');setSettingsTab('notifications');setShowNotifications(false);}} style={{marginTop:10,width:'100%',background:'var(--fill-soft)',border:'1px solid var(--line)',borderRadius:'var(--r-control)',padding:'8px 0',color:'var(--text-dim)',fontSize:'var(--fs-2xs)',fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Configurar notificações do celular</button>
     </Card>}
 
     {/* Conteúdo da seção */}
@@ -3548,7 +3548,7 @@ export default function MagicPortal(){
   const [showTutorial,setShowTutorial]=useState(false);
   const [tutStep,setTutStep]=useState(0);
   const [isFirstTimeTut,setIsFirstTimeTut]=useState(false);
-  const [soundOn,setSoundOn]=useState(true);
+  const [soundOn,setSoundOn]=useState(false); // opt-in: som em toda interação incomoda mais do que ajuda
   const [colorMode,setColorMode]=useState(readColorMode);
 
   // O tema pinta o documento inteiro (fundo do body, barra do sistema no PWA),
@@ -3994,17 +3994,32 @@ export default function MagicPortal(){
     setCartItems([]);
     if (bought.length > 0) {
       const now = new Date().toISOString();
+      const userId = session?.user?.id;
+      const novas = [];
       const patches = [];
       for (const b of bought) {
         const w = wishlist.find(x => x.card_id === b.card_id);
-        if (!w) continue; // carta comprada fora da lista: nada a marcar
-        patches.push(sbPatch('wishlist_items', 'id=eq.'+(w.id), { acquired_qty: (w.acquired_qty || 0) + b.qty, acquired_at: now }, token)
-          .catch(e => console.warn('[handleOrderDone] falha ao marcar como adquirida:', e)));
+        if (w) {
+          patches.push(sbPatch('wishlist_items', 'id=eq.'+(w.id), { acquired_qty: (w.acquired_qty || 0) + b.qty, acquired_at: now }, token)
+            .catch(e => console.warn('[handleOrderDone] falha ao marcar como adquirida:', e)));
+        } else if (userId) {
+          // Comprada direto, sem passar pela lista: entra já quitada, para o
+          // catálogo conseguir avisar "você já comprou esta" nas próximas vezes.
+          const item = cartItems.find(c => c.card_id === b.card_id);
+          novas.push({ user_id: userId, card_id: b.card_id, quantity: b.qty, acquired_qty: b.qty, acquired_at: now, _meta: item });
+        }
       }
-      setWishlist(prev => prev.map(w => {
-        const hit = bought.find(b => b.card_id === w.card_id);
-        return hit ? { ...w, acquired_qty: (w.acquired_qty || 0) + hit.qty, acquired_at: now } : w;
-      }));
+      setWishlist(prev => {
+        const atualizadas = prev.map(w => {
+          const hit = bought.find(b => b.card_id === w.card_id);
+          return hit ? { ...w, acquired_qty: (w.acquired_qty || 0) + hit.qty, acquired_at: now } : w;
+        });
+        return [...novas.map(n => ({ ...n, card_name: n._meta?.card_name || '?', card_type: n._meta?.card_type || 'Normal', card_image_url: n._meta?.card_image_url || null })), ...atualizadas];
+      });
+      if (novas.length > 0) {
+        patches.push(sbUpsert('wishlist_items', novas.map(({ _meta, ...linha }) => linha), token, 'user_id,card_id')
+          .catch(e => console.warn('[handleOrderDone] falha ao registrar compra fora da lista:', e)));
+      }
       await Promise.all(patches);
     }
     setMyOrders(prev => [{ id: order.batchId, status: 'DRAFT', total_locked: order.isFullBonus ? 0 : order.totalPaid * order.priceBRL, payment_method: order.method === 'bonus' ? 'BONUS' : 'MERCADO_PAGO', qty_in_batch: order.totalPaid + order.totalBonus, created_at: new Date().toISOString(), cards: order.cards, order_id: orderId, campaignStatus: campaign?.status || null }, ...prev]);
@@ -4145,31 +4160,31 @@ export default function MagicPortal(){
         {page === 'home' && <>
           {/* Seletor de modo de pedido — a aba de Encomenda Coletiva só aparece quando há campanha ativa */}
           <div style={{display:'flex',gap:8,marginBottom:14}}>
-            {campaign&&<button onClick={()=>{SFX.toggle();setOrderMode('CAMPAIGN');}} style={{flex:1,padding:'12px 10px',borderRadius:14,border:'1px solid '+(orderMode==='CAMPAIGN'?wa(theme.primary,'55'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),background:orderMode==='CAMPAIGN'?wa(theme.primary,'18'):'rgba(var(--ink),calc(0.02*var(--ink-a)))',color:orderMode==='CAMPAIGN'?theme.primary:'rgba(var(--ink),calc(0.5*var(--ink-a)))',cursor:'pointer',fontFamily:"'Outfit',sans-serif",textAlign:'left'}}>
-              <div style={{fontSize:13,fontWeight:700}}>🛒 Encomenda Coletiva</div>
-              <div style={{fontSize:10,opacity:0.7,marginTop:2}}>Preço fixo por tipo</div>
+            {campaign&&<button onClick={()=>{SFX.toggle();setOrderMode('CAMPAIGN');}} style={{flex:1,padding:'12px 10px',borderRadius:'var(--r-card)',border:'1px solid '+(orderMode==='CAMPAIGN'?wa(theme.primary,'55'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),background:orderMode==='CAMPAIGN'?wa(theme.primary,'18'):'rgba(var(--ink),calc(0.02*var(--ink-a)))',color:orderMode==='CAMPAIGN'?theme.primary:'rgba(var(--ink),calc(0.5*var(--ink-a)))',cursor:'pointer',fontFamily:"'Outfit',sans-serif",textAlign:'left'}}>
+              <div style={{fontSize:'var(--fs-sm)',fontWeight:700}}>🛒 Encomenda Coletiva</div>
+              <div style={{fontSize:'var(--fs-2xs)',opacity:0.7,marginTop:2}}>Preço fixo por tipo</div>
             </button>}
-            <button onClick={()=>{SFX.toggle();setOrderMode('INDIVIDUAL');}} style={{flex:1,padding:'12px 10px',borderRadius:14,border:'1px solid '+(!campaign||orderMode==='INDIVIDUAL'?wa(theme.primary,'55'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),background:!campaign||orderMode==='INDIVIDUAL'?wa(theme.primary,'18'):'rgba(var(--ink),calc(0.02*var(--ink-a)))',color:!campaign||orderMode==='INDIVIDUAL'?theme.primary:'rgba(var(--ink),calc(0.5*var(--ink-a)))',cursor:'pointer',fontFamily:"'Outfit',sans-serif",textAlign:'left'}}>
-              <div style={{fontSize:13,fontWeight:700}}>👤 Pedido Individual</div>
-              <div style={{fontSize:10,opacity:0.7,marginTop:2}}>Desconto por volume</div>
+            <button onClick={()=>{SFX.toggle();setOrderMode('INDIVIDUAL');}} style={{flex:1,padding:'12px 10px',borderRadius:'var(--r-card)',border:'1px solid '+(!campaign||orderMode==='INDIVIDUAL'?wa(theme.primary,'55'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),background:!campaign||orderMode==='INDIVIDUAL'?wa(theme.primary,'18'):'rgba(var(--ink),calc(0.02*var(--ink-a)))',color:!campaign||orderMode==='INDIVIDUAL'?theme.primary:'rgba(var(--ink),calc(0.5*var(--ink-a)))',cursor:'pointer',fontFamily:"'Outfit',sans-serif",textAlign:'left'}}>
+              <div style={{fontSize:'var(--fs-sm)',fontWeight:700}}>👤 Pedido Individual</div>
+              <div style={{fontSize:'var(--fs-2xs)',opacity:0.7,marginTop:2}}>Desconto por volume</div>
             </button>
           </div>
           {orderMode==='INDIVIDUAL'
             ? <div style={{display:'flex',flexDirection:'column',gap:14}}>
                 <Card style={{padding:20}}>
-                  <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.28*var(--ink-a)))',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif",textAlign:'center'}}>Pedido Individual</div>
-                  <h1 style={{margin:'5px 0 10px',fontSize:24,fontFamily:"'Cinzel',serif",textAlign:'center',background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Quanto mais cartas, menor o preço</h1>
+                  <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif",textAlign:'center'}}>Pedido Individual</div>
+                  <h1 className="mp-gradient-text" style={{margin:'5px 0 10px',fontSize:'var(--fs-xl)',fontFamily:"'Cinzel',serif",textAlign:'center',background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',color:theme.primary}}>Quanto mais cartas, menor o preço</h1>
                   <Btn full onClick={()=>nav('catalog')} sfx="nav" style={{marginTop:14}}><BookOpen size={16}/> Montar meu pedido</Btn>
                 </Card>
               </div>
             : (campaign ? <HomePage pool={pool} minCards={campaign?.min_cards||150} pricing={pricing} closeDate={campaign?.close_at} theme={theme} nav={nav} wishlistCount={wishlistCount} cartCount={cartCount} bonusAvail={bonusAvail} campaign_status={campaign?.status} /> : <div style={{display:'flex',flexDirection:'column',gap:14}}>
           <div style={{textAlign:'center',padding:'6px 0 0'}}>
-            <div style={{fontSize:11,color:'rgba(var(--ink),calc(0.28*var(--ink-a)))',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>
-            <h1 style={{margin:'5px 0 0',fontSize:26,fontFamily:"'Cinzel',serif",background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Cartas para Jogar</h1>
+            <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>
+            <h1 className="mp-gradient-text" style={{margin:'5px 0 0',fontSize:'var(--fs-2xl)',fontFamily:"'Cinzel',serif",background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',color:theme.primary}}>Cartas para Jogar</h1>
           </div>
           {appLoading
-            ? <Card style={{padding:20,textAlign:'center'}}><Spin size={24}/><div style={{marginTop:8,fontSize:13,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))'}}>Carregando campanha...</div></Card>
-            : <Card style={{padding:20,textAlign:'center'}}><div style={{fontSize:32,marginBottom:8}}>🔮</div><div style={{fontSize:14,fontWeight:700,marginBottom:4}}>Nenhuma encomenda ativa</div><div style={{fontSize:12,color:'rgba(var(--ink),calc(0.35*var(--ink-a)))'}}>Aguarde a próxima encomenda ser aberta.</div></Card>
+            ? <Card style={{padding:20,textAlign:'center'}}><Spin size={24}/><div style={{marginTop:8,fontSize:'var(--fs-sm)',color:'var(--text-faint)'}}>Carregando campanha...</div></Card>
+            : <Card style={{padding:20,textAlign:'center'}}><div style={{fontSize:32,marginBottom:8}}>🔮</div><div style={{fontSize:14,fontWeight:700,marginBottom:4}}>Nenhuma encomenda ativa</div><div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)'}}>Aguarde a próxima encomenda ser aberta.</div></Card>
           }
           <Btn full variant="secondary" onClick={()=>{loadAppData(token,session?.user?.id);}} sfx="click"><RefreshCw size={16}/> Recarregar</Btn>
         </div>)}</>}
@@ -4179,8 +4194,8 @@ export default function MagicPortal(){
         {page === 'checkout' && (orderMode==='INDIVIDUAL' || campaignCanOrder(campaign?.status)) && <CheckoutPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} campaignStatus={campaign?.status} onOrderDone={handleOrderDone} toast={toast} previousPaidBatches={previousPaidBatches} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} orderMode={orderMode} indiv={indivPricing} />}
         {page === 'checkout' && orderMode!=='INDIVIDUAL' && !campaignCanOrder(campaign?.status) && <CartPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} campaignStatus={campaign?.status} theme={theme} nav={nav} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} profile={profile} previousPaidBatches={previousPaidBatches} orderMode={orderMode} indiv={indivPricing} />}
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
-        {page === 'profile' && !profile && <div style={{padding:20,color:'var(--danger)',fontSize:12}}><div>profile: null</div><div>token: {token?'ok':'null'}</div><div>appLoading: {String(appLoading)}</div><Btn onClick={()=>loadAppData(token,session?.user?.id)} sfx="click"><RefreshCw size={14}/> Recarregar</Btn></div>}
-        {page === 'profile' && profile && (() => { try { return <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} campaign={campaign} colorMode={colorMode} onColorModeChange={setColorMode} />; } catch(e) { return <div style={{padding:20,color:'var(--danger)',fontSize:12}}>Crash: {e.message}</div>; } })()}
+        {page === 'profile' && !profile && <div style={{padding:20,color:'var(--danger)',fontSize:'var(--fs-xs)'}}><div>profile: null</div><div>token: {token?'ok':'null'}</div><div>appLoading: {String(appLoading)}</div><Btn onClick={()=>loadAppData(token,session?.user?.id)} sfx="click"><RefreshCw size={14}/> Recarregar</Btn></div>}
+        {page === 'profile' && profile && (() => { try { return <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} campaign={campaign} colorMode={colorMode} onColorModeChange={setColorMode} />; } catch(e) { return <div style={{padding:20,color:'var(--danger)',fontSize:'var(--fs-xs)'}}>Crash: {e.message}</div>; } })()}
         {page === 'admin' && <AdminPage pool={pool} pricing={pricing} campaign={campaign} theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} toast={toast} initialSection={adminTarget} />}
         {page === 'onboarding' && <OnboardingPage onComplete={handleOnboardingComplete} theme={theme} />}
       </main>

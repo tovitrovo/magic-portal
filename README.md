@@ -203,6 +203,32 @@ mesmo estado. No fim há um `DELETE` **comentado** que remove as linhas de
 `order_items` que viraram lixo — destrutivo de propósito, rode só depois de
 conferir o resultado.
 
+## 🔒 Endurecimento do banco
+
+`supabase/migrations/harden-exposed-tables.sql` fecha achados do database
+linter que **não vieram** do sistema de lista de desejos — são anteriores.
+
+| Achado | O que foi feito |
+|---|---|
+| `user_roles`, `tattoo_artists`, `cards_magic_backup` legíveis por anon | RLS ligada (sem policy = só service role) |
+| `handle_new_user` com `search_path` solto e exposta como RPC | `SET search_path` + `REVOKE EXECUTE` |
+| `set_updated_at` com `search_path` solto | `SET search_path` |
+
+Sem policy, RLS significa "só a service role acessa". Antes de ligar,
+conferi que `user_roles` e `tattoo_artists` estavam **vazias** e que
+`cards_magic_backup` (7833 linhas) não é lido por nenhum código deste
+repositório. Se algum app precisar de leitura anônima em alguma delas, o certo
+é criar a policy — não desligar a RLS.
+
+`handle_new_user` é gatilho `AFTER INSERT` em `auth.users`. Revogar `EXECUTE`
+tira ela de `/rest/v1/rpc` sem afetar o disparo: o Postgres não exige esse
+privilégio de quem faz o INSERT.
+
+**Fora do alcance**: `has_role()` e `auto_generate_quote_stub()` têm os mesmos
+problemas mas pertencem a outro produto que divide este projeto Supabase — não
+dá para corrigir sem ver o código que as chama. E a proteção contra senha
+vazada do Auth não se liga por SQL: Dashboard → Authentication → Policies.
+
 ## 🎛️ Console de Administração
 
 O painel admin é organizado em sete seções fixas. A **encomenda em contexto**
@@ -280,10 +306,9 @@ O piso de tipo é 11px, e só para rótulo de aba e badge — texto corrido come
 em `--fs-sm`. Os tokens de texto substituem os 14 níveis de opacidade que
 existiam espalhados pelo JSX; o olho lê três, não catorze.
 
-As telas do cliente já foram convertidas (137 `fontSize`, 81 cores de texto,
-20 bordas e 14 fundos). **O console admin ainda usa valores crus** — é uma
-ferramenta de trabalho, com necessidade de densidade diferente da vitrine, e
-merece uma passada própria.
+Cliente e admin estão convertidos: tipo, cor, borda, fundo, raio e
+espaçamento. Sobram 9 `rgba(var(--ink),…)` crus em ternários — corretos no
+tema, só não consolidados na hierarquia.
 
 ### Catálogo
 
