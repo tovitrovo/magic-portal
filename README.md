@@ -4,7 +4,7 @@ O **catálogo está funcional** no código. Corrigi os bugs que impediam o funci
 
 ### ✅ Correções Realizadas:
 1. **Variáveis undefined** - Adicionei campaignStatus como prop no CatalogPage
-2. **Função handleAddWant** - Verificada e funcionando corretamente
+2. **Função de adicionar à lista** - Verificada e funcionando corretamente
 3. **Busca no Supabase** - Query otimizada para buscar cartas ativas
 4. **Renderização** - Cartas aparecem com nome, tipo e botão de adicionar
 
@@ -17,21 +17,23 @@ pm install
 ode check-cards.js (criará cartas de exemplo se necessário)
 4. **Rodar projeto**: 
 pm run dev
-5. **Testar catálogo** - Deve mostrar cartas e permitir adicionar aos wants
+5. **Testar catálogo** - Deve mostrar cartas e permitir adicionar à lista de desejos
 
 ### 📋 Como Funciona:
 
 1. **Cliente acessa catálogo** → Cartas carregam do Supabase
-2. **Cliente clica no botão '+'** → Carta vai para lista de wants
-3. **Carta fica salva** no banco como order_item 
-4. **Cliente vê na aba 'Wants'** → Pode ajustar quantidades e mover pro carrinho
+2. **Cliente clica no botão '+'** → Carta entra na lista de desejos
+3. **Carta fica salva** no banco como `wishlist_item` (por usuário, não por pedido)
+4. **Cliente vê na aba 'Desejos'** → Ajusta quantidades e manda pro carrinho; a
+   carta **continua na lista**, marcada como "no carrinho". Ver
+   [Lista de desejos](#-lista-de-desejos).
 
 O sistema já está **pronto para uso**! 🎉
 
 ### ✅ Funcionalidades Implementadas
 - ✅ Catálogo de cartas MTG do Supabase
 - ✅ Busca e filtros funcionais  
-- ✅ Adicionar cartas aos wants
+- ✅ Lista de desejos que sobrevive à compra
 - ✅ Persistência no banco de dados
 - ✅ Interface responsiva
 - ✅ **Painel Admin Completo:**
@@ -56,7 +58,7 @@ ode check-cards.js para verificar/popular dados de teste
 - [ ] Rodar 
 pm run dev e testar catálogo localmente
 - [ ] Verificar se cartas aparecem corretamente
-- [ ] Testar funcionalidade de adicionar aos wants
+- [ ] Testar funcionalidade de adicionar à lista de desejos
 - [ ] Validar persistência no banco de dados
 
 ### 🚀 Funcionalidades a Implementar
@@ -90,6 +92,7 @@ O arquivo `supabase/schema.sql` contém **todo** o schema necessário para o fun
 | `order_batches` | Lotes de pagamento dentro de um pedido |
 | `order_items` | Itens (cartas) dentro de um batch |
 | `bonus_grants` | Bônus concedidos por campanha |
+| `wishlist_items` | Lista de desejos (por usuário, independente de pedido) |
 
 ### Foreign keys (obrigatórias para o painel admin):
 
@@ -157,6 +160,75 @@ O Pedido Individual (modo e-commerce, sem campanha) tem um pipeline de status si
 - **API**: `/api/admin-individual-orders` lista os pedidos; `/api/admin-update-fulfillment` avança o status de um ou mais lotes.
 - **Cliente**: em "Meus Pedidos", pedidos Individuais pagos mostram uma barra de progresso com o status atual.
 
+## 💚 Lista de desejos
+
+A lista de desejos é **do usuário**, não do pedido: ela atravessa campanhas e
+sobrevive à compra. Isso a separa do carrinho, que é do pedido e se esvazia.
+
+| | Lista de desejos | Carrinho |
+|---|---|---|
+| Tabela | `wishlist_items` | `order_items` (`in_cart = true`, `batch_id IS NULL`) |
+| Escopo | por usuário | por pedido/campanha |
+| Precisa de encomenda aberta? | não | sim |
+| Comprar… | marca `acquired_qty` | esvazia |
+
+### As duas regras que definem o modelo
+
+1. **Mandar para o carrinho copia, não move.** A carta continua na lista,
+   marcada como "no carrinho".
+2. **Comprar não apaga o desejo** — incrementa `acquired_qty` e carimba
+   `acquired_at`. Querer uma carta e já tê-la comprado são estados, não opostos.
+
+Antes, os desejos eram linhas de `order_items` com `batch_id IS NULL AND
+in_cart = false`. Mover para o carrinho tirava a carta da lista e comprar a
+fazia sumir de vez, então a lista só guardava o que a pessoa **ainda não tinha
+tocado** — uma caixa de entrada, não uma lista de desejos.
+`test/wishlist.test.js` trava as duas regras acima.
+
+A página mostra três estados por carta — pendente, no carrinho e já comprada —
+e o catálogo usa a mesma informação nos selos, então dá para ver do catálogo
+que uma carta já foi comprada antes de pedir de novo.
+
+### Migração
+
+Banco novo: `supabase/schema.sql` já inclui a tabela. Banco existente: rode
+`supabase/migrations/wishlist.sql` no SQL Editor. Ele cria a tabela com RLS e
+faz dois backfills a partir de `order_items` — os desejos pendentes (incluindo
+os que estavam no carrinho) e o histórico do que já foi comprado, para o selo
+"já comprei" nascer com dados.
+
+O script é idempotente: os backfills recalculam a partir de `order_items`
+(a fonte da verdade) em vez de somar ao valor atual, então reexecutar chega no
+mesmo estado. No fim há um `DELETE` **comentado** que remove as linhas de
+`order_items` que viraram lixo — destrutivo de propósito, rode só depois de
+conferir o resultado.
+
+## 🔒 Endurecimento do banco
+
+`supabase/migrations/harden-exposed-tables.sql` fecha achados do database
+linter que **não vieram** do sistema de lista de desejos — são anteriores.
+
+| Achado | O que foi feito |
+|---|---|
+| `user_roles`, `tattoo_artists`, `cards_magic_backup` legíveis por anon | RLS ligada (sem policy = só service role) |
+| `handle_new_user` com `search_path` solto e exposta como RPC | `SET search_path` + `REVOKE EXECUTE` |
+| `set_updated_at` com `search_path` solto | `SET search_path` |
+
+Sem policy, RLS significa "só a service role acessa". Antes de ligar,
+conferi que `user_roles` e `tattoo_artists` estavam **vazias** e que
+`cards_magic_backup` (7833 linhas) não é lido por nenhum código deste
+repositório. Se algum app precisar de leitura anônima em alguma delas, o certo
+é criar a policy — não desligar a RLS.
+
+`handle_new_user` é gatilho `AFTER INSERT` em `auth.users`. Revogar `EXECUTE`
+tira ela de `/rest/v1/rpc` sem afetar o disparo: o Postgres não exige esse
+privilégio de quem faz o INSERT.
+
+**Fora do alcance**: `has_role()` e `auto_generate_quote_stub()` têm os mesmos
+problemas mas pertencem a outro produto que divide este projeto Supabase — não
+dá para corrigir sem ver o código que as chama. E a proteção contra senha
+vazada do Auth não se liga por SQL: Dashboard → Authentication → Policies.
+
 ## 🎛️ Console de Administração
 
 O painel admin é organizado em sete seções fixas. A **encomenda em contexto**
@@ -212,7 +284,93 @@ A paleta de guilda (`GT`/`GT_LIGHT`) continua em hex justamente porque
 
 `test/theme.test.js` trava esse contrato: os dois modos precisam definir os
 mesmos tokens, e um `rgba(255,255,255,…)` novo no JSX quebra o teste antes de
-quebrar o modo claro silenciosamente.
+quebrar o modo claro silenciosamente. O mesmo teste também barra **hex escuro
+cravado** (foi assim que a folha de detalhe da carta e a barra sticky do admin
+ficaram pretas sobre o creme) — superfície escura sempre vira token.
+
+## 🎨 Tokens de design
+
+Além das cores, `src/theme.css` define tokens independentes de tema, num
+bloco `:root` próprio. Código novo deve consumir estes em vez de cravar
+números:
+
+| Papel | Tokens |
+|---|---|
+| Tipo | `--fs-2xs` 11 · `--fs-xs` 12 · `--fs-sm` 13 · `--fs-md` 15 · `--fs-lg` 18 · `--fs-xl` 22 · `--fs-2xl` 28 |
+| Texto | `--text-strong` · `--text` · `--text-muted` · `--text-dim` · `--text-faint` |
+| Traço/fundo neutro | `--line` · `--line-soft` · `--fill` · `--fill-soft` |
+| Raio | `--r-control` 10 · `--r-card` 16 · `--r-sheet` 24 · `--r-pill` |
+| Espaço | `--sp-1` 4 → `--sp-6` 32 |
+
+O piso de tipo é 11px, e só para rótulo de aba e badge — texto corrido começa
+em `--fs-sm`. Os tokens de texto substituem os 14 níveis de opacidade que
+existiam espalhados pelo JSX; o olho lê três, não catorze.
+
+Cliente e admin estão convertidos: tipo, cor, borda, fundo, raio e
+espaçamento. Sobram 9 `rgba(var(--ink),…)` crus em ternários — corretos no
+tema, só não consolidados na hierarquia.
+
+### Catálogo
+
+Busca e filtro trocam a grade por *skeletons* de mesma altura, em vez do
+spinner que substituía tudo e fazia a página saltar a cada tecla. A paginação
+anterior/próxima virou **carregar mais**, que acumula os resultados e mostra
+"N de M cartas".
+
+### Mínimo do pedido
+
+O mínimo de cartas aparece como barra de progresso no carrinho enquanto a
+pessoa monta o pedido, com `role="progressbar"` — antes só era descoberto no
+checkout, depois de tudo escolhido.
+
+### Modo de pedido
+
+Coletiva e Individual mudam preço, mínimo e se o bônus vale. Fora da Home o
+modo era invisível, então dava para montar um pedido inteiro no modo errado.
+Agora há um chip no cabeçalho em catálogo, lista, carrinho e checkout; tocar
+nele leva à Home, onde se troca.
+
+### Tinta sobre a cor da guilda
+
+`--gp` (cor primária da guilda do usuário) pinta superfícies sólidas, e a cor
+do texto por cima **não pode ser fixa**: em Orzhov, `--gp` é um creme
+(`#f0e6b2`) e branco nele dá 1.2:1.
+
+`src/guildTheme.js` resolve isso — `inkOn(cor)` devolve, entre branco e uma
+tinta escura, a de maior contraste. O shell publica o resultado como
+`--gp-ink`, e todo preenchimento sólido consome essa variável:
+
+```jsx
+{ background: 'var(--gp)', color: 'var(--gp-ink)' }
+```
+
+`test/guildTheme.test.js` verifica que as 10 guildas × 2 modos alcançam 4.5:1
+(WCAG AA para texto normal). O mesmo vale para `--ok-ink`, a tinta sobre o
+verde de sucesso, que inverte junto com o tema.
+
+## ♿ Acessibilidade
+
+`src/ui.css` é a camada de estado. Ela existe porque estilo inline não
+consegue expressar `:hover`, `:focus-visible` nem `@media` — antes dela o
+portal não tinha nenhum foco visível e a navegação por teclado era invisível.
+As regras são genéricas de propósito (elemento, não classe) para cobrir os
+~60 botões do app sem tocar em cada um.
+
+Convenções para código novo:
+
+- **Botão só de ícone precisa de `aria-label`.** `title` não substitui.
+- **Alvo de toque de 44px**: a classe `.mp-tap` já entrega isso.
+- **Modal** usa `useDialogA11y(onClose)` — o hook cuida de Escape, trap de
+  Tab, trava do scroll de fundo e devolução do foco. Some com `role="dialog"`
+  + `aria-modal="true"` + `aria-labelledby`.
+- **Toggle** é `role="switch"` + `aria-checked`, não um `<button>` mudo.
+- **Aba ativa** marca `aria-current="page"`; cor sozinha não comunica estado.
+- O `<meta name="viewport">` **não** pode voltar a ter `maximum-scale` ou
+  `user-scalable=no` — travar o zoom reprova a WCAG 1.4.4.
+
+Quem pede `prefers-reduced-motion` recebe o app parado (mana flutuante, pulso
+do tutorial, carta voando); só o spinner continua girando, porque sem giro ele
+vira um ícone sem significado.
 
 ## 🔔 Notificações (Web Push + PWA)
 

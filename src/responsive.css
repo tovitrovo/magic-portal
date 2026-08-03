@@ -63,8 +63,10 @@
   .portal-sidebar-brand { display: flex; align-items: center; gap: 11px; padding: 0 8px 27px; }
   .portal-sidebar-mark {
     width: 42px; height: 42px; display: grid; place-items: center; flex: 0 0 auto;
-    border-radius: 13px; color: #fff; font: 800 12px 'Cinzel', serif; letter-spacing: .8px;
-    background: linear-gradient(135deg,var(--gp),var(--gs)); box-shadow: 0 8px 24px var(--gg);
+    border-radius: 13px; color: var(--gp-ink); font: 800 12px 'Cinzel', serif; letter-spacing: .8px;
+    /* Sólido, não gradiente: inkOn() garante contraste contra UMA cor, e sobre
+       o degradê --gp → --gs havia guilda sem tinta legível nas duas pontas. */
+    background: var(--gp); box-shadow: 0 8px 24px var(--gg);
   }
   .portal-sidebar-brand strong { display:block; font: 700 13px 'Cinzel',serif; }
   .portal-sidebar-brand span, .portal-sidebar-footer span { display:block; margin-top:3px; color:rgba(var(--ink),calc(.3*var(--ink-a))); font-size:10px; }
@@ -76,7 +78,7 @@
   }
   .portal-sidebar-nav button:hover { color:var(--text-strong); background:rgba(var(--ink),calc(.045*var(--ink-a))); }
   .portal-sidebar-nav button.is-active { color:var(--gp); border-color:color-mix(in srgb,var(--gp) 24%,transparent); background:color-mix(in srgb,var(--gp) 11%,transparent); }
-  .portal-sidebar-nav button b { margin-left:auto; min-width:20px; padding:2px 6px; border-radius:20px; color:#fff; background:var(--gp); font-size:10px; text-align:center; }
+  .portal-sidebar-nav button b { margin-left:auto; min-width:20px; padding:2px 6px; border-radius:20px; color:var(--gp-ink); background:var(--gp); font-size:11px; text-align:center; }
   .portal-sidebar-footer { margin-top:auto; display:flex; gap:9px; align-items:center; min-width:0; padding:15px 8px 0; border-top:1px solid rgba(var(--ink),calc(.055*var(--ink-a))); }
   .portal-sidebar-footer > div:last-child { min-width:0; }
   .portal-sidebar-footer strong { display:block; overflow:hidden; color:rgba(var(--ink),calc(.68*var(--ink-a))); font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
@@ -112,9 +114,18 @@
   .portal-profile > button { min-height:48px; }
 
   .portal-admin > div[style*="grid-template-columns"] { grid-template-columns:repeat(4,minmax(0,1fr)) !important; }
-  .portal-admin > div[style*="gap: 3px"], .portal-admin > div[style*="gap:3px"] { position:sticky; top:76px; z-index:8; padding:6px; border:1px solid rgba(var(--ink),calc(.055*var(--ink-a))); border-radius:14px; background:rgba(8,8,15,.88); backdrop-filter:blur(18px); }
+  /* `background` era rgba(8,8,15,.88) cravado — a barra ficava preta sobre o
+     creme do modo claro. `--chrome-bg` já é a superfície de cromo dos dois temas. */
+  .portal-admin > div[style*="gap: 3px"], .portal-admin > div[style*="gap:3px"] { position:sticky; top:76px; z-index:8; padding:6px; border:1px solid rgba(var(--ink),calc(.055*var(--ink-a))); border-radius:14px; background:var(--chrome-bg); backdrop-filter:blur(18px); }
 
-  .portal-shell [role="dialog"], .portal-modal { left:calc(50% + 124px) !important; max-width:min(620px,calc(100vw - 320px)) !important; }
+  /* O diálogo é overlay de tela cheia: mexer no `left` dele encolhia a
+     própria camada, deixando a maior parte da tela sem scrim (e a folha
+     saindo pela direita). O overlay fica intacto e o desvio da sidebar vem
+     de `padding-left` — o scrim, sendo `position:absolute; inset:0`, resolve
+     contra a padding box e continua cobrindo a viewport inteira, enquanto o
+     `justify-content:center` passa a centralizar na área de conteúdo. */
+  .portal-shell [role="dialog"] { padding-left:248px; }
+  .portal-modal { max-width:min(620px,calc(100vw - 320px)) !important; }
 }
 
 @media (min-width: 1280px) {

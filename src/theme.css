@@ -43,6 +43,7 @@
   /* Acentos semânticos */
   --ok: #2ee59d;
   --ok-rgb: 46, 229, 157;
+  --ok-ink: #04120c;
   --ok-2: #00d4a0;
   --gold: #c9a96e;
   --gold-rgb: 201, 169, 110;
@@ -97,6 +98,7 @@
   /* Versões escurecidas para manter contraste sobre o creme */
   --ok: #0d8a5c;
   --ok-rgb: 13, 138, 92;
+  --ok-ink: #ffffff;
   --ok-2: #0a7a63;
   --gold: #8a6a26;
   --gold-rgb: 138, 106, 38;
@@ -119,6 +121,67 @@
   --tc-purple: #8b32c9;
   --tc-sky: #0a6f9e;
   --tc-foil: #b32c3c;
+}
+
+/* ══════════════════════════════════════════════════════
+   TOKENS DE DESIGN — independentes de tema
+   ══════════════════════════════════════════════════════
+
+   Estes não mudam entre claro e escuro, então ficam fora dos dois blocos
+   acima (o `theme.test.js` exige que aqueles dois tenham exatamente o mesmo
+   conjunto de chaves — só cor entra lá).
+
+   Os de texto abaixo SÃO derivados: apontam para `--ink`/`--ink-a`, que o
+   tema troca. Como `var()` resolve na hora do uso e não da definição, uma
+   definição só serve os dois modos. */
+:root {
+  /* ── Escala de tipo ──────────────────────────────────
+     Antes o app usava quase todo inteiro entre 9 e 26px. Seis degraus dão
+     hierarquia legível; o piso de 11px é só para rótulo de aba e badge —
+     texto corrido começa em 13. */
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-lg: 18px;
+  --fs-xl: 22px;
+  --fs-2xl: 28px;
+
+  /* ── Hierarquia de texto ─────────────────────────────
+     Substitui os 14 níveis de opacidade que existiam (0.2, 0.22, 0.25, 0.28,
+     0.3, 0.33, 0.35, 0.4, 0.44, 0.5, 0.55, 0.6, 0.62, 0.68) — o olho lê
+     três, não catorze. `--text` e `--text-strong` vêm do bloco do tema. */
+  --text-muted: rgba(var(--ink), calc(0.62 * var(--ink-a)));
+  --text-dim: rgba(var(--ink), calc(0.44 * var(--ink-a)));
+  --text-faint: rgba(var(--ink), calc(0.32 * var(--ink-a)));
+
+  /* ── Traços e superfícies neutras ───────────────────── */
+  --line: rgba(var(--ink), calc(0.08 * var(--ink-a)));
+  --line-soft: rgba(var(--ink), calc(0.05 * var(--ink-a)));
+  --fill-soft: rgba(var(--ink), calc(0.04 * var(--ink-a)));
+  --fill: rgba(var(--ink), calc(0.07 * var(--ink-a)));
+
+  /* ── Raio ────────────────────────────────────────────
+     Eram nove valores entre 9 e 24; viram quatro papéis. */
+  --r-control: 10px;
+  --r-card: 16px;
+  --r-sheet: 24px;
+  --r-pill: 999px;
+
+  /* ── Espaçamento (múltiplos de 4) ──────────────────── */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+
+  /* ── Foco ────────────────────────────────────────────
+     Só a cor: o anel em si é `outline` no ui.css, e não box-shadow, porque
+     estilo inline já ocupa box-shadow em vários botões e ganharia da regra.
+     O fallback cobre a tela de login, que renderiza fora do shell que define
+     `--gp`. */
+  --focus-color: var(--gp, var(--info));
 }
 
 /* O tema pinta a página inteira, não só o app. */

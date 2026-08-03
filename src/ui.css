@@ -1,0 +1,122 @@
+/* ══════════════════════════════════════════════════════
+   CAMADA DE ESTADO — foco, hover e movimento
+   ══════════════════════════════════════════════════════
+
+   O app é quase todo estilo inline, e estilo inline não consegue expressar
+   `:hover`, `:focus-visible` nem `@media` — é por isso que, antes deste
+   arquivo, o portal inteiro não tinha um único estado de foco visível e a
+   navegação por teclado era invisível.
+
+   As regras aqui são propositalmente genéricas (elemento, não classe) para
+   pegar os ~60 botões do app sem precisar tocar em cada um. Onde o estilo
+   inline já ocupa a propriedade (`box-shadow` no botão primário, `outline`
+   nos campos), o `!important` é necessário — é a única forma de a camada de
+   estado ganhar da declaração inline. */
+
+/* ── Foco ────────────────────────────────────────────
+   Só `:focus-visible`: quem clica com o mouse não vê anel, quem navega por
+   teclado vê. `--gp` é a cor da guilda; o fallback cobre a tela de login,
+   que renderiza fora do shell que define a variável. */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-color) !important;
+  outline-offset: 2px !important;
+  border-radius: var(--r-control);
+}
+
+/* Campos já sinalizam foco pela borda; o anel externo reforça sem competir. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline-offset: 1px !important;
+}
+
+/* ── Hover ───────────────────────────────────────────
+   `hover: hover` evita que o estado gruda no toque, onde não existe hover
+   real e o navegador o simula até o próximo toque. */
+@media (hover: hover) and (pointer: fine) {
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']) {
+    transition: filter 0.15s ease, opacity 0.15s ease, background-color 0.15s ease;
+  }
+
+  button:not(:disabled):hover {
+    filter: brightness(1.12);
+  }
+
+  /* Cards clicáveis sobem um fio — o cursor já indica, isto confirma. */
+  .portal-catalog-grid > *:hover,
+  .portal-card-grid > [style*='cursor: pointer']:hover {
+    filter: brightness(1.06);
+  }
+}
+
+/* ── Alvo de toque ───────────────────────────────────
+   44×44 é o mínimo da WCAG 2.5.8 / HIG. Vale para os botões de ícone do
+   cabeçalho e das listas, que eram de 14–20px. */
+.mp-tap {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-grid;
+  place-items: center;
+}
+
+/* ── Texto só para leitor de tela ──────────────────── */
+.mp-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Movimento ───────────────────────────────────────
+   O app anima mana flutuante, pulso do tutorial, carta voando e spinners.
+   Quem pediu menos movimento ao sistema recebe o app parado — menos o
+   spinner, que sem giro vira um ícone estático sem significado. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  [style*='animation: spin'],
+  [style*='animation:spin'] {
+    animation-duration: 1s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
+/* ── Skeleton ────────────────────────────────────────
+   Usado enquanto o catálogo busca. A grade continua montada e com a mesma
+   altura, então a página não salta a cada tecla digitada na busca. */
+@keyframes skPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* ── Título com gradiente ────────────────────────────
+   O recorte do gradiente no texto exige `-webkit-text-fill-color:
+   transparent`, e é aí que mora o risco: se o recorte não pintar, o título
+   fica invisível — não degradado, invisível. Por isso a transparência só é
+   aplicada dentro do @supports, e o `color` do estilo inline (a cor da
+   guilda) é o fallback sólido de quem não suporta. */
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .mp-gradient-text {
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+/* Sem o recorte, o gradiente de fundo atrás do texto atrapalharia a leitura. */
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  .mp-gradient-text { background: none !important; }
+}
