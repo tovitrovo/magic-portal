@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pickTier, floorForType, pricePerCard, quoteCart } from '../shared/individualPricing.js';
+import { pickTier, floorForType, nextTierAbove, pricePerCard, quoteCart } from '../shared/individualPricing.js';
 
 const TIERS = [
   { min_qty: 1, max_qty: 10, usd_per_card: 2.50 },
@@ -61,3 +61,20 @@ test('quoteCart soma a quantidade total e precifica tudo na mesma faixa', () => 
 });
 
 function round(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+
+test("nextTierAbove: a próxima faixa alcançável e quantas cartas faltam", () => {
+  const tiers = [
+    { min_qty: 60, max_qty: null, usd_per_card: 1.35 },
+    { min_qty: 15, max_qty: 29, usd_per_card: 1.9 },
+    { min_qty: 30, max_qty: 59, usd_per_card: 1.6 },
+  ];
+  // Aceita tiers fora de ordem — a home passa o que vem da API.
+  assert.deepEqual(nextTierAbove(22, tiers), { tier: tiers[2], missing: 8 });
+  // Exatamente no piso da faixa: a próxima é a de cima, não a atual.
+  assert.deepEqual(nextTierAbove(30, tiers), { tier: tiers[0], missing: 30 });
+  // Carrinho vazio ainda mira a primeira faixa.
+  assert.deepEqual(nextTierAbove(0, tiers), { tier: tiers[1], missing: 15 });
+  // Já na melhor faixa: nada a alcançar.
+  assert.deepEqual(nextTierAbove(200, tiers), { tier: null, missing: 0 });
+  assert.deepEqual(nextTierAbove(10, []), { tier: null, missing: 0 });
+});

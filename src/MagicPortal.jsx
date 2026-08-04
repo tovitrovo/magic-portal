@@ -3,7 +3,7 @@ import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, Chev
 import { buildCatalogQueries, buildLatestCardQuery, RECENT_CARDS_FILTER } from './catalogQuery';
 import { buildShippingGroups, SHIPPING_SERVICE_UNKNOWN } from '../shared/shipping-groups';
 import { buildCardsFromCsv, parseCardLinkList } from '../shared/cardImport';
-import { pricePerCard as indivPricePerCard } from '../shared/individualPricing';
+import { nextTierAbove, pricePerCard as indivPricePerCard } from '../shared/individualPricing';
 import { canAddCardsToOrder, paidQtyOf, shippingAnchorOf } from '../shared/individualAddCards';
 import { DEFAULT_WHATSAPP_MESSAGES, WHATSAPP_AUDIENCES, buildShipmentWhatsAppUrl, buildWhatsAppUrl, getWhatsAppRecipients } from './whatsappCommunication';
 import { PUSH_NEEDS_INSTALL, disablePush, enablePush, getPushState, reportAccess, sendTestPush, updatePushPrefs } from './push';
@@ -676,6 +676,194 @@ function HomePage({pool,minCards,pricing,closeDate,theme,nav,wishlistCount,cartC
 
     <Btn full onClick={()=>{SFX.nav();nav('catalog');}} sfx="nav"><BookOpen size={18}/> Ver catálogo</Btn>
     {cartCount>0&&<Btn full variant="secondary" onClick={()=>nav('cart')} sfx="nav"><ShoppingCart size={18}/> Carrinho ({cartCount})</Btn>}
+  </div>);
+}
+
+// ══════════════════════════════════════════════════════
+// HOME — PEDIDO INDIVIDUAL
+// ══════════════════════════════════════════════════════
+// A home coletiva prova o que promete: meta, prazo e tabela de preços. A
+// individual prometia "quanto mais cartas, menor o preço" e não mostrava um
+// número sequer — a escada de desconto já chegava carregada em `indiv` e
+// morria na memória. O cliente descobria preço, mínimo e economia só depois
+// de garimpar o catálogo e montar o carrinho, e o mínimo ainda aparecia como
+// bloqueio no checkout, com o pedido pronto.
+//
+// Tudo aqui sai de dado que o app já tinha em mãos: faixas de preço, carrinho,
+// lista de desejos e os lotes de `myOrders`.
+function IndividualHomePage({indiv,theme,nav,cartItems=[],wishlistCount=0,myOrders=[],openIndividualOrders={},addTo=null,onCancelAdd,onAddCards}){
+  const tiers=useMemo(()=>[...(indiv?.tiers||[])].sort((a,b)=>Number(a.min_qty)-Number(b.min_qty)),[indiv]);
+  const hasTiers=tiers.length>0;
+  const minCards=Number(indiv?.pricing?.min_cards)||MIN_ORDER_CARDS;
+  const isAdding=!!addTo;
+  const cartQty=cartItems.reduce((s,c)=>s+(Number(c.quantity)||0),0);
+  // Cartas somadas a um pedido pago viajam com as antigas, então a faixa sai
+  // do volume somado — a mesma conta do carrinho e do checkout.
+  const tierQty=cartQty+(isAdding?(Number(addTo.qtyPaid)||0):0);
+
+  // A escada é cotada pela carta Normal. Holo e Foil andam na mesma faixa e só
+  // mudam no piso, que vai na nota de rodapé: uma matriz de três colunas não
+  // cabe no celular sem virar ruído.
+  const priceFor=useCallback((qty,type='Normal')=>indivPricePerCard({qty,type,tiers,pricing:indiv?.pricing,fxRate:indiv?.fx?.rate}),[tiers,indiv]);
+
+  const cheapest=hasTiers?priceFor(Number(tiers[tiers.length-1].min_qty)||0):0;
+  const currentUnit=hasTiers?priceFor(tierQty):0;
+  const {tier:nextTier,missing:missingForNext}=nextTierAbove(tierQty,tiers);
+  const nextUnit=nextTier?priceFor(Number(nextTier.min_qty)):0;
+  // O desconto da faixa nova vale para o pedido inteiro, não só para as cartas
+  // que faltam — é essa a economia que vale mostrar.
+  const nextSaving=nextTier?Math.max(0,(currentUnit-nextUnit)*Number(nextTier.min_qty)):0;
+  // Somar cartas a um pedido pago não tem mínimo: o pedido de destino já pagou o dele.
+  const missingForMin=isAdding?0:Math.max(0,minCards-cartQty);
+  const minPct=Math.min(100,minCards>0?(cartQty/minCards)*100:0);
+
+  // Pedidos individuais já pagos, agrupados por pedido — `myOrders` é uma
+  // lista de LOTES e um pedido pode ter vários.
+  const indivOrders=useMemo(()=>{
+    const byOrder=new Map();
+    (myOrders||[]).forEach(b=>{
+      if(b.orderKind!=='INDIVIDUAL'||!b.order_id)return;
+      const k=String(b.order_id);
+      if(!byOrder.has(k))byOrder.set(k,[]);
+      byOrder.get(k).push(b);
+    });
+    const list=[];
+    byOrder.forEach((batches,key)=>{
+      const paid=batches.filter(b=>isPaidBatch(b.status));
+      const anchor=shippingAnchorOf(batches);
+      if(!paid.length||!anchor)return; // nada pago ainda: não há o que acompanhar
+      // O pedido inteiro viaja junto, então o estágio honesto é o do lote menos adiantado.
+      const slowest=paid.reduce((a,b)=>indivStageIndex(b.fulfillment_status)<indivStageIndex(a.fulfillment_status)?b:a,paid[0]);
+      list.push({key,anchor,slowest,qty:paidQtyOf(batches),open:openIndividualOrders[key]||null,at:Date.parse(anchor.created_at||'')||0});
+    });
+    return list.sort((a,b)=>b.at-a.at);
+  },[myOrders,openIndividualOrders]);
+
+  const latest=indivOrders[0]||null;
+  const latestStage=latest?INDIV_FULFILLMENT_STAGES[indivStageIndex(latest.slowest.fulfillment_status)]:null;
+  const tracking=latest?(latest.anchor.mandabem_rastreamento||latest.anchor.mandabem_etiqueta):null;
+  // O pedido que aceita carona pode não ser o mais recente — quem paga o frete
+  // de novo por engano é o cliente, então ele vem destacado de qualquer jeito.
+  const addable=indivOrders.find(o=>o.open&&(!addTo||o.key!==addTo.orderId))||null;
+
+  return(<div className="portal-page portal-home" style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)'}}>
+    {isAdding&&<AddingToOrderBanner addTo={addTo} onCancel={onCancelAdd}/>}
+
+    {/* Chamada — a promessa vem com o preço mínimo junto, senão é só slogan */}
+    <Card style={{padding:'var(--sp-4)'}}>
+      <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif",textAlign:'center'}}>{isAdding?`Adicionando ao pedido #${addTo.shortId}`:'Pedido Individual'}</div>
+      <h1 className="mp-gradient-text" style={{margin:'5px 0 8px',fontSize:'var(--fs-xl)',fontFamily:"'Cinzel',serif",textAlign:'center',backgroundImage:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',color:theme.primary}}>Quanto mais cartas, menor o preço</h1>
+      <p style={{margin:0,fontSize:'var(--fs-xs)',color:'var(--text-faint)',textAlign:'center',lineHeight:1.5}}>
+        {isAdding
+          ?`As cartas novas entram na faixa do pedido #${addTo.shortId} e viajam no mesmo frete.`
+          :hasTiers
+            ?<>O preço por carta cai conforme o total do pedido — a partir de <b style={{color:theme.primary}}>R$ {cheapest.toFixed(2).replace('.',',')}</b> por carta.</>
+            :'O preço por carta cai conforme o total do pedido.'}
+      </p>
+      {!isAdding&&<div style={{marginTop:10,fontSize:'var(--fs-2xs)',color:'var(--text-faint)',textAlign:'center'}}>Mínimo de {minCards} cartas por pedido</div>}
+    </Card>
+
+    {/* Progresso — mínimo primeiro, faixa depois: sem o mínimo não há pedido */}
+    {(cartQty>0||isAdding)&&<Card style={{padding:'var(--sp-4)'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
+        <div>
+          <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',textTransform:'uppercase',letterSpacing:1,marginBottom:3,fontWeight:600}}>Seu pedido</div>
+          <div style={{fontSize:'var(--fs-xl)',fontWeight:800,color:theme.primary}}>{tierQty} <span style={{fontSize:14,color:'var(--text-faint)',fontWeight:400}}>carta{tierQty!==1?'s':''}</span></div>
+        </div>
+        {hasTiers&&<Tag color={theme.primary} style={{fontSize:'var(--fs-2xs)'}}>R$ {currentUnit.toFixed(2).replace('.',',')}/carta</Tag>}
+      </div>
+
+      {missingForMin>0
+        ?<>
+          <div style={{background:'rgba(var(--sunk),calc(0.35*var(--sunk-a)))',borderRadius:'var(--r-pill)',height:8,overflow:'hidden',marginBottom:10}}>
+            <div style={{width:minPct+'%',height:'100%',borderRadius:'var(--r-pill)',background:'linear-gradient(90deg,var(--gold),var(--gold))',transition:'width .5s'}}/>
+          </div>
+          <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',lineHeight:1.5}}>⏳ Faltam <b style={{color:'var(--gold)'}}>{missingForMin} carta{missingForMin!==1?'s':''}</b> para o mínimo de {minCards} — só então o pedido pode ser fechado.</div>
+        </>
+        :nextTier
+          ?<>
+            <div style={{background:'rgba(var(--sunk),calc(0.35*var(--sunk-a)))',borderRadius:'var(--r-pill)',height:8,overflow:'hidden',marginBottom:10}}>
+              <div style={{width:Math.min(100,(tierQty/Number(nextTier.min_qty))*100)+'%',height:'100%',borderRadius:'var(--r-pill)',background:'linear-gradient(90deg,'+theme.primary+','+theme.secondary+')',transition:'width .5s',boxShadow:'0 0 10px '+theme.glow}}/>
+            </div>
+            <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',lineHeight:1.5}}>
+              Faltam <b style={{color:theme.primary}}>{missingForNext} carta{missingForNext!==1?'s':''}</b> para pagar <b style={{color:theme.primary}}>R$ {nextUnit.toFixed(2).replace('.',',')}</b> por carta
+              {nextSaving>0&&<> — economia de <b style={{color:'var(--ok)'}}>{brl(nextSaving)}</b> no pedido todo</>}.
+            </div>
+          </>
+          :<div style={{fontSize:'var(--fs-xs)',color:'var(--ok)',lineHeight:1.5}}>✅ Você já está na melhor faixa de preço.</div>}
+    </Card>}
+
+    {/* Escada de desconto — a prova da frase lá de cima */}
+    {hasTiers&&<Card style={{padding:'var(--sp-4)'}}>
+      <SectionTitle sub="O total do pedido define o preço de todas as cartas">Escada de desconto</SectionTitle>
+      {tiers.map(t=>{
+        const min=Number(t.min_qty)||0;
+        const max=t.max_qty==null?null:Number(t.max_qty);
+        const unit=priceFor(min);
+        const active=tierQty>0&&tierQty>=min&&(max==null||tierQty<=max);
+        return(<div key={String(min)+'-'+String(max)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 12px',borderRadius:'var(--r-control)',marginBottom:3,background:active?wa(theme.primary,'14'):'var(--fill-soft)',border:'1px solid '+(active?wa(theme.primary,'38'):'var(--line-soft)')}}>
+          <div>
+            <div style={{fontSize:'var(--fs-sm)',fontWeight:600,color:active?theme.primary:'var(--text-muted)'}}>{max==null?`${min}+ cartas`:`${min}–${max} cartas`}</div>
+            {active&&<div style={{fontSize:'var(--fs-2xs)',color:theme.primary,fontWeight:700}}>Sua faixa</div>}
+          </div>
+          <span style={{fontSize:'var(--fs-md)',fontWeight:800,color:active?theme.primary:'var(--text-muted)'}}>R$ {unit.toFixed(2).replace('.',',')}</span>
+        </div>);
+      })}
+      <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginTop:8,textAlign:'center',lineHeight:1.5}}>Preço por carta Normal. Holo e Foil seguem a mesma faixa, com piso de R$ {(Number(indiv?.pricing?.holo_floor_brl)||0).toFixed(2).replace('.',',')} e R$ {(Number(indiv?.pricing?.foil_floor_brl)||0).toFixed(2).replace('.',',')}.</div>
+    </Card>}
+
+    {/* Pedido que ainda aceita carona — frete pago uma vez só */}
+    {addable&&<Card style={{padding:'12px 16px',background:'rgba(var(--ok-rgb),0.06)',borderColor:'rgba(var(--ok-rgb),0.18)'}}>
+      <div style={{display:'flex',alignItems:'flex-start',gap:'var(--sp-2)'}}>
+        <Truck size={18} style={{color:'var(--ok)',flexShrink:0,marginTop:1}}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:'var(--fs-sm)',fontWeight:700,color:'var(--ok)'}}>O pedido #{addable.open.shortId} ainda aceita cartas</div>
+          <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginTop:2,lineHeight:1.5}}>A compra no fornecedor ainda não saiu: cartas novas pegam carona no mesmo frete e entram na faixa das {addable.qty} já pagas.</div>
+        </div>
+      </div>
+      {onAddCards&&<Btn full variant="success" onClick={()=>onAddCards(addable.anchor)} style={{marginTop:10,fontSize:'var(--fs-xs)',padding:'10px 14px'}} sfx="nav"><Plus size={14}/> Adicionar cartas a este pedido</Btn>}
+    </Card>}
+
+    {/* Andamento do último pedido — a pergunta de suporte número um */}
+    {latest&&latestStage&&<Card style={{padding:'var(--sp-4)'}} onClick={()=>nav('profile')}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'var(--sp-2)'}}>
+        <div style={{minWidth:0}}>
+          <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',textTransform:'uppercase',letterSpacing:1,fontWeight:600}}>Pedido #{shortBatchId(latest.anchor.id)}</div>
+          <div style={{fontSize:'var(--fs-sm)',fontWeight:700,marginTop:2}}>{latestStage.label}</div>
+        </div>
+        <Tag color="var(--indiv)" style={{fontSize:'var(--fs-2xs)'}}>{latest.qty} carta{latest.qty!==1?'s':''}</Tag>
+      </div>
+      {/* A trilha precisa de folga: colada no título ela vira sublinhado */}
+      <div style={{marginTop:6}}><IndivStageTrack status={latest.slowest.fulfillment_status}/></div>
+      {tracking&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--ok)',marginTop:8}}>Rastreio: {tracking}</div>}
+      <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginTop:8,display:'flex',alignItems:'center',gap:3}}>{indivOrders.length>1?`Ver os ${indivOrders.length} pedidos em Meus Pedidos`:'Ver detalhes em Meus Pedidos'} <ChevronRight size={11}/></div>
+    </Card>}
+
+    {/* Onde o cliente parou */}
+    {(wishlistCount>0||cartQty>0)&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'var(--sp-2)'}}>
+      {[{icon:ScrollText,val:wishlistCount,lbl:'Desejos',c:theme.primary,to:'wants'},{icon:ShoppingCart,val:cartQty,lbl:'Carrinho',c:'var(--gold)',to:'cart'}].map(s=>(
+        <Card key={s.lbl} onClick={()=>nav(s.to)} style={{textAlign:'center',padding:'var(--sp-3)'}}>
+          <s.icon size={16} style={{color:s.c,marginBottom:3}}/>
+          <div style={{fontSize:'var(--fs-lg)',fontWeight:800}}>{s.val}</div>
+          <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{s.lbl}</div>
+        </Card>))}
+    </div>}
+
+    {/* A ação principal acompanha o estado — "Montar meu pedido" com o carrinho cheio era um convite a recomeçar */}
+    {isAdding
+      ?<>
+        <Btn full onClick={()=>nav('catalog')} sfx="nav"><BookOpen size={16}/> Escolher mais cartas</Btn>
+        {cartQty>0&&<Btn full variant="secondary" onClick={()=>nav('cart')} sfx="nav"><ShoppingCart size={16}/> Revisar {cartQty} carta{cartQty!==1?'s':''}</Btn>}
+      </>
+      :cartQty>0
+        ?<>
+          <Btn full onClick={()=>nav('cart')} sfx="nav"><ShoppingCart size={16}/> Continuar pedido · {cartQty} carta{cartQty!==1?'s':''}</Btn>
+          <Btn full variant="secondary" onClick={()=>nav('catalog')} sfx="nav"><BookOpen size={16}/> Adicionar mais cartas</Btn>
+        </>
+        :<>
+          <Btn full onClick={()=>nav('catalog')} sfx="nav"><BookOpen size={16}/> Montar meu pedido</Btn>
+          {wishlistCount>0&&<Btn full variant="secondary" onClick={()=>nav('wants')} sfx="nav"><ScrollText size={16}/> Ver lista de desejos ({wishlistCount})</Btn>}
+        </>}
   </div>);
 }
 
@@ -4327,26 +4515,21 @@ export default function MagicPortal(){
       {/* Pages */}
       <main className="portal-content" style={{ padding: page === 'onboarding' ? '0 20px' : '14px 20px' }}>
         {page === 'home' && <>
-          {/* Seletor de modo de pedido — a aba de Encomenda Coletiva só aparece quando há campanha ativa */}
-          <div style={{display:'flex',gap:8,marginBottom:14}}>
-            {campaign&&<button onClick={()=>{SFX.toggle();setOrderMode('CAMPAIGN');setAddTo(null);}} style={{flex:1,padding:'12px 10px',borderRadius:'var(--r-card)',border:'1px solid '+(orderMode==='CAMPAIGN'?wa(theme.primary,'55'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),background:orderMode==='CAMPAIGN'?wa(theme.primary,'18'):'rgba(var(--ink),calc(0.02*var(--ink-a)))',color:orderMode==='CAMPAIGN'?theme.primary:'rgba(var(--ink),calc(0.5*var(--ink-a)))',cursor:'pointer',fontFamily:"'Outfit',sans-serif",textAlign:'left'}}>
-              <div style={{fontSize:'var(--fs-sm)',fontWeight:700}}>🛒 Encomenda Coletiva</div>
+          {/* Seletor de modo de pedido. Sem campanha ativa não há o que escolher —
+              e um seletor de uma opção só, sempre marcada, parece defeito. O modo
+              já cai sozinho para INDIVIDUAL quando não há campanha. */}
+          {campaign&&<div style={{display:'flex',gap:8,marginBottom:14}}>
+            <button onClick={()=>{SFX.toggle();setOrderMode('CAMPAIGN');setAddTo(null);}} aria-pressed={orderMode==='CAMPAIGN'} style={{flex:1,padding:'12px 10px',borderRadius:'var(--r-card)',border:'1px solid '+(orderMode==='CAMPAIGN'?wa(theme.primary,'55'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),background:orderMode==='CAMPAIGN'?wa(theme.primary,'18'):'rgba(var(--ink),calc(0.02*var(--ink-a)))',color:orderMode==='CAMPAIGN'?theme.primary:'rgba(var(--ink),calc(0.5*var(--ink-a)))',cursor:'pointer',fontFamily:"'Outfit',sans-serif",textAlign:'left'}}>
+              <div style={{fontSize:'var(--fs-sm)',fontWeight:700,display:'flex',alignItems:'center',gap:5}}><Store size={14}/> Encomenda Coletiva</div>
               <div style={{fontSize:'var(--fs-2xs)',opacity:0.7,marginTop:2}}>Preço fixo por tipo</div>
-            </button>}
-            <button onClick={()=>{SFX.toggle();setOrderMode('INDIVIDUAL');}} style={{flex:1,padding:'12px 10px',borderRadius:'var(--r-card)',border:'1px solid '+(!campaign||orderMode==='INDIVIDUAL'?wa(theme.primary,'55'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),background:!campaign||orderMode==='INDIVIDUAL'?wa(theme.primary,'18'):'rgba(var(--ink),calc(0.02*var(--ink-a)))',color:!campaign||orderMode==='INDIVIDUAL'?theme.primary:'rgba(var(--ink),calc(0.5*var(--ink-a)))',cursor:'pointer',fontFamily:"'Outfit',sans-serif",textAlign:'left'}}>
-              <div style={{fontSize:'var(--fs-sm)',fontWeight:700}}>👤 Pedido Individual</div>
+            </button>
+            <button onClick={()=>{SFX.toggle();setOrderMode('INDIVIDUAL');}} aria-pressed={orderMode==='INDIVIDUAL'} style={{flex:1,padding:'12px 10px',borderRadius:'var(--r-card)',border:'1px solid '+(orderMode==='INDIVIDUAL'?wa(theme.primary,'55'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),background:orderMode==='INDIVIDUAL'?wa(theme.primary,'18'):'rgba(var(--ink),calc(0.02*var(--ink-a)))',color:orderMode==='INDIVIDUAL'?theme.primary:'rgba(var(--ink),calc(0.5*var(--ink-a)))',cursor:'pointer',fontFamily:"'Outfit',sans-serif",textAlign:'left'}}>
+              <div style={{fontSize:'var(--fs-sm)',fontWeight:700,display:'flex',alignItems:'center',gap:5}}><User size={14}/> Pedido Individual</div>
               <div style={{fontSize:'var(--fs-2xs)',opacity:0.7,marginTop:2}}>Desconto por volume</div>
             </button>
-          </div>
+          </div>}
           {orderMode==='INDIVIDUAL'
-            ? <div style={{display:'flex',flexDirection:'column',gap:14}}>
-                {addTo&&<AddingToOrderBanner addTo={addTo} onCancel={()=>setAddTo(null)}/>}
-                <Card style={{padding:20}}>
-                  <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif",textAlign:'center'}}>{addTo?`Adicionando ao pedido #${addTo.shortId}`:'Pedido Individual'}</div>
-                  <h1 className="mp-gradient-text" style={{margin:'5px 0 10px',fontSize:'var(--fs-xl)',fontFamily:"'Cinzel',serif",textAlign:'center',backgroundImage:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',color:theme.primary}}>Quanto mais cartas, menor o preço</h1>
-                  <Btn full onClick={()=>nav('catalog')} sfx="nav" style={{marginTop:14}}><BookOpen size={16}/> {addTo?'Escolher mais cartas':'Montar meu pedido'}</Btn>
-                </Card>
-              </div>
+            ? <IndividualHomePage indiv={indivPricing} theme={theme} nav={nav} cartItems={cartItems} wishlistCount={wishlistCount} myOrders={myOrders} openIndividualOrders={openIndividualOrders} addTo={addTo} onCancelAdd={()=>setAddTo(null)} onAddCards={handleStartAddCards}/>
             : (campaign ? <HomePage pool={pool} minCards={campaign?.min_cards||150} pricing={pricing} closeDate={campaign?.close_at} theme={theme} nav={nav} wishlistCount={wishlistCount} cartCount={cartCount} bonusAvail={bonusAvail} campaign_status={campaign?.status} /> : <div style={{display:'flex',flexDirection:'column',gap:14}}>
           <div style={{textAlign:'center',padding:'6px 0 0'}}>
             <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>

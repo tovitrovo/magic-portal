@@ -34,6 +34,17 @@ export function pickTier(qty, tiers) {
   return chosen || null;
 }
 
+// Primeira faixa acima da quantidade atual — a que o cliente ainda pode
+// alcançar. Devolve também quantas cartas faltam, que é o número que a home
+// mostra ("faltam 8 cartas para pagar R$ 17,60"). Sem faixa acima (já está na
+// melhor), devolve null em `tier` e 0 em `missing`.
+export function nextTierAbove(qty, tiers) {
+  const q = Math.max(0, Math.floor(Number(qty) || 0));
+  const sorted = [...(tiers || [])].sort((a, b) => Number(a.min_qty) - Number(b.min_qty));
+  const tier = sorted.find(t => Number(t.min_qty) > q) || null;
+  return { tier, missing: tier ? Number(tier.min_qty) - q : 0 };
+}
+
 // Piso em R$ conforme o tipo da carta.
 export function floorForType(type, pricing = {}) {
   const t = String(type || '').toLowerCase();
