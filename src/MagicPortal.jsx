@@ -3,7 +3,7 @@ import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, Chev
 import { buildCatalogQueries, buildLatestCardQuery, RECENT_CARDS_FILTER } from './catalogQuery';
 import { buildShippingGroups, SHIPPING_SERVICE_UNKNOWN } from '../shared/shipping-groups';
 import { buildCardsFromCsv, parseCardLinkList } from '../shared/cardImport';
-import { nextTierAbove, pricePerCard as indivPricePerCard } from '../shared/individualPricing';
+import { discountLadder, nextCheaperTier, pricePerCard as indivPricePerCard } from '../shared/individualPricing';
 import { canAddCardsToOrder, paidQtyOf, shippingAnchorOf } from '../shared/individualAddCards';
 import { DEFAULT_WHATSAPP_MESSAGES, WHATSAPP_AUDIENCES, buildShipmentWhatsAppUrl, buildWhatsAppUrl, getWhatsAppRecipients } from './whatsappCommunication';
 import { PUSH_NEEDS_INSTALL, disablePush, enablePush, getPushState, reportAccess, sendTestPush, updatePushPrefs } from './push';
@@ -704,15 +704,16 @@ function IndividualHomePage({indiv,theme,nav,cartItems=[],wishlistCount=0,myOrde
   // A escada é cotada pela carta Normal. Holo e Foil andam na mesma faixa e só
   // mudam no piso, que vai na nota de rodapé: uma matriz de três colunas não
   // cabe no celular sem virar ruído.
-  const priceFor=useCallback((qty,type='Normal')=>indivPricePerCard({qty,type,tiers,pricing:indiv?.pricing,fxRate:indiv?.fx?.rate}),[tiers,indiv]);
+  const quote=useMemo(()=>({tiers,pricing:indiv?.pricing,fxRate:indiv?.fx?.rate}),[tiers,indiv]);
+  const priceFor=useCallback((qty,type='Normal')=>indivPricePerCard({qty,type,...quote}),[quote]);
 
-  const cheapest=hasTiers?priceFor(Number(tiers[tiers.length-1].min_qty)||0):0;
+  // A escada já vem sem as faixas abaixo do mínimo e sem repetir preço: passado
+  // o ponto em que o piso por tipo assume, as faixas seguintes valem o mesmo.
+  const ladder=useMemo(()=>discountLadder({...quote,minCards}),[quote,minCards]);
+  const cheapest=ladder.length?ladder[ladder.length-1].unit:0;
   const currentUnit=hasTiers?priceFor(tierQty):0;
-  const {tier:nextTier,missing:missingForNext}=nextTierAbove(tierQty,tiers);
-  const nextUnit=nextTier?priceFor(Number(nextTier.min_qty)):0;
-  // O desconto da faixa nova vale para o pedido inteiro, não só para as cartas
-  // que faltam — é essa a economia que vale mostrar.
-  const nextSaving=nextTier?Math.max(0,(currentUnit-nextUnit)*Number(nextTier.min_qty)):0;
+  // Só faz sentido pedir mais cartas se elas de fato baixarem o preço.
+  const {tier:nextTier,missing:missingForNext,unit:nextUnit,saving:nextSaving}=nextCheaperTier(tierQty,quote);
   // Somar cartas a um pedido pago não tem mínimo: o pedido de destino já pagou o dele.
   const missingForMin=isAdding?0:Math.max(0,minCards-cartQty);
   const minPct=Math.min(100,minCards>0?(cartQty/minCards)*100:0);
@@ -794,12 +795,9 @@ function IndividualHomePage({indiv,theme,nav,cartItems=[],wishlistCount=0,myOrde
     </Card>}
 
     {/* Escada de desconto — a prova da frase lá de cima */}
-    {hasTiers&&<Card style={{padding:'var(--sp-4)'}}>
+    {ladder.length>0&&<Card style={{padding:'var(--sp-4)'}}>
       <SectionTitle sub="O total do pedido define o preço de todas as cartas">Escada de desconto</SectionTitle>
-      {tiers.map(t=>{
-        const min=Number(t.min_qty)||0;
-        const max=t.max_qty==null?null:Number(t.max_qty);
-        const unit=priceFor(min);
+      {ladder.map(({min,max,unit})=>{
         const active=tierQty>0&&tierQty>=min&&(max==null||tierQty<=max);
         return(<div key={String(min)+'-'+String(max)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 12px',borderRadius:'var(--r-control)',marginBottom:3,background:active?wa(theme.primary,'14'):'var(--fill-soft)',border:'1px solid '+(active?wa(theme.primary,'38'):'var(--line-soft)')}}>
           <div>

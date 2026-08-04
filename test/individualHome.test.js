@@ -20,10 +20,13 @@ test('a home individual é um componente próprio e recebe o que precisa mostrar
 
 test('mostra a escada de desconto, o mínimo e a próxima faixa', () => {
   assert.match(home, /Escada de desconto/);
-  assert.match(home, /nextTierAbove\(tierQty,tiers\)/);
   assert.match(home, /Mínimo de \{minCards\} cartas/);
-  // O desconto vale para o pedido inteiro: a economia é sobre o volume da faixa nova.
-  assert.match(home, /nextSaving=nextTier\?Math\.max\(0,\(currentUnit-nextUnit\)\*Number\(nextTier\.min_qty\)\)/);
+  // O piso por tipo achata o fim da escada. A home tem de usar as duas
+  // funções que tratam disso, senão volta a repetir preço na tabela e a
+  // prometer desconto que não existe.
+  assert.match(home, /discountLadder\(\{\.\.\.quote,minCards\}\)/);
+  assert.match(home, /nextCheaperTier\(tierQty,quote\)/);
+  assert.match(home, /ladder\.map\(/);
 });
 
 test('a faixa sai do volume somado quando o cliente adiciona a um pedido pago', () => {
