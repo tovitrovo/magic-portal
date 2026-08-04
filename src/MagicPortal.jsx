@@ -4,6 +4,7 @@ import { buildCatalogQueries, buildLatestCardQuery, RECENT_CARDS_FILTER } from '
 import { buildShippingGroups, SHIPPING_SERVICE_UNKNOWN } from '../shared/shipping-groups';
 import { buildCardsFromCsv, parseCardLinkList } from '../shared/cardImport';
 import { pricePerCard as indivPricePerCard } from '../shared/individualPricing';
+import { canAddCardsToOrder, paidQtyOf, shippingAnchorOf } from '../shared/individualAddCards';
 import { DEFAULT_WHATSAPP_MESSAGES, WHATSAPP_AUDIENCES, buildShipmentWhatsAppUrl, buildWhatsAppUrl, getWhatsAppRecipients } from './whatsappCommunication';
 import { PUSH_NEEDS_INSTALL, disablePush, enablePush, getPushState, reportAccess, sendTestPush, updatePushPrefs } from './push';
 import { GT, GT_LIGHT, inkOn } from './guildTheme';
@@ -955,20 +956,39 @@ function WishlistPage({wishlist,cartItems,onAddToCart,onAddAllToCart,onRemove,on
 
 const MIN_ORDER_CARDS = 15;
 
-function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onRemoveFromCart,onUpdateCartQty,token,orderId,campaignId,onOrderDone,toast,profile,previousPaidBatches,orderMode='CAMPAIGN',indiv=null}){
+// Faixa fixa do modo "adicionar cartas": enquanto ela está na tela, o que for
+// fechado no checkout entra no pedido antigo, não num pedido novo.
+function AddingToOrderBanner({addTo,onCancel}){
+  return(<Card style={{padding:'10px 12px',borderColor:'rgba(var(--info-rgb),0.25)',background:'rgba(var(--info-rgb),0.07)'}}>
+    <div style={{display:'flex',alignItems:'center',gap:'var(--sp-2)'}}>
+      <Plus size={15} style={{color:'var(--info)',flexShrink:0}}/>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontSize:'var(--fs-xs)',fontWeight:700,color:'var(--info)'}}>Adicionando ao pedido #{addTo.shortId}</div>
+        <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',lineHeight:1.4}}>Sem frete novo e sem mínimo — as cartas vão na mesma remessa das {addTo.qtyPaid} já pagas, e o preço segue a faixa do volume somado.</div>
+      </div>
+      {onCancel&&<button onClick={()=>{SFX.click();onCancel();}} aria-label="Sair do modo de adição e montar um pedido novo" title="Sair do modo de adição" style={{background:'none',border:'none',color:'var(--text-faint)',cursor:'pointer',flexShrink:0,padding:'var(--sp-1)'}}><X size={14}/></button>}
+    </div>
+  </Card>);
+}
+
+function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onRemoveFromCart,onUpdateCartQty,token,orderId,campaignId,onOrderDone,toast,profile,previousPaidBatches,orderMode='CAMPAIGN',indiv=null,addTo=null,onCancelAdd}){
   const isIndividual=orderMode==='INDIVIDUAL';
+  // Adição a um pedido individual já pago: sem mínimo (o pedido de destino já
+  // cumpriu o dele) e com a faixa de preço puxada pelo volume somado.
+  const isAdding=isIndividual&&!!addTo;
   const totalQty=cartItems.reduce((s,c)=>s+c.quantity,0);
+  const tierQty=totalQty+(isAdding?(addTo.qtyPaid||0):0);
   const bonus=isIndividual?0:(bonusAvail||0); // pedido individual não usa bônus
   let bL=bonus;
   const bd=cartItems.map(c=>{const bq=Math.min(c.quantity,bL);bL-=bq;return{...c,bonusQty:bq,paidQty:c.quantity-bq};});
   const totalBonus=bd.reduce((s,c)=>s+c.bonusQty,0);
   const totalPaid=bd.reduce((s,c)=>s+c.paidQty,0);
-  const totalBRL=bd.reduce((s,c)=>s+c.paidQty*unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv),0);
+  const totalBRL=bd.reduce((s,c)=>s+c.paidQty*unitPriceFor(c.card_type,tierQty,orderMode,pricing,indiv),0);
   // Economia por volume: diferença entre o preço cheio (faixa mais cara) e o preço atual.
   const baseBRL=bd.reduce((s,c)=>s+c.paidQty*baseUnitPriceFor(c.card_type,orderMode,pricing,indiv),0);
   const volumeDiscount=Math.max(0,baseBRL-totalBRL);
   const campaignOpen=campaignCanOrder(campaignStatus);
-  const minCards=isIndividual?(Number(indiv?.pricing?.min_cards)||MIN_ORDER_CARDS):MIN_ORDER_CARDS;
+  const minCards=isAdding?1:(isIndividual?(Number(indiv?.pricing?.min_cards)||MIN_ORDER_CARDS):MIN_ORDER_CARDS);
   const isFullBonus=totalPaid===0&&totalBonus>0;
   const previousPaidCards=(previousPaidBatches||[]).reduce((s,b)=>s+(b.qty_in_batch||0),0);
   const hasMetMinimumBefore=!isIndividual&&previousPaidCards>=MIN_ORDER_CARDS;
@@ -978,12 +998,13 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onRemov
   const [zoomSrc,setZoomSrc]=useState(null);
 
   return(<div className="portal-page portal-cart" style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingBottom:cartItems.length>0?(canGoCheckout?168:120):0}}>
+    {isAdding&&<AddingToOrderBanner addTo={addTo} onCancel={onCancelAdd}/>}
     {!isIndividual&&!campaignOpen&&<Card style={{padding:'var(--sp-3)',borderColor:'rgba(var(--gold-rgb),0.25)',background:'rgba(var(--gold-rgb),0.06)'}}>
       <div style={{display:'flex',alignItems:'center',gap:'var(--sp-2)'}}><AlertTriangle size={14} style={{color:'var(--gold)'}}/><div style={{fontSize:'var(--fs-xs)',color:'var(--gold)',fontWeight:600}}>{campaignStatus?campaignLabel(campaignStatus):'Nenhuma encomenda ativa'}<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',fontWeight:400,marginTop:2}}>Continue montando seu carrinho. O checkout estará disponível quando a encomenda abrir.</div></div></div>
     </Card>}
     {cartItems.length>0&&<>
       <div className="portal-card-grid portal-cart-grid" style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)'}}>
-        {bd.map((c)=>{const itemPrice=unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv);const baseItemPrice=baseUnitPriceFor(c.card_type,orderMode,pricing,indiv);return(
+        {bd.map((c)=>{const itemPrice=unitPriceFor(c.card_type,tierQty,orderMode,pricing,indiv);const baseItemPrice=baseUnitPriceFor(c.card_type,orderMode,pricing,indiv);return(
           <Card key={c.id} style={{padding:'var(--sp-2)'}}>
             <div style={{display:'flex',alignItems:'center',gap:'var(--sp-3)'}}>
               <div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:54,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={9}/></div>
@@ -1042,8 +1063,11 @@ function CartPage({cartItems,pricing,bonusAvail,campaignStatus,theme,nav,onRemov
     <ImageLightbox src={zoomSrc} onClose={()=>setZoomSrc(null)}/>
   </div>);
 }
-function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,orderId,campaignId,campaignStatus,onOrderDone,toast,previousPaidBatches=[],onRemoveFromCart,onUpdateCartQty,orderMode='CAMPAIGN',indiv=null}){
+function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,orderId,campaignId,campaignStatus,onOrderDone,toast,previousPaidBatches=[],onRemoveFromCart,onUpdateCartQty,orderMode='CAMPAIGN',indiv=null,addTo=null,onCancelAdd}){
   const isIndividual=orderMode==='INDIVIDUAL';
+  // Adição a um pedido individual já pago: o frete e o mínimo já foram
+  // resolvidos no pedido de destino, então este checkout é só o pagamento.
+  const isAdding=isIndividual&&!!addTo;
   const [freteOptions,setFreteOptions]=useState([]);const [selectedFrete,setSelectedFrete]=useState(null);
   const [lF,setLF]=useState(false);const [submitting,setSubmitting]=useState(false);
   const [step,setStep]=useState('review');
@@ -1073,17 +1097,20 @@ function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,o
   const campaignStatusText = campaignLabel(campaignStatus);
   const isFullBonus=totalPaid===0&&totalBonus>0;
   const previousPaidCards=(previousPaidBatches||[]).reduce((s,b)=>s+(b.qty_in_batch||0),0);
-  const minCards=isIndividual?(Number(indiv?.pricing?.min_cards)||MIN_ORDER_CARDS):MIN_ORDER_CARDS;
+  const minCards=isAdding?1:(isIndividual?(Number(indiv?.pricing?.min_cards)||MIN_ORDER_CARDS):MIN_ORDER_CARDS);
   const hasMetMinimumBefore=!isIndividual&&previousPaidCards>=MIN_ORDER_CARDS;
   const canCheckout=isIndividual?(totalQty>=minCards):(isFullBonus||totalPaid>=MIN_ORDER_CARDS||hasMetMinimumBefore);
   const missingCards=hasMetMinimumBefore?0:Math.max(0,minCards-(isIndividual?totalQty:totalPaid));
+  // Faixa de preço da adição: volume somado (o que já foi pago + o carrinho).
+  const tierQty=totalQty+(isAdding?(addTo.qtyPaid||0):0);
   // Subtotal: preço por tipo (campanha) ou por faixa de volume (individual)
-  const sub=bd.reduce((s,c)=>s+c.paidQty*unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv),0);
+  const sub=bd.reduce((s,c)=>s+c.paidQty*unitPriceFor(c.card_type,tierQty,orderMode,pricing,indiv),0);
   // Economia por volume: preço cheio (faixa mais cara) menos o preço atual aplicado.
   const baseSub=bd.reduce((s,c)=>s+c.paidQty*baseUnitPriceFor(c.card_type,orderMode,pricing,indiv),0);
   const volumeDiscount=Math.max(0,baseSub-sub);
-  // Frete: 0 se "já paguei" ou frete conjunto, senão valor da opção selecionada
-  const shippingSkipped = alreadyPaidShipping || useJointShipping;
+  // Frete: 0 se "já paguei", frete conjunto ou adição a um pedido existente
+  // (a remessa é a mesma), senão o valor da opção selecionada
+  const shippingSkipped = isAdding || alreadyPaidShipping || useJointShipping;
   const fV=shippingSkipped?0:(selectedFrete?selectedFrete.price:0);
   const total=sub+fV;
   const cepClean=(addr.cep||'').replace(/\D/g,'');
@@ -1125,6 +1152,8 @@ function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,o
     setSubmitting(true);
     try {
       const items=bd.map(c=>({card_id:c.card_id,quantity:c.quantity}));
+      // Adição não manda frete nem endereço: o servidor herda tudo do lote
+      // que pagou o envio no pedido de destino.
       const shipping={
         service:shippingSkipped?(shippingAnchor?.shipping_service||null):(selectedFrete?.service||selectedFrete?.carrier||null),
         price:fV,
@@ -1132,8 +1161,12 @@ function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,o
         already_paid:shippingSkipped,
         group_id:shippingSkipped?(shippingAnchor?.shipping_group_id||shippingAnchor?.id||null):null,
       };
-      const r=await fetch('/api/individual-checkout',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({items,shipping})});
+      const payload=isAdding?{items,addToOrderId:addTo.orderId}:{items,shipping};
+      const r=await fetch('/api/individual-checkout',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify(payload)});
       const d=await r.json().catch(()=>({}));
+      // A janela pode ter fechado entre montar o carrinho e pagar: sai do modo
+      // de adição para o carrinho virar um pedido novo, sem perder as cartas.
+      if(d.code==='ADD_WINDOW_CLOSED'&&onCancelAdd)onCancelAdd();
       if(!r.ok||!d.ok)throw new Error(d.error||`HTTP ${r.status}`);
       if(saveAddressChoice===true&&addr.rua)await sbPatch('profiles','id=eq.'+(profile.id),{cep:addr.cep,rua:addr.rua,numero:addr.numero,complemento:addr.complemento,bairro:addr.bairro,cidade:addr.cidade,uf:addr.uf},token).catch(()=>{});
       // Esvazia o carrinho-rascunho: os itens definitivos do pedido já foram
@@ -1141,9 +1174,10 @@ function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,o
       // continua guardado em wishlist_items.
       for(const c of cart){ if(c.id) await sbDelete('order_items','id=eq.'+c.id,token).catch(()=>{}); }
       SFX.confirm();
-      onOrderDone({method:'mp',totalPaid:d.totalQty,totalBonus:0,pricing,isFullBonus:false,alreadyPaidShipping:shippingSkipped,batchId:d.batchId,shortId:d.shortId,cards:cart.map(c=>({name:c.card_name,type:c.card_type,qty:c.quantity}))});
+      onOrderDone({method:'mp',totalPaid:d.totalQty,totalBonus:0,pricing,isFullBonus:false,alreadyPaidShipping:shippingSkipped,batchId:d.batchId,shortId:d.shortId,addedToOrderId:isAdding?addTo.orderId:null,cards:cart.map(c=>({name:c.card_name,type:c.card_type,qty:c.quantity}))});
       toast('Gerando link de pagamento...','info');
-      const mpRes=await fetch(`/api/mp-create`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderId:String(d.batchId),total:Number(d.total.toFixed(2)),descricao:`Pedido individual #${d.shortId} - ${d.totalQty} cartas`})});
+      const descricaoIndiv=isAdding?`Cartas adicionadas ao pedido #${d.addedToShortId||addTo.shortId} - ${d.totalQty} cartas`:`Pedido individual #${d.shortId} - ${d.totalQty} cartas`;
+      const mpRes=await fetch(`/api/mp-create`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderId:String(d.batchId),total:Number(d.total.toFixed(2)),descricao:descricaoIndiv})});
       const mpData=await mpRes.json();
       const mpLink=mpData?.mpLink||mpData?.init_point||mpData?.sandbox_init_point;
       if(mpLink){window.location.href=mpLink;return;}
@@ -1251,24 +1285,25 @@ function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,o
   </div>);
 
   return(<div className="portal-page portal-checkout" style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)'}}>
+    {isAdding&&<AddingToOrderBanner addTo={addTo} onCancel={onCancelAdd}/>}
     <Card id="tut-checkout-summary" style={{padding:'var(--sp-4)'}}>
-      <SectionTitle sub={totalQty+' cartas ('+totalBonus+' bônus + '+totalPaid+' pagas)'}>Resumo do pedido</SectionTitle>
+      <SectionTitle sub={isAdding?`${totalQty} carta${totalQty!==1?'s':''} para somar ao pedido #${addTo.shortId}`:totalQty+' cartas ('+totalBonus+' bônus + '+totalPaid+' pagas)'}>{isAdding?'Cartas a adicionar':'Resumo do pedido'}</SectionTitle>
       {totalBonus>0&&<><div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--ok)',marginBottom:6,display:'flex',alignItems:'center',gap:'var(--sp-1)'}}><Gift size={12}/> Bônus (grátis)</div>
         {bd.filter(c=>c.bonusQty>0).map((c,i)=>(<div key={'b'+i} style={{display:'flex',alignItems:'center',gap:'var(--sp-2)',padding:'5px 0',fontSize:'var(--fs-sm)',borderBottom:'1px solid rgba(var(--ok-rgb),0.08)'}}><div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:30,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={6}/></div><span style={{flex:1,minWidth:0,color:'var(--text-muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:'var(--fs-2xs)',fontWeight:700}}>{c.card_type}</span> x{c.bonusQty}</span><span style={{fontWeight:700,color:'var(--ok)'}}>R$ 0,00</span></div>))}</>}
       {totalPaid>0&&<><div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-dim)',marginTop:totalBonus>0?12:0,marginBottom:6,display:'flex',alignItems:'center',gap:'var(--sp-1)'}}><CreditCard size={12}/> Pagas</div>
-        {bd.filter(c=>c.paidQty>0).map((c,i)=>{const ip=unitPriceFor(c.card_type,totalQty,orderMode,pricing,indiv);return(<div key={'p'+i} style={{display:'flex',alignItems:'center',gap:'var(--sp-2)',padding:'5px 0',fontSize:'var(--fs-sm)',borderBottom:'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))'}}><div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:30,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={6}/></div><span style={{flex:1,minWidth:0,color:'var(--text-muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:'var(--fs-2xs)',fontWeight:700}}>{c.card_type}</span> x{c.paidQty}<span style={{color:'var(--text-faint)',fontSize:'var(--fs-2xs)'}}> · R$ {ip.toFixed(2).replace('.',',')}/un</span></span><span style={{fontWeight:700,whiteSpace:'nowrap'}}>R$ {(c.paidQty*ip).toFixed(2)}</span></div>);})}</>}
+        {bd.filter(c=>c.paidQty>0).map((c,i)=>{const ip=unitPriceFor(c.card_type,tierQty,orderMode,pricing,indiv);return(<div key={'p'+i} style={{display:'flex',alignItems:'center',gap:'var(--sp-2)',padding:'5px 0',fontSize:'var(--fs-sm)',borderBottom:'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))'}}><div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:30,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={6}/></div><span style={{flex:1,minWidth:0,color:'var(--text-muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:'var(--fs-2xs)',fontWeight:700}}>{c.card_type}</span> x{c.paidQty}<span style={{color:'var(--text-faint)',fontSize:'var(--fs-2xs)'}}> · R$ {ip.toFixed(2).replace('.',',')}/un</span></span><span style={{fontWeight:700,whiteSpace:'nowrap'}}>R$ {(c.paidQty*ip).toFixed(2)}</span></div>);})}</>}
       <div style={{marginTop:14,display:'flex',flexDirection:'column',gap:'var(--sp-1)'}}>
         {totalPaid>0&&volumeDiscount>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}><span>Subtotal (sem desconto)</span><span style={{color:'var(--text-faint)',textDecoration:'line-through'}}>R$ {baseSub.toFixed(2)}</span></div>}
         {totalPaid>0&&volumeDiscount>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-sm)',color:'var(--ok)',fontWeight:700}}><span>Desconto por volume</span><span>−R$ {volumeDiscount.toFixed(2)}</span></div>}
         {totalPaid>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}><span>Subtotal</span><span style={{color:'var(--text-strong)',fontWeight:600}}>R$ {sub.toFixed(2)}</span></div>}
-        <div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}><span>Frete</span><span style={{color:alreadyPaidShipping?'var(--ok)':'var(--text-strong)',fontWeight:600}}>{alreadyPaidShipping?'Já pago ✓':useJointShipping?'Envio conjunto (R$ 0,00)':selectedFrete?'R$ '+fV.toFixed(2):lF?'Calculando...':'—'}</span></div>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}><span>Frete</span><span style={{color:shippingSkipped?'var(--ok)':'var(--text-strong)',fontWeight:600}}>{isAdding?`Já pago no pedido #${addTo.shortId} ✓`:alreadyPaidShipping?'Já pago ✓':useJointShipping?'Envio conjunto (R$ 0,00)':selectedFrete?'R$ '+fV.toFixed(2):lF?'Calculando...':'—'}</span></div>
         <div style={{height:1,background:'var(--fill)',margin:'3px 0'}}/>
         <div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-lg)',fontWeight:800}}><span>Total</span><span style={{color:payViaBonusFlow?'var(--ok)':theme.primary}}>{payViaBonusFlow?'R$ 0,00 (bônus!)':'R$ '+total.toFixed(2)}</span></div>
       </div>
-      {step==='review'&&<Btn full onClick={()=>setStep('address')} style={{marginTop:12}} sfx="nav"><ArrowRight size={16}/> Avançar para endereço e frete</Btn>}
+      {step==='review'&&!isAdding&&<Btn full onClick={()=>setStep('address')} style={{marginTop:12}} sfx="nav"><ArrowRight size={16}/> Avançar para endereço e frete</Btn>}
     </Card>
 
-    {step==='address'&&<Card style={{padding:'var(--sp-4)'}}>
+    {step==='address'&&!isAdding&&<Card style={{padding:'var(--sp-4)'}}>
       <SectionTitle>Endereço de entrega</SectionTitle>
 
       {!shippingSkipped&&(profileHasSavedAddress&&!editingAddr?<AddressDisplay address={addr} onEdit={()=>{setEditingAddr(true);setFreteOptions([]);setSelectedFrete(null);}}/>:<AddressForm address={addr} setAddress={(a)=>setAddr(a)}/>)}
@@ -1320,7 +1355,7 @@ function CheckoutPage({cartItems=[],pricing,bonusAvail,theme,nav,profile,token,o
 
     <Card id="tut-payment" style={{padding:'var(--sp-4)'}}>
       {payViaBonusFlow?<Btn full variant="success" onClick={finalize} disabled={submitting || !campaignOpen} sfx="">{submitting?<Spin size={16}/>:<><Gift size={18}/> Finalizar pedido bônus</>}</Btn>:
-      <><SectionTitle sub={isFullBonus?'Pagamento do frete via Mercado Pago':'Pagamento seguro via Mercado Pago'}>Pagamento</SectionTitle>
+      <><SectionTitle sub={isAdding?`Só as cartas novas — o frete do pedido #${addTo.shortId} já está pago`:isFullBonus?'Pagamento do frete via Mercado Pago':'Pagamento seguro via Mercado Pago'}>Pagamento</SectionTitle>
       <Btn full onClick={finalize} disabled={submitting||!campaignOpen||(!shippingSkipped&&!selectedFrete)} sfx="">{submitting?<Spin size={16}/>:<><CreditCard size={18}/> Pagar R$ {total.toFixed(2)}</>}</Btn></>}
     </Card>
     <ImageLightbox src={zoomSrc} onClose={()=>setZoomSrc(null)}/>
@@ -1410,7 +1445,7 @@ function ProfileSection({title,icon:Icon,color,children,defaultOpen=false}){
   </div>);
 }
 
-function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProfile,onLogout,myOrders=[],onReloadOrders,toast:toastFn,campaign,colorMode='dark',onColorModeChange=()=>{}}){
+function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProfile,onLogout,myOrders=[],onReloadOrders,toast:toastFn,campaign,colorMode='dark',onColorModeChange=()=>{},openIndividualOrders={},onAddCards}){
   const [colors,setColors]=useState(profile?.mana_color_1&&profile?.mana_color_2?[profile.mana_color_1,profile.mana_color_2]:['U','R']);
   const [editAddr,setEditAddr]=useState(false);
   const [addr,setAddr]=useState({cep:profile?.cep||'',rua:profile?.rua||'',numero:profile?.numero||'',complemento:profile?.complemento||'',bairro:profile?.bairro||'',cidade:profile?.cidade||'',uf:profile?.uf||''});
@@ -1567,6 +1602,10 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
             {o.orderKind==='INDIVIDUAL'&&isPaid&&(()=>{
               const idx=indivStageIndex(o.fulfillment_status);
               const trackingCode=o.mandabem_rastreamento||o.mandabem_etiqueta;
+              // A janela de adição é do PEDIDO, não do lote: o botão sai uma
+              // vez só, no lote que pagou o frete e vai receber a carona.
+              const addOpen=openIndividualOrders[String(o.order_id)];
+              const canAdd=!!onAddCards&&!!addOpen&&String(addOpen.rootBatchId)===String(o.id);
               return(<div style={{marginTop:10,padding:'10px 12px',borderRadius:'var(--r-control)',background:'rgba(var(--sunk),calc(0.2*var(--sunk-a)))'}}>
                 <div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-faint)',marginBottom:8,textTransform:'uppercase',letterSpacing:1}}>Status do pedido</div>
                 <div style={{display:'flex',alignItems:'flex-start'}}>
@@ -1579,6 +1618,10 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
                   </Fragment>))}
                 </div>
                 {trackingCode&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--ok)',marginTop:10}}>Rastreio: {trackingCode}{o.mandabem_status?` · ${o.mandabem_status}`:''}</div>}
+                {canAdd&&<div style={{marginTop:10,paddingTop:10,borderTop:'1px solid rgba(var(--ink),calc(0.05*var(--ink-a)))'}}>
+                  <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-dim)',lineHeight:1.4,marginBottom:8}}>A compra no fornecedor ainda não foi feita — dá tempo de mandar mais cartas para este mesmo pedido, sem pagar frete de novo.</div>
+                  <Btn full variant="secondary" onClick={e=>{e.stopPropagation();onAddCards(o);}} style={{fontSize:'var(--fs-2xs)',padding:'9px 12px'}} sfx="nav"><Plus size={13}/> Adicionar cartas a este pedido</Btn>
+                </div>}
               </div>);
             })()}
             {showActions&&isPending&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'var(--sp-2)',marginTop:10}}>
@@ -2295,11 +2338,18 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   },[orders,selectedCampaign]);
 
   // Lotes (já pagos) dos pedidos individuais — independem de campanha.
+  // Um pedido pode ter mais de um lote: o cliente adicionou cartas antes da
+  // compra no fornecedor. O primeiro lote é o pedido; os seguintes são
+  // adições, marcadas para o admin saber que viajam na mesma remessa.
   const individualBatches=useMemo(()=>{
     const list=[];
-    indivOrders.forEach(o=>{(o.order_batches||[]).forEach(b=>{
-      list.push({...b,channel:'INDIVIDUAL',orderId:o.id,userId:o.user_id,clientName:o.profiles?.name||'—',clientWhatsapp:o.profiles?.whatsapp||'',clientEmail:o.profiles?.email||'',orderCreatedAt:o.created_at,campaignName:''});
-    });});
+    indivOrders.forEach(o=>{
+      const ordered=[...(o.order_batches||[])].sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
+      const rootId=ordered[0]?.id;
+      ordered.forEach((b,i)=>{
+        list.push({...b,channel:'INDIVIDUAL',orderId:o.id,userId:o.user_id,clientName:o.profiles?.name||'—',clientWhatsapp:o.profiles?.whatsapp||'',clientEmail:o.profiles?.email||'',orderCreatedAt:o.created_at,campaignName:'',isAddition:i>0,addedToShortId:i>0&&rootId?shortBatchId(rootId):null});
+      });
+    });
     return list;
   },[indivOrders]);
 
@@ -2413,8 +2463,41 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     });
   },[campaignBatches,allProfiles]);
 
+  // Envio do individual: uma etiqueta por REMESSA, não por lote. Quando o
+  // cliente adicionou cartas, o pedido tem vários lotes que saem na mesma
+  // caixa — gerar etiqueta lote a lote mandaria dois pacotes com um frete só.
+  const individualShipGroups=useMemo(()=>{
+    const grouped=buildShippingGroups(individualBatches);
+    const seen=new Set(grouped.flatMap(g=>g.batches.map(b=>String(b.id))));
+    // Lote pago que não entrou em grupo nenhum (frete zerado, sem grupo) não
+    // pode sumir da tela: vira um grupo de um.
+    const soltos=individualBatches.filter(b=>isPaidBatch(b.status)&&!seen.has(String(b.id))).map(b=>({
+      key:String(b.id),rootId:String(b.shipping_group_id||b.id),rootBatch:b,batches:[b],
+      shippingService:b.shipping_service||'',totalValue:Number(b.total_locked||0),totalQuantity:Number(b.qty_in_batch||0),
+      hasLabel:!!b.mandabem_envio_id,hasCompleteLabel:!!b.mandabem_envio_id,
+    }));
+    return [...grouped,...soltos].map(group=>{
+      const root=group.rootBatch||{};
+      return {...group,
+        clientName:root.clientName||'—',
+        clientWhatsapp:root.clientWhatsapp||'',
+        userId:root.userId,
+        // Só está pronta quando TODOS os lotes chegaram na preparação: senão a
+        // etiqueta sairia sem as cartas que ainda estão vindo do fornecedor.
+        ready:group.batches.every(b=>['PREPARING','LABEL_GENERATED'].includes(b.fulfillment_status)),
+        stageIndex:Math.min(...group.batches.map(b=>indivStageIndex(b.fulfillment_status))),
+      };
+    });
+  },[individualBatches]);
+
+  // Grupo de envio a que um lote individual pertence (para as ações de etiqueta).
+  const individualGroupOf=useCallback(batch=>individualShipGroups.find(g=>g.batches.some(b=>String(b.id)===String(batch.id)))
+    ||{key:String(batch.id),rootId:String(batch.shipping_group_id||batch.id),rootBatch:batch,batches:[batch],ready:true},[individualShipGroups]);
+
   // Individuais prontos para etiqueta (ou já etiquetados).
-  const individualShipments=useMemo(()=>individualBatches.filter(b=>['PREPARING','LABEL_GENERATED'].includes(b.fulfillment_status)).sort((a,b)=>indivStageIndex(a.fulfillment_status)-indivStageIndex(b.fulfillment_status)||a.clientName.localeCompare(b.clientName)),[individualBatches]);
+  const individualShipments=useMemo(()=>individualShipGroups
+    .filter(g=>g.batches.some(b=>['PREPARING','LABEL_GENERATED'].includes(b.fulfillment_status)))
+    .sort((a,b)=>a.stageIndex-b.stageIndex||a.clientName.localeCompare(b.clientName)),[individualShipGroups]);
 
   const identifyingLabelGroups=useRef(new Set());
   useEffect(()=>{
@@ -2490,23 +2573,31 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     setBusyBatch(null);
   }
 
-  // Etiqueta de um pedido individual (não agrupa: cada pedido vai sozinho).
-  async function generateIndividualLabel(batch){
-    let formaEnvio=batch.shipping_service&&batch.shipping_service!==SHIPPING_SERVICE_UNKNOWN?batch.shipping_service:'';
-    const action=batch.mandabem_envio_id?'refresh':'generate';
+  // Etiqueta de um pedido individual: uma por remessa. O pedido e as cartas
+  // que o cliente adicionou depois entram na MESMA etiqueta — foi um frete só.
+  async function generateIndividualLabel(batchOrGroup,busyKey){
+    const group=batchOrGroup.batches?batchOrGroup:individualGroupOf(batchOrGroup);
+    const root=group.rootBatch||batchOrGroup;
+    const batchIds=group.batches.map(b=>b.id);
+    const existing=group.batches.find(b=>b.mandabem_envio_id);
+    const action=existing?'refresh':'generate';
+    const busyId=busyKey||batchOrGroup.id||group.key;
+    let formaEnvio=root.shipping_service&&root.shipping_service!==SHIPPING_SERVICE_UNKNOWN?root.shipping_service:'';
     if(action==='generate'){
+      if(group.ready===false){if(toastFn)toastFn('Há cartas adicionadas a este pedido que ainda não chegaram em "Em preparação". Avance todas antes de gerar a etiqueta.','error');return;}
       if(!formaEnvio){
         const svc=prompt('Serviço não identificado. Selecione PAC, SEDEX ou PACMINI:','PACMINI');
         if(svc===null)return;
         formaEnvio=svc.trim().toUpperCase().replace(/[\s_-]+/g,'');
         if(!['PAC','SEDEX','PACMINI'].includes(formaEnvio)){if(toastFn)toastFn('Serviço inválido. Use PAC, SEDEX ou PACMINI.','error');return;}
       }
-      if(!confirm('Gerar etiqueta/envio no MandaBem para este pedido?'))return;
+      const extra=batchIds.length>1?`\n\nSão ${batchIds.length} lotes deste pedido (cartas adicionadas depois) numa etiqueta só.`:'';
+      if(!confirm(`Gerar etiqueta/envio no MandaBem para este pedido?${extra}`))return;
     }
-    setBusyBatch(batch.id);
+    setBusyBatch(busyId);
     try{
-      await apiPost('/api/admin-mandabem-label',{batchId:batch.id,action,formaEnvio});
-      if(action==='generate')await apiPost('/api/admin-update-fulfillment',{batchIds:[batch.id],fulfillmentStatus:'LABEL_GENERATED'}).catch(()=>{});
+      await apiPost('/api/admin-mandabem-label',{batchIds,rootBatchId:group.rootId,action,formaEnvio});
+      if(action==='generate')await apiPost('/api/admin-update-fulfillment',{batchIds,fulfillmentStatus:'LABEL_GENERATED'}).catch(()=>{});
       SFX.success();if(toastFn)toastFn(action==='refresh'?'Envio atualizado no MandaBem':'Etiqueta gerada no MandaBem','success');
       await loadIndivOrders();
     }catch(e){console.error(e);if(toastFn)toastFn('Erro MandaBem: '+(e.message||String(e)),'error');}
@@ -2772,6 +2863,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
             <span style={{fontSize:'var(--fs-sm)',fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.clientName}</span>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
+            {b.isAddition&&<Tag color="var(--info)" style={{fontSize:'var(--fs-2xs)',padding:'3px 7px'}}><Plus size={9}/> #{b.addedToShortId}</Tag>}
             <Tag color={isIndiv?'var(--indiv)':theme.primary} style={{fontSize:'var(--fs-2xs)',padding:'3px 7px'}}>{CHANNEL_LABEL[b.channel]}</Tag>
             <Tag color={statusColor} style={{fontSize:'var(--fs-2xs)',padding:'3px 7px'}}>{paid?'Pago':cancelled?'Cancelado':'Pendente'}</Tag>
             <ChevronRight size={12} style={{color:'var(--text-faint)',transform:isExp?'rotate(90deg)':'none',transition:'transform .2s'}}/>
@@ -2984,6 +3076,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
                       <span style={{fontSize:'var(--fs-2xs)',fontWeight:800,fontFamily:'monospace',color:'var(--text-dim)'}}>#{shortBatchId(b.id)}</span>
                       <span style={{fontSize:'var(--fs-xs)',fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.clientName}</span>
                       <span style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',flexShrink:0}}>{b.qty_in_batch} cartas</span>
+                      {b.isAddition&&<Tag color="var(--info)" style={{fontSize:'var(--fs-2xs)',padding:'2px 6px',flexShrink:0}}><Plus size={9}/> adição ao #{b.addedToShortId}</Tag>}
                     </div>
                     <div style={{display:'flex',alignItems:'center',gap:5,flexShrink:0}}>
                       <Tag color={idx>=5?'var(--ok)':'var(--indiv)'} style={{fontSize:'var(--fs-2xs)',padding:'3px 7px'}}>{stageInfo.short}</Tag>
@@ -3095,25 +3188,31 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       </>:<>
         {indivLoading&&individualShipments.length===0?<div style={{textAlign:'center',padding:30}}><Spin size={24}/></div>:
         individualShipments.length===0?<EmptyState icon={Truck} title="Nada para enviar" sub="Pedidos individuais aparecem aqui quando chegam em 'Em preparação'"/>:
-        individualShipments.map(b=>{
-          const tracking=getBatchTrackingInfo(b);
-          const done=b.fulfillment_status==='LABEL_GENERATED';
-          const addr=b.shipping_address||{};
+        individualShipments.map(group=>{
+          const root=group.rootBatch||group.batches[0];
+          const labeled=group.batches.find(b=>b.mandabem_envio_id)||root;
+          const tracking=getBatchTrackingInfo(labeled);
+          const done=group.batches.some(b=>b.fulfillment_status==='LABEL_GENERATED')||group.hasLabel;
+          const addr=root.shipping_address||{};
           const addrLine=[addr.rua,addr.numero?'Nº '+addr.numero:'',addr.bairro,addr.cidade&&addr.uf?addr.cidade+'/'+addr.uf:''].filter(Boolean).join(', ');
-          return(<Card key={b.id} style={{padding:'12px 14px',marginBottom:4,borderLeft:'3px solid '+wa((done?'var(--ok)':'var(--indiv)'),'60')}}>
+          const busy=busyBatch===group.key;
+          const additions=group.batches.filter(b=>b.isAddition);
+          return(<Card key={group.key} style={{padding:'12px 14px',marginBottom:4,borderLeft:'3px solid '+wa((done?'var(--ok)':'var(--indiv)'),'60')}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,marginBottom:5}}>
               <div style={{display:'flex',alignItems:'center',gap:6,minWidth:0}}>
-                <span style={{fontSize:'var(--fs-2xs)',fontWeight:800,fontFamily:'monospace',color:'var(--text-dim)'}}>#{shortBatchId(b.id)}</span>
-                <span style={{fontSize:'var(--fs-sm)',fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.clientName}</span>
+                <span style={{fontSize:'var(--fs-2xs)',fontWeight:800,fontFamily:'monospace',color:'var(--text-dim)'}}>#{shortBatchId(root.id)}</span>
+                <span style={{fontSize:'var(--fs-sm)',fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{group.clientName}</span>
               </div>
               <Tag color={done?'var(--ok)':'var(--indiv)'} style={{fontSize:'var(--fs-2xs)',padding:'3px 7px',flexShrink:0}}>{done?'Etiqueta gerada':'Em preparação'}</Tag>
             </div>
-            <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginBottom:6}}>{b.qty_in_batch} cartas · {brl(b.total_locked)}{b.shipping_service?` · ${b.shipping_service}`:''}</div>
+            <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginBottom:6}}>{group.totalQuantity} cartas · {brl(group.totalValue)}{root.shipping_service?` · ${root.shipping_service}`:''}</div>
+            {additions.length>0&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--info)',marginBottom:6,display:'flex',alignItems:'center',gap:4}}><Plus size={10}/> {additions.length} adição(ões) do cliente na mesma caixa: {additions.map(b=>'#'+shortBatchId(b.id)+' ('+b.qty_in_batch+')').join(' · ')}</div>}
+            {!group.ready&&!done&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--gold)',marginBottom:6}}>Aguardando os outros lotes deste pedido chegarem em "Em preparação".</div>}
             {addrLine&&<div style={{display:'flex',alignItems:'flex-start',gap:5,fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginBottom:8}}><MapPin size={10} style={{marginTop:1,flexShrink:0}}/><span>{addrLine}{addr.cep?` · CEP ${addr.cep}`:''}</span></div>}
             {tracking.code&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--ok)',marginBottom:8,fontFamily:'monospace'}}>{tracking.code}{tracking.status?<span style={{fontFamily:"'Outfit',sans-serif",color:'var(--text-faint)'}}> · {tracking.status}</span>:null}</div>}
             <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-              <Btn variant="secondary" onClick={()=>generateIndividualLabel(b)} disabled={busyBatch===b.id} style={{padding:'6px 11px',fontSize:'var(--fs-2xs)'}} sfx="">{busyBatch===b.id?<Spin size={12}/>:done?<><RefreshCw size={12}/> Atualizar envio</>:<><Truck size={12}/> Gerar etiqueta</>}</Btn>
-              {b.clientWhatsapp&&tracking.code&&<button onClick={()=>openShipmentWhatsAppFor(b)} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(var(--wa-rgb),0.08)',border:'1px solid rgba(var(--wa-rgb),0.18)',borderRadius:'var(--r-control)',padding:'6px 11px',color:'var(--wa)',fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={12}/> Enviar rastreio</button>}
+              <Btn variant="secondary" onClick={()=>generateIndividualLabel(group,group.key)} disabled={busy||(!done&&!group.ready)} style={{padding:'6px 11px',fontSize:'var(--fs-2xs)'}} sfx="">{busy?<Spin size={12}/>:done?<><RefreshCw size={12}/> Atualizar envio</>:<><Truck size={12}/> Gerar etiqueta</>}</Btn>
+              {group.clientWhatsapp&&tracking.code&&<button onClick={()=>openShipmentWhatsAppFor({...labeled,clientName:group.clientName,clientWhatsapp:group.clientWhatsapp,channel:'INDIVIDUAL'})} style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(var(--wa-rgb),0.08)',border:'1px solid rgba(var(--wa-rgb),0.18)',borderRadius:'var(--r-control)',padding:'6px 11px',color:'var(--wa)',fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}><MessageCircle size={12}/> Enviar rastreio</button>}
             </div>
           </Card>);
         })}
@@ -3562,6 +3661,9 @@ export default function MagicPortal(){
   // Pedido individual: modo escolhido na Início + dados de preço (faixas/config/dólar)
   const [orderMode,setOrderMode]=useState('CAMPAIGN'); // 'CAMPAIGN' | 'INDIVIDUAL'
   const [indivPricing,setIndivPricing]=useState(null); // { tiers, pricing, fx }
+  // Modo "adicionar cartas": o checkout entra num pedido individual já pago em
+  // vez de abrir um novo. { orderId, rootBatchId, shortId, qtyPaid }
+  const [addTo,setAddTo]=useState(null);
   const [statusOverrides,setStatusOverrides]=useState({});
 
   // Sem encomenda coletiva ativa: força o modo individual (a aba de Coletiva fica oculta).
@@ -3876,7 +3978,7 @@ export default function MagicPortal(){
   function handleLogout(){
     localStorage.removeItem('cpj_session');
     setSession(null);setProfile(null);setCampaign(null);setPricing(null);
-    setOrderId(null);setWishlist([]);setCartItems([]);setBonusGrants([]);setMyOrders([]);
+    setOrderId(null);setWishlist([]);setCartItems([]);setBonusGrants([]);setMyOrders([]);setAddTo(null);
     setPage('home');setIsNew(false);didAutoLoad.current=false;
   }
 
@@ -4010,6 +4112,8 @@ export default function MagicPortal(){
   // ─── Pedido concluído ─────────────────────────────
   async function handleOrderDone(order) {
     setLastOrder(order);
+    // As cartas já entraram no pedido antigo: o modo de adição cumpriu o papel.
+    if (order.addedToOrderId) setAddTo(null);
 
     // Comprar NÃO tira a carta da lista de desejos — registra que ela foi
     // adquirida. Querer uma carta e já tê-la comprado são dois estados, não
@@ -4046,7 +4150,7 @@ export default function MagicPortal(){
       }
       await Promise.all(patches);
     }
-    setMyOrders(prev => [{ id: order.batchId, status: 'DRAFT', total_locked: order.isFullBonus ? 0 : order.totalPaid * order.priceBRL, payment_method: order.method === 'bonus' ? 'BONUS' : 'MERCADO_PAGO', qty_in_batch: order.totalPaid + order.totalBonus, created_at: new Date().toISOString(), cards: order.cards, order_id: orderId, campaignStatus: campaign?.status || null }, ...prev]);
+    setMyOrders(prev => [{ id: order.batchId, status: 'DRAFT', total_locked: order.isFullBonus ? 0 : order.totalPaid * order.priceBRL, payment_method: order.method === 'bonus' ? 'BONUS' : 'MERCADO_PAGO', qty_in_batch: order.totalPaid + order.totalBonus, created_at: new Date().toISOString(), cards: order.cards, order_id: order.addedToOrderId || orderId, orderKind: order.addedToOrderId ? 'INDIVIDUAL' : undefined, campaignStatus: campaign?.status || null }, ...prev]);
 
     if (order.totalBonus > 0) {
       let remaining = order.totalBonus;
@@ -4103,6 +4207,47 @@ export default function MagicPortal(){
   });
   const bottomTabs = [{ key: 'home', icon: Home, label: 'Início' }, { key: 'catalog', icon: BookOpen, label: 'Catálogo' }, { key: 'wants', icon: ScrollText, label: 'Desejos' }, { key: 'cart', icon: ShoppingCart, label: 'Carrinho' }, { key: 'profile', icon: User, label: 'Perfil' }];
 
+  // Pedidos individuais que ainda aceitam cartas novas — a compra no
+  // fornecedor não saiu, então um lote novo pega carona no mesmo frete.
+  // myOrders é uma lista de LOTES, por isso o agrupamento por order_id: a
+  // janela é do pedido inteiro, não de um lote.
+  const openIndividualOrders = useMemo(() => {
+    const byOrder = new Map();
+    (myOrders || []).forEach(b => {
+      if (b.orderKind !== 'INDIVIDUAL' || !b.order_id) return;
+      const key = String(b.order_id);
+      if (!byOrder.has(key)) byOrder.set(key, []);
+      byOrder.get(key).push(b);
+    });
+    const open = {};
+    byOrder.forEach((batches, key) => {
+      if (!canAddCardsToOrder(batches)) return;
+      const anchor = shippingAnchorOf(batches);
+      if (!anchor) return;
+      open[key] = { orderId: key, rootBatchId: String(anchor.id), shortId: String(anchor.id).slice(0, 8).toUpperCase(), qtyPaid: paidQtyOf(batches) };
+    });
+    return open;
+  }, [myOrders]);
+
+  // A janela pode fechar enquanto o cliente monta o carrinho (o admin comprou
+  // no fornecedor). Ao recarregar os pedidos, o modo cai fora sozinho.
+  useEffect(() => {
+    if (addTo && myOrders.length > 0 && !openIndividualOrders[addTo.orderId]) {
+      setAddTo(null);
+      toast('O pedido já foi comprado no fornecedor — suas cartas viram um pedido novo.', 'info');
+    }
+  }, [openIndividualOrders]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Entra no modo de adição a partir de "Meus Pedidos".
+  function handleStartAddCards(batchRow) {
+    const info = openIndividualOrders[String(batchRow?.order_id)];
+    if (!info) { toast('Este pedido não aceita mais cartas.', 'error'); return; }
+    setAddTo(info);
+    setOrderMode('INDIVIDUAL');
+    toast(`Adicionando cartas ao pedido #${info.shortId}`, 'success');
+    nav(cartCount > 0 ? 'cart' : 'catalog');
+  }
+
   return (<div className="portal-shell" data-page={page} style={{ '--gp': theme.primary, '--gs': theme.secondary, '--gg': theme.glow, '--gp-ink': inkOn(theme.primary), minHeight: '100vh', background: `radial-gradient(ellipse at 50% -20%,${theme.primary}12 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,${theme.secondary}08 0%,transparent 40%),var(--bg)`, color: 'var(--text)', fontFamily: "'Outfit',sans-serif", maxWidth: 480, margin: '0 auto', position: 'relative', paddingBottom: 78 }}>
     <FloatingMana theme={theme}/>
     <style>{"*{box-sizing:border-box;margin:0;padding:0}body{background:var(--bg);margin:0}input:focus{border-color:var(--gp)!important;outline:none}button:active:not(:disabled){transform:scale(.97)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(var(--ink),calc(.07*var(--ink-a)));border-radius:3px}@keyframes spin{to{transform:rotate(360deg)}}@keyframes tutPulse{0%,100%{opacity:1;box-shadow:0 0 0 9999px var(--scrim),0 0 30px var(--gg)}50%{opacity:.85;box-shadow:0 0 0 9999px var(--scrim),0 0 50px var(--gg)}}@keyframes tutArrowBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}@keyframes tutHandBounce{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-6px) scale(1.15)}}@keyframes manaFloat{0%{transform:translateY(0) translateX(0) rotate(0deg);opacity:0}10%{opacity:0.06}90%{opacity:0.03}100%{transform:translateY(-110vh) translateX(var(--drift,20px)) rotate(360deg);opacity:0}}@keyframes flyToWants{0%{transform:translate(-50%,-50%) scale(1);opacity:1}50%{transform:translate(calc(-50vw + 160px),-60vh) scale(0.6);opacity:0.8}100%{transform:translate(calc(-50vw + 160px),-80vh) scale(0.2);opacity:0}}@keyframes sheetUp{from{transform:translateY(48px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}"}</style>
@@ -4158,9 +4303,9 @@ export default function MagicPortal(){
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {/* Em que modo estou comprando. Clicável: leva à Home, onde se troca. */}
           {['catalog','wants','cart','checkout'].includes(page) && (campaign || orderMode === 'INDIVIDUAL') && (
-            <button onClick={() => { SFX.nav(); nav('home'); }} title="Modo de pedido — toque para trocar" aria-label={`Modo de pedido: ${orderMode === 'INDIVIDUAL' ? 'Individual' : 'Encomenda coletiva'}. Toque para trocar.`} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: 'var(--r-pill)', cursor: 'pointer', border: '1px solid ' + (orderMode === 'INDIVIDUAL' ? 'rgba(var(--ink),calc(0.12*var(--ink-a)))' : wa(theme.primary, '55')), background: orderMode === 'INDIVIDUAL' ? 'var(--fill-soft)' : wa(theme.primary, '1f'), color: orderMode === 'INDIVIDUAL' ? 'var(--indiv)' : theme.primary, fontSize: 'var(--fs-2xs)', fontWeight: 700, fontFamily: "'Outfit',sans-serif", whiteSpace: 'nowrap' }}>
-              {orderMode === 'INDIVIDUAL' ? <User size={11}/> : <Store size={11}/>}
-              {orderMode === 'INDIVIDUAL' ? 'Individual' : 'Coletiva'}
+            <button onClick={() => { SFX.nav(); nav('home'); }} title="Modo de pedido — toque para trocar" aria-label={`Modo de pedido: ${orderMode === 'INDIVIDUAL' ? (addTo ? `adicionando cartas ao pedido ${addTo.shortId}` : 'Individual') : 'Encomenda coletiva'}. Toque para trocar.`} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: 'var(--r-pill)', cursor: 'pointer', border: '1px solid ' + (orderMode === 'INDIVIDUAL' ? 'rgba(var(--ink),calc(0.12*var(--ink-a)))' : wa(theme.primary, '55')), background: orderMode === 'INDIVIDUAL' ? 'var(--fill-soft)' : wa(theme.primary, '1f'), color: orderMode === 'INDIVIDUAL' ? 'var(--indiv)' : theme.primary, fontSize: 'var(--fs-2xs)', fontWeight: 700, fontFamily: "'Outfit',sans-serif", whiteSpace: 'nowrap' }}>
+              {orderMode === 'INDIVIDUAL' ? (addTo ? <Plus size={11}/> : <User size={11}/>) : <Store size={11}/>}
+              {orderMode === 'INDIVIDUAL' ? (addTo ? `#${addTo.shortId}` : 'Individual') : 'Coletiva'}
             </button>
           )}
           <button onClick={() => { SFX.toggle(); setColorMode(m => m === 'light' ? 'dark' : 'light'); }} className="mp-tap" title={colorMode === 'light' ? 'Mudar para o modo escuro' : 'Mudar para o modo claro'} aria-label={colorMode === 'light' ? 'Mudar para o modo escuro' : 'Mudar para o modo claro'} style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer' }}>{colorMode === 'light' ? <Moon size={16} /> : <Sun size={16} />}</button>
@@ -4184,7 +4329,7 @@ export default function MagicPortal(){
         {page === 'home' && <>
           {/* Seletor de modo de pedido — a aba de Encomenda Coletiva só aparece quando há campanha ativa */}
           <div style={{display:'flex',gap:8,marginBottom:14}}>
-            {campaign&&<button onClick={()=>{SFX.toggle();setOrderMode('CAMPAIGN');}} style={{flex:1,padding:'12px 10px',borderRadius:'var(--r-card)',border:'1px solid '+(orderMode==='CAMPAIGN'?wa(theme.primary,'55'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),background:orderMode==='CAMPAIGN'?wa(theme.primary,'18'):'rgba(var(--ink),calc(0.02*var(--ink-a)))',color:orderMode==='CAMPAIGN'?theme.primary:'rgba(var(--ink),calc(0.5*var(--ink-a)))',cursor:'pointer',fontFamily:"'Outfit',sans-serif",textAlign:'left'}}>
+            {campaign&&<button onClick={()=>{SFX.toggle();setOrderMode('CAMPAIGN');setAddTo(null);}} style={{flex:1,padding:'12px 10px',borderRadius:'var(--r-card)',border:'1px solid '+(orderMode==='CAMPAIGN'?wa(theme.primary,'55'):'rgba(var(--ink),calc(0.06*var(--ink-a)))'),background:orderMode==='CAMPAIGN'?wa(theme.primary,'18'):'rgba(var(--ink),calc(0.02*var(--ink-a)))',color:orderMode==='CAMPAIGN'?theme.primary:'rgba(var(--ink),calc(0.5*var(--ink-a)))',cursor:'pointer',fontFamily:"'Outfit',sans-serif",textAlign:'left'}}>
               <div style={{fontSize:'var(--fs-sm)',fontWeight:700}}>🛒 Encomenda Coletiva</div>
               <div style={{fontSize:'var(--fs-2xs)',opacity:0.7,marginTop:2}}>Preço fixo por tipo</div>
             </button>}
@@ -4195,10 +4340,11 @@ export default function MagicPortal(){
           </div>
           {orderMode==='INDIVIDUAL'
             ? <div style={{display:'flex',flexDirection:'column',gap:14}}>
+                {addTo&&<AddingToOrderBanner addTo={addTo} onCancel={()=>setAddTo(null)}/>}
                 <Card style={{padding:20}}>
-                  <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif",textAlign:'center'}}>Pedido Individual</div>
+                  <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif",textAlign:'center'}}>{addTo?`Adicionando ao pedido #${addTo.shortId}`:'Pedido Individual'}</div>
                   <h1 className="mp-gradient-text" style={{margin:'5px 0 10px',fontSize:'var(--fs-xl)',fontFamily:"'Cinzel',serif",textAlign:'center',background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',color:theme.primary}}>Quanto mais cartas, menor o preço</h1>
-                  <Btn full onClick={()=>nav('catalog')} sfx="nav" style={{marginTop:14}}><BookOpen size={16}/> Montar meu pedido</Btn>
+                  <Btn full onClick={()=>nav('catalog')} sfx="nav" style={{marginTop:14}}><BookOpen size={16}/> {addTo?'Escolher mais cartas':'Montar meu pedido'}</Btn>
                 </Card>
               </div>
             : (campaign ? <HomePage pool={pool} minCards={campaign?.min_cards||150} pricing={pricing} closeDate={campaign?.close_at} theme={theme} nav={nav} wishlistCount={wishlistCount} cartCount={cartCount} bonusAvail={bonusAvail} campaign_status={campaign?.status} /> : <div style={{display:'flex',flexDirection:'column',gap:14}}>
@@ -4214,12 +4360,12 @@ export default function MagicPortal(){
         </div>)}</>}
         {page === 'catalog' && <CatalogPage token={token} wishlist={wishlist} cartItems={cartItems} onAddToWishlist={handleAddToWishlist} priceBRL={priceBRL} theme={theme} campaignStatus={campaign?.status} orderMode={orderMode} tutStep={showTutorial?tutStep:-1} onTutNext={tutNext} />}
         {page === 'wants' && <WishlistPage wishlist={wishlist} cartItems={cartItems} onAddToCart={handleAddToCart} onAddAllToCart={handleAddAllToCart} onRemove={handleRemoveFromWishlist} onUpdateQty={handleUpdateWishlistQty} cartCount={cartCount} bonusAvail={bonusAvail} theme={theme} nav={nav} />}
-        {page === 'cart' && <CartPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} campaignStatus={campaign?.status} theme={theme} nav={nav} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} profile={profile} previousPaidBatches={previousPaidBatches} orderMode={orderMode} indiv={indivPricing} />}
-        {page === 'checkout' && (orderMode==='INDIVIDUAL' || campaignCanOrder(campaign?.status)) && <CheckoutPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} campaignStatus={campaign?.status} onOrderDone={handleOrderDone} toast={toast} previousPaidBatches={previousPaidBatches} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} orderMode={orderMode} indiv={indivPricing} />}
-        {page === 'checkout' && orderMode!=='INDIVIDUAL' && !campaignCanOrder(campaign?.status) && <CartPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} campaignStatus={campaign?.status} theme={theme} nav={nav} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} profile={profile} previousPaidBatches={previousPaidBatches} orderMode={orderMode} indiv={indivPricing} />}
+        {page === 'cart' && <CartPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} campaignStatus={campaign?.status} theme={theme} nav={nav} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} profile={profile} previousPaidBatches={previousPaidBatches} orderMode={orderMode} indiv={indivPricing} addTo={addTo} onCancelAdd={()=>setAddTo(null)} />}
+        {page === 'checkout' && (orderMode==='INDIVIDUAL' || campaignCanOrder(campaign?.status)) && <CheckoutPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} theme={theme} nav={nav} profile={profile} token={token} orderId={orderId} campaignId={campaign?.id} campaignStatus={campaign?.status} onOrderDone={handleOrderDone} toast={toast} previousPaidBatches={previousPaidBatches} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} orderMode={orderMode} indiv={indivPricing} addTo={addTo} onCancelAdd={()=>setAddTo(null)} />}
+        {page === 'checkout' && orderMode!=='INDIVIDUAL' && !campaignCanOrder(campaign?.status) && <CartPage cartItems={cartItems} pricing={pricing} bonusAvail={bonusAvail} campaignStatus={campaign?.status} theme={theme} nav={nav} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} token={token} orderId={orderId} campaignId={campaign?.id} onOrderDone={handleOrderDone} toast={toast} profile={profile} previousPaidBatches={previousPaidBatches} orderMode={orderMode} indiv={indivPricing} addTo={addTo} onCancelAdd={()=>setAddTo(null)} />}
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
         {page === 'profile' && !profile && <div style={{padding:20,color:'var(--danger)',fontSize:'var(--fs-xs)'}}><div>profile: null</div><div>token: {token?'ok':'null'}</div><div>appLoading: {String(appLoading)}</div><Btn onClick={()=>loadAppData(token,session?.user?.id)} sfx="click"><RefreshCw size={14}/> Recarregar</Btn></div>}
-        {page === 'profile' && profile && (() => { try { return <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} campaign={campaign} colorMode={colorMode} onColorModeChange={setColorMode} />; } catch(e) { return <div style={{padding:20,color:'var(--danger)',fontSize:'var(--fs-xs)'}}>Crash: {e.message}</div>; } })()}
+        {page === 'profile' && profile && (() => { try { return <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} campaign={campaign} colorMode={colorMode} onColorModeChange={setColorMode} openIndividualOrders={openIndividualOrders} onAddCards={handleStartAddCards} />; } catch(e) { return <div style={{padding:20,color:'var(--danger)',fontSize:'var(--fs-xs)'}}>Crash: {e.message}</div>; } })()}
         {page === 'admin' && <AdminPage pool={pool} pricing={pricing} campaign={campaign} theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} toast={toast} initialSection={adminTarget} />}
         {page === 'onboarding' && <OnboardingPage onComplete={handleOnboardingComplete} theme={theme} />}
       </main>

@@ -21,7 +21,9 @@ export async function loadPricingInputs(SB_URL, SB_KEY) {
 // Cotação autoritativa do servidor. Relê o TIPO de cada carta no banco
 // (ignora o tipo enviado pelo cliente) e precifica via shared/individualPricing.
 // items: [{ card_id, quantity }]  →  { totalQty, subtotal, lines, tier, fx }
-export async function quoteItems(SB_URL, SB_KEY, items, inputs = null) {
+// options.tierQty: volume que puxa a faixa de preço, quando ele é maior que o
+// do carrinho (adição a um pedido já pago viaja no mesmo volume do original).
+export async function quoteItems(SB_URL, SB_KEY, items, inputs = null, options = {}) {
   const headers = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` };
   const list = Array.isArray(items) ? items.filter(i => i && i.card_id) : [];
   const { tiers, pricing, fx } = inputs || await loadPricingInputs(SB_URL, SB_KEY);
@@ -43,6 +45,6 @@ export async function quoteItems(SB_URL, SB_KEY, items, inputs = null) {
     quantity: Math.max(0, Math.floor(Number(i.quantity) || 0)),
   }));
 
-  const quote = quoteCart({ items: cartItems, tiers, pricing, fxRate: fx.rate });
+  const quote = quoteCart({ items: cartItems, tiers, pricing, fxRate: fx.rate, tierQty: options.tierQty });
   return { ...quote, fx, pricing };
 }
