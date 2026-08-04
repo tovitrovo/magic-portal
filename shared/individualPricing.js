@@ -56,15 +56,21 @@ export function pricePerCard({ qty, type, tiers, pricing = {}, fxRate }) {
 
 // Total do carrinho. items: [{ type, quantity }]. A quantidade total
 // (soma das quantidades) define a faixa aplicada a todas as cartas.
-export function quoteCart({ items, tiers, pricing = {}, fxRate }) {
+//
+// tierQty permite puxar a faixa por um volume MAIOR que o do carrinho: é o
+// caso da adição de cartas a um pedido individual já pago, em que as cartas
+// novas viajam junto com as antigas e por isso são precificadas pelo volume
+// somado. Nunca reduz a quantidade — só sobe.
+export function quoteCart({ items, tiers, pricing = {}, fxRate, tierQty = null }) {
   const list = Array.isArray(items) ? items : [];
   const totalQty = list.reduce((s, i) => s + Math.max(0, Math.floor(Number(i.quantity) || 0)), 0);
+  const qtyForTier = Math.max(totalQty, Math.max(0, Math.floor(Number(tierQty) || 0)));
   const lines = list.map((i) => {
-    const unit = pricePerCard({ qty: totalQty, type: i.type, tiers, pricing, fxRate });
+    const unit = pricePerCard({ qty: qtyForTier, type: i.type, tiers, pricing, fxRate });
     const quantity = Math.max(0, Math.floor(Number(i.quantity) || 0));
     return { ...i, quantity, unit_price_brl: unit, line_total_brl: round2(unit * quantity) };
   });
   const subtotal = round2(lines.reduce((s, l) => s + l.line_total_brl, 0));
-  const tier = pickTier(totalQty, tiers);
-  return { totalQty, subtotal, lines, tier };
+  const tier = pickTier(qtyForTier, tiers);
+  return { totalQty, tierQty: qtyForTier, subtotal, lines, tier };
 }

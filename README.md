@@ -161,6 +161,44 @@ O Pedido Individual (modo e-commerce, sem campanha) tem um pipeline de status si
 - **API**: `/api/admin-individual-orders` lista os pedidos; `/api/admin-update-fulfillment` grava o status de um ou mais lotes (qualquer estágio válido, pra frente ou pra trás).
 - **Cliente**: em "Meus Pedidos", pedidos Individuais pagos mostram uma barra de progresso com o status atual.
 
+### Adicionar cartas a um pedido individual
+
+Enquanto a compra no fornecedor **não foi feita** (o pedido ainda está em
+`Aguardando compra`), o cliente pode mandar mais cartas para o **mesmo**
+pedido: em "Meus Pedidos" aparece **Adicionar cartas a este pedido**, e o que
+for fechado no checkout entra ali em vez de virar um pedido novo.
+
+| | Pedido individual | Adição |
+|---|---|---|
+| Mínimo de cartas | `min_cards` (15) | não se aplica — o pedido já cumpriu |
+| Frete | cobrado | R$ 0,00, mesma remessa |
+| Faixa de preço | volume do carrinho | volume **somado** (pago + novo) |
+| No banco | pedido + lote novos | **lote novo no mesmo pedido** |
+
+As três consequências que definem o modelo:
+
+1. **A janela é do pedido, não do lote.** Basta um lote ter saído de
+   `AWAITING_SUPPLIER_ORDER` (ou ter etiqueta) para o pedido inteiro parar de
+   aceitar cartas — senão a caixa fecharia sem elas.
+2. **Adicionar nunca encarece.** A faixa é escolhida pelo volume somado, então
+   somar 5 cartas a 40 já pagas cobra as novas na faixa de 45.
+3. **Uma remessa, uma etiqueta.** A adição herda endereço, serviço e
+   `shipping_group_id` do lote que pagou o frete, e o **Envios → Individual**
+   passou a listar por remessa: o botão de etiqueta cobre todos os lotes do
+   pedido de uma vez, e fica bloqueado enquanto algum deles não chegou em
+   "Em preparação".
+
+`shared/individualAddCards.js` guarda essa regra — a UI usa para mostrar o
+botão e `individual-checkout.js` para recusar o que chegar fora da janela
+(HTTP 409, `code: ADD_WINDOW_CLOSED`). `test/individualAddCards.test.js` trava
+os três pontos acima.
+
+O pagamento é um lote separado (Mercado Pago, como qualquer outro), então a
+adição aparece em "Meus Pedidos" como uma linha própria — com "Pagar" e
+"Cancelar" enquanto não for paga — e em **Pedidos → Compras do dia** no dia em
+que foi paga, marcada com `+ adição ao #XXXX`. Nenhuma migração de banco é
+necessária: o modelo de `order_batches` já previa vários lotes por pedido.
+
 ## 💚 Lista de desejos
 
 A lista de desejos é **do usuário**, não do pedido: ela atravessa campanhas e

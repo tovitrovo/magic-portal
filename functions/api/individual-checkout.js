@@ -1,5 +1,8 @@
 import { quoteItems } from "./_individual-helper.js";
 import { corsHeaders } from "./_cors.js";
+import { ADD_CARDS_CLOSED_ERROR, canAddCardsToOrder, isPaidBatch, paidQtyOf, shippingAnchorOf, shippingGroupIdOf } from "../../shared/individualAddCards.js";
+
+const enc = encodeURIComponent;
 
 // Identifica o usuário pelo token (sem exigir admin).
 async function getUserId(context, SB_URL, SB_KEY) {
@@ -13,8 +16,88 @@ async function getUserId(context, SB_URL, SB_KEY) {
   } catch { return null; }
 }
 
+const sumQty = items => items.reduce((s, i) => s + Math.max(0, Math.floor(Number(i.quantity) || 0)), 0);
+
+// Grava as linhas do lote com o preço travado por carta.
+async function createItems(SB_URL, headers, orderId, batchId, lines) {
+  const rows = lines.filter(l => l.quantity > 0).map(l => ({
+    order_id: orderId, batch_id: batchId, card_id: l.card_id,
+    quantity: l.quantity, in_cart: false, is_bonus: false, unit_price_brl: l.unit_price_brl,
+  }));
+  const res = await fetch(`${SB_URL}/rest/v1/order_items`, {
+    method: "POST", headers: { ...headers, Prefer: "return=minimal" }, body: JSON.stringify(rows),
+  });
+  return res.ok ? null : `Falha ao criar itens: ${res.status} ${(await res.text()).slice(0, 160)}`;
+}
+
+// ── Adição a um pedido individual já pago ────────────────────────────────
+// As cartas novas entram num lote NOVO do mesmo pedido: pagam à parte (o
+// dinheiro do primeiro lote já foi cobrado), não pagam frete de novo — vão na
+// mesma remessa — e são precificadas pela faixa do volume somado, porque para
+// o fornecedor é uma compra só.
+async function addCardsToOrder({ SB_URL, SB_KEY, headers, json, userId, orderId, items }) {
+  const select = "id,qty_paid,order_batches(id,status,payment_status,qty_in_batch,created_at,fulfillment_status,shipping_service,shipping_address,shipping_group_id,shipping_already_paid,shipping_locked,mandabem_envio_id)";
+  const ordRes = await fetch(
+    `${SB_URL}/rest/v1/orders?id=eq.${enc(orderId)}&user_id=eq.${enc(userId)}&kind=eq.INDIVIDUAL&select=${enc(select)}&limit=1`,
+    { headers }
+  );
+  if (!ordRes.ok) return json({ ok: false, error: `Falha ao ler o pedido: ${ordRes.status}` }, 502);
+  const order = (await ordRes.json().catch(() => []))[0];
+  if (!order) return json({ ok: false, error: "Pedido não encontrado" }, 404);
+
+  const batches = order.order_batches || [];
+  if (!batches.some(isPaidBatch)) {
+    return json({ ok: false, error: "Este pedido ainda não foi pago. Pague-o antes de adicionar cartas." }, 409);
+  }
+  // code: o cliente usa para sair do modo de adição sem depender do texto.
+  if (!canAddCardsToOrder(batches)) return json({ ok: false, code: "ADD_WINDOW_CLOSED", error: ADD_CARDS_CLOSED_ERROR }, 409);
+
+  const newQty = sumQty(items);
+  if (newQty < 1) return json({ ok: false, error: "Nenhuma carta para adicionar" }, 400);
+
+  // A faixa de preço olha o volume total da remessa: o que já foi pago + o
+  // que está entrando. Adicionar carta nunca deixa a carta mais cara.
+  const alreadyPaidQty = paidQtyOf(batches);
+  const quote = await quoteItems(SB_URL, SB_KEY, items, null, { tierQty: alreadyPaidQty + newQty });
+  const subtotal = quote.subtotal;
+  const effectiveUnit = quote.totalQty > 0 ? Math.round((subtotal / quote.totalQty) * 10000) / 10000 : 0;
+
+  const anchor = shippingAnchorOf(batches);
+  const batchRes = await fetch(`${SB_URL}/rest/v1/order_batches`, {
+    method: "POST", headers: { ...headers, Prefer: "return=representation" },
+    body: JSON.stringify({
+      order_id: order.id, status: "DRAFT", payment_method: "MERCADO_PAGO",
+      brl_unit_price_locked: effectiveUnit, qty_in_batch: quote.totalQty,
+      subtotal_locked: subtotal, shipping_locked: 0, total_locked: subtotal,
+      shipping_service: anchor?.shipping_service || null, shipping_address: anchor?.shipping_address || null,
+      shipping_already_paid: true, shipping_group_id: shippingGroupIdOf(batches),
+    }),
+  });
+  if (!batchRes.ok) return json({ ok: false, error: `Falha ao criar lote: ${batchRes.status} ${(await batchRes.text()).slice(0, 160)}` }, 502);
+  const batch = (await batchRes.json())[0];
+
+  const itemsError = await createItems(SB_URL, headers, order.id, batch.id, quote.lines);
+  if (itemsError) return json({ ok: false, error: itemsError }, 502);
+
+  // qty_paid acompanha o pedido inteiro (mesma semântica do checkout: já sobe
+  // na criação do lote, antes da confirmação do pagamento).
+  await fetch(`${SB_URL}/rest/v1/orders?id=eq.${enc(order.id)}`, {
+    method: "PATCH", headers: { ...headers, Prefer: "return=minimal" },
+    body: JSON.stringify({ qty_paid: (Number(order.qty_paid) || 0) + quote.totalQty }),
+  }).catch(() => {});
+
+  return json({
+    ok: true, added: true, orderId: order.id, batchId: batch.id,
+    shortId: String(batch.id).slice(0, 8).toUpperCase(),
+    addedToShortId: anchor ? String(anchor.id).slice(0, 8).toUpperCase() : null,
+    subtotal, shipping: 0, total: subtotal, totalQty: quote.totalQty,
+    orderTotalQty: alreadyPaidQty + quote.totalQty,
+  });
+}
+
 // POST /api/individual-checkout
 // body: { items:[{card_id,quantity}], shipping:{ service, price, address, already_paid, group_id } }
+//    ou { items:[...], addToOrderId }  → adiciona cartas a um pedido individual já pago
 // Cria um pedido INDIVIDUAL com preços travados no servidor e devolve o batch p/ Mercado Pago.
 export async function onRequest(context) {
   const CORS = corsHeaders(context, "POST, OPTIONS");
@@ -31,11 +114,18 @@ export async function onRequest(context) {
   const body = await context.request.json().catch(() => ({}));
   const items = Array.isArray(body.items) ? body.items : [];
   const shipping = body.shipping || {};
+  const addToOrderId = String(body.addToOrderId || "").trim();
   if (!items.length) return json({ ok: false, error: "Carrinho vazio" }, 400);
 
   const headers = { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}`, "Content-Type": "application/json" };
 
   try {
+    // Adição a um pedido existente: sem pedido novo, sem frete, sem mínimo —
+    // o mínimo já foi cumprido pelo pedido que está recebendo as cartas.
+    if (addToOrderId) {
+      return await addCardsToOrder({ SB_URL, SB_KEY: SB_SERVICE_ROLE_KEY, headers, json, userId, orderId: addToOrderId, items });
+    }
+
     // 1. Cotação autoritativa (relê tipos do banco) + mínimo de cartas
     const quote = await quoteItems(SB_URL, SB_SERVICE_ROLE_KEY, items);
     const minCards = Number(quote?.pricing?.min_cards) || 15;
@@ -70,14 +160,8 @@ export async function onRequest(context) {
     const batch = (await batchRes.json())[0];
 
     // 4. Cria os itens com preço travado por linha
-    const rows = quote.lines.filter(l => l.quantity > 0).map(l => ({
-      order_id: order.id, batch_id: batch.id, card_id: l.card_id,
-      quantity: l.quantity, in_cart: false, is_bonus: false, unit_price_brl: l.unit_price_brl,
-    }));
-    const itemsRes = await fetch(`${SB_URL}/rest/v1/order_items`, {
-      method: "POST", headers: { ...headers, Prefer: "return=minimal" }, body: JSON.stringify(rows),
-    });
-    if (!itemsRes.ok) return json({ ok: false, error: `Falha ao criar itens: ${itemsRes.status} ${(await itemsRes.text()).slice(0,160)}` }, 502);
+    const itemsError = await createItems(SB_URL, headers, order.id, batch.id, quote.lines);
+    if (itemsError) return json({ ok: false, error: itemsError }, 502);
 
     return json({ ok: true, orderId: order.id, batchId: batch.id, shortId: String(batch.id).slice(0, 8).toUpperCase(), subtotal, shipping: shippingLocked, total, totalQty: quote.totalQty });
   } catch (e) {
