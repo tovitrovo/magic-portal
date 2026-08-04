@@ -607,7 +607,7 @@ function HomePage({pool,minCards,pricing,closeDate,theme,nav,wishlistCount,cartC
   return(<div className="portal-page portal-home" style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)'}}>
     <div style={{textAlign:'center',padding:'6px 0 0'}}>
       <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>
-      <h1 className="mp-gradient-text" style={{margin:'5px 0 0',fontSize:'var(--fs-2xl)',fontFamily:"'Cinzel',serif",background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',color:theme.primary}}>Cartas para Jogar</h1>
+      <h1 className="mp-gradient-text" style={{margin:'5px 0 0',fontSize:'var(--fs-2xl)',fontFamily:"'Cinzel',serif",backgroundImage:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',color:theme.primary}}>Cartas para Jogar</h1>
     </div>
 
     {/* Status da campanha se não estiver ativa */}
@@ -4343,14 +4343,14 @@ export default function MagicPortal(){
                 {addTo&&<AddingToOrderBanner addTo={addTo} onCancel={()=>setAddTo(null)}/>}
                 <Card style={{padding:20}}>
                   <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif",textAlign:'center'}}>{addTo?`Adicionando ao pedido #${addTo.shortId}`:'Pedido Individual'}</div>
-                  <h1 className="mp-gradient-text" style={{margin:'5px 0 10px',fontSize:'var(--fs-xl)',fontFamily:"'Cinzel',serif",textAlign:'center',background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',color:theme.primary}}>Quanto mais cartas, menor o preço</h1>
+                  <h1 className="mp-gradient-text" style={{margin:'5px 0 10px',fontSize:'var(--fs-xl)',fontFamily:"'Cinzel',serif",textAlign:'center',backgroundImage:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',color:theme.primary}}>Quanto mais cartas, menor o preço</h1>
                   <Btn full onClick={()=>nav('catalog')} sfx="nav" style={{marginTop:14}}><BookOpen size={16}/> {addTo?'Escolher mais cartas':'Montar meu pedido'}</Btn>
                 </Card>
               </div>
             : (campaign ? <HomePage pool={pool} minCards={campaign?.min_cards||150} pricing={pricing} closeDate={campaign?.close_at} theme={theme} nav={nav} wishlistCount={wishlistCount} cartCount={cartCount} bonusAvail={bonusAvail} campaign_status={campaign?.status} /> : <div style={{display:'flex',flexDirection:'column',gap:14}}>
           <div style={{textAlign:'center',padding:'6px 0 0'}}>
             <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomenda em Grupo</div>
-            <h1 className="mp-gradient-text" style={{margin:'5px 0 0',fontSize:'var(--fs-2xl)',fontFamily:"'Cinzel',serif",background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',color:theme.primary}}>Cartas para Jogar</h1>
+            <h1 className="mp-gradient-text" style={{margin:'5px 0 0',fontSize:'var(--fs-2xl)',fontFamily:"'Cinzel',serif",backgroundImage:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',color:theme.primary}}>Cartas para Jogar</h1>
           </div>
           {appLoading
             ? <Card style={{padding:20,textAlign:'center'}}><Spin size={24}/><div style={{marginTop:8,fontSize:'var(--fs-sm)',color:'var(--text-faint)'}}>Carregando campanha...</div></Card>
