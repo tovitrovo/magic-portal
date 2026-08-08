@@ -74,3 +74,53 @@ export function quoteCart({ items, tiers, pricing = {}, fxRate, tierQty = null }
   const tier = pickTier(qtyForTier, tiers);
   return { totalQty, tierQty: qtyForTier, subtotal, lines, tier };
 }
+
+// ──────────────────────────────────────────────────────────────
+// O PISO ACHATA O FIM DA ESCADA
+//
+// O preço é `máx(custo × multiplicador × dólar, piso[tipo])`. Passado o ponto
+// em que o custo da faixa cai abaixo do piso, todas as faixas seguintes valem
+// o mesmo — o desconto por volume acaba, ainda que a tabela siga crescendo.
+// Com a configuração de produção isso começa cedo: Foil trava no piso a partir
+// de ~50 cartas, Holo a partir de ~300.
+//
+// As duas funções abaixo existem para a interface não mentir por causa disso.
+// ──────────────────────────────────────────────────────────────
+
+// Próxima faixa que REALMENTE baixa o preço. Sem esse filtro, a home promete
+// "faltam 81 cartas para pagar R$ 16,00" para quem já paga R$ 16,00 — um
+// convite a gastar mais por nada. Devolve também o preço da faixa e quanto o
+// cliente economiza no pedido inteiro ao alcançá-la.
+export function nextCheaperTier(qty, { tiers, pricing = {}, fxRate, type = 'Normal' } = {}) {
+  const q = Math.max(0, Math.floor(Number(qty) || 0));
+  const current = pricePerCard({ qty: q, type, tiers, pricing, fxRate });
+  const sorted = [...(tiers || [])].sort((a, b) => Number(a.min_qty) - Number(b.min_qty));
+  for (const tier of sorted) {
+    const min = Number(tier.min_qty) || 0;
+    if (min <= q) continue;
+    const unit = pricePerCard({ qty: min, type, tiers, pricing, fxRate });
+    // O desconto vale para o pedido todo, não só para as cartas que faltam.
+    if (unit < current) return { tier, missing: min - q, unit, saving: round2((current - unit) * min) };
+  }
+  return { tier: null, missing: 0, unit: current, saving: 0 };
+}
+
+// A escada como o cliente deve vê-la: sem as faixas que o mínimo do pedido
+// torna inalcançáveis e sem repetir o mesmo preço em linhas seguidas — com a
+// configuração de produção, as quatro últimas faixas da carta Normal caem
+// todas em R$ 16,00 e virariam quatro linhas idênticas na tela.
+export function discountLadder({ tiers, pricing = {}, fxRate, type = 'Normal', minCards = 0 } = {}) {
+  const floor = Math.max(0, Math.floor(Number(minCards) || 0));
+  const sorted = [...(tiers || [])].sort((a, b) => Number(a.min_qty) - Number(b.min_qty));
+  const rows = [];
+  for (const tier of sorted) {
+    const max = tier.max_qty == null ? null : Number(tier.max_qty);
+    if (max != null && max < floor) continue; // faixa inteira abaixo do mínimo
+    const min = Math.max(Number(tier.min_qty) || 0, floor);
+    const unit = pricePerCard({ qty: min, type, tiers, pricing, fxRate });
+    const last = rows[rows.length - 1];
+    if (last && last.unit === unit) { last.max = max; continue; }
+    rows.push({ min, max, unit });
+  }
+  return rows;
+}

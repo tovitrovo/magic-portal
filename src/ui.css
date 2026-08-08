@@ -107,16 +107,24 @@ select:focus-visible {
    transparent`, e é aí que mora o risco: se o recorte não pintar, o título
    fica invisível — não degradado, invisível. Por isso a transparência só é
    aplicada dentro do @supports, e o `color` do estilo inline (a cor da
-   guilda) é o fallback sólido de quem não suporta. */
+   guilda) é o fallback sólido de quem não suporta.
+
+   O gradiente vem do estilo inline (depende da cor da guilda) e precisa vir
+   pela longhand `background-image`. Com a shorthand `background`, a
+   declaração inline reseta `background-clip` para `border-box` — e estilo
+   inline ganha da classe —, então o recorte se perde, o gradiente pinta a
+   caixa inteira e o texto, já transparente, some: um retângulo colorido no
+   lugar do título. O `!important` abaixo blinda o recorte mesmo se alguém
+   voltar a usar a shorthand. */
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
   .mp-gradient-text {
-    -webkit-background-clip: text;
-    background-clip: text;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
     -webkit-text-fill-color: transparent;
   }
 }
 
 /* Sem o recorte, o gradiente de fundo atrás do texto atrapalharia a leitura. */
 @supports not ((-webkit-background-clip: text) or (background-clip: text)) {
-  .mp-gradient-text { background: none !important; }
+  .mp-gradient-text { background-image: none !important; }
 }
