@@ -5,6 +5,7 @@ import { buildShippingGroups, SHIPPING_SERVICE_UNKNOWN } from '../shared/shippin
 import { buildCardsFromCsv, parseCardLinkList } from '../shared/cardImport';
 import { pricePerCard as indivPricePerCard } from '../shared/individualPricing';
 import { canAddCardsToOrder, paidQtyOf, shippingAnchorOf } from '../shared/individualAddCards';
+import { aggregateOrderCards, formatSupplierCardList, totalCardQty } from '../shared/supplierCardList';
 import { DEFAULT_WHATSAPP_MESSAGES, WHATSAPP_AUDIENCES, buildShipmentWhatsAppUrl, buildWhatsAppUrl, getWhatsAppRecipients } from './whatsappCommunication';
 import { PUSH_NEEDS_INSTALL, disablePush, enablePush, getPushState, reportAccess, sendTestPush, updatePushPrefs } from './push';
 import { GT, GT_LIGHT, inkOn } from './guildTheme';
@@ -430,7 +431,7 @@ function FloatingMana({theme}){
 // ══════════════════════════════════════════════════════
 
 const Card=({children,style,glow,onClick,id})=><div id={id} onClick={onClick} style={{background:'var(--card-bg)',border:'1px solid '+(glow||'var(--card-border)'),borderRadius:'var(--r-card)',padding:'var(--sp-4)',boxShadow:glow?'0 0 20px '+glow:'var(--card-shadow)',...(onClick?{cursor:'pointer'}:{}),...style}}>{children}</div>;
-const Btn=({children,variant='primary',disabled,onClick,style,full,sfx='click',id})=>{const v={primary:{background:'var(--gp)',color:'var(--gp-ink)',boxShadow:'0 4px 18px var(--gg)'},secondary:{background:'var(--fill)',color:'var(--text-strong)',border:'1px solid var(--line)'},ghost:{background:'transparent',color:'var(--gp)',padding:'12px'},danger:{background:'rgba(var(--danger-rgb),0.1)',color:'var(--danger)',border:'1px solid rgba(var(--danger-rgb),0.15)'},success:{background:'rgba(var(--ok-rgb),0.1)',color:'var(--ok)',border:'1px solid rgba(var(--ok-rgb),0.15)'},pix:{background:'rgba(var(--pix-rgb),0.12)',color:'var(--pix)',border:'1px solid rgba(var(--pix-rgb),0.2)'},warn:{background:'rgba(var(--gold-rgb),0.1)',color:'var(--gold)',border:'1px solid rgba(var(--gold-rgb),0.15)'}};return <button id={id} onClick={e=>{if(!disabled&&sfx&&SFX[sfx])SFX[sfx]();if(onClick)onClick(e);}} disabled={disabled} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:'var(--sp-2)',border:'none',borderRadius:'var(--r-card)',padding:'13px 20px',fontWeight:700,fontSize:14,cursor:disabled?'not-allowed':'pointer',opacity:disabled?.4:1,transition:'all .15s',fontFamily:"'Outfit',sans-serif",...(full?{width:'100%'}:{}),...v[variant],...style}}>{children}</button>;};
+const Btn=({children,variant='primary',disabled,onClick,style,full,sfx='click',id,title})=>{const v={primary:{background:'var(--gp)',color:'var(--gp-ink)',boxShadow:'0 4px 18px var(--gg)'},secondary:{background:'var(--fill)',color:'var(--text-strong)',border:'1px solid var(--line)'},ghost:{background:'transparent',color:'var(--gp)',padding:'12px'},danger:{background:'rgba(var(--danger-rgb),0.1)',color:'var(--danger)',border:'1px solid rgba(var(--danger-rgb),0.15)'},success:{background:'rgba(var(--ok-rgb),0.1)',color:'var(--ok)',border:'1px solid rgba(var(--ok-rgb),0.15)'},pix:{background:'rgba(var(--pix-rgb),0.12)',color:'var(--pix)',border:'1px solid rgba(var(--pix-rgb),0.2)'},warn:{background:'rgba(var(--gold-rgb),0.1)',color:'var(--gold)',border:'1px solid rgba(var(--gold-rgb),0.15)'}};return <button id={id} title={title} onClick={e=>{if(!disabled&&sfx&&SFX[sfx])SFX[sfx]();if(onClick)onClick(e);}} disabled={disabled} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:'var(--sp-2)',border:'none',borderRadius:'var(--r-card)',padding:'13px 20px',fontWeight:700,fontSize:14,cursor:disabled?'not-allowed':'pointer',opacity:disabled?.4:1,transition:'all .15s',fontFamily:"'Outfit',sans-serif",...(full?{width:'100%'}:{}),...v[variant],...style}}>{children}</button>;};
 const Input=({icon:Icon,...p})=><div style={{position:'relative'}}>{Icon&&<Icon size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)',pointerEvents:'none'}}/>}<input {...p} style={{width:'100%',padding:Icon?'13px 14px 13px 42px':'13px 14px',borderRadius:'var(--r-card)',border:'1px solid var(--line)',background:'var(--field-bg)',color:'var(--text)',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",outline:'none',boxSizing:'border-box',...p.style}}/></div>;
 const Tag=({children,color,style})=><span style={{display:'inline-flex',alignItems:'center',gap:'var(--sp-1)',padding:'5px 11px',borderRadius:'var(--r-pill)',background:color?wa(color,'14'):'var(--fill-soft)',border:'1px solid '+(color?wa(color,'22'):'var(--line-soft)'),fontSize:'var(--fs-xs)',color:color||'var(--text-muted)',fontWeight:600,whiteSpace:'nowrap',...style}}>{children}</span>;
 const SectionTitle=({children,sub})=><div style={{marginBottom:12}}><h2 style={{margin:0,fontSize:'var(--fs-lg)',fontFamily:"'Cinzel',serif",color:'var(--text-strong)',letterSpacing:.3}}>{children}</h2>{sub&&<p style={{margin:'3px 0 0',fontSize:'var(--fs-xs)',color:'var(--text-faint)'}}>{sub}</p>}</div>;
@@ -2197,6 +2198,8 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   const [batchCards,setBatchCards]=useState({});
   const [busyBatch,setBusyBatch]=useState(null);
   const [supplierFilter,setSupplierFilter]=useState('PENDING');
+  const [copyingOrder,setCopyingOrder]=useState(null);
+  const [copiedOrder,setCopiedOrder]=useState(null);
 
   // ── Clientes ────────────────────────────────────────
   const [expandedClient,setExpandedClient]=useState(null);
@@ -2535,6 +2538,27 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     }catch(e){console.error(e);if(toastFn)toastFn('Erro ao carregar itens: '+(e.message||String(e)),'error');}
   }
 
+  // Quantos lotes pagos um pedido individual tem (pedido + adições).
+  const batchesOfIndivOrder=orderId=>individualBatches.filter(b=>String(b.orderId)===String(orderId));
+
+  // Copia a lista de compra do PEDIDO inteiro — todos os lotes juntos, cartas
+  // repetidas somadas — pra o admin colar no fornecedor de uma vez só.
+  async function copyIndivOrderCards(orderId){
+    const batchIds=batchesOfIndivOrder(orderId).map(b=>b.id);
+    if(batchIds.length===0){if(toastFn)toastFn('Nenhum lote pago neste pedido','error');return;}
+    setCopyingOrder(orderId);
+    try{
+      const json=await apiPost('/api/admin-batch-items',{batchIds});
+      const cards=aggregateOrderCards(json.items||[]);
+      if(cards.length===0){if(toastFn)toastFn('Este pedido não tem cartas','error');return;}
+      await navigator.clipboard.writeText(formatSupplierCardList(cards));
+      setCopiedOrder(orderId);setTimeout(()=>setCopiedOrder(c=>c===orderId?null:c),2000);
+      SFX.success();
+      if(toastFn)toastFn(`${totalCardQty(cards)} cartas copiadas (${batchIds.length} lote${batchIds.length!==1?'s':''})`,'success');
+    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao copiar lista: '+(e.message||String(e)),'error');}
+    finally{setCopyingOrder(null);}
+  }
+
   async function cancelBatch(batchId,isPaid){
     const msg=isPaid?'Cancelar pedido pago? O reembolso deve ser feito manualmente no Mercado Pago.':'Cancelar este pedido pendente?';
     if(!confirm(msg))return;
@@ -2852,6 +2876,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     const nextStage=isIndiv?INDIV_FULFILLMENT_STAGES[indivStageIndex(b.fulfillment_status)+1]:null;
     const prevStage=isIndiv&&indivStageIndex(b.fulfillment_status)>0?INDIV_FULFILLMENT_STAGES[indivStageIndex(b.fulfillment_status)-1]:null;
     const tracking=getBatchTrackingInfo(b);
+    const orderBatchCount=isIndiv?batchesOfIndivOrder(b.orderId).length:0;
     const canMandaBem=!isIndiv&&paid&&!cancelled&&!b.shipping_already_paid&&ship>0;
     const busy=busyBatch===b.id||!!labelLoading[b.id];
 
@@ -2916,7 +2941,12 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
         </div>
 
         <div style={{marginBottom:10}}>
-          <div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-faint)',marginBottom:4}}>Itens do pedido</div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,marginBottom:4}}>
+            <div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-faint)'}}>{isIndiv?'Itens deste lote':'Itens do pedido'}</div>
+            {isIndiv&&<Btn variant="secondary" onClick={e=>{e.stopPropagation();copyIndivOrderCards(b.orderId);}} disabled={copyingOrder===b.orderId} title="Copia todas as cartas do pedido, de todos os lotes juntos" style={{padding:'5px 9px',fontSize:'var(--fs-2xs)'}} sfx="">
+              {copyingOrder===b.orderId?<Spin size={11}/>:copiedOrder===b.orderId?<><Check size={11}/> Copiado!</>:<><Copy size={11}/> Copiar pedido inteiro{orderBatchCount>1?` (${orderBatchCount} lotes)`:''}</>}
+            </Btn>}
+          </div>
           {(batchCards[b.id]||[]).length>0?batchCards[b.id].map((c,ci)=>(
             <div key={ci} style={{display:'flex',alignItems:'center',gap:8,padding:'3px 0',fontSize:'var(--fs-xs)',borderBottom:'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))'}}>
               <div onClick={e=>{e.stopPropagation();c.image_url&&setZoomSrc(c.image_url);}} style={{width:26,flexShrink:0,cursor:c.image_url?'zoom-in':'default'}}><CardThumb card={c} radius={5}/></div>
@@ -3079,6 +3109,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
                       {b.isAddition&&<Tag color="var(--info)" style={{fontSize:'var(--fs-2xs)',padding:'2px 6px',flexShrink:0}}><Plus size={9}/> adição ao #{b.addedToShortId}</Tag>}
                     </div>
                     <div style={{display:'flex',alignItems:'center',gap:5,flexShrink:0}}>
+                      <button title="Copiar a lista de cartas do pedido inteiro (todos os lotes) pra mandar pro fornecedor" onClick={()=>copyIndivOrderCards(b.orderId)} disabled={copyingOrder===b.orderId} style={{background:'var(--fill)',border:'1px solid var(--line)',borderRadius:'var(--r-control)',padding:'4px 6px',color:copiedOrder===b.orderId?'var(--ok)':'var(--text-dim)',cursor:'pointer',display:'grid',placeItems:'center'}}>{copyingOrder===b.orderId?<Spin size={11}/>:copiedOrder===b.orderId?<Check size={11}/>:<Copy size={11}/>}</button>
                       <Tag color={idx>=5?'var(--ok)':'var(--indiv)'} style={{fontSize:'var(--fs-2xs)',padding:'3px 7px'}}>{stageInfo.short}</Tag>
                       {prev&&<button onClick={()=>setFulfillment([b.id],prev.key,b.id,{back:true,hasLabel:!!b.mandabem_envio_id})} disabled={busyBatch===b.id} title={`Voltar para ${prev.label}`} style={{background:'var(--fill)',border:'1px solid var(--line)',borderRadius:'var(--r-control)',padding:'4px 6px',color:'var(--text-dim)',cursor:'pointer',display:'grid',placeItems:'center'}}>{busyBatch===b.id?<Spin size={11}/>:<ArrowLeft size={11}/>}</button>}
                       {next&&next.key!=='LABEL_GENERATED'&&<button onClick={()=>setFulfillment([b.id],next.key,b.id)} disabled={busyBatch===b.id} title={next.label} style={{background:'var(--fill)',border:'1px solid var(--line)',borderRadius:'var(--r-control)',padding:'4px 6px',color:'var(--text-dim)',cursor:'pointer',display:'grid',placeItems:'center'}}>{busyBatch===b.id?<Spin size={11}/>:<ArrowRight size={11}/>}</button>}
