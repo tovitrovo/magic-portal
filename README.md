@@ -280,9 +280,36 @@ dependem de encomenda e aparecem sempre.
 | **Pedidos** | Lista unificada Coletiva + Individual com filtro por canal/status, busca e ordenação. A aba **Compras do dia** agrupa individuais por dia para a compra no fornecedor |
 | **Envios** | Etiquetas MandaBem: agrupadas por frete na coletiva, uma a uma no individual |
 | **Clientes** | Contatos, histórico de compras nos dois canais, bônus e disparo assistido de WhatsApp |
-| **Catálogo** | Importação por CSV e adição de cartas avulsas por link de imagem |
+| **Catálogo** | Importação por CSV e adição de cartas avulsas por link de imagem (ver [Adicionar cartas por link](#-adicionar-cartas-por-link)) |
 | **Encomendas** | Criar/editar/arquivar campanhas + lista de compra da encomenda selecionada |
 | **Ajustes** | Preços da coletiva, preços do individual, notificações e mapa do console |
+
+## 🔗 Adicionar cartas por link
+
+Em **Admin → Catálogo → Adicionar cartas por link** você cola uma carta por
+linha no formato `Nome da carta | link da imagem`. O servidor baixa cada
+imagem, sobe para o bucket `cards` do Supabase e grava a carta com o TCG e o
+tipo escolhidos nos dois seletores — que valem para a lista inteira, então
+cole junto só o que for do mesmo tipo (ex: só Foil).
+
+O endpoint `/api/admin-add-cards-by-link` aceita no máximo **25 cartas por
+chamada** (ele baixa e sobe uma imagem por carta). O painel divide listas
+maiores em lotes de 25 automaticamente e envia um de cada vez, mostrando o
+progresso — dá para colar as 136 linhas de uma vez.
+
+Cada carta é gravada com `import_ref = slug-do-nome + hash-do-link`, e o
+`INSERT` usa `on_conflict=import_ref`. Ou seja: **reenviar a mesma lista não
+duplica nada** — as cartas já existentes são atualizadas (inclusive o tipo, se
+você errou na primeira vez). Só gera linha nova quando o link da imagem muda.
+
+Listas prontas ficam em `scripts/cards/`:
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| `foil-2026-08.txt` | 136 cartas Magic tipo **Foil** (agosto/2026) |
+
+Linhas em branco e começadas com `#` são ignoradas, então dá para copiar o
+arquivo inteiro e colar no painel.
 
 ## 🌗 Tema claro e escuro
 

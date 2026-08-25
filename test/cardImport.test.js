@@ -4,6 +4,7 @@ import {
   decodeHtmlEntities, parseCsv, categoryToType, cleanName,
   basename, parseMoney, rowToCard, buildCardsFromCsv, STORAGE_BASE,
   extractImageUrl, slugify, parseCardLinkList,
+  chunkCardItems, mergeAddCardsResults, LINK_BATCH_SIZE,
 } from '../shared/cardImport.js';
 
 test('decodeHtmlEntities decodifica numéricas e nomeadas', () => {
@@ -123,4 +124,27 @@ test('parseCardLinkList separa itens válidos de inválidos', () => {
   assert.equal(invalid.length, 2);
   assert.equal(invalid[0].error, 'Formato esperado: Nome da carta | link da imagem');
   assert.equal(invalid[1].error, 'Nome ou link ausente');
+});
+
+test('chunkCardItems divide a lista em lotes do tamanho do endpoint', () => {
+  const items = Array.from({ length: 136 }, (_, i) => ({ name: `c${i}`, url: `u${i}` }));
+  const batches = chunkCardItems(items);
+  assert.equal(batches.length, 6);
+  assert.equal(batches[0].length, LINK_BATCH_SIZE);
+  assert.equal(batches[5].length, 136 - 5 * LINK_BATCH_SIZE);
+  assert.deepEqual(batches.flat(), items);
+  assert.deepEqual(chunkCardItems([]), []);
+  assert.deepEqual(chunkCardItems(null), []);
+  assert.equal(chunkCardItems(items, 0).length, 6); // tamanho inválido volta ao padrão
+});
+
+test('mergeAddCardsResults soma os lotes em um resultado único', () => {
+  const merged = mergeAddCardsResults([
+    { added: 2, failed: 0, results: [{ name: 'a', ok: true }, { name: 'b', ok: true }] },
+    { added: 0, failed: 1, results: [{ name: 'c', ok: false, error: 'HTTP 404' }] },
+  ]);
+  assert.equal(merged.added, 2);
+  assert.equal(merged.failed, 1);
+  assert.equal(merged.results.length, 3);
+  assert.deepEqual(mergeAddCardsResults([]), { ok: true, added: 0, failed: 0, results: [] });
 });

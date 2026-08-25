@@ -183,3 +183,35 @@ export function parseCardLinkList(text) {
   }
   return { items, invalid, total };
 }
+
+// Tamanho máximo aceito por chamada em /api/admin-add-cards-by-link — o
+// endpoint baixa e sobe a imagem de cada carta, então listas maiores são
+// enviadas em lotes sequenciais (ver chunkCardItems / mergeAddCardsResults).
+export const LINK_BATCH_SIZE = 25;
+
+// Divide a lista de cartas em lotes de no máximo `size` itens.
+export function chunkCardItems(items, size = LINK_BATCH_SIZE) {
+  const list = Array.isArray(items) ? items : [];
+  const n = Number.isFinite(size) && size >= 1 ? Math.floor(size) : LINK_BATCH_SIZE;
+  const out = [];
+  for (let i = 0; i < list.length; i += n) out.push(list.slice(i, i + n));
+  return out;
+}
+
+// Junta as respostas de vários lotes em um resultado único, no mesmo
+// formato devolvido pelo endpoint ({ added, failed, results }).
+export function mergeAddCardsResults(responses) {
+  const list = Array.isArray(responses) ? responses : [];
+  const results = [];
+  let added = 0;
+  let failed = 0;
+  for (const res of list) {
+    const rows = Array.isArray(res && res.results) ? res.results : [];
+    for (const row of rows) {
+      results.push(row);
+      if (row && row.ok) added++;
+      else failed++;
+    }
+  }
+  return { ok: true, added, failed, results };
+}

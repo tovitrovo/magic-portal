@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from 'rea
 import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff, Archive, Sun, Moon, LayoutDashboard, Users, TrendingUp, BellRing, BellOff, Clock, Layers, ShoppingBag, ClipboardList, Zap, Store, Wallet, Activity, Inbox, LogIn, UserPlus } from 'lucide-react';
 import { buildCatalogQueries, buildLatestCardQuery, RECENT_CARDS_FILTER } from './catalogQuery';
 import { buildShippingGroups, SHIPPING_SERVICE_UNKNOWN } from '../shared/shipping-groups';
-import { buildCardsFromCsv, parseCardLinkList } from '../shared/cardImport';
+import { buildCardsFromCsv, parseCardLinkList, chunkCardItems, mergeAddCardsResults, LINK_BATCH_SIZE } from '../shared/cardImport';
 import { pricePerCard as indivPricePerCard } from '../shared/individualPricing';
 import { canAddCardsToOrder, paidQtyOf, shippingAnchorOf } from '../shared/individualAddCards';
 import { aggregateOrderCards, formatSupplierCardList, totalCardQty } from '../shared/supplierCardList';
@@ -2175,6 +2175,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
   const [linkListText,setLinkListText]=useState('');
   const [linkPreview,setLinkPreview]=useState(null);
   const [linkAdding,setLinkAdding]=useState(false);
+  const [linkProgress,setLinkProgress]=useState(null);
   const [linkResult,setLinkResult]=useState(null);
   const [linkTcg,setLinkTcg]=useState('Magic');
   const [linkType,setLinkType]=useState('Normal');
@@ -2805,14 +2806,26 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
     setLinkPreview(text.trim()?parseCardLinkList(text):null);
   }
 
+  // O endpoint aceita no máximo LINK_BATCH_SIZE cartas por chamada (baixa e
+  // sobe a imagem de cada uma), então listas maiores vão em lotes sequenciais.
   async function addCardsByLink(){
     if(!linkPreview||linkPreview.items.length===0)return;
-    setLinkAdding(true);setLinkResult(null);
-    try{
-      const json=await apiPost('/api/admin-add-cards-by-link',{items:linkPreview.items,tcg:linkTcg,type:linkType});
-      setLinkResult(json);
-      if(json.added>0){SFX.success();if(onReload)onReload();}
-    }catch(e){console.error(e);if(toastFn)toastFn('Erro ao adicionar cartas: '+(e.message||String(e)),'error');}
+    const batches=chunkCardItems(linkPreview.items,LINK_BATCH_SIZE);
+    setLinkAdding(true);setLinkResult(null);setLinkProgress({done:0,total:linkPreview.items.length});
+    const responses=[];
+    let erro=null;
+    for(const batch of batches){
+      try{
+        const json=await apiPost('/api/admin-add-cards-by-link',{items:batch,tcg:linkTcg,type:linkType});
+        responses.push(json);
+      }catch(e){console.error(e);erro=e;break;} // mantém o que já subiu e mostra o parcial
+      setLinkProgress(p=>({done:(p?.done||0)+batch.length,total:linkPreview.items.length}));
+    }
+    const merged=mergeAddCardsResults(responses);
+    setLinkResult(responses.length>0?merged:null);
+    setLinkProgress(null);
+    if(erro&&toastFn)toastFn('Erro ao adicionar cartas: '+(erro.message||String(erro)),'error');
+    if(merged.added>0){SFX.success();if(onReload)onReload();}
     setLinkAdding(false);
   }
 
@@ -3383,7 +3396,7 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
       </AdminPanel>
 
       <AdminPanel title="Adicionar cartas por link" sub="Cole nome + link da imagem — o servidor baixa e sobe a imagem" icon={Plus} accent="var(--indiv)">
-        <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',marginBottom:12,lineHeight:1.5}}>Uma carta por linha, no formato <b>Nome da carta | link da imagem</b>. Aceita link direto ou resultado do Google Imagens. Máximo de 25 cartas por vez. O TCG e o tipo abaixo valem para toda a lista.</div>
+        <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',marginBottom:12,lineHeight:1.5}}>Uma carta por linha, no formato <b>Nome da carta | link da imagem</b>. Aceita link direto ou resultado do Google Imagens. Listas grandes são enviadas automaticamente em lotes de {LINK_BATCH_SIZE} cartas. O TCG e o tipo abaixo valem para toda a lista.</div>
         <div style={{display:'flex',gap:8,marginBottom:10}}>
           <select value={linkTcg} onChange={e=>{const tcg=e.target.value;setLinkTcg(tcg);const opts=(TCG_LIST.find(t=>t.key===tcg)?.types||[]).filter(t=>t!=='Todos');setLinkType(opts[0]||'Normal');}} style={{flex:1,padding:'10px 8px',borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:'var(--text-strong)',fontSize:'var(--fs-2xs)',fontFamily:"'Outfit',sans-serif",outline:'none',cursor:'pointer'}}>
             {TCG_LIST.map(t=><option key={t.key} value={t.key}>{t.key}</option>)}
@@ -3397,10 +3410,12 @@ function AdminPage({pool,pricing:pricingProp,campaign:campProp,theme,token,nav,o
           <div><b style={{color:theme.primary}}>{linkPreview.items.length}</b> carta(s) válida(s) de {linkPreview.total} linha(s){linkPreview.invalid.length>0?<> · <span style={{color:'var(--gold)'}}>{linkPreview.invalid.length} com erro</span></>:null}</div>
           {linkPreview.invalid.length>0&&<div style={{marginTop:4,fontSize:'var(--fs-2xs)',color:'var(--gold)'}}>{linkPreview.invalid.map((inv,i)=><div key={i}>· {inv.raw||'(linha vazia)'}: {inv.error}</div>)}</div>}
         </div>}
-        <Btn full variant="success" onClick={addCardsByLink} disabled={linkAdding||!linkPreview||linkPreview.items.length===0||linkPreview.items.length>25} style={{marginTop:12}} sfx="">{linkAdding?<Spin size={14}/>:<><Upload size={14}/> Adicionar cartas</>}</Btn>
+        <Btn full variant="success" onClick={addCardsByLink} disabled={linkAdding||!linkPreview||linkPreview.items.length===0} style={{marginTop:12}} sfx="">{linkAdding?<Spin size={14}/>:<><Upload size={14}/> Adicionar cartas</>}</Btn>
+        {linkProgress&&<div style={{marginTop:8,fontSize:'var(--fs-2xs)',color:'var(--text-faint)',textAlign:'center'}}>Enviando lote {Math.min(Math.floor(linkProgress.done/LINK_BATCH_SIZE)+1,Math.ceil(linkProgress.total/LINK_BATCH_SIZE))} de {Math.ceil(linkProgress.total/LINK_BATCH_SIZE)} · {linkProgress.done}/{linkProgress.total} cartas</div>}
         {linkResult&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:'var(--r-control)',background:linkResult.failed>0?'rgba(var(--gold-rgb),0.08)':'rgba(var(--ok-rgb),0.08)',border:'1px solid '+(linkResult.failed>0?'rgba(var(--gold-rgb),0.2)':'rgba(var(--ok-rgb),0.2)'),fontSize:'var(--fs-xs)',color:'var(--text-muted)',lineHeight:1.6}}>
           <Check size={13} style={{verticalAlign:'middle',color:'var(--ok)'}}/> Adicionadas: <b>{linkResult.added}</b> carta(s){linkResult.failed>0?<> · {linkResult.failed} falharam</>:null}
-          {linkResult.results.filter(r=>!r.ok).map((r,i)=><div key={i} style={{marginTop:4,fontSize:'var(--fs-2xs)',color:'var(--danger)'}}>· {r.name||r.url}: {r.error}</div>)}
+          {linkResult.results.filter(r=>!r.ok).slice(0,15).map((r,i)=><div key={i} style={{marginTop:4,fontSize:'var(--fs-2xs)',color:'var(--danger)'}}>· {r.name||r.url}: {r.error}</div>)}
+          {linkResult.failed>15&&<div style={{marginTop:4,fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>… e mais {linkResult.failed-15} falha(s)</div>}
         </div>}
       </AdminPanel>
     </div>);
