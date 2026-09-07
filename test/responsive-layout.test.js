@@ -22,7 +22,7 @@ test('define breakpoints de tablet e desktop sem sobrescrever o shell mobile', (
 });
 
 test('páginas prioritárias usam wrappers e grids responsivos reutilizáveis', () => {
-  for (const page of ['home', 'catalog', 'wants', 'cart', 'checkout', 'profile', 'admin']) {
+  for (const page of ['catalog', 'wants', 'cart', 'checkout', 'profile', 'admin']) {
     assert.match(app, new RegExp(`portal-page portal-${page}`));
   }
   assert.match(app, /portal-card-grid portal-catalog-grid/);

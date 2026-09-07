@@ -95,16 +95,6 @@
   .portal-content { position:relative; z-index:1; width:100%; max-width:1192px; margin:0 auto; padding:28px 36px 48px !important; }
   .portal-page { gap:16px !important; }
 
-  .portal-home {
-    display:grid !important;
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    align-items:start;
-    gap:16px !important;
-  }
-  .portal-home > div:first-child { grid-column:1 / -1; text-align:left !important; padding:4px 2px 8px !important; }
-  .portal-home > div:first-child h1 { font-size:32px !important; }
-  .portal-home > button { min-height:48px; }
-
   .portal-catalog-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px !important; }
   .portal-wants-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px !important; }
   .portal-catalog #tut-search-area { display:grid !important; grid-template-columns:minmax(260px,.85fr) minmax(0,1.7fr); align-items:start; gap:12px !important; }
