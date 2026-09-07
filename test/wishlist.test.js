@@ -27,16 +27,19 @@ test('mandar para o carrinho não remove da lista de desejos', () => {
   assert.match(fn, /sbPost\('order_items'|sbPatch\('order_items'/, 'o carrinho continua sendo order_items');
 });
 
-test('comprar marca como adquirida em vez de apagar da lista', () => {
-  const fn = portal.slice(portal.indexOf('async function handleOrderDone'), portal.indexOf('async function handleLogout'));
+test('comprar não mexe na lista de desejos — quem registra a posse é o álbum', () => {
+  const fn = portal.slice(portal.indexOf('async function handleOrderDone'), portal.indexOf('// Sound toggle'));
   assert.ok(fn.length > 100, 'handleOrderDone precisa existir');
-  assert.match(fn, /acquired_qty/, 'a compra precisa registrar quanto foi adquirido');
-  assert.match(fn, /sbPatch\('wishlist_items'/, 'o registro precisa ser persistido');
-  assert.doesNotMatch(
-    fn,
-    /setWishlist\(prev => prev\.filter/,
-    'comprar não pode remover linhas da lista de desejos'
-  );
+  assert.doesNotMatch(fn, /setWishlist/, 'comprar não pode reescrever a lista de desejos');
+  assert.match(fn, /loadCollection\(token, session\.user\.id\)/, 'a posse é recarregada do banco, não deduzida no cliente');
+});
+
+test('a lista de desejos não é pré-carrinho', () => {
+  // "Mandar tudo pro carrinho" transformava a lista numa caixa de entrada:
+  // ela deixava de responder "o que eu quero" e passava a responder
+  // "o que eu vou comprar agora".
+  assert.doesNotMatch(portal, /handleAddAllToCart/, 'não existe mais adicionar a lista inteira ao carrinho');
+  assert.doesNotMatch(portal, /onAddAllToCart/);
 });
 
 test('desejar não depende de encomenda aberta', () => {

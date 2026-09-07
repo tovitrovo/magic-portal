@@ -12,20 +12,26 @@ function checkoutSource() {
   return app.slice(start, end);
 }
 
-test('checkout trata pedido individual como aberto independente da encomenda', () => {
-  const src = checkoutSource();
-  assert.match(src, /const campaignOpen\s*=\s*isIndividual\s*\|\|\s*campaignCanOrder\(campaignStatus\)/);
-  // Sem o isIndividual o botão de pagar do pedido individual fica desabilitado
-  // sempre que a campanha coletiva não está ACTIVE.
-  assert.doesNotMatch(src, /const campaignOpen\s*=\s*campaignCanOrder\(campaignStatus\)/);
+// O portal vende encomendas individuais e só. Estes testes travam a ausência
+// da encomenda coletiva: era o status dela que desabilitava o botão de pagar
+// de um pedido que não tinha nada a ver com campanha nenhuma.
+test('nenhuma tela do cliente consulta status de campanha', () => {
+  assert.doesNotMatch(app, /campaignCanOrder/);
+  assert.doesNotMatch(app, /campaignStatus/);
+  assert.doesNotMatch(app, /orderMode/);
 });
 
-test('botão de pagar só depende de envio, submissão e abertura do pedido', () => {
+test('o botão de pagar só depende de envio e submissão', () => {
   const src = checkoutSource();
-  assert.match(src, /disabled=\{submitting\|\|!campaignOpen\|\|\(!shippingSkipped&&!selectedFrete\)\}/);
+  assert.match(src, /disabled=\{submitting\|\|\(!shippingSkipped&&!selectedFrete\)\}/);
 });
 
-test('catálogo e carrinho seguem liberando o fluxo individual', () => {
-  assert.match(app, /const campaignOpen = isIndividual\|\|campaignCanOrder\(campaignStatus\)/);
-  assert.match(app, /const canGoCheckout=isIndividual\|\|campaignOpen/);
+test('o checkout não tem mais caminho de bônus', () => {
+  const src = checkoutSource();
+  assert.doesNotMatch(src, /bonus/i);
+});
+
+test('o mínimo de cartas vem da configuração do pedido individual', () => {
+  const src = checkoutSource();
+  assert.match(src, /Number\(indiv\?\.pricing\?\.min_cards\)\|\|MIN_ORDER_CARDS/);
 });

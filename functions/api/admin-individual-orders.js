@@ -2,8 +2,10 @@ import { verifyAdmin } from "./_admin-auth.js";
 import { corsHeaders } from "./_cors.js";
 
 // POST /api/admin-individual-orders
-// Lista todos os pedidos do modo INDIVIDUAL (pagos), independente de campanha —
-// esses pedidos têm campaign_id null e por isso nunca aparecem em /api/admin-orders.
+// Lista os pedidos do console: todos os que já têm ao menos um lote, pagos ou
+// não. O console precisa dos pendentes para poder cobrar e marcar como pago —
+// filtrar só os pagos aqui os tornava invisíveis. Pedido sem lote é o
+// carrinho-rascunho do cliente e fica de fora.
 export async function onRequest(context) {
   const CORS = corsHeaders(context, "POST, OPTIONS");
   const json = (b, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
@@ -23,7 +25,7 @@ export async function onRequest(context) {
   const rows = [];
   try {
     for (let offset = 0; ; offset += pageSize) {
-      const url = `${SB_URL}/rest/v1/orders?select=${encodeURIComponent(select)}&kind=eq.INDIVIDUAL&order=created_at.desc&limit=${pageSize}&offset=${offset}`;
+      const url = `${SB_URL}/rest/v1/orders?select=${encodeURIComponent(select)}&order=created_at.desc&limit=${pageSize}&offset=${offset}`;
       const res = await fetch(url, { headers });
       if (!res.ok) {
         const text = await res.text().catch(() => "");
@@ -38,11 +40,8 @@ export async function onRequest(context) {
     return json({ ok: false, error: String(e?.message || e) }, 500);
   }
 
-  // Só interessam lotes efetivamente pagos (esconde DRAFT/AWAITING_PAYMENT/CANCELLED/FAILED).
-  const paidStatuses = new Set(["PAID", "PAID_CONFIRMED", "CONFIRMED"]);
-  const data = rows
-    .map(order => ({ ...order, order_batches: (order.order_batches || []).filter(b => paidStatuses.has(String(b.status).toUpperCase())) }))
-    .filter(order => order.order_batches.length > 0);
+  // Pedido sem lote nenhum é carrinho aberto, não pedido: fica de fora.
+  const data = rows.filter(order => (order.order_batches || []).length > 0);
 
   return json({ ok: true, orders: data, total: data.length });
 }

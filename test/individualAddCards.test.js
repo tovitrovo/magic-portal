@@ -130,12 +130,12 @@ test('a adição usa a faixa do volume somado no servidor', () => {
 test('o checkout do cliente manda addToOrderId quando está adicionando', () => {
   assert.match(app, /const payload=isAdding\?\{items,addToOrderId:addTo\.orderId\}:\{items,shipping\}/);
   // Adicionar não passa pelo endereço/frete nem pelo mínimo.
-  assert.match(app, /const shippingSkipped = isAdding \|\| alreadyPaidShipping \|\| useJointShipping/);
+  assert.match(app, /const shippingSkipped=isAdding\|\|useJointShipping/);
   assert.match(app, /const minCards=isAdding\?1:/);
 });
 
-test('a etiqueta do individual sai por remessa, não por lote', () => {
+test('a etiqueta sai por remessa, não por lote', () => {
   // Com adições, o pedido tem vários lotes numa caixa só: uma etiqueta cobre todos.
   assert.match(app, /apiPost\('\/api\/admin-mandabem-label',\{batchIds,rootBatchId:group\.rootId,action,formaEnvio\}\)/);
-  assert.match(app, /buildShippingGroups\(individualBatches\)/);
+  assert.match(app, /buildShippingGroups\(paidBatches\)/);
 });

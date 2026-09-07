@@ -1,5 +1,4 @@
 import { incrementPoolOnPaid } from './_pool-helper.js';
-import { grantTierBonusToAll } from './_tier-bonus-helper.js';
 import { authoritativeBatchTotal } from './_campaign-helper.js';
 import { notifyOrderEvent } from './_notify.js';
 
@@ -130,7 +129,9 @@ export async function onRequest(context) {
         body: JSON.stringify(patchBody),
       }).catch(() => {});
 
-      // Atualiza o status do pedido pai (orders) quando batch é pago
+      // Atualiza o status do pedido pai (orders) quando o lote é pago.
+      // 'PAID' e não 'PAID_CONFIRMED': o CHECK de orders.status só aceita
+      // DRAFT/PAID/CANCELLED, e o valor antigo fazia o PATCH voltar 400.
       if (batchStatus === "PAID") {
         try {
           const batchRes = await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(orderId)}&select=order_id`, {
@@ -142,21 +143,10 @@ export async function onRequest(context) {
             await fetch(`${SB_URL}/rest/v1/orders?id=eq.${encodeURIComponent(parentOrderId)}`, {
               method: "PATCH",
               headers,
-              body: JSON.stringify({ status: "PAID_CONFIRMED" }),
+              body: JSON.stringify({ status: "PAID" }),
             });
           }
         } catch (e) { console.error('Webhook: erro ao atualizar order pai:', e); } // não bloqueia o retorno do webhook
-
-        
-        // Recalcula bônus de tier-change para todos os usuários da campanha
-        try {
-          const orderRes2 = await fetch(`${SB_URL}/rest/v1/orders?id=eq.${encodeURIComponent(parentOrderId)}&select=campaign_id`, {
-            headers: { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}` },
-          });
-          const orderArr2 = await orderRes2.json().catch(() => []);
-          const campaignId = Array.isArray(orderArr2) && orderArr2.length ? orderArr2[0].campaign_id : null;
-          if (campaignId) await grantTierBonusToAll(SB_URL, SB_SERVICE_ROLE_KEY, campaignId);
-        } catch (e) { console.error('Webhook: tier bonus error:', e); }
 
         // Notifica o admin do pagamento confirmado (idempotente por lote).
         try {
