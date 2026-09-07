@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from 'react';
-import { Home, ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff, Archive, Sun, Moon, LayoutDashboard, Users, TrendingUp, BellRing, BellOff, Clock, Layers, ShoppingBag, ClipboardList, Zap, Store, Wallet, Activity, Inbox, LogIn, UserPlus } from 'lucide-react';
+import { ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff, Archive, Sun, Moon, LayoutDashboard, Users, TrendingUp, BellRing, BellOff, Clock, Layers, ShoppingBag, ClipboardList, Zap, Store, Wallet, Activity, Inbox, LogIn, UserPlus } from 'lucide-react';
 import { buildCatalogQueries, buildLatestCardQuery, RECENT_CARDS_FILTER } from './catalogQuery';
 import { buildShippingGroups, SHIPPING_SERVICE_UNKNOWN } from '../shared/shipping-groups';
 import { buildCardsFromCsv, parseCardLinkList, chunkCardItems, mergeAddCardsResults, LINK_BATCH_SIZE } from '../shared/cardImport';
@@ -515,87 +515,15 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
 }
 
 const TUTORIAL_STEPS=[
-  {title:'Catálogo',body:'Aqui ficam todas as cartas de Magic à venda. Busque pelo nome e filtre por tipo.',navTo:'catalog',tabIndex:1,spotlightId:null,icon:'📖'},
-  {title:'Busca e filtros',body:'Use a barra de busca e os filtros por tipo de carta.',navTo:'catalog',tabIndex:1,spotlightId:'tut-search-area',scrollTo:true,icon:'🔍'},
-  {title:'Comprar ou desejar',body:'O 🛒 põe a carta no carrinho agora. O 📜 guarda ela na lista de desejos, para quando você quiser.',navTo:'catalog',tabIndex:1,spotlightId:null,icon:'➕',interactive:true},
-  {title:'Lista de desejos',body:'Só desejo: aqui você anota quais cartas quer e quantas ainda faltam. Nada vai para o carrinho sozinho.',navTo:'wants',tabIndex:2,spotlightId:null,icon:'📋'},
-  {title:'Carrinho',body:'Edite quantidades, tire o que não quer agora e avance para o checkout. Quanto mais cartas, menor o preço de cada uma.',navTo:'cart',tabIndex:3,spotlightId:null,icon:'🛒'},
-  {title:'Checkout',body:'Revise o pedido, preencha o endereço e calcule o frete antes de finalizar.',navTo:'checkout',tabIndex:3,spotlightId:'tut-checkout-summary',icon:'📦'},
-  {title:'Pagamento',body:'Pague com segurança via Mercado Pago — cartão, boleto ou saldo.',navTo:'checkout',tabIndex:3,spotlightId:'tut-payment',icon:'💳'},
-  {title:'Minha conta',body:'Acompanhe o status de cada pedido, veja seu álbum de coleção e ajuste seus dados.',navTo:'profile',tabIndex:4,spotlightId:null,icon:'👤'},
+  {title:'Catálogo',body:'Aqui ficam todas as cartas de Magic à venda. Busque pelo nome e filtre por tipo.',navTo:'catalog',tabIndex:0,spotlightId:null,icon:'📖'},
+  {title:'Busca e filtros',body:'Use a barra de busca e os filtros por tipo de carta.',navTo:'catalog',tabIndex:0,spotlightId:'tut-search-area',scrollTo:true,icon:'🔍'},
+  {title:'Comprar ou desejar',body:'O 🛒 põe a carta no carrinho agora. O 📜 guarda ela na lista de desejos, para quando você quiser.',navTo:'catalog',tabIndex:0,spotlightId:null,icon:'➕',interactive:true},
+  {title:'Lista de desejos',body:'Só desejo: aqui você anota quais cartas quer e quantas ainda faltam. Nada vai para o carrinho sozinho.',navTo:'wants',tabIndex:1,spotlightId:null,icon:'📋'},
+  {title:'Carrinho',body:'Edite quantidades, tire o que não quer agora e avance para o checkout. Quanto mais cartas, menor o preço de cada uma.',navTo:'cart',tabIndex:2,spotlightId:null,icon:'🛒'},
+  {title:'Checkout',body:'Revise o pedido, preencha o endereço e calcule o frete antes de finalizar.',navTo:'checkout',tabIndex:2,spotlightId:'tut-checkout-summary',icon:'📦'},
+  {title:'Pagamento',body:'Pague com segurança via Mercado Pago — cartão, boleto ou saldo.',navTo:'checkout',tabIndex:2,spotlightId:'tut-payment',icon:'💳'},
+  {title:'Minha conta',body:'Acompanhe o status de cada pedido, veja seu álbum de coleção e ajuste seus dados.',navTo:'profile',tabIndex:3,spotlightId:null,icon:'👤'},
 ];
-
-// ══════════════════════════════════════════════════════
-// HOME
-// ══════════════════════════════════════════════════════
-
-// A Início não vende nada sozinha: ela diz onde a pessoa está (pedido em
-// andamento, carrinho, desejos, álbum) e joga pro catálogo. Toda a
-// contabilidade de meta coletiva saiu junto com a encomenda em grupo.
-function HomePage({theme,nav,wishlistCount,cartCount,collection,indiv,openOrders=[],addTo,onCancelAdd}){
-  const tiers=Array.isArray(indiv?.tiers)?indiv.tiers:[];
-  const minCards=Number(indiv?.pricing?.min_cards)||MIN_ORDER_CARDS;
-  const fx=Number(indiv?.fx?.rate)||Number(indiv?.pricing?.fx_fallback_rate)||5.5;
-  // Três degraus bastam para a ideia passar: entrada, meio e o melhor preço.
-  const shown=tiers.length>2?[tiers[0],tiers[Math.floor(tiers.length/2)],tiers[tiers.length-1]]:tiers;
-  const priceOf=t=>Math.max(Number(indiv?.pricing?.normal_floor_brl)||16,(Number(t?.usd_per_card)||0)*(Number(indiv?.pricing?.multiplier)||2)*fx);
-  const atalhos=[
-    {icon:ScrollText,val:wishlistCount,lbl:'Desejos',c:theme.primary,page:'wants'},
-    {icon:ShoppingCart,val:cartCount,lbl:'Carrinho',c:'var(--gold)',page:'cart'},
-    {icon:BookOpen,val:collection?.stats?.distinct||0,lbl:'Na coleção',c:'var(--ok)',page:'profile'},
-  ];
-
-  return(<div className="portal-page portal-home" style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)'}}>
-    <div style={{textAlign:'center',padding:'6px 0 0'}}>
-      <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',letterSpacing:2.5,textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Encomendas de Magic</div>
-      <h1 className="mp-gradient-text" style={{margin:'5px 0 0',fontSize:'var(--fs-2xl)',fontFamily:"'Cinzel',serif",background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',color:theme.primary}}>Cartas para Jogar</h1>
-    </div>
-
-    {addTo&&<AddingToOrderBanner addTo={addTo} onCancel={onCancelAdd}/>}
-
-    {/* Onde meus pedidos estão. Só os que ainda andam — o histórico fica no perfil. */}
-    {openOrders.length>0&&<Card style={{padding:'var(--sp-3)'}}>
-      <SectionTitle sub={openOrders.length===1?'Acompanhe por aqui':'Acompanhe por aqui'}>{openOrders.length===1?'Seu pedido':'Seus pedidos'}</SectionTitle>
-      <div style={{display:'flex',flexDirection:'column',gap:'var(--sp-1)'}}>
-        {openOrders.slice(0,3).map(o=>(
-          <button key={o.orderId} onClick={()=>{SFX.nav();nav('profile');}} style={{display:'flex',alignItems:'center',gap:'var(--sp-2)',padding:'9px 11px',borderRadius:'var(--r-control)',background:'var(--fill-soft)',border:'1px solid var(--line-soft)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",textAlign:'left',width:'100%'}}>
-            <Package size={15} style={{color:o.stage.color,flexShrink:0}}/>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:'var(--fs-xs)',fontWeight:700,color:'var(--text-strong)'}}>#{o.shortId} · {o.qty} carta{o.qty!==1?'s':''}</div>
-              <div style={{fontSize:'var(--fs-2xs)',color:o.stage.color,fontWeight:600}}>{o.stage.label}</div>
-            </div>
-            <ChevronRight size={14} style={{color:'var(--text-faint)',flexShrink:0}}/>
-          </button>
-        ))}
-      </div>
-    </Card>}
-
-    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'var(--sp-2)'}}>
-      {atalhos.map(a=>(
-        <Card key={a.lbl} onClick={()=>nav(a.page)} style={{textAlign:'center',padding:'var(--sp-3)'}}>
-          <a.icon size={16} style={{color:a.c,marginBottom:3}}/>
-          <div style={{fontSize:'var(--fs-lg)',fontWeight:800}}>{a.val}</div>
-          <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{a.lbl}</div>
-        </Card>
-      ))}
-    </div>
-
-    {/* Preço por volume: é o único argumento de venda que a Início precisa dar. */}
-    {shown.length>0&&<Card style={{padding:'var(--sp-4)'}}>
-      <SectionTitle sub={`Quanto mais cartas no pedido, menor o preço de cada uma. Mínimo de ${minCards} cartas.`}>Quanto custa</SectionTitle>
-      {shown.map((t,i)=>(
-        <div key={t.min_qty??i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 12px',borderRadius:'var(--r-control)',marginBottom:3,background:'var(--fill-soft)',border:'1px solid var(--line-soft)'}}>
-          <span style={{fontSize:'var(--fs-sm)',fontWeight:600,color:'var(--text-muted)'}}>{t.max_qty?`${t.min_qty} a ${t.max_qty} cartas`:`${t.min_qty}+ cartas`}</span>
-          <span style={{fontSize:'var(--fs-md)',fontWeight:800,color:i===shown.length-1?'var(--ok)':'var(--text-strong)'}}>R$ {priceOf(t).toFixed(2).replace('.',',')}<span style={{fontSize:'var(--fs-2xs)',fontWeight:600,color:'var(--text-faint)'}}>/un</span></span>
-        </div>
-      ))}
-      <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginTop:8,textAlign:'center',lineHeight:1.5}}>Valores estimados pelo dólar de hoje. O preço final trava no checkout.</div>
-    </Card>}
-
-    <Btn full onClick={()=>{SFX.nav();nav('catalog');}} sfx="nav"><BookOpen size={18}/> {addTo?'Escolher mais cartas':'Ver catálogo'}</Btn>
-    {cartCount>0&&<Btn full variant="secondary" onClick={()=>nav('cart')} sfx="nav"><ShoppingCart size={18}/> Carrinho ({cartCount})</Btn>}
-  </div>);
-}
 
 // ══════════════════════════════════════════════════════
 // CATALOG — Supabase powered, server-side search/filter
@@ -1204,7 +1132,7 @@ function SuccessPage({lastOrder,theme,nav}){
     <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',lineHeight:1.6,maxWidth:320}}>Assim que o pagamento cair, seu pedido entra na próxima compra no fornecedor. Você acompanha cada etapa em <b style={{color:'var(--text-muted)'}}>Minha conta → Meus pedidos</b>.</div>
     <div style={{display:'flex',gap:'var(--sp-2)',width:'100%'}}>
       <Btn full variant="secondary" onClick={()=>nav('profile')} sfx="nav"><Package size={16}/> Meus pedidos</Btn>
-      <Btn full onClick={()=>nav('home')} sfx="nav"><Home size={16}/> Início</Btn>
+      <Btn full onClick={()=>nav('catalog')} sfx="nav"><BookOpen size={16}/> Ver catálogo</Btn>
     </div>
   </div>);
 }
@@ -3100,7 +3028,7 @@ export default function MagicPortal(){
   const [addTo,setAddTo]=useState(null);
 
   // UI state
-  const [page,setPage]=useState('home');
+  const [page,setPage]=useState('catalog');
   const [showTutorial,setShowTutorial]=useState(false);
   const [tutStep,setTutStep]=useState(0);
   const [isFirstTimeTut,setIsFirstTimeTut]=useState(false);
@@ -3368,7 +3296,7 @@ export default function MagicPortal(){
       await loadAppData(res.access_token, res.user.id);
     } else {
       await loadAppData(res.access_token, res.user.id);
-      setPage('home');
+      setPage('catalog');
     }
   }
 
@@ -3377,7 +3305,7 @@ export default function MagicPortal(){
     setSession(null);setProfile(null);setPricing(null);
     setOrderId(null);setWishlist([]);setCartItems([]);setMyOrders([]);setAddTo(null);
     setCollectionBought(new Map());setCollectionExtras(new Map());setCatalogSize(0);
-    setPage('home');setIsNew(false);didAutoLoad.current=false;
+    setPage('catalog');setIsNew(false);didAutoLoad.current=false;
   }
 
   // ─── Onboarding complete ──────────────────────────
@@ -3388,7 +3316,7 @@ export default function MagicPortal(){
     }
     setIsNew(false);
     if (showTut) { setIsFirstTimeTut(true); setShowTutorial(true); }
-    setPage('home');
+    setPage('catalog');
   }
 
   // ─── Save profile ─────────────────────────────────
@@ -3573,13 +3501,10 @@ export default function MagicPortal(){
   const wishlistCount = wishlist.reduce((s, w) => s + Math.max(0, w.quantity - (collectionOwned.get(w.card_id) || 0)), 0);
   const cartCount = cartItems.reduce((s, c) => s + c.quantity, 0);
 
-  const bottomTabs = [{ key: 'home', icon: Home, label: 'Início' }, { key: 'catalog', icon: BookOpen, label: 'Catálogo' }, { key: 'wants', icon: ScrollText, label: 'Desejos' }, { key: 'cart', icon: ShoppingCart, label: 'Carrinho' }, { key: 'profile', icon: User, label: 'Conta' }];
+  const bottomTabs = [{ key: 'catalog', icon: BookOpen, label: 'Catálogo' }, { key: 'wants', icon: ScrollText, label: 'Desejos' }, { key: 'cart', icon: ShoppingCart, label: 'Carrinho' }, { key: 'profile', icon: User, label: 'Conta' }];
 
   // ── Pedidos do cliente ────────────────────────────
   const myOrderGroups = useMemo(() => groupBatchesIntoOrders(myOrders), [myOrders]);
-
-  // Os que ainda andam — a Início mostra só esses.
-  const openOrders = useMemo(() => myOrderGroups.filter(o => !o.stage.terminal && o.stage.key !== 'DELIVERED'), [myOrderGroups]);
 
   // Lotes pagos que ainda não foram postados: é neles que um pedido novo pega
   // carona no frete (o "envio conjunto" do checkout).
@@ -3666,8 +3591,8 @@ export default function MagicPortal(){
       {/* Header */}
       {page !== 'onboarding' && <div className="portal-header" style={{ padding: '13px 20px 11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(var(--ink),calc(0.035*var(--ink-a)))', position: 'sticky', top: 0, zIndex: 10, background: 'var(--chrome-bg)', backdropFilter: 'blur(20px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {(page === 'success' || page === 'admin' || page === 'checkout') && <button onClick={() => nav(page === 'admin' ? 'profile' : page === 'checkout' ? 'cart' : 'home')} className="mp-tap" aria-label="Voltar" style={{ background: 'none', border: 'none', color: 'var(--text-strong)', cursor: 'pointer' }}><ChevronLeft size={20} /></button>}
-          <span style={{ fontFamily: "'Cinzel',serif", fontSize: 'var(--fs-md)', fontWeight: 700, letterSpacing: .3 }}>{({ home: 'Cartas para Jogar', catalog: 'Catálogo', wants: 'Lista de desejos', cart: 'Carrinho', checkout: 'Checkout', success: '', profile: 'Minha conta', admin: 'Admin', onboarding: '' })[page] || ''}</span>
+          {(page === 'success' || page === 'admin' || page === 'checkout') && <button onClick={() => nav(page === 'admin' ? 'profile' : page === 'checkout' ? 'cart' : 'catalog')} className="mp-tap" aria-label="Voltar" style={{ background: 'none', border: 'none', color: 'var(--text-strong)', cursor: 'pointer' }}><ChevronLeft size={20} /></button>}
+          <span style={{ fontFamily: "'Cinzel',serif", fontSize: 'var(--fs-md)', fontWeight: 700, letterSpacing: .3 }}>{({ catalog: 'Catálogo', wants: 'Lista de desejos', cart: 'Carrinho', checkout: 'Checkout', success: '', profile: 'Minha conta', admin: 'Admin', onboarding: '' })[page] || ''}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {/* Modo de adição: enquanto ele está ligado, o checkout entra num
@@ -3695,7 +3620,6 @@ export default function MagicPortal(){
 
       {/* Pages */}
       <main className="portal-content" style={{ padding: page === 'onboarding' ? '0 20px' : '14px 20px' }}>
-        {page === 'home' && <HomePage theme={theme} nav={nav} wishlistCount={wishlistCount} cartCount={cartCount} collection={collection} indiv={indivPricing} openOrders={openOrders} addTo={addTo} onCancelAdd={() => setAddTo(null)} />}
         {page === 'catalog' && <CatalogPage token={token} wishlist={wishlist} cartItems={cartItems} collectionByCard={collectionOwned} onAddToWishlist={handleAddToWishlist} onAddToCart={handleAddCardToCart} priceBRL={priceBRL} theme={theme} tutStep={showTutorial?tutStep:-1} onTutNext={tutNext} />}
         {page === 'wants' && <WishlistPage wishlist={wishlist} cartItems={cartItems} collectionByCard={collectionOwned} onAddToCart={handleAddToCart} onRemove={handleRemoveFromWishlist} onUpdateQty={handleUpdateWishlistQty} cartCount={cartCount} theme={theme} nav={nav} />}
         {page === 'cart' && <CartPage cartItems={cartItems} pricing={pricing} theme={theme} nav={nav} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} toast={toast} indiv={indivPricing} addTo={addTo} onCancelAdd={()=>setAddTo(null)} />}
