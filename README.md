@@ -1,79 +1,41 @@
-﻿## 🎯 Status Atual do Catálogo
+# Cartas para Jogar — portal de encomendas de Magic
 
-O **catálogo está funcional** no código. Corrigi os bugs que impediam o funcionamento:
+Portal onde o cliente monta uma **encomenda individual** de cartas de Magic,
+paga pelo Mercado Pago e acompanha cada etapa até a entrega. O admin controla
+tudo por um console: pedidos, compra no fornecedor, etiquetas e catálogo.
 
-### ✅ Correções Realizadas:
-1. **Variáveis undefined** - Adicionei campaignStatus como prop no CatalogPage
-2. **Função de adicionar à lista** - Verificada e funcionando corretamente
-3. **Busca no Supabase** - Query otimizada para buscar cartas ativas
-4. **Renderização** - Cartas aparecem com nome, tipo e botão de adicionar
+## Como funciona
 
-### 🔄 Próximos Passos para Testar:
+1. **Catálogo** — só cartas de Magic. Cada carta tem duas ações: 🛒 põe no
+   carrinho agora, 📜 guarda na lista de desejos para depois.
+2. **Carrinho** — quanto mais cartas, menor o preço de cada uma (faixas de
+   volume). Mínimo de 15 cartas por pedido.
+3. **Checkout** — endereço, frete (MandaBem) e pagamento (Mercado Pago).
+4. **Minha conta** — o cliente acompanha o status de cada pedido, vê o álbum de
+   coleção e ajusta seus dados.
+5. **Console do admin** — pedidos com status, compras do dia agrupadas,
+   etiquetas por remessa, clientes e catálogo.
 
-1. **Instalar Node.js** (se ainda não fez)
-2. **Executar dependências**: 
-pm install
-3. **Verificar dados**: 
-ode check-cards.js (criará cartas de exemplo se necessário)
-4. **Rodar projeto**: 
-pm run dev
-5. **Testar catálogo** - Deve mostrar cartas e permitir adicionar à lista de desejos
+## As quatro decisões que definem o produto
 
-### 📋 Como Funciona:
+| Decisão | Onde vive | Por quê |
+|---|---|---|
+| **Só encomenda individual** | não há mais campanha no app | cada pedido anda no próprio ritmo; a encomenda coletiva prendia todo mundo ao status de uma campanha |
+| **A lista de desejos é só desejo** | `wishlist_items` | ela responde "o que eu quero", não "o que vou comprar agora" — ver [Lista de desejos](#-lista-de-desejos) |
+| **Um status por pedido** | `shared/orderStatus.js` | dinheiro e logística viram uma trilha só, igual para cliente e admin — ver [Status do pedido](#-status-do-pedido) |
+| **Só Magic à venda** | `CATALOG_TCG` | um catálogo, um jogo; a coluna `cards.tcg` continua no banco para as cartas antigas de outros jogos |
 
-1. **Cliente acessa catálogo** → Cartas carregam do Supabase
-2. **Cliente clica no botão '+'** → Carta entra na lista de desejos
-3. **Carta fica salva** no banco como `wishlist_item` (por usuário, não por pedido)
-4. **Cliente vê na aba 'Desejos'** → Ajusta quantidades e manda pro carrinho; a
-   carta **continua na lista**, marcada como "no carrinho". Ver
-   [Lista de desejos](#-lista-de-desejos).
+## Rodando
 
-O sistema já está **pronto para uso**! 🎉
+```bash
+npm install
+npm run dev      # Vite em modo dev
+npm test         # 138 testes (node:test), sem rede
+npm run build    # bundle de produção
+```
 
-### ✅ Funcionalidades Implementadas
-- ✅ Catálogo de cartas MTG do Supabase
-- ✅ Busca e filtros funcionais  
-- ✅ Lista de desejos que sobrevive à compra
-- ✅ Persistência no banco de dados
-- ✅ Interface responsiva
-- ✅ **Painel Admin Completo:**
-  - Visualizar todos os pedidos pagos
-  - Marcar pedidos como pagos manualmente
-  - Lista final atualizada automaticamente
-  - Pool recalculado baseado em pedidos pagos
-
-Quer que eu ajude com algum passo específico ou há alguma funcionalidade que gostaria de ajustar?
-
-## 📝 TODO List - Próximas Tarefas
-
-### 🔧 Configuração Inicial
-- [ ] Instalar Node.js LTS (versão 18+)
-- [ ] Executar `npm install` para instalar dependências
-- [ ] Configurar variáveis de ambiente do Supabase (.env)
-- [ ] Executar `supabase/schema.sql` no SQL Editor do Supabase (ver seção abaixo)
-
-### 🧪 Testes e Validação
-- [ ] Executar 
-ode check-cards.js para verificar/popular dados de teste
-- [ ] Rodar 
-pm run dev e testar catálogo localmente
-- [ ] Verificar se cartas aparecem corretamente
-- [ ] Testar funcionalidade de adicionar à lista de desejos
-- [ ] Validar persistência no banco de dados
-
-### 🚀 Funcionalidades a Implementar
-- [ ] Sistema de autenticação de usuários
-- [ ] Integração com Mercado Pago para pagamentos
-- [ ] Cálculo de frete com Manda Bem
-- [ ] Sistema de notificações por email
-- [x] Dashboard administrativo para gerenciar campanhas
-
-### 📊 Melhorias Técnicas
-- [ ] Implementar testes automatizados
-- [ ] Otimizar performance das queries
-- [ ] Adicionar cache para imagens das cartas
-- [ ] Melhorar UX/UI do catálogo
-- [ ] Implementar paginação infinita
+Antes do primeiro uso, execute no **SQL Editor** do Supabase:
+`supabase/schema.sql` e depois `supabase/migrations/minimal-portal.sql`.
 
 ## 🗄️ Setup do Banco de Dados (Supabase)
 
@@ -84,82 +46,77 @@ O arquivo `supabase/schema.sql` contém **todo** o schema necessário para o fun
 | Tabela | Descrição |
 |--------|-----------|
 | `profiles` | Perfis de usuário (estende `auth.users`) |
-| `campaigns` | Campanhas de encomenda |
-| `tiers` | Faixas de preço por campanha |
-| `pricing_config` | Configuração global de preço (câmbio, taxas) |
-| `cards` | Catálogo de cartas MTG |
-| `orders` | Pedidos (1 por usuário por campanha) |
+| `cards` | Catálogo de cartas |
+| `orders` | Pedidos. O pedido sem nenhum lote é o **carrinho** do cliente |
 | `order_batches` | Lotes de pagamento dentro de um pedido |
-| `order_items` | Itens (cartas) dentro de um batch |
-| `bonus_grants` | Bônus concedidos por campanha |
+| `order_items` | Itens (cartas) dentro de um lote |
 | `wishlist_items` | Lista de desejos (por usuário, independente de pedido) |
+| `collection_items` | Ajuste manual do álbum de coleção (só o que veio de fora do portal) |
+| `individual_tiers` / `individual_pricing` | Faixas de preço por volume e config |
+| `fx_cache` | Dólar do dia |
+
+**Tabelas legadas**, mantidas com os dados históricos mas sem uso no app:
+`campaigns`, `tiers`, `bonus_grants`, `pricing_config`. A encomenda coletiva
+saiu do produto; nada foi apagado do banco.
 
 ### Foreign keys (obrigatórias para o painel admin):
 
 As foreign keys são **essenciais** para as queries com nested select do PostgREST:
 
 - `orders.user_id → profiles.id` — permite `orders?select=...,profiles(name,whatsapp)`
-- `orders.campaign_id → campaigns.id`
 - `order_batches.order_id → orders.id` — permite `orders?select=...,order_batches(...)`
-- `order_items.batch_id → order_batches.id` — permite `order_batches?select=...,order_items(...)`
+- `order_items.batch_id → order_batches.id` — permite o álbum ler só o que veio de lote pago
 - `order_items.card_id → cards.id` — permite `order_items?select=...,cards(name,type)`
+- `collection_items.card_id → cards.id`
 
-**Sem essas FKs, o endpoint `/api/admin-orders` retorna erro ou dados incompletos.**
+**Sem essas FKs, `/api/admin-individual-orders` e o álbum de coleção retornam
+erro ou dados incompletos.**
 
-- `bonus_grants.user_id → profiles.id` — permite `bonus_grants?select=...,profiles(name,email)`
-- `bonus_grants.campaign_id → campaigns.id`
+## 🚦 Status do pedido
 
-### Sistema de Bônus
+O banco guarda **dois** status por lote: `order_batches.status` (o dinheiro) e
+`order_batches.fulfillment_status` (a logística). Ler os dois separados
+espalhava a mesma regra pela tela do cliente e pelo console, com rótulos que
+discordavam entre si. `shared/orderStatus.js` junta os dois numa trilha só:
 
-O bônus permite conceder cartas grátis a um usuário em uma campanha. Pode ser **automático** ou **manual**.
+| # | Estágio | De onde vem | Quem move |
+|---|---|---|---|
+| 1 | Aguardando pagamento | `status` | — |
+| 2 | Pagamento confirmado | `status` | Mercado Pago, sync ou "marcar pago" |
+| 3 | Encomendado | `fulfillment_status` | admin |
+| 4 | A caminho do Brasil | `fulfillment_status` | admin |
+| 5 | Chegou no Brasil | `fulfillment_status` | admin |
+| 6 | Em preparação | `fulfillment_status` | admin |
+| 7 | Enviado | `fulfillment_status` | admin (ao gerar a etiqueta) |
+| 8 | Entregue | `fulfillment_status` | admin |
 
-#### Bônus Automático
+Fora da trilha ficam os terminais: **Cancelado**, **Pagamento recusado**,
+**Reembolsado** e **Estornado**.
 
-1. **Configure**: no painel admin, seção **Encomendas → Configuração da encomenda**, defina o campo **"Bônus automático (%)"** na campanha (ex: `10` = a cada 10 cartas pagas, 1 bônus grátis)
-2. **Trigger**: quando um pagamento é confirmado (via Mercado Pago webhook, sync ou marcação manual), o sistema calcula `floor(qty_in_batch × bonus_pct / 100)` e cria automaticamente um `bonus_grant` para o usuário
-3. **Idempotência**: o bônus é concedido uma única vez por batch (verificado via `batch_id`)
+As três regras que o módulo trava (`test/orderStatus.test.js`):
 
-#### Bônus Manual
+1. **A logística só conta depois do pagamento.** Um lote não pago está sempre
+   em "Aguardando pagamento", não importa o que o `fulfillment_status` diga.
+2. **A unidade é o pedido, não o lote.** `groupBatchesIntoOrders()` agrupa os
+   lotes; o pedido anda no ritmo do **mais atrasado** — dizer "enviado" com um
+   lote ainda no fornecedor seria mentira. Lotes cancelados não seguram o
+   pedido.
+3. **Cancelado vence pagamento aprovado.** O dinheiro voltou.
 
-1. **Admin concede bônus**: no painel admin, seção **Clientes**, expanda um cliente e clique em **"Dar bônus"**
+- **Cliente**: em *Minha conta → Pedidos*, cada pedido mostra a trilha inteira
+  com o estágio atual, a explicação do que está acontecendo e o rastreio.
+- **Admin**: em *Pedidos*, as pílulas de filtro falam a mesma língua, e
+  avançar/voltar move **todos os lotes pagos do pedido juntos** (eles viajam na
+  mesma remessa). Avançar e voltar sempre pedem confirmação — o cliente enxerga
+  essa trilha. Voltar um pedido que já tem etiqueta MandaBem **não** cancela o
+  envio; o aviso na confirmação lembra disso.
+- **Compras do dia**: pedidos pagos agrupados por dia de pagamento, para
+  comprar tudo do dia de uma vez no fornecedor e avançar o grupo inteiro.
+- **API**: `/api/admin-individual-orders` lista os pedidos (pagos e pendentes);
+  `/api/admin-update-fulfillment` grava o estágio de um ou mais lotes.
 
-#### Uso do Bônus
-
-1. **Usuário usa bônus**: no checkout, as cartas do carrinho são automaticamente alocadas como bônus (grátis) até esgotar o saldo
-
-#### SQL necessário para o sistema de bônus
-
-**Banco novo (primeira vez)?** Execute `supabase/schema.sql` — ele já inclui tudo.
-
-**Banco já existente (sem bônus)?** Execute `supabase/migrations/bonus-system.sql` no SQL Editor do Supabase. O script é idempotente e faz:
-
-1. `ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS bonus_pct integer DEFAULT 0` — porcentagem de bônus automático
-2. `ALTER TABLE orders ADD COLUMN IF NOT EXISTS qty_bonus integer DEFAULT 0` — qty de bônus no pedido
-3. `ALTER TABLE order_items ADD COLUMN IF NOT EXISTS is_bonus boolean DEFAULT false` — marca itens como bônus
-4. `CREATE TABLE IF NOT EXISTS bonus_grants (...)` — tabela principal de bônus com `grant_type`, `batch_id`, `status`
-5. `CREATE INDEX` nos campos `user_id` e `campaign_id` da `bonus_grants`
-6. `RLS policies` — SELECT e UPDATE para o usuário ver/usar seus bônus
-
-#### Schema e API
-
-1. **Schema**: a tabela `bonus_grants` já está no `supabase/schema.sql` — execute o script no SQL Editor do Supabase
-2. **Migração**: se o banco já existe, use `supabase/migrations/bonus-system.sql` para adicionar apenas o necessário
-3. **RLS**: políticas de SELECT e UPDATE para o usuário já estão incluídas
-4. **API**: o endpoint `/api/admin-bonus` gerencia bônus (listar, conceder, revogar) usando `SB_SERVICE_ROLE_KEY`
-5. **Helper**: `_bonus-helper.js` contém a lógica de auto-grant, usada por `mp-webhook.js`, `mp-sync.js` e `admin-mark-paid.js`
-
-### Fulfillment do Pedido Individual
-
-O Pedido Individual (modo e-commerce, sem campanha) tem um pipeline de status simplificado para acompanhar a importação via fornecedor (AliExpress), separado do status da Encomenda Coletiva:
-
-`Aguardando compra` → `Encomenda feita` → `A caminho do Brasil` → `Chegou no Brasil` → `Em preparação` → (gera etiqueta MandaBem, que assume o rastreio automático)
-
-**Banco já existente?** Execute `supabase/migrations/add-individual-fulfillment-status.sql` no SQL Editor do Supabase. Adiciona a coluna `order_batches.fulfillment_status`.
-
-- **Admin**: em **Pedidos → Compras do dia**, os pedidos individuais pagos aparecem agrupados por dia de pagamento, com avanço de status em lote por grupo ou individual.
-- **Errou o clique?** O status anda nos dois sentidos: ao lado do botão de avançar há um **Voltar** que devolve o pedido (ou o grupo do dia inteiro) ao estágio anterior. Avançar e voltar sempre pedem confirmação antes de gravar — o cliente enxerga essa barra em "Meus Pedidos". Voltar um pedido que já tem etiqueta MandaBem **não** cancela o envio; o aviso na confirmação lembra disso.
-- **API**: `/api/admin-individual-orders` lista os pedidos; `/api/admin-update-fulfillment` grava o status de um ou mais lotes (qualquer estágio válido, pra frente ou pra trás).
-- **Cliente**: em "Meus Pedidos", pedidos Individuais pagos mostram uma barra de progresso com o status atual.
+**Banco já existente?** `supabase/migrations/minimal-portal.sql` adiciona o
+estágio `DELIVERED` ao CHECK de `fulfillment_status`.
 
 ### Adicionar cartas a um pedido individual
 
@@ -201,46 +158,63 @@ necessária: o modelo de `order_batches` já previa vários lotes por pedido.
 
 ## 💚 Lista de desejos
 
-A lista de desejos é **do usuário**, não do pedido: ela atravessa campanhas e
-sobrevive à compra. Isso a separa do carrinho, que é do pedido e se esvazia.
+A lista de desejos é **do usuário** e é **só desejo**: ela responde "quais
+cartas eu quero e quantas ainda me faltam", não "o que eu vou comprar agora".
+Isso a separa do carrinho, que é do pedido e se esvazia.
 
 | | Lista de desejos | Carrinho |
 |---|---|---|
 | Tabela | `wishlist_items` | `order_items` (`in_cart = true`, `batch_id IS NULL`) |
-| Escopo | por usuário | por pedido/campanha |
-| Precisa de encomenda aberta? | não | sim |
-| Comprar… | marca `acquired_qty` | esvazia |
+| Escopo | por usuário | por pedido |
+| Some quando compra? | não | sim |
+| "Já tenho" vem de… | do [álbum de coleção](#-álbum-de-coleção) | — |
 
-### As duas regras que definem o modelo
+### As três regras que definem o modelo
 
-1. **Mandar para o carrinho copia, não move.** A carta continua na lista,
-   marcada como "no carrinho".
-2. **Comprar não apaga o desejo** — incrementa `acquired_qty` e carimba
-   `acquired_at`. Querer uma carta e já tê-la comprado são estados, não opostos.
+1. **Nada vai para o carrinho sozinho.** Não existe "mandar tudo pro carrinho";
+   cada linha tem um botão discreto de 🛒 para quem já decidiu comprar aquela
+   carta.
+2. **Comprar não mexe na lista.** Querer uma carta e já tê-la são estados, não
+   opostos. Quem responde "já tenho" é o álbum, alimentado pelos lotes pagos.
+3. **Desejar não depende de pedido aberto.** A carta entra na lista mesmo com o
+   carrinho vazio.
 
-Antes, os desejos eram linhas de `order_items` com `batch_id IS NULL AND
-in_cart = false`. Mover para o carrinho tirava a carta da lista e comprar a
-fazia sumir de vez, então a lista só guardava o que a pessoa **ainda não tinha
-tocado** — uma caixa de entrada, não uma lista de desejos.
-`test/wishlist.test.js` trava as duas regras acima.
+Antes, a lista era uma pré-seleção do carrinho: o "mandar tudo" e o
+`acquired_qty` na própria linha faziam dela uma caixa de entrada de compras.
+`test/wishlist.test.js` trava as três regras acima.
 
-A página mostra três estados por carta — pendente, no carrinho e já comprada —
-e o catálogo usa a mesma informação nos selos, então dá para ver do catálogo
-que uma carta já foi comprada antes de pedir de novo.
+A página separa **Falta comprar** de **Já tenho**, e o catálogo usa a mesma
+informação nos selos — dá para ver do catálogo que uma carta já está na coleção
+antes de pedir de novo.
 
 ### Migração
 
 Banco novo: `supabase/schema.sql` já inclui a tabela. Banco existente: rode
-`supabase/migrations/wishlist.sql` no SQL Editor. Ele cria a tabela com RLS e
-faz dois backfills a partir de `order_items` — os desejos pendentes (incluindo
-os que estavam no carrinho) e o histórico do que já foi comprado, para o selo
-"já comprei" nascer com dados.
+`supabase/migrations/wishlist.sql` no SQL Editor. A coluna `acquired_qty`
+continua no banco (o backfill histórico está lá), mas o app não a lê mais —
+quem conta o que a pessoa tem é o álbum.
 
-O script é idempotente: os backfills recalculam a partir de `order_items`
-(a fonte da verdade) em vez de somar ao valor atual, então reexecutar chega no
-mesmo estado. No fim há um `DELETE` **comentado** que remove as linhas de
-`order_items` que viraram lixo — destrutivo de propósito, rode só depois de
-conferir o resultado.
+## 📔 Álbum de coleção
+
+Em *Minha conta → Coleção*, o cliente percorre o catálogo inteiro vendo
+quantas cópias de cada carta ele tem. Duas fontes que **não se misturam**
+(`shared/collection.js`):
+
+| Fonte | De onde vem | Editável? |
+|---|---|---|
+| **Comprado** | soma dos `order_items` de lotes **pagos** dele | não — é fato |
+| **Extra** | `collection_items.extra_qty` | sim, o "+ / −" do álbum |
+
+O total é a soma das duas. Separar importa: a compra não pode sumir quando ele
+mexe no ajuste manual, e o ajuste não pode ser sobrescrito quando chega uma
+compra nova. O ajuste serve para o que ele conseguiu **fora** do portal —
+comprou em loja, ganhou, trocou.
+
+`collection_items` tem RLS presa ao dono (`auth.uid() = user_id`) e um
+`UNIQUE (user_id, card_id)` que o upsert do app usa. Chegar a zero apaga a
+linha em vez de guardar um zero por carta do catálogo.
+
+**Banco já existente?** Execute `supabase/migrations/minimal-portal.sql`.
 
 ## 🔒 Endurecimento do banco
 
@@ -270,19 +244,18 @@ vazada do Auth não se liga por SQL: Dashboard → Authentication → Policies.
 
 ## 🎛️ Console de Administração
 
-O painel admin é organizado em sete seções fixas. A **encomenda em contexto**
-(seletor no topo) vale para as seções coletivas; Pedidos Individuais não
-dependem de encomenda e aparecem sempre.
+Seis seções fixas. A unidade de trabalho é o **pedido** — é ele que vira uma
+compra no fornecedor e uma caixa no correio. Lote é só como o dinheiro entrou;
+um pedido com cartas adicionadas depois tem vários lotes e uma remessa só.
 
 | Seção | O que tem lá |
 |-------|--------------|
-| **Visão geral** | KPIs consolidados (receita, hoje, aguardando pagamento, cartas vendidas), lista de pendências acionáveis, progresso da encomenda ativa e atividade recente |
-| **Pedidos** | Lista unificada Coletiva + Individual com filtro por canal/status, busca e ordenação. A aba **Compras do dia** agrupa individuais por dia para a compra no fornecedor |
-| **Envios** | Etiquetas MandaBem: agrupadas por frete na coletiva, uma a uma no individual |
-| **Clientes** | Contatos, histórico de compras nos dois canais, bônus e disparo assistido de WhatsApp |
+| **Visão geral** | KPIs (receita, hoje, aguardando pagamento, cartas vendidas), pendências acionáveis e atividade recente |
+| **Pedidos** | Lista de pedidos com filtro por estágio da trilha, busca e ordenação. A aba **Compras do dia** agrupa os pagos por dia para a compra no fornecedor |
+| **Envios** | Etiquetas MandaBem, uma por remessa, com endereço e rastreio |
+| **Clientes** | Contatos, histórico de compras e disparo assistido de WhatsApp |
 | **Catálogo** | Importação por CSV e adição de cartas avulsas por link de imagem (ver [Adicionar cartas por link](#-adicionar-cartas-por-link)) |
-| **Encomendas** | Criar/editar/arquivar campanhas + lista de compra da encomenda selecionada |
-| **Ajustes** | Preços da coletiva, preços do individual, notificações e mapa do console |
+| **Ajustes** | Preços por volume, notificações e o mapa dos [status do pedido](#-status-do-pedido) |
 
 ## 🔗 Adicionar cartas por link
 
@@ -383,18 +356,22 @@ spinner que substituía tudo e fazia a página saltar a cada tecla. A paginaçã
 anterior/próxima virou **carregar mais**, que acumula os resultados e mostra
 "N de M cartas".
 
+Cada carta tem **duas** ações, e é isso que mantém desejar separado de comprar:
+🛒 põe no carrinho, 📜 guarda na lista de desejos. Um botão só forçava a lista
+a virar caminho obrigatório para a compra.
+
 ### Mínimo do pedido
 
 O mínimo de cartas aparece como barra de progresso no carrinho enquanto a
 pessoa monta o pedido, com `role="progressbar"` — antes só era descoberto no
 checkout, depois de tudo escolhido.
 
-### Modo de pedido
+### Modo de adição
 
-Coletiva e Individual mudam preço, mínimo e se o bônus vale. Fora da Home o
-modo era invisível, então dava para montar um pedido inteiro no modo errado.
-Agora há um chip no cabeçalho em catálogo, lista, carrinho e checkout; tocar
-nele leva à Home, onde se troca.
+Quando o cliente está mandando cartas para um pedido já pago, um chip aparece
+no cabeçalho do catálogo, lista, carrinho e checkout com o código do pedido de
+destino; tocar nele sai do modo. Sem esse chip dava para montar um carrinho
+inteiro sem perceber que ele iria parar noutro pedido.
 
 ### Tinta sobre a cor da guilda
 
@@ -440,9 +417,9 @@ vira um ícone sem significado.
 
 ## 🔔 Notificações (Web Push + PWA)
 
-O admin recebe no celular: **pedido novo**, **pagamento confirmado**,
-**pedido bônus**, **login** e **nova conta**. Tudo também fica no histórico em
-**Ajustes → Notificações**, mesmo sem push ativado.
+O admin recebe no celular: **pedido novo**, **pagamento confirmado**, **login**
+e **nova conta**. Tudo também fica no histórico em **Ajustes → Notificações**,
+mesmo sem push ativado.
 
 ### 1. Banco
 
@@ -484,9 +461,9 @@ e/ou logins). O botão **Enviar teste** confirma a entrega ponta a ponta.
   cifrar/decifrar e verifica a assinatura do JWT.
 - `functions/api/_notify.js` — grava o evento e dispara push para os admins.
   Endpoints expirados (404/410) são removidos do banco automaticamente.
-- Gatilhos no servidor: `mp-create.js` (pedido novo), `mp-webhook.js`
-  (pagamento confirmado) e `confirm-bonus-batch.js` (pedido bônus). São
-  idempotentes por lote — repetir a chamada não gera notificação duplicada.
+- Gatilhos no servidor: `mp-create.js` (pedido novo) e `mp-webhook.js`
+  (pagamento confirmado). São idempotentes por lote — repetir a chamada não
+  gera notificação duplicada.
 - Logins vêm de `/api/notify-event`, chamado pelo app após o login. O usuário
   é identificado pelo token (não dá para forjar), logins de admin são
   ignorados e o mesmo cliente só gera um evento a cada 30 minutos.
