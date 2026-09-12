@@ -70,6 +70,14 @@ except ImportError:
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from extract_google_photos_links import is_google_photos_link, resolve_image_url  # noqa: E402
 
+# Nomes de carta em japonês quebram a saída em cp1252 quando o console é
+# redirecionado para arquivo; trocar o caractere é melhor que abortar no meio.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 SB_URL = os.environ.get("SB_URL", "https://kjyqnlpiohoewmqmsuxp.supabase.co")
 BUCKET = os.environ.get("SB_BUCKET", "cards")
 STORAGE_BASE = f"{SB_URL}/storage/v1/object/public/{BUCKET}/"

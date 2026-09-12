@@ -75,6 +75,17 @@ from upload_cards_from_links import (  # noqa: E402
     upsert_card,
 )
 
+# A planilha tem carta com nome em japonês. No console do Windows o Python
+# escreve Unicode direto, mas com a saída redirecionada para arquivo ele cai
+# no cp1252 e levanta UnicodeEncodeError no meio da execução — depois de já
+# ter subido imagem e gravado carta. Trocar por '?' é sempre melhor que
+# abortar: o nome no banco continua correto, só o eco na tela perde o acento.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 NS_MAIN = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 NS_REL_DOC = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
 NS_REL_PKG = "{http://schemas.openxmlformats.org/package/2006/relationships}"
