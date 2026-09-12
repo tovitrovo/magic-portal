@@ -3,3 +3,6 @@ dist
 .wrangler
 __pycache__/
 *.pyc
+# Estado e falhas do scripts/upload_cards_from_links.py (locais, não versionar)
+*.state.jsonl
+*.falhas.txt
