@@ -1,0 +1,19 @@
+# Cartas novas da planilha cuja célula não tem hyperlink — precisam da imagem à mão.
+Foil | linha 342 | Boseiju, Who Shelters All CHK foil
+Foil | linha 2594 | Teferi, Time Raveler Japanese foil
+Foil | linha 2675 | The Meathook Massacre Reguarl 112 FOIL
+Holo | linha 476 | Chromatic Lantern Guilds of Ravnica
+Holo | linha 602 | Cultivator Colossus regular
+Holo | linha 697 | Den of the Bugbear Showcase
+Holo | linha 839 | Emiel the Blessed
+Holo | linha 860 | Engineered Explosives 2XM regular
+Holo | linha 958 | Flaming Tyrannosaurus 0085
+Holo | linha 1127 | Green Sun's Zenith EMA #169
+Holo | linha 2045 | Savage Order REX HOLO
+Holo | linha 2132 | Sheoldred, Whispering One IMA #108
+Normal | linha 145 | Badlands Unlimited
+Normal | linha 167 | Bayou Unlimited
+Normal | linha 266 | Cavern of Souls -- Italian
+Normal | linha 825 | Lion's Eye Diamond	Japanese
+Normal | linha 1249 | Savannah Lions Beta
+Normal | linha 1434 | Sword of Fire and Ice MMA

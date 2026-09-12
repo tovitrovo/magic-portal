@@ -1,76 +1,96 @@
-# Cartas novas — planilha do fornecedor "Planilha atualizada 11 09"
-# TCG: Magic · Tipo: Foil · 327 cartas
-# Links ainda são de compartilhamento do Google Photos (photos.app.goo.gl).
-# Resolva antes de colar no admin:
+# Cartas da planilha do fornecedor "Planilha atualizada 11 09" que não
+# existem no catálogo ativo do portal.
+# TCG: Magic · Tipo: Foil · 357 cartas
+#
+# Os links são de compartilhamento do Google Photos e precisam ser
+# resolvidos para lh3.googleusercontent.com antes de colar no admin:
 #   python scripts/extract_google_photos_links.py --file scripts/cards/novas-2026-09-11-foil.txt > resolvidas-foil.txt
 Aerith Gainsborough PPRO foil | https://photos.app.goo.gl/sT3MHdo4wc5rL9TZ8
+Ajani, Mentor of Heroes Mythic Edition foil | https://photos.app.goo.gl/5TDQst69fh6aw2Z6A
 Ajani, Unrelenting FRA #308 foil | https://photos.app.goo.gl/i42tAfrRUSgNgGPq9
-Akroma's Will SOA #1 EN foil | https://photos.app.goo.gl/fQgXALt63V5eeAw1A
-Alania, Divergent Storm #344 (raised golden foil)EN | https://photos.app.goo.gl/pEDemu89RHcm7yUH7
-An Offer You Can't Refuse SLP foil | https://photos.app.goo.gl/UPqsU19C8FHW1j72A
-Andúril, Narsil Reforged HOC #40 foil | https://photos.app.goo.gl/y1rLRpMZbwpoCNmw9
+Ancestral Vision FOIL | https://photos.app.goo.gl/vs2UqH7qouG4jSmy5
+Ancient Copper Dragon regular foil | https://photos.app.goo.gl/eQFhGLcDcJC4XRQHA
+Ancient Tomb EXP Foil | https://photos.app.goo.gl/eWGxVvk7aZnGpkZs9
+Ancient Tomb From the Vault Foil | https://photos.app.goo.gl/ryxxQ3MJ1Z8c1Gzu5
+Anikthea, Hand of Erebos Extended foil | https://photos.app.goo.gl/PZUnZ3Mcjy3gyjkK7
+Anima (Grief) SLD #7006 foil | https://photos.app.goo.gl/sar8LR4RBbnJMpCC7
+Apex Devastator Extended 674 foil | https://photos.app.goo.gl/UKhaAHnrWit7ccWVA
+Appa, Steadfast Guardian #316 foil | https://photos.app.goo.gl/v6s3jJricKNL9ttV6
+Applejack SLD #1537 foil | https://photos.app.goo.gl/d8uGeattw1tjfhAh8
+Arcane Signet 40K 227 Surge foil | https://photos.app.goo.gl/UmVU59ztsHC21CYM6
 Arcane Signet SLD #589 foil | https://photos.app.goo.gl/granoZYfft5U5pD27
+Arcbound Ravager Kaladesh Inventions foil | https://photos.app.goo.gl/GmTsikf8KQJbhd2T6
+Arcbound Ravager Pro Tour Promos foil | https://photos.app.goo.gl/RqG1sY1AeQmKsy147
+Argonath, Pillars of the Kings 381 Surge foil | https://photos.app.goo.gl/3aPLLHwfbn3XModt6
 Arid Mesa SPG #114 Dragonscale foil-EN | https://photos.app.goo.gl/b993SN5KnQ7sJXjCA
 Arid Mesa SPG #114 Dragonscale foil-JP | https://photos.app.goo.gl/eo88YAiWGRivHuYN7
+Arid Mesa Zendikar (ZEN) foil | https://photos.app.goo.gl/Z2pNfRUSgDZS52tD7
 Ashaya,Soul of the Wild ZNR #358 foil | https://photos.app.goo.gl/UXGpLxEoiECkJ4FF7
 Ashnod's Altar EMA #218 foil | https://photos.app.goo.gl/J7qqbNWLdjkgKVEW6
 Atraxa, Praetors' Voice PRM #0003 foil | https://photos.app.goo.gl/Z9BTgpBmPKs5T9x86
 Aura Shards SLD #2694 foil | https://photos.app.goo.gl/Y4szvVwVtZVzG2NP9
 Avacyn, Angel of Hope New V15 foil | https://photos.app.goo.gl/YaGEnrkAWPEqioP36
 Awaken the Woods BRO #344 foil | https://photos.app.goo.gl/BNkFMgmhzPTdkSYM7
-Balin's Tomb LTC 357 foil | https://photos.app.goo.gl/qV5MvxYbXSKLYvfP6
+Balin's Tomb 387 Surge foil | https://photos.app.goo.gl/QMjBy3cXgVW7R1y87
 Barret, Avalanche Leader Chocobotrackfoil | https://photos.app.goo.gl/87obmbbbnp6dT2po8
-Baylen, the Haymaker #345 (raised golden foil)EN | https://photos.app.goo.gl/Mi9H2p2Z7rYsQsFw7
-Bello, Bard of the Brambles #101 (raised golden foil)EN | https://photos.app.goo.gl/uXc6PNPGfffdTEco7
+Barrow-Downs 388 Surge foil | https://photos.app.goo.gl/MYCtzV9W14nbR2wA6
+Beast Within WHO 819 Surge foil | https://photos.app.goo.gl/G4ESeR4CRADy8oK37
 Birthing Pod SLD #2349 foil | https://photos.app.goo.gl/XCmpDZKScZMAp5Xz5
 Black Widow, Super Spy MSH #393 foil | https://photos.app.goo.gl/sZQ83ETJN5SkXrGt8
 Blood Crypt ELC #349 foil | https://photos.app.goo.gl/u2kkVZJt9ejNXgYr8
 Blood Crypt TRK #394 foil | https://photos.app.goo.gl/rJqdopbYBRh7Y6XQA
-Bloodthirsty Conqueror #436-EN foil | https://photos.app.goo.gl/tosZMzdjFPTVGHcc9
-Bolas's Citadel old frame foil | https://photos.app.goo.gl/Yct5UZ9J84xqzBe5A
+Bloodstained Mire MH3 Borderless foil | https://photos.app.goo.gl/a4RqfQ6Nd7vohQD89
+Bloom Tender 390 foil | https://photos.app.goo.gl/uiUac1eaDyT7j7hD8
+Breeding Pool Dissension (DIS) foil | https://photos.app.goo.gl/JBfsDpaoznUAp9iU7
+Breeding Pool EXP foil | https://photos.app.goo.gl/xDoL4H3dauqytwPH7
 Breeding Pool TRK #401 foil | https://photos.app.goo.gl/P4wgN3bYAk6yhhRz9
-Bruce Banner/The Incredible Hulk MSH #390 foil | https://photos.app.goo.gl/vYSoYeq9Mk9SyLYu7
-Buster Sword #351 foil | https://photos.app.goo.gl/yqdA8RS19nDuj2bG6
+Brotherhood's End(兄弟仲の終焉) foil | https://photos.app.goo.gl/idaM3fdx6KmXFx3q8
+Bucklebury Ferry 401 Surge foil | https://photos.app.goo.gl/uFHbYuk9xts2rc2o6
 Cabal Ritual New V16 foil | https://photos.app.goo.gl/dcN9zQxrincENgcM7
 Call Forth the Tempest HOC #22 foil | https://photos.app.goo.gl/wmJMuM4x1eK9WVwC9
-Camellia, the Seedmiser #346 (raised golden foil)EN | https://photos.app.goo.gl/AvWGHTQ7fNQ4tyzi9
 Captain America, Super-Soldier MSH #387 foil | https://photos.app.goo.gl/piEZyoD6MB958B2r5
 Captain Kathryn Janeway TRK #340 foil | https://photos.app.goo.gl/Lyr8BJ8FMKUri8YF8
 Cavern-Hoard Dragon HOC #23 foil | https://photos.app.goo.gl/fxGGH9w1fpNLyCrX9
-Clive, Ifrit's Dominant/Ifrit, Warden of Inferno FIN #318 foil | https://photos.app.goo.gl/wgkrPnEZB6sKxPdS9
+Champion's Helm Kaladesh Inventions foil | https://photos.app.goo.gl/NjLC9ygaSRd4Ls1m7
+Chandra, Fire Artisan Japanese foil | https://photos.app.goo.gl/dDw6eAN1sk5d4ubf8
+Chromatic Lantern 40K 232 Surge foil | https://photos.app.goo.gl/tzewEhWuEoBo3fNQ6
 Command Tower New CM1 foil | https://photos.app.goo.gl/U9pbhwMFouXK3LpL9
-Concordant Crossroads 2x2 borderless foil | https://photos.app.goo.gl/gz9k49YgWSCr319e6
-Consecrated Sphinx 2x2 borderless foil | https://photos.app.goo.gl/RboAYYPuggQK4FzG6
-Cosmic Cube MSH #337 foil | https://photos.app.goo.gl/FJngTKSG9xbX46Kc6
-Crucible of Worlds 2x2 borderless foil | https://photos.app.goo.gl/x1uq7LqJD3vCWvzX9
+Command Tower（The Spire） foil | https://photos.app.goo.gl/UiqQQ99KMpWjc1Gm9
+Counterspell - Mercadian Masques foil | https://photos.app.goo.gl/FUdCs6JB2QXzkBkx6
+Cryptic Command Full Art foil | https://photos.app.goo.gl/nP95VG1M8MfnaWBh7
+Cyber Conversion 946 Surge foil | https://photos.app.goo.gl/Szy3fLh8HwqS5ahR7
+Cyberman Patrol 0779 Surge foil | https://photos.app.goo.gl/ZE66Xrcjg3eqgDa99
+Damn OLD FRAME foil | https://photos.app.goo.gl/yuC1PSaiueQoqeNa6
 Daredevil, Man Without Fear MSH #398 foil | https://photos.app.goo.gl/3mSiBnJABLQygpaUA
 Dark Confidant Judge gift 2011 foil | https://photos.app.goo.gl/WGdrPbewNJLYzxMX6
+Dark Ritual SLD 1170Foil | https://photos.app.goo.gl/TDEvhNX24dTScKqY8
+Delighted Halfling 774 Surge foil | https://photos.app.goo.gl/ryz7DuzTJszD99i86
 Delighted Halfling HOC #25 foil | https://photos.app.goo.gl/93hCCpNLC2mhUVuw8
 Devil Dinosaur #719 foil | https://photos.app.goo.gl/o4yjBUMvnj2Gk8hX8
+Displaced Dinosaurs 705 Surge foil | https://photos.app.goo.gl/8XusAwUxvVHQvnuJA
 Doctor Doom MSH #394 foil | https://photos.app.goo.gl/uun9BCzVSLv85vjw7
 Doctor Doom, Unrivaled #654 foil | https://photos.app.goo.gl/7d97DQKgHCJvx4Yw5
-Doubling Season 2XM #350 foil | https://photos.app.goo.gl/uqQV3fpujTDS1v1B9
-Dragon's Rage Channeler SLD #2053 (raised golden foil) | https://photos.app.goo.gl/P4X36JbZgXM7cJiK6
+Dol Amroth 399 Surge foil | https://photos.app.goo.gl/i4EEbzgAK9HqVQXt6
 Drannith Magistrate IKO #314 foil | https://photos.app.goo.gl/rzd7mRM81bRye96r7
+Dryad of the Ilysian Grove Extended Art Foil | https://photos.app.goo.gl/xhaojKLrTPVnLDeb8
 Dust Bowl Zendikar Expeditions foil | https://photos.app.goo.gl/HZUVRXYFQhzGzm3T7
 Dwarven Warriors HOC #93 foil | https://photos.app.goo.gl/3QKWwghhhtwrA9jw7
 Eddie Brock/Venom, Lethal Protector SPM #233 foil | https://photos.app.goo.gl/Yb8VoYs62ieQcQAX9
-Eldrazi Temple EOS #149 New Galaxy Foil | https://photos.app.goo.gl/86dCNMzu6WMztN7h9
 Elektra, Daughter of the Hand MSH #395 foil | https://photos.app.goo.gl/SSBrb7mZ8sgbFrqX8
-Elesh Norn, Mother of Machines #416 foil | https://photos.app.goo.gl/WXoZ3b5buBJC2VFV6
+Elesh Norn, Mother of Machines ONE #10 foil | https://photos.app.goo.gl/rnjqP5NK768zYn2s9
 Emry, Lurker of the Loch ELD #342 foil | https://photos.app.goo.gl/fhjPQ9q64njbLp1x7
-Enduring Curiosity #398-EN foil | https://photos.app.goo.gl/mYmmYqzWi7i4kDnH8
-Enduring Vitality #404-EN foil | https://photos.app.goo.gl/1Jhk8ZaQX4jJkBWq8
 Erebor Heirloom(Fellwar Stone) SLD #2557 foil | https://photos.app.goo.gl/nK2cdApDNkJwyZmk8
-Etali, Primal Conqueror/Etali, Primal Sickness #137 foil | https://photos.app.goo.gl/WpbjDeZ4GM2HqgoD6
+Everybody Lives! 623 Surge foil | https://photos.app.goo.gl/xZcvae3KBA3r3bH27
+Everybody Lives! 929 Surge foil | https://photos.app.goo.gl/a2xYGgwhkDz7d7FZA
 Exploration Conspiracy foil | https://photos.app.goo.gl/dGh7k7JKEVb3s7bS8
-Fable of the Mirror-Breaker SCH #44 foil | https://photos.app.goo.gl/a6a79CowU1nCmP4j8
+Fangorn Forest 407 Surge foil | https://photos.app.goo.gl/3zDFXWnXttd3EDxc7
 Finale of Devastation 0700 foil | https://photos.app.goo.gl/E5ATmJfG6EmLGShH6
 Finale of Devastation SLD #2680 foil | https://photos.app.goo.gl/61qnrEMkhcbjvh9r8
-Finneas, Ace Archer #348 (raised golden foil)EN | https://photos.app.goo.gl/FhgzthRck1RPQNhn8
+Flesh Duplicate 0649 Surge foil | https://photos.app.goo.gl/ERobMaVMmFeyjaEVA
 Flooded Grove Zendikar Expeditions foil | https://photos.app.goo.gl/dzbv4XS1TgfRLzsh8
 Flooded Strand Zendikar Expeditions foil | https://photos.app.goo.gl/NzKAMAJycDkxqXEN6
 Flowering of the White Tree HOC #14 foil | https://photos.app.goo.gl/gZ8MTp2eMNQsyeX79
+Force of Will Alliences FOIL vintage | https://photos.app.goo.gl/Zm1rEe18Rr6UWwsU8
 Force of Will OLGC foil | https://photos.app.goo.gl/3swXEhvqH2UrR1Pq5
 Forest SLD# 1092 foil | https://photos.app.goo.gl/GLeEYXt3xRwEGgY5A
 Forest SLD# 1134 foil | https://photos.app.goo.gl/Vcj8p7DansTvybAV6
@@ -82,31 +102,64 @@ Forest SLD# 363 foil | https://photos.app.goo.gl/bnRkZAgf5H3wD7oq8
 Forest SLD# 395 foil | https://photos.app.goo.gl/waRvNEaYwEhE5sj9A
 Forest SLD# 419 foil | https://photos.app.goo.gl/oKFXu5JmijCxj5mW8
 Forest SLD# 452 foil | https://photos.app.goo.gl/hhuSogP9MrCNh63d7
-Forest SLD# 476 foil | https://photos.app.goo.gl/N64gTTeeCtPnPsAi8
 Forest SLP# 0035 foil | https://photos.app.goo.gl/VmJYGnkuuM4h2r8K7
-Gaea's Cradle - Urza's Sage-JP foil | https://photos.app.goo.gl/bU2QSzsddrP7AYWG6
-Gaea's Cradle FOIL | https://photos.app.goo.gl/ifdK5N2w7srtrybe9
+FRACTURE Bloodthirsty Conqueror #436 EN foil | https://photos.app.goo.gl/VJNyvQbCkHtvWPU68
+FRACTURE Chandra, Spark Hunter #411 EN foil | https://photos.app.goo.gl/LSh5ZpCxiGx1L7Sb8
+FRACTURE Cursecloth Wrappings #410 EN foil | https://photos.app.goo.gl/ZckQj8wBVqF3qRbV9
+FRACTURE Day of Judgment #432 EN foil | https://photos.app.goo.gl/U1UteDgvrMq7Hqvd9
+FRACTURE Doubling Season #438 EN foil | https://photos.app.goo.gl/cbXjMetror2xCyYi9
+FRACTURE Enduring Courage #402 EN foil | https://photos.app.goo.gl/2bZbsW2yHsohXbkX9
+FRACTURE Enduring Curiosity #398 EN foil | https://photos.app.goo.gl/9GK6nD6SnAPCE2c7A
+FRACTURE Enduring Innocence #396 EN foil | https://photos.app.goo.gl/Rd65fh2ShgX3cPYV6
+FRACTURE Enduring Tenacity #400 EN foil | https://photos.app.goo.gl/7idWtfWZyd2JKr5A9
+FRACTURE Enduring Vitality #404 EN foil | https://photos.app.goo.gl/RkGTCGc8zbDCUMLZ7
+FRACTURE Explosive Getaway #413 EN foil | https://photos.app.goo.gl/tEjM12SRs8U5458b9
+FRACTURE Herald of Eternal Dawn #433 EN foil | https://photos.app.goo.gl/4dzQDPDXxcozK6vGA
+FRACTURE Kaito, Cunning Infiltrator #434 EN foil | https://photos.app.goo.gl/f9uC7jZ56ihPs4Eh8
+FRACTURE Llanowar Elves #439 EN foil | https://photos.app.goo.gl/sdKLjnkfFVmg7KBt9
+FRACTURE Loot, the Pathfinder #414 EN foil | https://photos.app.goo.gl/Wq3UAsE93Kd1HXg87
+FRACTURE March of the World Ooze #412 EN foil | https://photos.app.goo.gl/Zrmua8nRENM8nfAt9
+FRACTURE Mimeoplasm, Revered One #415 EN foil | https://photos.app.goo.gl/H8ZDyEgdLFVjzD1n7
+FRACTURE Mu Yanling, Wind Rider #409 EN foil | https://photos.app.goo.gl/DfqGyK5DpfbtRQuD6
+FRACTURE Muldrotha, the Gravetide #440 EN foil | https://photos.app.goo.gl/1NSyAed42H1AG3jr7
+FRACTURE Overlord of the Balemurk #401 EN foil | https://photos.app.goo.gl/hwHR4gv264To64J56
+FRACTURE Overlord of the Floodpits #399 EN foil | https://photos.app.goo.gl/PgHfifuHca11zdGg9
+FRACTURE Overlord of the Mistmoors #397 EN foil | https://photos.app.goo.gl/DB9GMdHsbzyCHcSx6
+FRACTURE Progenitus #441 EN foil | https://photos.app.goo.gl/i2iPVJMRFNWpLPU16
+FRACTURE Radiant Lotus #416 EN foil | https://photos.app.goo.gl/QF6MQMSCRxH3G5zDA
+FRACTURE Salvation Engine #407 EN foil | https://photos.app.goo.gl/TpnQGdizYzfbzKm36
+FRACTURE Spectacular Pileup #408 EN foil | https://photos.app.goo.gl/AQohJdfeFnHiHGURA
+FRACTURE Think Twice #435 EN foil | https://photos.app.goo.gl/5P9uz6ASNVqW3evU9
+FRACTURE Twinflame Tyrant #437 EN foil | https://photos.app.goo.gl/qaaMximBXJJezxx36
 Galadriel, Light of Valinor HOC #32 foil | https://photos.app.goo.gl/W46xUsvAvJLD5vG26
 Galadriels Dismissal HOC #16 foil | https://photos.app.goo.gl/brsnxjyeCYNF8AaP6
+Gandalf the White 797 Surge foil | https://photos.app.goo.gl/pa24L1EmZWoPofbC7
 Gandalf, Goblins' Bane HOB #242 foil | https://photos.app.goo.gl/UwGQNyg16ZZAFjXb6
 Garruk, Curse Breaker FRA #314 foil | https://photos.app.goo.gl/g87yu11TceDCsmoR8
 Garruk, Veiled Butcher FRA #303 foil | https://photos.app.goo.gl/WpzXoszZWVNdEvz87
 Gemstone Mine TSB foil | https://photos.app.goo.gl/pgChaSWDRByJnyAF6
-Gev, Scaled Scorch #349 (raised golden foil)EN | https://photos.app.goo.gl/uztzpFDQPKXYjKWE9
 Gleaming Splendor HOB #239 foil | https://photos.app.goo.gl/gXtgCaGTmtpUmpek9
+Godless Shrine EXP foil | https://photos.app.goo.gl/ZyN7co3HHdStnkaD7
 Godless Shrine TRK #397 foil | https://photos.app.goo.gl/3oc7xpe2i6vA63KCA
+Gold 0551F Traveling Chocobo Foil 1-77 ($5 a card) | https://youtu.be/eEY5uZZQ804
 Gollum, Riddle Master HOB #241 foil | https://photos.app.goo.gl/XqqNegZFKibFU98E9
-Goryo's Vengeance Ultimate Box Topper foil | https://photos.app.goo.gl/69hdQ385rDnGwZ6a7
-Grapeshot (UP Alternate Art) FOIL | https://photos.app.goo.gl/stjHvPMBPQAe4MjR8
+Greater Auramancy FOIL | https://photos.app.goo.gl/oByGMug8V4scZZMw5
+Green Dragon Inn 395 Surge foil | https://photos.app.goo.gl/HdwRwoVDoZTRwrcFA
 Hallowed Fountain ELC #347 foil | https://photos.app.goo.gl/VT6VMVcEjxCpSwnRA
+Hallowed Fountain EXP foil | https://photos.app.goo.gl/gijZXxJWPbxoofZ96
 Hallowed Fountain TRK #392 foil | https://photos.app.goo.gl/DSugu17NkzGvScjP7
 Halvar, God of Battle/Sword of the Realms #299 foil | https://photos.app.goo.gl/yUejNVgHY5jdmQk89
-Hazel of the Rootbloom #102 (raised golden foil)EN | https://photos.app.goo.gl/gbuLSD69XbzjT2gn6
+Helm's Deep 404 Surge foil | https://photos.app.goo.gl/UHfHm5S4z6b1xP4S7
+Henneth Annûn 403 Surge foil | https://photos.app.goo.gl/aWzGdpQjRfR1cmsX9
+Herald‘s Horn 40K 241 foil Surge foil | https://photos.app.goo.gl/YdakvoySsrrbviVZA
+Herugrim, Sword of Rohan 384 Surge foil | https://photos.app.goo.gl/zt3tJY2viMVZEqd46
 Hulk, Brutal Brawler #833 foil | https://photos.app.goo.gl/Gdr2RCNs4KRtiuDn9
+Hydroblast EMA foil | https://photos.app.goo.gl/SmpbUdfXtgjaXRGQ6
 Imp's Mischief SLD #2555 foil | https://photos.app.goo.gl/WiSdjWRRv32PS3S56
-Indatha Triome borderless foil | https://photos.app.goo.gl/K66uHohpXCbnqii19
+Into the Flood Maw(洪水の大口へ) foil | https://photos.app.goo.gl/PGCHEpK6tZAgXsvu6
 Iona, Shield of Emeria New V15 foil | https://photos.app.goo.gl/cpGrZLezq4v781Zq6
 Iron Man, Modern Marvel #830 foil | https://photos.app.goo.gl/jTAeZhd1Bd6CVGVK6
+Isengard, Saruman's Fortress 389 Surge foil | https://photos.app.goo.gl/6sQJMDX8Zap3A4Ga8
 Island SLD# 1089 foil | https://photos.app.goo.gl/N5BcPJCTrinEMjpY8
 Island SLD# 1131 foil | https://photos.app.goo.gl/ksuqhKvKE3ggK2pY6
 Island SLD# 1383 foil | https://photos.app.goo.gl/dmcqHq2Gs8eqFZg78
@@ -118,39 +171,28 @@ Island SLD# 416 foil | https://photos.app.goo.gl/RvdiBe3nCHqCAhzq5
 Island SLD# 449 foil | https://photos.app.goo.gl/CJYWJ5EDgFhZRLb2A
 Island SLD# 673 foil | https://photos.app.goo.gl/doFy2HV7UJpfUjnr5
 Island SLP# 0032 foil | https://photos.app.goo.gl/KZhWcLshyKYo3wcR7
-Jace, the Mind Sculptor #93 (raised golden foil)EN | https://photos.app.goo.gl/G2Wt3odGe5Kf1avt9
 Jennifer Walters/The Sensational She-Hulk MSH #388 foil | https://photos.app.goo.gl/Ww75SS25MUwEU55h7
-Jetmir's Garden borderless foil | https://photos.app.goo.gl/g9itFwuh2J94sa8V7
 Jetmir, Nexus of Revels SNC #377 (raised golden foil) [SNC] EN | https://photos.app.goo.gl/cdPWgtJDccbzjxCK8
-Kastral, the Windcrested #350 (raised golden foil)EN | https://photos.app.goo.gl/h49Lw8QAaNRpZv9b8
-Kefka, Court Mage/Kefka, Ruler of Ruin #322 foil | https://photos.app.goo.gl/5fnFuLMoC4spQ71r5
-Kefka, Court Mage/Kefka, Ruler of Ruin #398 foil | https://photos.app.goo.gl/FqtMqpFTPpfCyZPw8
-Ketria Triome borderless foil | https://photos.app.goo.gl/2uYsj1pphXWhAVQn6
 King T'Challa/Black Panther, Hope Enduring MSH #399 foil | https://photos.app.goo.gl/mZbzjNymLKNrv2bXA
+Kokusho, the Evening Star From the Vault Foil | https://photos.app.goo.gl/VJfjNTPAcCu5mtyq7
 Kozilek's Command SLP #52 foil | https://photos.app.goo.gl/SsrB2RKTryDoRpuB9
-Kozilek, the Great Distortion sld foil | https://photos.app.goo.gl/eMJ94ta8dfH9irzp9
-Kroxa, Titan of Death's Hunger Full Art foil | https://photos.app.goo.gl/j6CpWBsk6BsS22yV6
 Last March of the Ents HOC #27 foil | https://photos.app.goo.gl/DVY2jAsACZu9GjTHA
-Legolas's Quick Reflexes LTC #493 foil | https://photos.app.goo.gl/uWALWsqCV8N7xG5x7
 Lightning Greaves SLD #2558 foil | https://photos.app.goo.gl/zno4HSZMuo4on7ii9
-Liliana of the Dark Realms #94 (raised golden foil)EN | https://photos.app.goo.gl/U5CEjrQgvmZrPxvV9
-Liliana, Death's Majesty PS17 foil | https://photos.app.goo.gl/EnvZTzKWRPeEMXSB8
-Lithoform Engine extend FOIL FOIL | https://photos.app.goo.gl/iW6KNBJQaEAvDg1TA
 Llanowar Elves #439-EN foil | https://photos.app.goo.gl/8WNXpaPiRLfSf5Ys5
 Locke, Treasure Hunter Chocobotrackfoil | https://photos.app.goo.gl/uSeR7ybQLpsmeQZQ9
 Loki, Lord of Misrule #628 foil | https://photos.app.goo.gl/uqni9ojj1ZBcJvPJA
 Lotho, Corrupt Shirriff HOC #34 foil | https://photos.app.goo.gl/mWGmgdrgew5VMcULA
 Lulu, Stern Guardian Chocobotrackfoil | https://photos.app.goo.gl/iL18MX7hCmRCMuJ97
-Mabel, Heir to Cragflame #351 (raised golden foil)EN | https://photos.app.goo.gl/9G313AwmSKHuTwK4A
-Mana Drain 2x2 regular foil | https://photos.app.goo.gl/9KH1vNGv3RDiKvau8
+Magus Sisters (Endurance) SLD #7008 foil | https://photos.app.goo.gl/GZkJWjd4Q5jD7Ruu5
 Marsh Flats SPG #115 Dragonscale foil-EN | https://photos.app.goo.gl/DHeZ2iumHeNRbBdUA
 Marsh Flats SPG #115 Dragonscale foil-JP | https://photos.app.goo.gl/CjWhjZRPTg4NW1Dk8
 Mikaeus, the Unhallowed UMA #U11 foil | https://photos.app.goo.gl/aia3j3JcHZxfLwyN7
-Mind's Eye Kaladesh Inventions foil | https://photos.app.goo.gl/ZEfjyMTUb8cfczdw9
 Misty Rainforest SPG #116 Dragonscale foil-EN | https://photos.app.goo.gl/BFjK73xeDiwYou1KA
 Misty Rainforest SPG #116 Dragonscale foil-JP | https://photos.app.goo.gl/uDMPK9FVSPeSMqiy9
+Mithril Coat 790 Surge foil | https://photos.app.goo.gl/gvhR1QD4o5h9EBsbA
 Mithril Coat HOC #43 foil | https://photos.app.goo.gl/3vchDkEQD412Tau49
 Mjölnir, Hammer of Thor MSH 339 foil | https://photos.app.goo.gl/DPkoKX5Aw7S7TKCB6
+Morgul-Knife 383 Surge foil | https://photos.app.goo.gl/U8kam8FS1dKoNJpp7
 Mount Doom HOC #50 foil | https://photos.app.goo.gl/ZPnTnNgvJe9hqmm48
 Mountain SLD# 1091 foil | https://photos.app.goo.gl/kd2aGTucTFRaB8Jw8
 Mountain SLD# 1133 foil | https://photos.app.goo.gl/1BZXXRHdz2KRDy8w6
@@ -163,34 +205,24 @@ Mountain SLD# 418 foil | https://photos.app.goo.gl/QonHzZQqW8nGnC2F9
 Mountain SLD# 451 foil | https://photos.app.goo.gl/dtTLfoMSmk1pJSrW7
 Mountain SLD# 674 foil | https://photos.app.goo.gl/friJMexhTCvRawyb9
 Mountain SLP# 0034 foil | https://photos.app.goo.gl/iPvH6UPEAv6kbPEg6
-Mox Amber BRR schematic #98 foil | https://photos.app.goo.gl/qSpBqdbC5fgrQaNK6
 Mox Amber HOC #96 foil | https://photos.app.goo.gl/ffMsmFatyDgAb31fA
 Mox Amber HOC #96 foil | https://photos.app.goo.gl/ffMsmFatyDgAb31fA
-Ms. Bumbleflower #103 (raised golden foil)EN | https://photos.app.goo.gl/w3QykJz53FPWMMPE6
-Muerra, Trash Tactician #352 (raised golden foil)EN | https://photos.app.goo.gl/RG5acb9wtJ6pzsxT6
-Muldrotha, the Gravetide #440-EN foil | https://photos.app.goo.gl/HLoxZNCg1jqNLe1v9
 Mycosynth Lattice darksteel foil | https://photos.app.goo.gl/gjBuuEhtjxfpLWsr8
 Namor the Sub-Mariner MSH #391 foil | https://photos.app.goo.gl/2S3kVGc59hD29TBq8
-Nature's Claim TSR FOIL | https://photos.app.goo.gl/j2SDm6Ezpgz2N1bK7
-Needleverge Pathway/Pillarverge Pathway #288 foil | https://photos.app.goo.gl/P3mLcy5Qc1bCYvMT6
 Nick Fury, Agent of S.H.I.E.L.D. MSH #389 foil | https://photos.app.goo.gl/XsZYd69qYtU1uQam9
 Nico Minoru, Runaway #700 foil | https://photos.app.goo.gl/BTNCFz8FNiizLbGt7
 Nissa, Resurgent Animist SLD #2658 foil | https://photos.app.goo.gl/nkmUcLX8kA9bQNY59
-Nissa, Who Shakes the World #96 (raised golden foil)EN | https://photos.app.goo.gl/sqerVYfmHyhat8SZ6
-Nykthos, Shrine to Nyx Pro Tour Promos foil | https://photos.app.goo.gl/qGF3jHdW2kBUNWjj9
-Nyxbloom Ancient extend art foil | https://photos.app.goo.gl/dbJxS7idvYwwVXP99
 Ojer Axonil, Deepest Might/Temple of Power #0158 foil | https://photos.app.goo.gl/DTievumG9fQQJvpz7
-Opposition Agent Extended 651 foil | https://photos.app.goo.gl/vucnur34u4DDUmtcA
 Orcish Bowmasters HOC #19 foil | https://photos.app.goo.gl/9UL9MMYycfmxAZ9DA
 Orcrist, Goblin-cleaver HOB #236 foil | https://photos.app.goo.gl/8uxb5ph5adMs5iGt6
+Osgiliath, Fallen Capital 398 Surge foil | https://photos.app.goo.gl/LArTVy4xaWfPFT3s7
 Otawara,SoaringCity #414 foil | https://photos.app.goo.gl/SarTxvysLZBD78Dw9
 Overgrown Tomb ELC #350 foil | https://photos.app.goo.gl/rxHTgZoJbZQyipEz7
 Overgrown Tomb TRK #399 foil | https://photos.app.goo.gl/vfknCkC3jtvxUKiF7
-Overlord of the Balemurk #401-EN foil | https://photos.app.goo.gl/VL45GqEgn5FJT1bBA
-Overlord of the Hauntwoods #405-EN foil | https://photos.app.goo.gl/jtmj2sbuUupq7vkE7
-Painter's Servant Kaladesh Inventions foil | https://photos.app.goo.gl/LM1tDxat2xmbh7qb9
+Palantír of Orthanc 792 Surge foil | https://photos.app.goo.gl/FZEPXGoXtoDDBvAv8
 Palantír of Orthanc HOC #45 foil | https://photos.app.goo.gl/5vL32pfxsvUsMHcj9
-Phyrexian Altar 2x2 borderless foil | https://photos.app.goo.gl/88xfj5LiTWjZ3jgb9
+Paths of the Dead 392 Surge foil | https://photos.app.goo.gl/6nb97fLUR14cQxj18
+Phyrexian Tower sld foil | https://photos.app.goo.gl/mDMi4piKfuq4Ap948
 Plains SLD# 1088 foil | https://photos.app.goo.gl/4NWideRJmLmZctwJA
 Plains SLD# 1130 foil | https://photos.app.goo.gl/AFLtP12rgTBZiaNC7
 Plains SLD# 1382 foil | https://photos.app.goo.gl/U3uHHmAvFy7Ffz9H8
@@ -201,48 +233,58 @@ Plains SLD# 359 foil | https://photos.app.goo.gl/XriEmPY46Jw3WANu7
 Plains SLD# 415 foil | https://photos.app.goo.gl/SPFpw6JNDbNMVbYv8
 Plains SLD# 448 foil | https://photos.app.goo.gl/hzRRkTeh59LiET7u5
 Plains SLP# 0031 foil | https://photos.app.goo.gl/bzzDJ4HmfAB2MbWTA
-Powder Keg UDS foil | https://photos.app.goo.gl/mRFQ91bzB8SndwST9
+Polluted Delta MH3 Borderless foil | https://photos.app.goo.gl/LyMtpTjmaeYbTKBD6
+Ponder sld foil | https://photos.app.goo.gl/ZSFxCBZAYtRNvhBP9
 Prismatic Vista old fram MH2 foil | https://photos.app.goo.gl/w9GzRnay5aRqH76k9
 Prismatic Vista SLD #2699 foil | https://photos.app.goo.gl/LysazZWFPLMHpG2S9
 PRM 3 Plains foil | https://photos.app.goo.gl/gJtbWYMKW6EnugMX7
 PRM 5 Mountain foil | https://photos.app.goo.gl/NnqiWPFusiqvqwnZ7
 PRM 6 Forest foil | https://photos.app.goo.gl/Q8AZo7EnYDT1jya36
-Raffine's Tower borderless foil | https://photos.app.goo.gl/TsFRVKyn6B5HaA487
+Rainbow Dash SLD #1540 foil | https://photos.app.goo.gl/17gof7A1AFxjnbuR6
+raised  Alania, Divergent Storm #344  [Bloomburrow (BLB)]-EN foil | https://photos.app.goo.gl/C8jSnNhRhZQWhrXH8
+raised  Baylen, the Haymaker #345 (raised foil) [Bloomburrow (BLB)]-EN foil | https://photos.app.goo.gl/4KudVZjnC4xhXtZu8
+raised  Baylen, the Haymaker #345 (raised foil) [Bloomburrow (BLB)]-JP foil | https://photos.app.goo.gl/eSQhoQqoCdxKchrn8
 Ranger-Captain of Eos Retro MH2 foil | https://photos.app.goo.gl/J7kPHySmttbm5iB36
+Raphael, Ninja Destroyer #303 raised foil | https://photos.app.goo.gl/fcpZQJZSHXgJSi6M9
 Rat Colony SPG #56 foil | https://photos.app.goo.gl/SUrq9jawE2PQ6D718
 Relentless Rats SLD 0010 foil | https://photos.app.goo.gl/ZSt924VfckdTWFi88
 Relic of Sauron HOC #46 foil | https://photos.app.goo.gl/ZK66X3K55i8QxxiL7
 Rhystic Study New CM1 foil | https://photos.app.goo.gl/uu4K7zsQceT2yK7fA
+Rishadan Port MMQ foil | https://photos.app.goo.gl/p4BJfWxeM8ERbtzw8
 Roaming Throne SLD #2415 foil | https://photos.app.goo.gl/GexMXZtrpsGp5SY27
+Sacred Foundry EXP foil | https://photos.app.goo.gl/A1FecXbbnBfjLaQQ7
 Sacred Foundry TRK #400 foil | https://photos.app.goo.gl/oVkChFDPv6Li68sn6
 Sauron, Dino Devotee #731 foil | https://photos.app.goo.gl/QBvna3rJvRqE2g2AA
-Sauron, the Dark Lord HOC #36 foil | https://photos.app.goo.gl/SSFZpWYVUjY4XZ2B7
 Scalding Tarn SPG #117 Dragonscale foil-EN | https://photos.app.goo.gl/4jwavE6bg43yUPTB6
 Scalding Tarn SPG #117 Dragonscale foil-JP | https://photos.app.goo.gl/mzT4s5aobPq2WZNVA
 Scalding TarnSPG#112foil | https://photos.app.goo.gl/W2qeidQWLbreyZk4A
 Scroll Rack Kaladesh Inventions foil | https://photos.app.goo.gl/1ULbe4iwBppMyCQw7
 Scroll Rack New CM1 foil | https://photos.app.goo.gl/ieFtoGPAaL174EUw6
-Seasoned Pyromancer foil | https://photos.app.goo.gl/yev9vNrhRVwWNMjp7
 Sensei's Divining Top 2X2 #398 foil | https://photos.app.goo.gl/3BVWYbD3ee8TMPrC9
-Sephiroth, Fabled SOLDIER/Sephiroth, One-Winged Angel #115 EN foil | https://photos.app.goo.gl/784phf5UhE31CGRY9
-Sephiroth, Fabled SOLDIER/Sephiroth, One-Winged Angel #317 EN foil | https://photos.app.goo.gl/dEmrvmR7sD68WNkj9
-Sephiroth, Fabled SOLDIER/Sephiroth, One-Winged Angel #382 EN foil | https://photos.app.goo.gl/L9NwqZ7wnXmjY14Z9
-Sephiroth, Fabled SOLDIER/Sephiroth, One-Winged Angel #451 EN foil | https://photos.app.goo.gl/PPgrsc4FZxyjyPJm7
+Shadow in the Warp foil Surge foil | https://photos.app.goo.gl/K5SANxMzCzHxaJ7u9
 Shang-Chi, Master of Kung Fu MSH #396 foil | https://photos.app.goo.gl/ZXixW4LSdJBczLU68
-Sheoldred, the Apocalypse DMU #290 foil | https://photos.app.goo.gl/p5God5HvBmesu8mx5
-Shizo,Death's Storehouse CHK foil | https://photos.app.goo.gl/ndaiNKApyipKEoqo9
+Shards of Narsil 386 Surge foil | https://photos.app.goo.gl/Aur3Z6tyBpoqDnyu9
+Sheltered by Ghosts(幽霊による庇護) foil | https://photos.app.goo.gl/55BxMPkngGaPwKHS8
+Silence M14 Foil | https://photos.app.goo.gl/vqPgX9fsheCpU5jt5
+Skullclamp 40K 248 Surge foil | https://photos.app.goo.gl/UFQvqtVq65p7h8zv5
+Slickshot Show-Off(精鋭射手団の目立ちたがり) foil | https://photos.app.goo.gl/6amH2KesuVGmxjXS9
+Sliver Queen foil vintage | https://photos.app.goo.gl/JJxZMUfu2bES9nWSA
 Smaug the Magnificent HOB #229 foil | https://photos.app.goo.gl/gwgYurgqUpKvg7aC9
 Smaug the Magnificent HOB #249 (Golden) foil | https://photos.app.goo.gl/S2gUsVmFoG19boHh9
 Smaug the Magnificent HOB #249 (Golden) foil | https://photos.app.goo.gl/S2gUsVmFoG19boHh9
-Smothering Tithe 2x2 regular foil | https://photos.app.goo.gl/zRRLT8CCGvBWNi7e6
+Snuff Out 813 Surge foil | https://photos.app.goo.gl/SEoCVwtkHAw8qkCZ7
+Sol Ring CMR foil | https://photos.app.goo.gl/LbqXbNgE3rZ4jWCd6
+Sol Ring MPS foil | https://photos.app.goo.gl/c1g1aWmCgddLN5ym6
 Sol Ring SLD #2560 foil | https://photos.app.goo.gl/PxM6v7cBNDCMAdhD7
-Spara's Headquarters borderless foil | https://photos.app.goo.gl/M8FmSavqEQVdnVVa9
+Sonic Screwdriver 0790 Surge foil | https://photos.app.goo.gl/XThjnHsenqyHPQqS8
 Steam Vents ELC #348 foil | https://photos.app.goo.gl/59htB4rSu4oTUZUW7
 Steam Vents TRK #398 foil | https://photos.app.goo.gl/gcDpZ9aKCQG1wKVL8
 Stiltzkin, Moogle Merchant Chocobotrackfoil | https://photos.app.goo.gl/aa5pzFC1XWTQgZS57
 Stomping Ground TRK #395 foil | https://photos.app.goo.gl/8Rw9decgHfKxwnZx9
+Stubborn Denial #56 foil | https://photos.app.goo.gl/W2xhhUWw8dLf8WSc9
 Sundering Titan Kaladesh Inventions foil | https://photos.app.goo.gl/JTBvMUF9dAu3NyvM8
 Sunken Ruins Zendikar Expeditions foil | https://photos.app.goo.gl/LrbTFfpoEKBvukXR9
+Super Shredder #83 foil | https://photos.app.goo.gl/BKXLF6zmztoHPHPt7
 Svyelun of Sea and Sky OLD FRAME foil | https://photos.app.goo.gl/daPWWmmkxhrMp95R8
 Swamp SLD# 1090 foil | https://photos.app.goo.gl/MBguGRTRCkNbuJBB8
 Swamp SLD# 1132 foil | https://photos.app.goo.gl/SNJyCG96yFKQd8MV8
@@ -255,78 +297,68 @@ Swamp SLD# 394 foil | https://photos.app.goo.gl/iLQk9rm2LJE5cG9dA
 Swamp SLD# 417 foil | https://photos.app.goo.gl/rRynmGqMdHmAoFzb9
 Swamp SLD# 450 foil | https://photos.app.goo.gl/942QVpmcFzVsuvUi6
 Swamp SLP# 0033 foil | https://photos.app.goo.gl/7s4b3pzExfwAU9Px7
-Swords to Plowshares PRM #1 foil | https://photos.app.goo.gl/jygomr4gpto9QZRq7
+Sword of Hearth and Home TMC #136 foil | https://photos.app.goo.gl/LQ1LcG1bjYaPDXeY6
 Swordsman's Steel #752 foil | https://photos.app.goo.gl/11UzHDU8erLsbHDm6
 Sylvan Library New CM1 foil | https://photos.app.goo.gl/gdBLbCwyLWghM7KJA
 Sylvan Library old frame DOM foil | https://photos.app.goo.gl/aLxqCWAWD1GSgCw38
 Tamiyo, Inquisitive Student/Tamiyo, Seasoned Scholar SLP #49 foil | https://photos.app.goo.gl/mTqzi2mk7MFx7W2d7
-Teferi Protection 2x2 regular foil  foil | https://photos.app.goo.gl/Gy5eZSLqD2HAfvTT7
-Teferi's Puzzle Box 7th foil | https://photos.app.goo.gl/dUDKf5KNme2UMBgJ9
+TARDIS MagicFest 2023 Surge foil | https://photos.app.goo.gl/eBVcPuu5u7q7zkAU6
 Temple Garden ELC #351 foil | https://photos.app.goo.gl/C12gL6Uh1fXejEiF7
+Temple Garden EXP foil | https://photos.app.goo.gl/HxgY9zeZszvbZx8R6
 Temple Garden TRK #396 foil | https://photos.app.goo.gl/UUVzQCqXgQ95RUT27
-Terra, Magical Adept/Esper Terra FIN #323 foil | https://photos.app.goo.gl/6FqggpAE6TKT3JTg9
 Thanos, the Mad Titan MSH #400 foil | https://photos.app.goo.gl/GWgViaq2eQGasXSM8
-The Arkenstone HOB #234 foil | https://photos.app.goo.gl/8ueuHzVxBingwFWk9
-The Arkenstone HOB #247 foil | https://photos.app.goo.gl/XZkiFRzmasPW5sGQ6
 The Astonishing Ant-Man MSH #397 foil | https://photos.app.goo.gl/FHdS8Crbust76AS77
 The Black Gate HOC #47 foil | https://photos.app.goo.gl/B4dUWLZsn7uYSQCh6
+The Dead Marshes 405 Surge foil | https://photos.app.goo.gl/ikp38MxLeW88tJ66A
 The Fantastic Four #741 foil | https://photos.app.goo.gl/ZKWhTSmWNtL4peXf8
-The Legend of Kyoshi/Avatar Kyoshi TLA #358 foil | https://photos.app.goo.gl/1txSxfqDidd1RgYn8
-The Legend of Roku/Avatar Roku TLA #357 foil | https://photos.app.goo.gl/D64MJQN2sqz1N24U6
+The Master, Multiplied 1136 Surge foil | https://photos.app.goo.gl/L8i8HZAdEsHyYJev6
 The Mind Stone MSH #21 foil | https://photos.app.goo.gl/EQ4LWes2kmHZHCJ2A
 The Mind Stone MSH #21 foil | https://photos.app.goo.gl/EQ4LWes2kmHZHCJ2A
 The Mind Stone MSH #385 (Golden) foil | https://photos.app.goo.gl/sj2R4qHSu2tAHN3T7
 The Mind Stone MSH #385 (Golden) foil | https://photos.app.goo.gl/sj2R4qHSu2tAHN3T7
+The One Ring LTR #001 (raised golden foil) ($5 a card) | https://photos.app.goo.gl/ag4XGgUeUgwvgEXA8
 The Reaver Cleaver HOC #94 foil | https://photos.app.goo.gl/MNPmtQGmKVafmWEX8
+The Soul Stone SPM #242 (raised golden foil) ($5 a card) | https://photos.app.goo.gl/Rx9iSwiRBS1bs6mA9
+The Tenth Doctor 1152 Surge foil | https://photos.app.goo.gl/XNAKKduPSHueN5FUA
 The Theorist, Jace Beleren FRA #443 foil | https://photos.app.goo.gl/pHYgTAr2RLsn8d5Q6
 The Vision and Scarlet Witch #707 foil | https://photos.app.goo.gl/hPFc5hvceV64H4cY9
 Thor, God of Thunder MSH #369 foil | https://photos.app.goo.gl/efUTXo1xHrLP87oG8
 Thorin, Mountain-king HOB #243 foil | https://photos.app.goo.gl/Z9KFgiTthmVsVnaY8
 Thrasios, Triton Hero C16 foil | https://photos.app.goo.gl/2ySzZuv5wiP12zYa7
+Three Rings for the Elven-Kings 382 Surge foil | https://photos.app.goo.gl/fSzAQzALYqTFXwC39
+Tidal Barracuda SLD #7105 foil | https://photos.app.goo.gl/KDehsiBZ1jYN7edc9
+Tifa Lockhart #02 foil | https://photos.app.goo.gl/BNBqtkmqqpbfkE8M9
+Tishana's Tidebinder(ティシャーナの潮縛り) foil | https://photos.app.goo.gl/kaonBQBaR1sMLbbf7
 Tony Stark/The Invincible Iron Man MSH #392 foil | https://photos.app.goo.gl/bYXnJ4JVaw5fNmHY7
 Tragic Slip SLD #7043 foil | https://photos.app.goo.gl/FkiWZRSimJAQn2KS9
 Treasure Vault HOC #97 foil | https://photos.app.goo.gl/S2kKAcHK9EUnYrwLA
-Triumph of the Hordes #59 EN foil | https://photos.app.goo.gl/j88cjvxKt4nYHDNx7
-Twinflame Tyrant #437-EN foil | https://photos.app.goo.gl/gnuJoe67nuaLFHta9
 Ugin, Eye of the Storms TDM #382 EN foil | https://photos.app.goo.gl/95xz2RUK4eiGDHFM7
+Ugin, the Ineffable SLD Foil | https://photos.app.goo.gl/Rsj76q8SAyiRrmud6
 Ultron the Annihilator #668 foil | https://photos.app.goo.gl/zuHrANYc9JuxkAj67
 Ultron, Artificial Malevolence MSH #401 foil | https://photos.app.goo.gl/GezxpVXEjxvSPJDt5
-Umezawa's Jitte BOK foil | https://photos.app.goo.gl/zzZCpytAciMHpCXp9
-Umezawa's Jitte Grand Prix Promos foil | https://photos.app.goo.gl/1jt6Y28a7KLP8Fo89
 Umezawa's Jitte New V16 foil | https://photos.app.goo.gl/UJ6nkucSL193Cury9
-Uro, Titan of Nature's Wrath Regular art foil | https://photos.app.goo.gl/1nZNzqDASpgRmU6t6
-Urza's Incubator (Retro Frame) DMR foil | https://photos.app.goo.gl/bDQCwtdDsf2PzNFf8
-Urza's Incubator extend art foil | https://photos.app.goo.gl/uan6nx9F2jEgLf7b8
-Urza's Mine 8th foil | https://photos.app.goo.gl/aDaMnyQvvuXe8rCEA
-Urza's Power Plant 8th foil | https://photos.app.goo.gl/FL6GZKDk6g1bkCWx8
-Urza's Saga MH2 regular Foil | https://photos.app.goo.gl/q7PwmPYBza1PD8vN9
-Urza's Saga SLC foil | https://photos.app.goo.gl/YmhnfQx8koZQGHkP7
-Urza's Tower 8th foil | https://photos.app.goo.gl/m513ZP9uvRaBgJuaA
+Underworld Breach SLD #2045 foil | https://photos.app.goo.gl/Pi1LMHt8bb24M9kX7
+Unstoppable Slasher(止められぬ斬鬼) foil | https://photos.app.goo.gl/HMYBQKpqCkx9ikGw9
 Vampiric Tutor (FOIL Retro Frame) | https://photos.app.goo.gl/VJbRyTA9HyVCpqZD6
 Vampiric Tutor CMR #656 foil | https://photos.app.goo.gl/3aGNSUZvvMX8gYsT6
-Vampiric Tutor DMR #430 foil | https://photos.app.goo.gl/3UUT2aYAMMAwHH2C6
 Vaultborn Tyrant BIG #61 (raised golden foil) [BIG] EN | https://photos.app.goo.gl/9fZAa3mSCLCdiw578
 Veil of Summer SLD #2348 foil | https://photos.app.goo.gl/VK9cE8kSpakoxMLw5
 Verdant Catacombs SPG #118 Dragonscale foil-EN | https://photos.app.goo.gl/nBE8E4th5JU6N3VV7
 Verdant Catacombs SPG #118 Dragonscale foil-JP | https://photos.app.goo.gl/c714HrUECzCc45Je6
-Vren, the Relentless #354 (raised golden foil)EN | https://photos.app.goo.gl/DfpSka1vTiut1RK3A
 Wakka, Devoted Guardian Chocobotrackfoil | https://photos.app.goo.gl/3dk1WxFcfRCscLbp6
-Wan Shi Ton, Libarian 320 foil | https://photos.app.goo.gl/EqRH8gMrvCsisLg5A
 Warren Soultrader MH3 #332 foil | https://photos.app.goo.gl/bq1372BsjDcvAHjr9
 Wasteland MPR 2001 foil | https://photos.app.goo.gl/Da6pECN8FrP47vbi9
 Watery Grave TRK #393 foil | https://photos.app.goo.gl/NPAGJSKVr9Wyebpf6
+Weathertop 393 Surge foil | https://photos.app.goo.gl/bMrp5wmd2Fu9YCV17
+White Tower of Ecthelion 397 Surge foil | https://photos.app.goo.gl/uYpimU7KhFu2qVQw5
+Windswept Heath MH3 Borderless foil | https://photos.app.goo.gl/Vb6Q6MdX7PgPbWmN9
 Witch Enchanter/Witch-Blessed Meadow SLD #2655 foil | https://photos.app.goo.gl/CrjF3Z1EibTxwkn88
-Wooded Foothill MH3 Retro frame FOIL | https://photos.app.goo.gl/YmidjnnopA45PtXx8
+Witch-king of Angmar 803 Surge foil | https://photos.app.goo.gl/RdBK165s7boLgt797
+Wooded Foothills MH3 Borderless foil | https://photos.app.goo.gl/DaB4gMxfWHuM7oKX8
 Worldly Tutor (FOIL Retro Frame) | https://photos.app.goo.gl/SVYpvXo7L6wBRE7RA
-Xander's Lounge borderless foil | https://photos.app.goo.gl/oNwfg5tK3fCnEB8t5
-Yavimaya Hollow (FOIL) Urza's Destiny | https://photos.app.goo.gl/FgtNxx5Xa8jqdrUR8
-Yoshimaru, Ever Faithful SLD #794 foil | https://photos.app.goo.gl/HqXw2VF7LvLdRvwW8
 Yuffie, Materia Hunter Chocobotrackfoil | https://photos.app.goo.gl/Zp9vqQgVpGXxuMdn8
 Yuna, Grand Summoner PRM #1 foil | https://photos.app.goo.gl/jYuEsJFkZ9k6Ts457
 Zack Fair PRM #1 foil | https://photos.app.goo.gl/2cdZjRm9Vr3TNA6o6
-Ziatora's Proving Ground borderless foil | https://photos.app.goo.gl/GHUozQKiz7p73URPA
-Zinnia, Valley's Voice #104 (raised golden foil)EN | https://photos.app.goo.gl/MeLcgi9zGy7BEVCJ7
-Zoraline, Cosmos Caller #355 (raised golden foil)EN | https://photos.app.goo.gl/69NXhd4pHotc5KXg6
 勝利の楽士(Voice of Victory) PWCS foil | https://photos.app.goo.gl/J93dM1VSQZPCJEeL6
 放浪する救い手(The Wandering Rescuer) PWCS foil | https://photos.app.goo.gl/QoYYB6GeUAUudLzJA
 永遠の放浪者(The Eternal Wanderer) PW26 foil | https://photos.app.goo.gl/aykY3vYPcw6iMfb96
