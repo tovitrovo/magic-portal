@@ -1,0 +1,33 @@
+# Cartas novas — planilha do fornecedor "Planilha atualizada 11 09"
+# TCG: Magic · Tipo: Normal · 28 cartas
+# Links ainda são de compartilhamento do Google Photos (photos.app.goo.gl).
+# Resolva antes de colar no admin:
+#   python scripts/extract_google_photos_links.py --file scripts/cards/novas-2026-09-11-normal.txt > resolvidas-normal.txt
+Anvil of Bogardan new print | https://photos.app.goo.gl/7hmTKLDfKk6k2XedA
+Arid Mesa ZEN #211 Italian | https://photos.app.goo.gl/YbjrD8nR4unwWqBd7
+Bloodstained Mire ONS #313 Italian | https://photos.app.goo.gl/snQ7NsXk9mYcvPaM7
+Brain Freeze Scourge Regular | https://photos.app.goo.gl/97iCgT7hqJbXzQsh7
+Crawlspace C13 | https://photos.app.goo.gl/Tusx9jEC8tuZL6qs8
+Dragon's Eye Lands Mountain 0290 | https://photos.app.goo.gl/MZPx5gSYLEAreWce8
+Flooded Strand ONS #316 | https://photos.app.goo.gl/33XzHYpGvzdSw5SLA
+Flooded Strand ONS #316 Italian | https://photos.app.goo.gl/BmShQw49JNJz7Zex6
+Lifeline USG | https://photos.app.goo.gl/QkPw8DmWMxhHJTLY9
+Marsh Flats ZEN #219 | https://photos.app.goo.gl/c6jVxWUgyzzYV7pg6
+Marsh Flats ZEN #219 Italian | https://photos.app.goo.gl/Kc7KWRANDDwZJKbN8
+Misty Rainforest ZEN #220 Italian | https://photos.app.goo.gl/8z4ES3TLs7eoks9w5
+Pernicious Deed Apocalypse | https://photos.app.goo.gl/oRg1FEDB3RfkSsUr6
+Polluted Delta ONS #321 | https://photos.app.goo.gl/zJHXiSBw39k6GUVa7
+Polluted Delta ONS #321 Italian | https://photos.app.goo.gl/jQUvtqsbUEjSzZ2X7
+Scalding Tarn ZEN #223 Italian | https://photos.app.goo.gl/PTCpgkz2yu4zTm1cA
+Sliver Queen | https://photos.app.goo.gl/2sZSSCL8KyF5PxnWA
+Stifle SCG | https://photos.app.goo.gl/6E3NQ49XfvhZnh2H7
+Unglued Forest new print | https://photos.app.goo.gl/Yone4DdsYTxXfzJK6
+Unglued Island new print | https://photos.app.goo.gl/UQCRRpwuUf3Z4nrQ9
+Unglued Mountain new print | https://photos.app.goo.gl/Pgvep3eLjV2X6Sb87
+Unglued Plains new print | https://photos.app.goo.gl/TVXXgK3JZ1z2kyRS6
+Unglued Swamp new print | https://photos.app.goo.gl/JoSM3CSGbERKWEqC8
+Verdant Catacombs ZEN #229 Italian | https://photos.app.goo.gl/jaoUGRwyzatJgHwp8
+Windswept Heath ONS #328 | https://photos.app.goo.gl/mvqmm5G1uVrxdH8V8
+Windswept Heath ONS #328 Italian | https://photos.app.goo.gl/j3pxToV664PeKCD36
+Wooded Foothills ONS #330 Italian | https://photos.app.goo.gl/zvWh74x559yMoJY88
+Yawgmoth's Will USG | https://photos.app.goo.gl/76YsxrxRZ5TQxCMdA

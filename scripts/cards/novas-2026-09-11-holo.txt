@@ -1,0 +1,196 @@
+# Cartas novas — planilha do fornecedor "Planilha atualizada 11 09"
+# TCG: Magic · Tipo: Holo · 191 cartas
+# Links ainda são de compartilhamento do Google Photos (photos.app.goo.gl).
+# Resolva antes de colar no admin:
+#   python scripts/extract_google_photos_links.py --file scripts/cards/novas-2026-09-11-holo.txt > resolvidas-holo.txt
+Aerith Gainsborough PPRO | https://photos.app.goo.gl/LomU9LRsnPG4WJqu8
+Ancient Copper Dragon CLB #161 | https://photos.app.goo.gl/NMf7dkHmSRokub4g7
+Ancient Tomb UMA | https://photos.app.goo.gl/BuCUP9JMUpZ4Qfv98
+Azusa, Lost but Seeking A25 holo | https://photos.app.goo.gl/PLdJYojti3DXMKd66
+Badlands 30A | https://photos.app.goo.gl/ZAXgxW117dj9pnuP8
+Barrowgoyf #50 HOLO | https://photos.app.goo.gl/oc7kttCSWzxiQnhC6
+Bayou 30A | https://photos.app.goo.gl/Xc1vFB6tKHfhHUYz5
+Birds of Paradise sld 092 HOLO | https://photos.app.goo.gl/9GdZo1U3MXtNgYV57
+Bloom Tender SPG #79 HOLO | https://photos.app.goo.gl/e8yfsLanxyAPTaL97
+Bruvac the Grandiloquent RVR #35 | https://photos.app.goo.gl/XFtdFPmW26BttiAS9
+Chatterfang, Squirrel General MH2 #316 | https://photos.app.goo.gl/4RcvekSXrjDbyKdj7
+Command Beacon C15 | https://photos.app.goo.gl/xWomSQDmvExTFdSg6
+Crystal, Inhuman Princess MSC #398 | https://photos.app.goo.gl/ww8yPHiKqn3xnEUs9
+Damnation SPG #68 | https://photos.app.goo.gl/9tMDCStxXLwV9syp8
+Dark Ritual SLD #1170 HOLO | https://photos.app.goo.gl/byGmWzb8cZRGFiRK6
+Dark Ritual SLD #2678 | https://photos.app.goo.gl/N99zhaT1iyAuxkZ9A
+Defense of the Heart MAR #76 | https://photos.app.goo.gl/A883ZyiToQv9zdTMA
+Deflecting Swat CMM 0698 HOLO | https://photos.app.goo.gl/QVB2pXogYJZB75Ut8
+Deflecting Swat TLE #311 HOLO | https://photos.app.goo.gl/GFVKtBKT56fthaG56
+Delighted Halfling HOC #25 | https://photos.app.goo.gl/dafPz3KT1wNotu6ZA
+Devil Dinosaur #719 | https://photos.app.goo.gl/h98tgSFohXs4NZ2e9
+Doctor Doom MSH #365 | https://photos.app.goo.gl/6HBBMzsGNSCHjFwv7
+Doctor Doom, Unrivaled #654 | https://photos.app.goo.gl/p4SEh9LTwyVG5sDL6
+Doom Variant (Roaming Throne)MAR #99 | https://photos.app.goo.gl/bc1vBB4Eav2LEqtF9
+Dragonhawk, Fate's Tempest #291 HOLO | https://photos.app.goo.gl/iEoUXrLectK6gXT47
+Drowned Catacomb SLD #457 | https://photos.app.goo.gl/hAb5jPP7DT3PV7gc9
+Esper Sentinel MH2 #12 | https://photos.app.goo.gl/znURRLHACsNkKvjG7
+Etali, Primal Conqueror/Etali, Primal Sickness MOM #137 | https://photos.app.goo.gl/afxr5NSn2xge1vAEA
+Faerie Mastermind MOM 58 | https://photos.app.goo.gl/jeLzFqNc9hAEc6BN6
+Fanatic of Rhonas #152 HOLO | https://photos.app.goo.gl/VhqsSwEdiZEQmkgS8
+Feral Felix (Barrowgoyf) SLD #2702 | https://photos.app.goo.gl/cbYLyw1vBBsdjwkZ8
+Field of the Dead SLC holo | https://photos.app.goo.gl/vMs9QjZ995cmLLeTA
+Fiery Emancipation MAR #70 | https://photos.app.goo.gl/4BkHkQ4PFint3L2K8
+Finale of Devastation SLD #2680 | https://photos.app.goo.gl/nQGbEeSuzitLyeAX7
+Flare of Denial #356 | https://photos.app.goo.gl/kosB3J6N14ERZBVCA
+Food Chain 2x2 regular holo 147 | https://photos.app.goo.gl/jED8NwgbWxeym8KK6
+Galactus, Devourer of Worlds MSC #291 | https://photos.app.goo.gl/1VBfJntw9DgXUuJM9
+Gandalf, Goblins' Bane HOB #242 | https://photos.app.goo.gl/t2RXiArvT8fwiBux7
+Garfield and Odie, Best Buds(Rin and Seri, Inseparable) SLD #2668 | https://photos.app.goo.gl/jty9jW5ybASWzPRW8
+Goblin Matron SLD #1312 | https://photos.app.goo.gl/wVTDasDqXWn8T9c76
+Gollum, Riddle Master HOB #241 | https://photos.app.goo.gl/ZUv5yxbBCwUGaodp6
+Guardian Project RNA #130 | https://photos.app.goo.gl/BCyssKn2Ln7acx3n8
+Hallowed Haunting VOW #17 | https://photos.app.goo.gl/UEDxvR3aBEHG45ft6
+Heaven-Sent Marvel (Archangel of Thune) #41 | https://photos.app.goo.gl/57SP88CrWKnCDzxx7
+Henneth Annûn LTC #373 | https://photos.app.goo.gl/DMrS8xFNcxryNzmR9
+Heroic Intervention TLE #43 HOLO | https://photos.app.goo.gl/5yPj7UCt6t4tjJaF8
+Hidetsugu Consumes All Kamigawa: Neon Dynasty #221 | https://photos.app.goo.gl/1eMXpqy8F6VHBvBc7
+Hulk, Brutal Brawler #833 | https://photos.app.goo.gl/J6R6NLDgxyyfTe9X9
+Icetill Explorer #343 | https://photos.app.goo.gl/nHJuDebwfRUX8ume7
+Imperial Seal 2x2 borderless holo | https://photos.app.goo.gl/Ue92S4FX3Bbsfx3c9
+Iron Man, Modern Marvel #830 | https://photos.app.goo.gl/u5Bny2pLRSFW82bGA
+Iron Man, Titan of Innovation MAR #91 | https://photos.app.goo.gl/DKfz7XrSaAWphYjQ6
+It That Betrays SLD #2673 | https://photos.app.goo.gl/sS2ep4vbqw7uni4c9
+Jennifer Walters/The Sensational She-Hulk #328 | https://photos.app.goo.gl/UA5rBFqPn4oQtFtf9
+Jennifer Walters/The Sensational She-Hulk MSH #355 | https://photos.app.goo.gl/wUYNqAM4nkWHv5BKA
+Jet Medallion #346 | https://photos.app.goo.gl/568hPcuraMVJSdrC9
+Jin-Gitaxias, Core Augur #062 | https://photos.app.goo.gl/49ynLvVGsq9C1F179
+Khan, Engineered Evil(Sheoldred, the Apocalypse)SDS #0011 | https://photos.app.goo.gl/A6dvpC4jQsetRi2s7
+King T'Challa/Black Panther, Hope Enduring MSH #373 | https://photos.app.goo.gl/6y1AkQiQyDoTbn17A
+Kokusho, the Evening Star IMA #95 | https://photos.app.goo.gl/K1yt9pPZBkeZWbEd6
+Last March of the Ents HOC #27 | https://photos.app.goo.gl/dF65ECaqvDmJDAa97
+Living End SOA #95 JP | https://photos.app.goo.gl/uAocLHVVUx84opwP8
+Loki, God of Mischief MSH #343 | https://photos.app.goo.gl/5BwFG3mZZxECznFm9
+Loki, Lord of Misrule #628 | https://photos.app.goo.gl/pS4yvmLwwraVUH8U8
+Lumra, Bellow of the Woods #293 holo | https://photos.app.goo.gl/zp38WS1u3sy4tguBA
+Luxury Suite BBD #82 | https://photos.app.goo.gl/wd9SvzDAqtJT5Rgr9
+Luxury Suite ZNE #18 | https://photos.app.goo.gl/eW4MpShauAWvv3tK6
+Maha, Its Feathers Night #100 HOLO | https://photos.app.goo.gl/2Qo74bnb4DC6WYVF8
+Mana Vault 2X2 #308 holo | https://photos.app.goo.gl/9ctj4mxfRZ5rvvxQ8
+Minas Morgul, Dark Fortress HOC #0048 | https://photos.app.goo.gl/J9NxMWRdjkTV19z69
+Minas Morgul, Dark Fortress LTC #514 | https://photos.app.goo.gl/riFjCePxsj9pjNqe6
+Minas Tirith HOC #49 | https://photos.app.goo.gl/ZH13gsb8Kjpp5XrT7
+Mithril Coat HOC #43 | https://photos.app.goo.gl/xtUf7CtD8R8urcpR8
+Mithril Coat LTR #379 | https://photos.app.goo.gl/fHw6pQWzNwLUmdxN8
+Mjölnir, Hammer of Thor MSH #339 | https://photos.app.goo.gl/QwGLecx5Y3EjBFnZ8
+Mjölnir, Hammer of Thor MSH 146 | https://photos.app.goo.gl/gFPSoqtH3ZZgG3VJA
+Mjölnir, Hammer of Thor MSH 303 | https://photos.app.goo.gl/BjcDXZV1sGrgWZu1A
+Molecule Man #292 | https://photos.app.goo.gl/nKieeEMpEBwKVRyG6
+Mondrak, Glory Dominus #299 | https://photos.app.goo.gl/bP1TYi5SJ1GvBMkk9
+Mox Amber DOM #224 | https://photos.app.goo.gl/bYhYhW72nEg1FSRK6
+Mox Amber HOC #96 | https://photos.app.goo.gl/e8Q3gws8s5fNUmDf8
+Mystic Remora TLE #16 HOLO | https://photos.app.goo.gl/poqMxEtyD48ZPET56
+Namor the Sub-Mariner MSH #362 | https://photos.app.goo.gl/BG1YWyN1yUz78Yzo7
+Nazgûl Battle-Mace LTC #0510 | https://photos.app.goo.gl/gPod3qcGa23Xmvic9
+Nico Minoru, Runaway #700 | https://photos.app.goo.gl/o9wiVfy4xYTgUVjRA
+No Mercy MAR #68 | https://photos.app.goo.gl/Xk2DvUT4hpkh44gG8
+Ojer Axonil, Deepest Might 158 holo | https://photos.app.goo.gl/hbnxuMfm3bEYzdBa9
+Opposition Agent CMR #141 | https://photos.app.goo.gl/LU44wd3jfKGZVC5p6
+Orcish Bowmasters HOC #19 | https://photos.app.goo.gl/c4SCxgVmfn1zjKe19
+Orcrist, Goblin-cleaver HOB#236 | https://photos.app.goo.gl/F1gtJdVfPjaReGPk9
+Otawara, Soaring City NEO #503 | https://photos.app.goo.gl/oG3EJpFEwVYQ4u8F7
+Ozai, the Phoenix King #311 TLA HOLO | https://photos.app.goo.gl/c9wEBkc4avENdrPE7
+Palantír of Orthanc HOC #45 | https://photos.app.goo.gl/NT9vD6NP1YJxmVDS7
+Patriotic Shield(Sword of Fire and Ice) MAR #100 | https://photos.app.goo.gl/tMV4e8JLFYji7nMMA
+Pearl Medallion C14 holo | https://photos.app.goo.gl/sjJa7k5QrSdNKhNM7
+Planar Nexus #80 | https://photos.app.goo.gl/CgH9pVQyr7nHAnMcA
+Plateau 30A | https://photos.app.goo.gl/cjjRbt3ZY4iRdSbHA
+Preordain SOA #86 JP | https://photos.app.goo.gl/79Q1sFvgMpa4JXZA9
+Primal Vigor MAR #81 | https://photos.app.goo.gl/YPeHvExfbQ2njaC27
+Prismatic Vista SLD #2699 | https://photos.app.goo.gl/7JK54mqcJAEBaWWZ9
+Pyretic Ritual SOA #111 JP | https://photos.app.goo.gl/4GcbGRHt8ZZcsKYF7
+Pyroblast PRM #02 | https://photos.app.goo.gl/qRBQmJoJqtcZNaeX9
+Ral, Crackling Wit #0341 HOLO | https://photos.app.goo.gl/AqCA7qLpCaqZftFn9
+Ranger-Captain of Eos MH1 #21 HOLO | https://photos.app.goo.gl/uvsLJZNj1cbgroLMA
+Rat Colony DOM regular | https://photos.app.goo.gl/MxcHbRXwMtQkM2KQA
+Ravenous Tyrannosaurus MAR #93 | https://photos.app.goo.gl/9dWDgejcJhUDP6tm6
+Rhystic Study WOT #25 | https://photos.app.goo.gl/CPKjG17ZdKiXHSB17
+Rhystic Study WOT #71 | https://photos.app.goo.gl/sTg5geRbR3Xu1cbr7
+Riverpyre Verge DFT #372 | https://photos.app.goo.gl/aJJTDnrJmfzpv8em9
+Roaming Throne #258 HOLO | https://photos.app.goo.gl/y31L9WT2oM4Te9Mj8
+Ruby Medallion #348 | https://photos.app.goo.gl/3JwJKGDxur6sS8Py6
+Runadi, Behemoth Caller J22 #44 | https://photos.app.goo.gl/3NKjwxAAWcLDDphAA
+Sauron, Dino Devotee #731 | https://photos.app.goo.gl/TBiPW4jHdW7jde8F9
+Savannah 30A | https://photos.app.goo.gl/XeoidGFJByYVeNTj9
+Scion of Draco BORDERLESS HOLO | https://photos.app.goo.gl/WbN8QritU4nyjDYBA
+Scrubland 30A | https://photos.app.goo.gl/Re7psyJRTxpKS7b3A
+Scute Swarm SLD #7048 | https://photos.app.goo.gl/3J35CTBuvhfNJ9hG9
+Sephiroth, Fabled SOLDIER/Sephiroth, One-Winged Angel #115 HOLO | https://photos.app.goo.gl/LipGB7tvJwXACehc7
+Sephiroth, Fabled SOLDIER/Sephiroth, One-Winged Angel #317 HOLO | https://photos.app.goo.gl/9vv9QnFhSAikLa1i6
+Sephiroth, Fabled SOLDIER/Sephiroth, One-Winged Angel #382 HOLO | https://photos.app.goo.gl/47jt2struq42KyG29
+Shadowspear THB #236 | https://photos.app.goo.gl/7T4Zekesgw4VUJve6
+Shang-Chi, Master of Kung Fu MSH #370 | https://photos.app.goo.gl/sFhNC6dudYH8qTP7A
+Sigarda's Aid CMR #384 | https://photos.app.goo.gl/rZ4UJ1PGa9vub8vd8
+Simulacrum Synthesizer MAR #61 | https://photos.app.goo.gl/QfEFBuRcJvDjuLbv7
+Smaug the Magnificent HOB #229 | https://photos.app.goo.gl/hpepuS9ujjHnaTQPA
+Smothering Tithe 2X2 #342 | https://photos.app.goo.gl/yNpxnQrfi18MGPbr8
+Solphim, Mayhem Dominus ONE 150 HOLO | https://photos.app.goo.gl/DA3WbqeAa54Bhajk8
+Spectator Seating CMR Regular Art HOLO | https://photos.app.goo.gl/GgJJmryPKcmeEeAN8
+Spell Pierce SLD #2388 | https://photos.app.goo.gl/S5ZEekpSEEnBEa837
+Spider-Man, Web-Spinner MSC #832 | https://photos.app.goo.gl/N1TQVPhQwpU83EiUA
+Spire Garden BBD #85 | https://photos.app.goo.gl/4wS922evC7TKNQs4A
+Steam Vents UNF | https://photos.app.goo.gl/XTNVMSdUCcGjhmh9A
+Storm, Force of Nature MAR #94 | https://photos.app.goo.gl/mNG9SLW3Em4Vj7JYA
+Summon: Bahamut #356 holo | https://photos.app.goo.gl/BSfwt9qNnn4T3AYN7
+Sword of Feast and Famine 2XM #364 | https://photos.app.goo.gl/iwjkqY7h9SFY4a9Q6
+Swordsman's Steel #752 | https://photos.app.goo.gl/5HgviWFLTpJp9dEA8
+Sylvan Library DMR #179 HOLO | https://photos.app.goo.gl/wCHg2cY5QuoDC1oj8
+T'Challa's Protection (Teferi's Protection)MAR #51 | https://photos.app.goo.gl/m34zdRSrMMNHRjkK8
+Taiga 30A | https://photos.app.goo.gl/8yMjzDwLj8hG7Cbv7
+Teferi, Time Raveler BLC #92 HOLO | https://photos.app.goo.gl/LWq7iJxCrKQiQtYS9
+Tergrid, God of Fright/Tergrid's Lantern #112 | https://photos.app.goo.gl/21A5Y6ESQfLfT9He8
+Terra, Magical Adept/Esper Terra FIN #323 | https://photos.app.goo.gl/bU8GT3ACti23EGdj9
+Terror of the Peaks M21 #369 | https://photos.app.goo.gl/v5MKe1cWx4UAkHD36
+Tezzeret, Cruel Captain #287 holo | https://photos.app.goo.gl/VKSgdj5jrtuRidZg8
+Thanos, the Mad Titan MSH #376 | https://photos.app.goo.gl/KPDAkqmo63z4a1XU8
+The Arkenstone HOB #170 | https://photos.app.goo.gl/FKWD77TGdV6BsVEX6
+The Arkenstone HOB #234 | https://photos.app.goo.gl/bNM68aj2oGvSgnW47
+The Black Gate LTC #80 | https://photos.app.goo.gl/24rzisTy1hAXXCGD6
+The Fantastic Four #741 | https://photos.app.goo.gl/1HbynHDwszZ5hmMY8
+The Fantasticar #104 | https://photos.app.goo.gl/SXi3wm7isjqLhhii7
+The Fantasticar #433 | https://photos.app.goo.gl/hw2S5HfZnhwDoj5C9
+The Gaffer LTC #96 | https://photos.app.goo.gl/BbDRjGQzggfggPBE8
+The One Ring LTR #0246 | https://photos.app.goo.gl/oPPDkter42FEmaSA7
+The Ten Rings MSH #0251 | https://photos.app.goo.gl/74rSyAW28je1PcCW7
+The Ten Rings MSH#313 | https://photos.app.goo.gl/P3v8aMWLUR2AjXyn6
+The Vision and Scarlet Witch #707 | https://photos.app.goo.gl/zJFRtHdanQL8UL4r6
+Thor, God of Thunder MSH #156 | https://photos.app.goo.gl/dXuJuFzUyopWAMY1A
+Thor, God of Thunder MSH #338 | https://photos.app.goo.gl/66ZmBZ4gVfTePjSs6
+Thor, God of Thunder MSH #369 | https://photos.app.goo.gl/YSWkqZmZ7BQURCTw5
+Thorin, Mountain-king HOB #243 | https://photos.app.goo.gl/eeuzgiLsqFkqwZE38
+Thranduil, the Elvenking HOB #246 | https://photos.app.goo.gl/YrCYwmmFmueRp2gM8
+Three Tree City #260 HOLO | https://photos.app.goo.gl/EPxMDypKoVfVsjF79
+Thundering Falls MKM #0331 | https://photos.app.goo.gl/KAWbnTxfhXgKMFx57
+Toski, Bearer of Secrets SPG #60 HOLO | https://photos.app.goo.gl/kinMDRN5VVjn4jCBA
+Tropical Island 30A | https://photos.app.goo.gl/ggPYG7muj41ZsU7M7
+Tundra 30A | https://photos.app.goo.gl/x3xV9xNh8QqW58HG9
+Turbulent Fen SOC #0103 | https://photos.app.goo.gl/ddwURPHTJgf5Ce979
+Turbulent Moor SOC #0104 | https://photos.app.goo.gl/mjGf2bsignYi2YeRA
+Turbulent Springs SOC #0105 | https://photos.app.goo.gl/Zhxg7uW3wraxP21u6
+Turbulent Steppe SOC #0106 | https://photos.app.goo.gl/ePcHeMPGQpe8nt6SA
+Turbulent Wilderness SOC #0107 | https://photos.app.goo.gl/NP1qgDuJ3ycTy86M6
+Ultron the Annihilator #668 | https://photos.app.goo.gl/HUxabQwYRWZybecv9
+Ultron, Artificial Malevolence MSH#344 | https://photos.app.goo.gl/c6NjcYAiHnFWHFdE9
+Undercity Sewers KMM #0332 | https://photos.app.goo.gl/B6Jg3fvEJJc7m5777
+Underground Sea 30A | https://photos.app.goo.gl/eHQbXd6Wvc9qkoGj9
+Underground Sea VMA HOLO | https://photos.app.goo.gl/ejwGoQikqSJXESnV6
+Undergrowth Stadium CMR #359 | https://photos.app.goo.gl/8mndcTG6qpWxCMRJ8
+Urza's Saga SLC holo | https://photos.app.goo.gl/2DgkC7Tcrm7ZwnTT9
+Urza, Lord High Artificer DMR #423 | https://photos.app.goo.gl/QwW8WpnxYqwJtsJE6
+Valakut Awakening/Valakut Stoneforge #355 holo | https://photos.app.goo.gl/fBZYu1tqFspaSVRk6
+Vedalken Orrery 2x2 borderless holo | https://photos.app.goo.gl/PDA1zPtvropJHfje9
+Vito, Thorn of the Dusk Rose #362 | https://photos.app.goo.gl/DXF4q855eZNefV1C9
+Volcanic Island 30A | https://photos.app.goo.gl/wPTrCpRVb6qgiC3X7
+Vorinclex, Voice of Hunger IMA #189 | https://photos.app.goo.gl/Yc75fZFwc6vAZrbk8
+Walking Ballista AER #181 | https://photos.app.goo.gl/5w6qMaaP2qbfwPTq5
+Warg Rider LTR #826 | https://photos.app.goo.gl/KdBuuXgDUY3NHSp67
+Winds of Abandon SOA #77 JP | https://photos.app.goo.gl/eQYibfGt9TWpHUym6
+Witch-king, Bringer of Ruin HOC #21 | https://photos.app.goo.gl/o1DmoxveKfNNh6rNA
+Wolverine Riders J22 #743 | https://photos.app.goo.gl/UcpyunUy4tyemRmg7
+Wolverine, Best There Is MAR #97 | https://photos.app.goo.gl/c5CNDTfqhHfABwYT6
+Yavimaya, Cradle of Growth (Valley Farmstead) SLD #2813 | https://photos.app.goo.gl/kTmD7DeJngeWTyzD9
