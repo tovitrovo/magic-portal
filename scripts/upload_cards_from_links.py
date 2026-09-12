@@ -251,7 +251,7 @@ def main():
     if not itens:
         die("nenhuma carta válida no arquivo.")
 
-    state_path = Path(args.state) if args.state else entrada.with_suffix(entrada.suffix + ".state.jsonl")
+    state_path = Path(args.state) if args.state else Path(str(entrada) + ".state.jsonl")
     ja_feitas = load_state(state_path)
     pendentes = [(n, u) for n, u in itens if u not in ja_feitas]
 
