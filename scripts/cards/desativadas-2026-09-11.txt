@@ -1,0 +1,472 @@
+# 462 cartas Magic desativadas em 11/09/2026 (is_active = false).
+# Motivo: catálogo ativo passou a espelhar a planilha do fornecedor
+# "Planilha atualizada 11 09"; estas não constam nela.
+# Nada foi apagado — só desativado. Coluna "vínculo" marca as que
+# estavam em pedido pago (ped) ou lista de desejos (wl).
+#
+# Para reverter TODAS, rode no SQL Editor do Supabase:
+#   update cards set is_active = true where id in (<os uuids abaixo>);
+#
+# uuid | tipo | nome | vínculo
+96cdbf71-6c0a-485f-902b-72b1dce3fc09 | Foil | Ajani, Nacatl Pariah #442 Foil | -
+86054a48-f037-4877-931c-be9c151fb03b | Foil | Alania, Divergent Storm #344 (raised foil) EN Foil | -
+4b59f4e9-58fb-40ac-87b4-bd41274ad448 | Foil | Alania, Divergent Storm #344 (raised foil) Foil | -
+09e0f1ac-cbd9-421f-a4d3-2218d8aa9bde | Foil | Ancient Tomb Foil | -
+439289e4-4166-455f-a7dd-563416a51927 | Foil | Arcane Signet Foil | -
+f2be1c52-e8dd-4d1a-92d3-eceaf3779b64 | Foil | Arcane Signet OLD Frame Foil | -
+53b781e3-bb9d-432c-bf76-ed49559fb6e0 | Foil | Arcbound Ravager Foil | -
+24866665-d876-4285-863d-17c4bf3de535 | Foil | Arid Mesa EXP Foil | -
+7a402d62-15a0-4b02-8cd5-bf1beb7918d8 | Foil | Ashaya, Soul of the Wild 358 Extended foil | -
+dd85615c-4e78-43bf-affb-0b793da56c43 | Foil | Ashnod’s Altar EMA foil | -
+de5e1f69-eb32-48b2-b454-f08ec113edfe | Foil | Atraxa, Praetors’ Voice SLD #453 (raised foil) Foil | -
+dba248e4-1c29-4b29-a672-4994004a5507 | Foil | Bag End Foil | -
+b279bfdc-5ee6-4406-8539-31cfd37bc171 | Foil | Balefire Dragon CMM foil 0697 WOT | -
+f2c67fb8-3308-42c2-901b-805db9bc0bbf | Foil | Balin’s Tomb Foil | -
+2657b7f0-7781-4e51-835d-e2cd1c2fe795 | Foil | Barrow-Downs Foil | -
+d0715f0a-8466-4eda-ac5e-2fcb51a1a398 | Foil | Baylen, the Haymaker #345 (raised foil) Foil | -
+30edf603-db50-4f19-b19a-1bc8bffd5ce6 | Foil | Baylen, the Haymaker #345 (raised foil)EN Foil | -
+2913a993-ad7d-4eca-aa56-346a9e64422a | Foil | Beast Within Foil | -
+95dc67cf-d692-4f14-9fa0-f9e1731d0d62 | Foil | Beast Within MAR #33 Foil | -
+2247751a-9521-45ac-a7f0-9509ea60e392 | Foil | Bello, Bard of the Brambles #101 (raised foil) | -
+7a624544-9a39-44a2-ae51-6735f10026d5 | Foil | Bello, Bard of the Brambles #101 (raised foil) Foil | -
+7b1355a4-345a-4ecb-b138-d98726a1e92a | Foil | Black Vise Foil | -
+f12e2bce-2c53-4ca6-8c9b-8bf71d7bfc13 | Foil | Blood Crypt Foil | -
+a91849e4-0728-4e00-a4c6-1a44e20b7a83 | Foil | Blood Crypt holo foil | -
+132ccaf7-5f95-4239-a2f5-c9792966ba2a | Foil | Bloodstained Mire MH3 Borderless 0352 Foil | -
+ce945bc6-3de1-4b3e-b40a-b90fbff32396 | Foil | Bloom Tender ECL #390 foil | -
+b94ec3c0-72fb-4a23-ab43-a16bf1522841 | Foil | Bob Ross lands Foil | -
+f297ac94-8da0-4dcd-b9e2-50dcfcbea4d4 | Foil | Breeding Pool Foil | -
+2037ec55-dd8a-4f78-9b57-ba850a5cbbe0 | Foil | Breeding Pool holo foil | -
+f777ed53-8b89-4823-8380-dccc23e004f8 | Foil | Bridge of Khazad-dûm foil | -
+fb0d5c39-050a-49a8-893b-a83c2cf89653 | Foil | Bridge of Khazad-dûm Surge Foil | -
+16173817-08f1-4d93-b2c8-b7f0796fc511 | Foil | Brutality Basic Lands Set Foil | -
+5cf66924-24ca-4535-8ad1-acddbc6ebf5b | Foil | Bucklebury Ferry Foil | -
+697e147f-189e-48c7-8ad8-4db256cab17c | Foil | Buster Sword Final Fantasy #255 foil | -
+0057c2ca-fbe5-4b40-bffe-e15482136009 | Foil | Buster Sword Final Fantasy #351 foil | -
+1644df1a-2bb6-4a50-a1af-2a4f959d513c | Foil | Camellia, the Seedmiser #346 (raised foil) | -
+02d97602-cf3e-415f-8d35-240cf8b494ce | Foil | Camellia, the Seedmiser #346 (raised foil) Foil | -
+288223b7-c245-4c55-a124-2cdf3e3bbca2 | Foil | Camellia, the Seedmiser #346 (raised foil)EN Foil | -
+fb694cab-d506-4822-8c1f-ef2310635dd2 | Foil | Canopy Vista Foil | -
+66a848c9-056d-4ec9-a5d4-281b5c1a8e2f | Foil | Cataclysmic Gearhulk Foil | -
+76bb649c-5e4c-4a4e-92d9-1dd51cbeabca | Foil | Cavern of Souls #410a b c d e f  Neonink Set Foil | -
+c1cf4367-0b86-4fe4-bda1-5e28994529ef | Foil | Chalice of the Void Foil | -
+6712b8e0-274e-47d2-91c8-dbad25a45a5d | Foil | Chandra, Spark Hunter #411 Foil | -
+8d3064b0-a700-4e3b-b8d1-babe7ea7f091 | Foil | Chatterfang, Squirrel General #95 (raised foil) | -
+103545b7-d817-434d-86e5-a06e175a7a12 | Foil | Chatterfang, Squirrel General #95 (raised foil) JP Foil | -
+0765699d-fd08-4ba4-abd9-cdd5478d2537 | Foil | Chromatic Lantern Foil | -
+66642a29-b5fe-46e4-8928-0cd8b8417ea0 | Foil | Chromatic Lantern Foil | -
+bdedf435-6988-4290-ae9c-a9f4be40c2a0 | Foil | Chromatic Orrery Extended art Foil #382 | -
+4bc9826a-0463-4ba4-ab33-03d9095e670d | Foil | Cinder Glade Foil | -
+a11d2eed-3ca7-4432-911b-4da3cff4c026 | Foil | Clement, the Worrywort #347 (raised foil) Foil | -
+d3b6bea7-2ca4-43b8-a6cb-f654cb5ab076 | Foil | Clement, the Worrywort #347 (raised foil) Foil | -
+852559e2-5ab7-4088-aa7c-e5d70c007213 | Foil | Cloud, Midgar Mercenary Final Fantasy #427 foil | -
+f5ea0287-f133-4280-97d1-9c9526d6f551 | Foil | Cloud, Midgar Mercenary Pro Tour Promos #01 foil | -
+ae91525a-e6c6-4259-b1c1-27730d9dbbc4 | Foil | Cloud, Midgar Mercenary Pro Tour Promos #01 JP foil | -
+7b595c12-2f61-482f-ade5-e71bef7737fb | Foil | CMR EXTEND Bondlands FOIL | -
+d98fb8a1-ee0d-4ac9-b57d-f0056d684a82 | Foil | Combustible Gearhulk Foil | -
+b7ecf940-2292-479f-994e-6ac023320fd9 | Foil | Command Tower (The Spire)foil | -
+09d861e6-9d48-4652-a324-347f61d95294 | Foil | Counterspell URL/Convention Promos 02 foil | -
+80e35d68-2629-4154-aa9f-5d9b2e97c81b | Foil | Cursecloth Wrappings #410 Foil | -
+9b9c2d57-8067-4693-8942-d8795fafe994 | Foil | Cyber Conversion Foil | -
+242ca8be-5a96-473f-909a-682fa727a092 | Foil | Cyberman Patrol Foil | -
+209dc2c1-6f6d-4207-b680-465cb4a1142a | Foil | Cyclonic Rift Ravnica Remastered #419 foil | -
+be84a638-2fc6-48bc-bcae-586c6b462577 | Foil | Dark Ritual Secret Lair Showdown #16 foil | -
+2935b359-1e31-434e-8117-798a33191f28 | Foil | Defense Grid Foil | -
+41edd060-ce39-43d5-a0e6-0bbb3a1c5981 | Foil | Delighted Halfling Foil | -
+7968b033-6949-4169-857d-379763bb5e1c | Foil | Dol Amroth Foil | -
+09d47834-7645-4807-96f2-778e4c786f64 | Foil | Doubling Season #438 Foil | -
+92b08a87-a1eb-49cc-a460-6e38354d4044 | Foil | Dragon’s Rage Channeler SLD #2053 (raised foil) | -
+a0f9746c-1601-4865-aadd-c4becea4d22f | Foil | Drannith Magistrate Extended 314 foil | -
+fe2521bd-a16e-4427-b94c-7b8256c2f3f1 | Foil | DUAL LANDS Beta FOIL VINTAGE | -
+805bc7c6-1070-4d43-9a2a-eadf355e5387 | Foil | Duplicant Foil | -
+131a1c2b-a8c2-4b7b-af52-a42157d3e9a3 | Foil | Dust Bowl Foil | -
+f563e795-698b-4ddc-9825-c521105d1bd6 | Foil | Edgar Markov Judge 2021 foil | -
+357c0a7f-7288-44dc-9ae4-1ae7d19870dd | Foil | Elessar, the Elfstone Foil | -
+04678f5d-4647-41c1-ab0d-03f4b51d2ed7 | Foil | Enduring Courage #402 Foil | -
+31577711-05b6-4880-9495-ace94a5aa929 | Foil | Enduring Tenacity #400 Foil | -
+4253bdf1-9070-42c9-a375-7f8a7a721d0c | Foil | Engineered Explosvives Foil | -
+4669bbda-755a-429e-aa83-e22daae99da7 | Foil | Everybody Lives! Foil | -
+a11424d6-97a6-4f8b-bc4a-be9088ca3a3b | Foil | Everybody Lives! Foil | -
+5f0292c0-55e1-4b24-8a80-3754fdb81a6b | Foil | Explosive Getaway #413 Foil | -
+a84bf834-5459-474f-8d81-99e4e8506828 | Foil | Fangorn Forest Foil | -
+e546702d-f493-4558-8db6-db0482df3818 | Foil | FETCH LANDS EXP FOIL | -
+b85d13b8-90de-48de-847d-3b5b7b5d0ea2 | Foil | FETCH LANDS Judge 2009 set (5 cards) | -
+96746929-dab0-42a7-aef7-bbbf235063fa | Foil | FETCH LANDS MH3 Borderless Foil (5 cards) | -
+76753a0e-530d-4f28-a0e1-cb7b7d984ff3 | Foil | FETCH LANDS MH3 Retro Frame Foil (5 cards) | -
+5076ec61-fd37-49e1-b85e-abf54735bfae | Foil | FETCH LANDS ORIGINAL VERSION FOIL | -
+d3a0e7e2-3f80-412c-bfdb-055be7618a1c | Foil | FETCH LANDS SPG Foil Borderless (5 cards) | -
+df149138-0c93-43e4-bde7-d2a7a99734fe | Foil | FETCH LANDS ZNE FOIL | -
+0fb8b05d-28ca-45ec-9ccb-fe26ee57501c | Foil | Fetid Heath Foil | -
+f3395d1c-2075-40c2-b3f1-87a9c7077d10 | Foil | Finale of Devastation 0700 foil CMM | -
+0b0df358-8f6b-4498-90f2-00fffadec572 | Foil | Finneas, Ace Archer #348 (raised foil) Foil | -
+de7be112-2688-40ce-bc60-374c2384831b | Foil | Finneas, Ace Archer #348 (raised foil) Foil | -
+424009b2-2862-487b-aced-020b9775dd42 | Foil | Flesh Duplicate Foil | -
+fe42ebed-279d-45a3-b764-8fc79e5697f7 | Foil | Flooded Strand EXP Foil | -
+64b54da8-db28-49b9-8a80-b07ed74cfddd | Foil | Flooded Strand MH3 Borderless 0353 Foil | -
+f7f14995-be9f-428d-a1ae-43cfb2762d00 | Foil | Flooded Strand Onslaught foil | -
+7b266bc2-7126-4722-b575-c80865d22e98 | Foil | Gaeas Cradle Judge Gift 1998 foil | -
+bc2b1450-220d-42eb-aacb-47f579e117c3 | Foil | Gandalf the White Foil | -
+88f6653e-b644-4db3-b077-1ee6f784e6ab | Foil | Gev, Scaled Scorch #349 (raised foil) Foil | -
+f1148e5c-3382-461c-953c-71f157eb6cf7 | Foil | Gev, Scaled Scorch #349 (raised foil)EN foil | -
+a5fbd959-0cbb-4434-a6d3-d1f2df0fa707 | Foil | Godless Shrine Foil | -
+ae4b5525-b891-4e46-9bff-9cf1f71c77b1 | Foil | Godless Shrine holo foil | -
+9dc764e7-f3fe-464f-a7fa-dcbf4a12f3ff | Foil | Greater Auramancy 0004 foil WOT CMM | -
+6a1c0fdb-3253-47e0-b357-2cf90166f295 | Foil | Green Dragon Inn Foil | -
+8ec2dc25-8db0-449d-96bb-6fab915a3c67 | Foil | Grief (Anima) Secret Lair Drop Foil | -
+ca256521-bd8b-4943-b99c-dc6d4a32d152 | Foil | Hallowed Fountain Foil | -
+788b5232-58e2-4e75-a7ff-454b2448b39b | Foil | Hallowed Fountain holo foil | -
+71772d2e-2ca2-4e9e-8fda-91438f04d95f | Foil | Hazel of the Rootbloom #102 (raised foil) | -
+ff7e821c-a436-439f-a92f-7c24436d937f | Foil | Hazel of the Rootbloom #102 (raised foil) Foil | -
+6bec19fb-3e0f-494b-a485-725e0d1a5486 | Foil | Heliod, Sun-Crowned 259 foil | -
+f59f805e-0fd3-41c8-9800-de6b06da182f | Foil | Helm’s Deep Foil | -
+37123b1f-d49c-43ce-a183-24b8b00cab5f | Foil | Henneth Annûn Foil | -
+fa092582-df7d-48d6-aeb4-745b8026fd1e | Foil | Herugrim, Sword of Rohan Foil | -
+b80e2d75-3e29-42f0-9084-5434e8ffc0a0 | Foil | Ifrit (Fury) Secret Lair Drop Foil | -
+e2a5080c-ad28-4025-8591-c4901f8d5335 | Foil | Indatha Triome Alternate Art Foil | -
+605dd2d0-9318-4673-a013-0038ce0c1c99 | Foil | Inventors’ Fair SLD 1735 foil | -
+6575547b-9a4c-448f-9ee5-61d135f6f3cb | Foil | Jace, the Mind Sculptor #93 (raised foil) Foil | -
+9874115b-196c-439e-9332-cd1bc3d519f2 | Foil | Jace, the Mind Sculptor #93 (raised foil) Foil | -
+d28f3c7a-659a-4eb8-8d4a-de4f94620b9c | Foil | Jetmir, Nexus of Revels SNC #377 (raised foil) Foil | -
+e3ac6233-1527-48c8-b014-78b4e59cb0bd | Foil | Jetmir, Nexus of Revels SNC #377 (raised golden foil) | -
+86e85ffa-bdb9-4b61-ac4c-87816675596a | Foil | Judge Gift 2014 basic lands set Foil | -
+0d36cd1f-47f4-4388-bd80-a11d187f0d89 | Foil | Kastral, the Windcrested #350 (raised foil)Foil | -
+fef8966d-0400-4b99-a4c9-6b9c1418452f | Foil | Kastral, the Windcrested #350 (raised foil)Foil | -
+eba1bdeb-0145-46b2-95b5-9994b4e609c3 | Foil | Ketria Triome Alternate Art Foil | -
+ade953ef-45f0-4f92-971c-e3c06cbfc0b8 | Foil | Kor Haven Foil | -
+a48e5e5d-b603-4686-9b0f-35f5b15977fd | Foil | Leonardo, Sewer Samurai TMT #301 (raised foil) | -
+755fb3e4-7c72-4197-bbfd-99d75ed03089 | Foil | Lightning Greaves Foil | -
+840aa24d-8e13-4e00-b9bb-782e24c3a89a | Foil | Liliana of the Dark Realms #94 (raised foil) | -
+e472b889-25da-40c3-816c-fd96d2765bb5 | Foil | Liliana of the Dark Realms #94 (raised foil) Foil | -
+e25c1851-11a8-4122-9233-3d6e3adbea09 | Foil | Loot, the Key to Everything BIG #62 (raised foil) Foil | -
+bdef4ca9-2cdc-4dc6-b283-750dd21c1500 | Foil | Lotus Ring BIG #63 (raised foil) [BIG] Foil | -
+053f62e5-f9b7-43a2-b8e6-04d5668bf2b4 | Foil | Lumra, Bellow of the Woods #343 (raised foil) | -
+71dd4a6c-b19f-44f3-bd63-f841b0df1516 | Foil | Lumra, Bellow of the Woods #343 (raised foil) Foil | -
+fae783af-35ad-4633-8817-ee37cf5d0cbd | Foil | Mabel, Heir to Cragflame #351 (raised foil) Foil | -
+0913c309-abd8-43b6-8401-791c9ec402dd | Foil | Mabel, Heir to Cragflame #351 (raised foil)Foil | -
+434b968c-7c6f-497e-9c26-7de8fba48594 | Foil | Magus Sisters (Endurance) Secret Lair Drop Foil | -
+3cea708b-b98c-4fd1-9f88-4d75856da77f | Foil | Mana Crypt 0017 foil | -
+6055e3b5-a64a-4e90-975c-8bc7143ecfd5 | Foil | Mana Crypt SPG #17a b c d e f Neonink Foil | -
+f6055c6b-0209-4bf7-8a16-921301b23a9e | Foil | Mana Vault Foil | -
+3a7c0750-6624-4d20-a439-02cc79e98618 | Foil | March of the World Ooze #412 Foil | -
+2f110eee-0da5-4cb7-91d6-91c9931471e1 | Foil | Marsh Flats Foil | -
+abfe3365-b376-4c4a-9705-81ff0cbd423c | Foil | Meekstone Foil | -
+20579c94-fac3-45ba-9323-4aaec2120783 | Foil | Mimeoplasm, Revered One #415 Foil | -
+39440f42-93ab-4bec-b58d-a1192dae2742 | Foil | Mind’s Eye Foil | -
+1bcf2a8e-22fd-4584-a706-ff61098eb4b0 | Foil | Misty Rainforest Foil | -
+bb07ab8a-6e35-424f-8559-374a0d6f5916 | Foil | Mithril Coat 790 Foil | -
+02fc08d6-b616-425f-9a77-920977d46d8f | Foil | Morgul-Knife Foil | -
+d26b4c2e-dc7f-42ee-b5ae-cca0fea06b0d | Foil | Mox Amber foil | -
+7690c531-e531-47c2-b459-4cb796816902 | Foil | Mox Amber Schematic foil | -
+e741c921-ac81-4c56-8b95-068aa3e64554 | Foil | Mox Opal Foil | -
+87a32130-f589-4594-86e3-01ee94d2579e | Foil | Mox Opal Judge 2019 foil | -
+1b4666b4-7b32-4c0e-8bef-4dd3ba7cf22d | Foil | Ms. Bumbleflower #103 (raised foil) Foil | -
+2a759616-e0ad-4e04-a3ee-b752004eff0c | Foil | Ms. Bumbleflower #103 (raised foil) Foil | -
+5a9cc99b-8f96-4d4c-996a-c8d2e4ccbb6a | Foil | Mu Yanling, Wind Rider #409 Foil | -
+a7a1f4e5-1f23-4d03-84bb-5113039d7ae2 | Foil | Muerra, Trash Tactician #352 (raised foil) EN foil | -
+fb4104a7-cdd5-4d61-a59d-bddd84b9af1e | Foil | Muerra, Trash Tactician #352 (raised foil) Foil | -
+a70a7599-9a64-4216-8557-f0ca828bc11b | Foil | Nazgûl 100 -339 Foil English | -
+3642a2be-3df5-4839-9cdf-6e7f932cc834 | Foil | Nissa, Who Shakes the World #96 (raised foil) foil | -
+93e13506-eeeb-44c6-bcd6-42fbcafc9b27 | Foil | Nissa, Who Shakes the World #96 (raised foil) Foil | -
+fc9fdde2-2d29-48e1-bcea-893e489318be | Foil | Noxious Gearhulk Foil | -
+0671c5c4-eecf-4673-bcfd-371c6b665f45 | Foil | Ornithopter Foil | -
+56dbebb6-d2d0-40e7-93cb-2a129ff4da51 | Foil | Osgiliath, Fallen Capital Foil | -
+74e48520-e329-4eba-b6df-b06685825b3e | Foil | Otawara, Soaring City #414 Foil | -
+df8c7da6-3a30-4b07-88c8-6102fca6b4b2 | Foil | Overgrown Tomb Foil | -
+3e7804fa-589b-42c0-8c97-f4274ace9175 | Foil | Overgrown Tomb holo foil | -
+7365410b-7bce-4ac1-8e6f-f6c85a0fda31 | Foil | Palantír of Orthanc Foil | -
+636a3ca3-27af-4dc5-ae79-5c6707356621 | Foil | Paths of the Dead Foil | -
+131c567d-cb7d-4084-af68-82b702b1b692 | Foil | Pathways Set (10 cards) Foil Set | -
+57a9d377-463d-458f-bdb8-593ac4514fc7 | Foil | Phyrexian Metamorph #341 2XM Foil | -
+2ce2e000-5a99-4809-aa15-b03fcd3669ec | Foil | Pithing Needle Foil | -
+ab8a981b-a104-49b7-8877-a2c941a93459 | Foil | Planar Bridge Foil | -
+5e56e493-3088-4fbf-b9ce-bd0921a9d1ab | Foil | Polluted Delta EXP Foil | -
+db3fddf1-588a-46ef-a049-5977fd696d3e | Foil | Polluted Delta Foil | -
+d391aa95-7061-4500-aa41-03581a202431 | Foil | Polluted Delta MH3 Borderless 0356 Foil | -
+861c45a8-1ae9-40bc-a6b8-eded9385edf9 | Foil | POWER 9 Beta FOIL VINTAGE | -
+f1503bfa-9c53-40f1-ab43-95572ee5cbe6 | Foil | Prairie Stream Foil | -
+35fbb432-099f-4505-bc3f-b201bd1fd3df | Foil | Prismatic Vista foil vintage | -
+1a76f473-e157-4072-9255-6dddd90e38b8 | Foil | Progenitus #441 Foil | -
+4904f613-c570-4801-aec4-2c796d13e935 | Foil | Raffine, Scheming Seer SNC #392 Foil | -
+164264e0-7dbb-4ad8-b567-89f910ab0937 | Foil | Ral, Crackling Wit #353 (raised foil) | -
+b18b9117-d0d1-42d2-adc3-b8f63c75e84a | Foil | Ral, Crackling Wit #353 (raised foil) Foil | -
+d4bd691f-d187-4f86-9994-526a79742358 | Foil | Ranger-Captain of Eos old frame Foil | -
+237b884f-8fee-4e8b-9eb0-a307a31385d2 | Foil | Rat Colony SPG Borderless foil | -
+50790e5d-d582-4a2e-b923-0eb5340ae39d | Foil | Raugrin Triome Alternate Art Foil | -
+1deb594e-4700-4b50-818b-8c230e0bc6b7 | Foil | Redhorn Pass Foil | -
+b4164687-f617-4e41-8b50-591f0a2df447 | Foil | Resplendent Angel M19 Foil MH1 | -
+bcf16a8e-429c-489b-a999-5150a19ff829 | Foil | Rick, Steadfast Leader foil | -
+8321c4cb-61ad-4594-90ba-23fa1843e5d8 | Foil | Ring of Barahir Foil | -
+b4048bac-d52a-40d7-bfb4-b88ea001b560 | Foil | Rings of Brighthearth Foil | -
+c7ee1609-1e34-4945-9616-f2bd4994ef1a | Foil | Rishadan Port MMQ foil WOT MH1 | -
+376ea62c-afca-448d-bb84-3d171c31ac97 | Foil | Sacred Foundry Foil | -
+63f1c52e-9fcc-43d8-abac-500ac242042e | Foil | Sacred Foundry holo foil | -
+0239eba3-2cf9-4ead-9f85-d1ad44486ca2 | Foil | Salvation Engine #407 Foil | -
+3dfb7838-9117-40c9-8a7b-91312f1e7181 | Foil | Sauron, the Lidless Eye foil | -
+64ff3751-116c-4591-92d1-c1fdc45b741f | Foil | Savai Triome Alternate Art Foil | -
+37537cf3-51a2-432c-b53f-fc9d2d007026 | Foil | Scalding Tarn EXP Foil | -
+224ad12c-b01e-44a0-a547-442a9554e8a3 | Foil | Sculpting Steel Foil | -
+1b37ed95-199a-4538-a840-9901ef0eeb56 | Foil | Selvala, Heart of the Wilds Foil | -
+b0aeb63d-5739-41b1-b7ee-4495b19e98f2 | Foil | Shadowspear Regular 236 | -
+cf2462c6-7a5b-43af-8782-c8df834b53d3 | Foil | Shards of Narsil Foil | -
+ea7a7fee-99b2-4210-94be-c25f1995e93d | Foil | Shiva (Subtlety) Secret Lair Drop Foil | -
+9541b07b-bf41-48b3-9957-c5058858a675 | Foil | SHOCK LANDS CLU Foil | -
+d6b0fd5f-e2d3-4748-bc8a-d78ed338800c | Foil | SHOCK LANDS EXP FOIL | -
+ad8727c3-40c4-49f5-ae69-d55da75fc3c8 | Foil | SHOCK LANDS HOLO FOIL Set | -
+61db3c7e-441d-4bae-8b20-4e4aa239301c | Foil | SHOCK LANDS ORIGINAL VERSION FOIL SET | -
+77c9399c-dc99-4752-8f23-80749698206b | Foil | SHOCK LANDS Retro Frame Foil Set | -
+72bc030e-cd07-4e65-8506-4e363d464041 | Foil | SHOCK LANDS RVR borderless Foil Set | -
+f0a5d3c4-e865-4f06-a05f-1eb5245384c8 | Foil | SHOCK LANDS UNF Borderless Foil Set | -
+e6733e32-e830-4825-bc5b-a90cee27baeb | Foil | Sigarda’s Aid | -
+3aaf9216-b2be-4025-a734-60663527ae0d | Foil | Signets SLD set（11 signets) FOIL | -
+7db9eedb-6646-43de-a530-99ed97e68fa2 | Foil | Skullclamp Foil | -
+54477236-b5c7-4f0a-a532-cb9487354b33 | Foil | Smoldering Marsh Foil | -
+e2f24aa2-445f-433a-92ec-a04928e0d17f | Foil | Snow-Covered Forest Foil | -
+1bc01371-2c9b-498c-9b10-d8a93bcabd20 | Foil | Snow-Covered Island Foil | -
+2fe1e3f5-3d74-41bb-84d7-54d534c506f4 | Foil | Snow-Covered Mountain Foil | -
+e172b24c-f59f-4bc9-9a4c-226cf074afd4 | Foil | Snow-Covered Plains Foil | -
+7b0a38aa-57c7-4c0d-ab58-723ca9cfeeb0 | Foil | Snow-Covered Swamp Foil | -
+8cd9546e-0b80-4a5d-af25-6a0496c92681 | Foil | Snuff Out Foil | -
+09ffb4da-1ed5-4ae4-b0d1-3a87db1a1c1f | Foil | Sol Ring Foil | -
+4547b4ec-7143-4b3f-b561-7399310fde9a | Foil | Solemn Simulacrum Foil | -
+42f3d497-de2f-4c25-ada0-0fb3eebda650 | Foil | Sonic Screwdriver Foil | -
+3b1f3153-776d-4225-be0c-ac3385991624 | Foil | Spectacular Pileup #408 Foil | -
+52dca0b8-7372-471d-8e54-d03a9b28a122 | Foil | Spectator Seating #711 foil | -
+73ccf401-9bec-48db-910d-e6cae7316863 | Foil | Spectator Seating Regular Art | -
+bbfb3422-6aaf-4fa3-bb6e-3e8f009f8b71 | Foil | Spire Garden | -
+95467c91-e6f5-4608-bab3-347e91514776 | Foil | Static Orb Foil | -
+a566d77d-ead6-4e4b-a529-5450b7f8524b | Foil | Steam Vents Foil | -
+3d20315c-f1d9-4d97-8c37-06a62e645571 | Foil | Steam Vents holo foil | -
+c06117fa-0f98-46a5-a5e7-cda4f6af0b28 | Foil | Stomping Ground Foil | -
+e52c2c71-c9f6-4a3b-9b78-8fe6f6920c52 | Foil | Stomping Grounds holo foil | -
+ff4ce9c8-bcbb-40cf-ad12-6ba1a0fec05e | Foil | Strip Mine Foil | -
+e0dac083-ada5-4198-9882-66e95f64d6ac | Foil | Sundering Titan Foil | -
+f4b5b099-ceb9-4349-a8d0-18a6214a1502 | Foil | Sunken Hollow Foil | -
+745c33e8-4091-4d1b-90f1-0fa63ddf59c8 | Foil | Surge Displaced Dinosaurs Foil | -
+ac8b56d8-252e-4991-a256-100aa107d5b7 | Foil | SURVEIL LANDS FOIL | -
+fe433a1d-0e86-426e-8278-fabe1ddba3e7 | Foil | Swarmyard SLD #199 foil | -
+fd42b7d5-8537-49aa-a0c3-f1bb1cb18a48 | Foil | Sword of Fire and Ice Foil | -
+ccebd4fd-d535-4bb6-8e7f-98a68279dccd | Foil | Sword of Wealth and Power BIG #64 (raised foil) Foil | -
+733162c6-93a7-44c3-8a28-a2b4faf37caa | Foil | SWORDS SET Kaladesh foil (5 swords) | ped 1 wl 1
+6d56a610-deaa-4c8e-b4fb-442e63dff58b | Foil | Tangle Wire foil | -
+98237bc6-bae8-46c7-83b1-eea2ddcae885 | Foil | TARDIS MagicFest Foil | -
+af61d671-e66b-41d9-bba4-22d739e8477b | Foil | Tarnation Vista BIG #65 (raised foil) Foil | -
+38c69967-0410-4d51-80e6-0c803e97702d | Foil | Tectonic Edge Foil | -
+648a7f77-5ba4-4c5d-91fe-0db4bd701c7b | Foil | Teferi’s Protection STA EN-Foil | -
+9bc0150a-dc21-4a2c-b3a5-e9f80de0de0a | Foil | Temple Garden Foil | -
+10ccad82-328b-418f-801a-4488d7d8733e | Foil | Temple Garden holo foil | -
+dee29ffd-60b8-4fa3-ab6c-c1d228ac3de5 | Foil | Tergrid, God of Fright 112 | -
+8c4a09e8-b6e0-484a-830b-7004024b435b | Foil | Terror of the Peaks M21 extend 369 | -
+5c3b7b67-cfa4-4cf9-bbe5-f8247d7275b3 | Foil | The Dead Marshes Surge Foil | -
+3a249518-26e9-4fed-8b6a-f7f0abfe45d2 | Foil | The Master, Multiplied Foil | -
+f7fd1c00-dd4b-4010-a15d-a4db4c9bf360 | Foil | The One Ring LTR #001 (raised foil) | -
+4893f0b8-881d-4bd9-b926-5c6618a9e132 | Foil | The One Ring LTR #001 (raised golden foil) | -
+e696c8fa-8cc2-4333-9689-185d0600442e | Foil | The Soul Stone SPM #242 (raised foil) | -
+47900ac7-8601-4100-875b-48b7f0175303 | Foil | The Soul Stone SPM #242 (raised golden foil) | -
+810d9ab2-6798-4e6a-9c31-a9c78861d90c | Foil | The Tenth Doctor Foil | -
+32a1587f-e3ec-4306-89cb-1e020838b530 | Foil | Three Rings for the Elven-Kings Foil | -
+7b3f39b2-e5dd-4696-9887-3f92f13b048f | Foil | Tifa Lockhart MagicFest 2025 #02 Foil | -
+7bfe37e7-ca99-4cbe-8df1-17de4da1178e | Foil | Torrential Gearhulk Foil | -
+397bbfb7-6a95-40ed-96a9-a434e0a46d7e | Foil | Training Center #713 foil | -
+e433ab65-eb48-4240-89b3-97af2bfe0b65 | Foil | Traveling Chocobo #551a b c d  japanese Neonink Foil | -
+92922aae-ef1d-49d7-991e-232971783761 | Foil | Traveling Chocobo Final Fantasy #406 Foil | -
+fa05f338-cbe4-4bfa-94b7-3cfb1456045d | Foil | Traveling Chocobo Final Fantasy #551a Foil | -
+3a0186ea-b4ec-466f-8c90-aa70a978de71 | Foil | Traveling Chocobo Final Fantasy #551b Foil | -
+30e04a4d-38f6-4c8c-aaa5-62e4014d96e1 | Foil | Traveling Chocobo Final Fantasy #551c Foil | -
+32a6e932-cf7f-4376-b9bd-3bf715d9a31e | Foil | Traveling Chocobo Final Fantasy #551d Foil | -
+76feee50-559e-4cd1-9887-1f17810217a2 | Foil | Traveling Chocobo Final Fantasy #551f Foil | -
+21450a3d-819f-4b47-9e4a-2ce8171e0077 | Foil | Traveling Chocobo Final Fantasy #551JP Foil | -
+990b46d9-9047-4722-b176-9adc649e0052 | Foil | Undergrowth Stadium #715 foil | -
+59730b1d-2a9e-4791-807a-6fe082813290 | Foil | UNF BASIC LANDS GALAXY FOIL SET | -
+e45e927b-f542-415e-934b-8e97b92f9d62 | Foil | UNF SHOCK LANDS GALAXY FOIL SET | -
+be8c9a0b-85fe-4dd8-809f-3f6db03a5e89 | Foil | Valley of Gorgoroth Surge Foil | -
+3402fbd8-6700-4d1c-a81c-e1972f99bf41 | Foil | Vampiric Tutor DMR Extended 430 foil | -
+7c286dde-3502-49e6-879d-95b74113dca1 | Foil | Vampiric Tutor DMR Old Frame Foil | -
+4ee9cee5-26f4-472b-9518-233e130c66b6 | Foil | Vampiric Tutor extend foil | -
+35a6c3e9-881e-4919-92ab-a133d2de848a | Foil | Vaultborn Tyrant BIG #61 (raised foil) Foil | -
+acdfa87e-117b-4523-b0e1-9fde0a1591cf | Foil | Vaultborn Tyrant BIG #61 (raised golden foil) | -
+a3e8fbd9-1134-42fc-babd-996ce45d556d | Foil | Vedalken Shackles Foil | -
+307d949b-c173-4388-b9fa-469e94c5df5d | Foil | Verdant Catacombs Foil | -
+283a8cfa-5829-4218-ade7-47ebb7e493bd | Foil | Verdurous Gearhulk Foil | -
+cf35e955-69f8-4c5e-8fed-809e7c62e168 | Foil | Verge Lands FOIL | -
+69345ffb-6985-41e0-8dd7-17664305f26e | Foil | Vivi Ornitier Final Fantasy #248 Foil | -
+7387a85f-706a-4fc0-b9c4-d6037a439e78 | Foil | Vivi Ornitier Final Fantasy #321 Foil | -
+f96d3210-f6a7-437f-b5bc-ddae44cc8c30 | Foil | Vivi Ornitier Final Fantasy #514 Foil | -
+c4bdbc16-1f3a-4e9b-8a0e-c3828faa45b5 | Foil | Vren, the Relentless #354 (raised foil) Foil | -
+fde09faa-522f-4fd0-9fce-7ce4002dcd51 | Foil | Vren, the Relentless #354 (raised foil) Foil | -
+95cb78b6-281c-4db1-956f-2f917ec693d5 | Foil | Wasteland MPR foil | -
+3ee25b65-7274-4ba3-b44e-6a04e50cb3d6 | Foil | Watery Grave Foil | -
+ee7f757f-725c-4aaa-ae5b-174b27b90184 | Foil | Watery Grave holo foil | -
+6610f0b8-feb6-4c36-b9b6-b430e21f4841 | Foil | Weathertop Foil | -
+d571b5e8-90f4-4cba-b736-d3d42bcd26ab | Foil | White Tower of Ecthelion Foil | -
+b6578231-420c-4196-8b80-5fc8ea1ba1c8 | Foil | Windswept Heath Foil | -
+f6a46e24-ed3e-4b96-b6d1-c566f8a05685 | Foil | Windswept Heath MH3 Borderless 0360 Foil | -
+7d2c565f-d263-413c-a8b1-4c0a68ae636b | Foil | Witch-king of Angmar Foil | -
+3aff6454-2733-4169-b060-037a6ed69ecf | Foil | Wooded Foothills MH3 Borderless 0361 Foil | -
+1d32162b-c8c9-4557-a8f7-83eff0f47042 | Foil | Yavimaya Hollow UDS 143 foil | -
+dba34f07-2d92-49cb-944c-4f4966ad68bf | Foil | Yojimbo(Solitude) Secret Lair Drop Foil | -
+698cacc6-1223-4ff7-9680-fdb0912f131e | Foil | Ziatora, the Incinerator SNC #404 foil | -
+6fdd0c49-0ce1-4931-abbb-5ba3256ade01 | Foil | Zinnia, Valley’s Voice #104 (raised foil) Foil | -
+b7a695d7-d199-430c-9fe2-eff988686d0f | Foil | Zinnia, Valley’s Voice #104 (raised foil) Foil | -
+1e8fb416-57bc-408b-b068-2823409bdfc2 | Foil | Zoraline, Cosmos Caller #355 (raised foil) Foil | -
+b01d3f11-6193-490c-94e4-0421a11424ab | Foil | Zoraline, Cosmos Caller #355 (raised foil)Foil | -
+a91a1acb-0f83-4619-a2a6-3d1d8a1b128c | Holo | Abhorrent Oculus #42 | -
+548978c6-eedd-45f2-9ca1-8dfbd042b011 | Holo | Aerith Gainsborough PPRO #2025-3 | -
+256720ed-2c5b-4548-b72a-2ea84a0847ba | Holo | Aggravated Assault sld none foil | -
+d764d6c9-bf23-4902-b7b6-095751dc9cdd | Holo | Altar of Dementia MH1 | -
+14aad559-466b-4672-81d8-fe7b2e71b4d9 | Holo | Ancient Copper Dragon regular#161 | -
+8d3c1a34-cc54-4cb8-9145-77af54537651 | Holo | Ancient Tomb Edge of Eternities: Stellar Sights #1 | -
+49135940-f63b-40c0-b41e-b254c4ee62be | Holo | Ancient Tomb Edge of Eternities: Stellar Sights #46 | -
+17669606-6756-43cf-8ecd-c5f8785cfc71 | Holo | Assassin’s Trophy 2×2 borderless | -
+518cb09f-1897-44de-bf41-52a7e7ce9eb0 | Holo | Badlands 30th holo | -
+27684460-a45b-46b2-9e6b-82729c8a19f4 | Holo | Barrowgoyf #50 | -
+3d67de01-872d-4616-9034-d864918f62e4 | Holo | Bayou 30th holo | -
+1a4ea815-fdc7-43b9-9140-1492210294e1 | Holo | Birds of Paradise sld | -
+6f9fc571-4c4c-490e-8f6a-29fc75d3fa70 | Holo | Birgi, God of Storytelling 123 | -
+6a07d54f-48d5-461a-9341-a81927c6bd84 | Holo | Bloodchief Ascension CMM borderless | -
+75d4c3c7-41b4-4e91-b3fe-aa427bc9430a | Holo | Bloom Tender SPG #79 | -
+9b6c768e-b4d1-4526-b010-dc4ad21724ff | Holo | Bristly Bill, Spine Sower #338 extend | -
+59faaaf1-78fc-49ea-b289-55c2f0825fee | Holo | BRUTAL BASIC LANDS (none foil) | -
+7524e155-081e-436e-b63c-515a2ebf57ed | Holo | Command Beacon regular art | -
+15780db0-801e-4717-9f54-2f07f6b71a15 | Holo | Dark Ritual SLD | -
+965e621c-b87a-4c82-be99-aaeaea32e6e0 | Holo | Deadly Rollick CMM regular | -
+da850343-248d-493e-9ffa-31cacbc7bb39 | Holo | Demonic Tutor STA EN | -
+60e13cba-4cbe-465c-8312-098b9c366f8d | Holo | Drowned Catacomb SLD | -
+8403ad55-ee4a-4ad9-a4b3-ec9642be99e5 | Holo | Dual Lands 30th Holo Set | -
+51cd2e1c-f651-44dc-a506-6d363b3d64ec | Holo | Dual Lands Vintage Master Holo Set | -
+3e2feb6c-fbc6-486f-b77a-55175187ff5f | Holo | Esper Sentinel#12 | -
+5d1992ed-e698-491c-8104-2117dbc10517 | Holo | Exalted Sunborn Edge of Eternities #15 | -
+a5d4afbe-7c53-43ed-ab22-d85e5d998670 | Holo | FETCH LANDS KTK & MM3 Holo | -
+06dc2b9f-f79e-40aa-a93d-72e088cf7b15 | Holo | FETCH LANDS MH2 EXTEND ART (5 Cards) | -
+6fb0d6a8-9e01-42fc-921d-1c360bea03b9 | Holo | FETCH LANDS MH2 Regular (5 Cards) | -
+276061d0-c4f3-4057-976f-31349f092671 | Holo | FETCH LANDS MH3 EXTEND ART (5 Cards) | -
+9a37f546-c5db-4424-80f9-fac528200a74 | Holo | FETCH LANDS MH3 Regular (5 cards) | -
+8399a234-d864-492b-a6e9-be3b02388d61 | Holo | FETCH LANDS SLU HOLO (5 CARDS) | -
+b70dcdf0-b8d7-4f18-b36c-6a38308f4acc | Holo | FETCH LANDS SPG Holo Borderless (5 cards) | -
+3483a786-60cc-4e3c-b699-37b25ffa7656 | Holo | FETCH LANDS ZNE HOLO | -
+cff25202-0431-412f-86f3-7d1f55e3172e | Holo | FILTER LANDS EXP FOIL | -
+7e320466-d973-4ba7-ac93-81f1912ae5ff | Holo | Flare of Denial #62 | -
+f8d039a1-52bd-4c98-82f4-bbd0d57f02c2 | Holo | Flawless Maneuver CMM borderless | -
+8f871070-a05e-44ea-978c-41b68bd7863e | Holo | Gemstone Caverns Edge of Eternities: Stellar Sights #16 | -
+2d9fd041-929f-470d-8098-31f03d937c0a | Holo | Gemstone Caverns Edge of Eternities: Stellar Sights #61 | -
+50c4ff6f-c784-4a93-a9eb-3759b356e14b | Holo | Grand Abolisher CMM borderless | -
+15d66764-c882-4f8a-92bc-af3a7dda4a45 | Holo | Guardian Project | -
+60d044ff-cd5a-4c31-bccf-221ec64e96bb | Holo | Hallowed Haunting regular | -
+739c64fc-6498-487b-845b-eb13830a698d | Holo | Halvar, God of Battle | -
+0ccc8ce4-8816-4e78-8d39-6d17b2b1b05a | Holo | Henneth Annûn 373 | -
+cf70f4f4-8e08-4f92-a2e7-19931b446f90 | Holo | Hullbreaker Horror EXTEND | -
+db5480bd-627e-4aff-8f36-2cd8b56b210a | Holo | Icetill Explorer Edge of Eternities #192 | ped 1 wl 1
+b63d7676-087d-42df-92f1-d0ff3fb4193d | Holo | Ignoble Hierarch regular | -
+24fe9b77-244c-4f86-b5ec-5f2c536c862e | Holo | Imperial Seal borderless | -
+a7fe2a46-e468-40eb-927f-ed2e20dfa11a | Holo | Jet Medallion MH3 #346 | ped 1 wl 1
+fbf02b8e-7bd5-446d-91b9-a1edf4ca17db | Holo | Lotus Cobra ZEN | -
+a2284a11-b55c-4f6f-942a-35ba1bc54342 | Holo | Luxury Suite CLB extend art | -
+03e312e8-b04e-4468-8d60-273e576ac772 | Holo | Luxury Suite holo | -
+af215103-3565-45a9-8ff2-17d7bc73b0df | Holo | Massacre Wurm M21 Box Topper | -
+eb3e231c-e6f0-4df8-900c-39645b5d8fa1 | Holo | Medallion Lot holo | -
+64ed3d06-6a57-4ea8-b78f-bf224f947c25 | Holo | MH3 FETCH LANDS Borderless (5 cards) | -
+ec09a7f1-c828-4bf5-b57b-a73c670de5ec | Holo | Mondrak, Glory Dominus #299 showcase holo | -
+f0439ac0-e9ee-4a83-9884-79bebb26b116 | Holo | Mystic Gate Shadowmoor | -
+89df387b-849b-45ec-b892-7e900d73990e | Holo | Mystic Remora TLE #16 | -
+f3ee7a05-595a-48ac-8ddf-4972633b9d8d | Holo | Nissa, Vastwood Seer | -
+09d3f461-a13c-4cbe-a918-02a698e3698a | Holo | Otawara, Soaring City #503 Extend | -
+77121225-6898-4e0a-a79c-1cca90237f64 | Holo | Pathways Set (10 cards) HOLO | -
+2f16afbd-d3bb-4b6b-bf6d-61ed02cdf40e | Holo | Perfect Defense(Defense of the Heart) none foil | ped 0 wl 1
+598e588d-8e00-4fed-9f2b-6ea9c6539fbc | Holo | Plateau 30th holo | -
+d357e3fa-c3d6-442c-b756-4e32045456e1 | Holo | Plateau vintage masters | -
+de7fdac9-60b2-4ce8-a655-4c1d0c8ca9f1 | Holo | Power 9 30th Holo Set | -
+8379cfdb-de79-44d9-aec3-0df2e80cf88c | Holo | Power 9 Vintage Masters Set | -
+891b9fe4-c48f-4aa8-896f-8e099640039a | Holo | Profane Tutor EXTEND ART | -
+d9bf8ad5-e36f-4029-b4bb-e8b70ecc4b78 | Holo | Quantum Riddler Edge of Eternities #305 | -
+b2349a28-ed10-4a5c-9243-17fdc0354574 | Holo | Quantum Riddler Edge of Eternities #72 | -
+c9c5bd86-96d9-49a5-8bc4-1455222d74d2 | Holo | Rhystic Study 0025 | -
+e1818ee9-0092-4f5d-ad65-7351418271db | Holo | Ruby Medallion MH3 348 | -
+c22d3fe0-d744-4fc6-b58e-9d5aff7ef360 | Holo | Savannah 30th holo | -
+56e8bdc2-aec5-4b29-ac8a-919b4236f724 | Holo | Savannah vintage masters | -
+c6e3262c-04fe-4905-a6b1-a15ee2086c28 | Holo | Scrubland 30th holo | -
+5d1d38e4-4d1c-4000-9f12-dddfbda06c0e | Holo | Scrubland vintage masters | -
+8cfddbb0-9c42-42f6-8ca9-12b5e1f64179 | Holo | SHOCK LANDS Holo | -
+e890dfa1-c6f5-457d-bb25-770d74557a43 | Holo | SHOCK LANDS RVR Borderless Holo | -
+15b1b69e-d26f-4852-af9c-0f0865bf40dd | Holo | SHOCK LANDS RVR Regular Frame HOLO | -
+7c3eec9f-761c-459b-a919-d9b506b1ff43 | Holo | SHOCK LANDS SLD HOLO | -
+08a79184-1d94-4923-806e-0de982a208ef | Holo | Silence Porom’s Silence MagicSecret Lair Drop #7003 | -
+e6116c4b-295e-47dd-9efe-6b4d69efec4a | Holo | Sol Ring Secret Lair Drop #2093 | -
+9ec14dd6-87ac-461e-993b-7ae1ffff3538 | Holo | SURVEIL LANDS HOLO | -
+547e6510-41fe-4a22-971e-fbaa3772aba1 | Holo | Taiga 30th holo | -
+69d8c16a-5e5d-4e13-83cd-f41afa4755b2 | Holo | Taiga vintage masters | -
+a3074bbe-982e-442e-bf4b-5db748c245e3 | Holo | Takenuma, Abandoned Mire | -
+4e7759c1-28c4-4f7c-989c-bd450f4e41c5 | Holo | Tezzeret, Cruel CaptainEdge of Eternities #2 | -
+1f56d8e7-5002-4194-8afd-bb26e89975c1 | Holo | The Dead Marshes LTC (Urborg, Tomb of Yawgmoth) | -
+353a4d05-6890-4b0b-8977-df1367e5f21a | Holo | The Soul Stone Marvel’s Spider-Man #0066 | -
+2e297ff5-c371-4619-b21b-1c623615e207 | Holo | The Soul Stone Marvel’s Spider-Man #243 | -
+3b3e3d47-74b2-4092-bf57-5db50292c712 | Holo | Themberchaud none foil | -
+b169a219-058e-4b93-bfe3-656db35d612b | Holo | Tropical Island 30th holo | -
+6766c028-de70-4099-8cfe-caec86d37447 | Holo | Tropical Island vintage masters | -
+2d37f42b-3394-4d1d-98a0-f049ba791ac5 | Holo | Tundra 30th holo | -
+566bdb16-c539-47aa-9168-a1bbb18699fc | Holo | Tundra vintage masters | -
+364b2a34-8031-495d-94d4-63e7a29fd21b | Holo | Underground Sea 30th holo | -
+331512ae-82f2-4748-9623-76cf703f37f7 | Holo | Underground Sea vintage masters | -
+4b4c31e8-d716-4d97-bdc7-cedcc2a66f89 | Holo | Undergrowth Stadium CMR regular | -
+74234c2b-ef34-461c-bd74-4c400a129935 | Holo | UNF SHOCK LANDS | -
+873faa47-7e25-4f64-9d7a-926d3fa9c772 | Holo | Urza’s Saga #259 | -
+1e457b4a-1575-48fa-b7ce-368d80b85207 | Holo | Verge Lands HOLO | -
+2fb81607-8b1a-485c-b2fb-fbb81225a2cc | Holo | Volcanic Island 30th holo | -
+574d4962-dfe5-42e6-8f0a-ed8db6d0324b | Holo | Volcanic Island vintage masters | -
+06522439-c243-4497-bc1f-3884cee05320 | Holo | VORACIOUS READER Basic Lands Set | -
+4d5b81ed-b031-4377-b330-408074db7bb3 | Holo | Walking Ballista | -
+16976f4a-ad0e-40d8-92ec-ee90a32f530f | Holo | Warren Soultrader borderless #332 | -
+d6299373-ed4a-4ede-88a4-6279afb49b29 | Normal | Anvil of Bogardan | -
+e6853687-9072-43ae-9432-456fa89b6893 | Normal | Arid Mesa Italian | -
+b318005f-a00d-4bda-a454-9fdbfe0ca4a1 | Normal | Asia Pacific Land Program set(15 cards) | -
+6a20bffa-f34f-4787-ada3-3984de1672f8 | Normal | Bane of Progress | -
+ba0bf71a-d2d7-47eb-a357-5189764f87b6 | Normal | Basic Lands SLD | -
+b7ee1eee-b40d-4c2e-b564-f96242eef219 | Normal | Beta Basic Lands 302/291/297/290/295 | -
+b5a73cfa-be24-4d0a-bc4b-f28349eefbab | Normal | Black Lotus Beta black border mtg proxy cards power nine | ped 1 wl 1
+9d43256d-6e14-4ea3-b980-63b609627a47 | Normal | Black Lotus Unlimited White border mtg proxy cards power nine | -
+b9768754-5824-43c8-b528-2cb6c7cf253c | Normal | Bloodstained Mire Italian | -
+80b45f1f-dc71-4e2c-9adb-5b0bbb025ad3 | Normal | Brain Freeze | ped 1 wl 1
+84ae3215-348c-4b63-a62f-b6e2774b4c37 | Normal | Crawlspace | -
+c203c672-542f-43e0-ac85-471ce778fcef | Normal | Dragon’s Eye Lands Mountain MTG Proxy | -
+78b6b5f5-c613-4a6f-87f3-245124c87f16 | Normal | Dual Lands Beta English | ped 1 wl 1
+b43ad981-1c3c-45b1-b386-7a366044eb0d | Normal | Dual Lands Italian White Border | -
+47157666-7ad8-438d-a634-fb59e30a46b3 | Normal | Dual Lands Retro Frame 30th | -
+6e628f40-8ed8-4373-aba7-f17ddf134fdf | Normal | Dual Lands Revised English | -
+e1df233b-3e25-4f78-828d-b248cf6a5779 | Normal | Dual Lands Summer | -
+21e643d0-ddcc-4fef-a047-4ee6f44a5576 | Normal | Dual Lands Unlimited | -
+28e48f1d-b598-460a-9ba1-9542705067a7 | Normal | European Land Program set (15cards) | -
+245f418d-483e-4d91-876c-598adba56353 | Normal | FETCH LANDS MH 2 OLD FRAME (5 cards) | -
+e10ffaa1-8938-4f12-8ead-0450aa2b26a1 | Normal | FETCH LANDS MH 3 OLD FRAME (5 cards) | -
+e0e7fa13-44db-4117-a131-9c3d4b917001 | Normal | FETCH LANDS Russian language (5 cards) | -
+fc32d101-b8e8-4700-b28f-cf742e246cd2 | Normal | FETCH LANDS SET Regular | -
+35dbbc94-3e91-4140-83d8-fc00192bf689 | Normal | Flooded Strand Italian MTG Proxy | -
+1dc9a6ba-71f3-4aa1-9bc0-7daaa6dbd57b | Normal | Guru Basic Lands | -
+890184ef-0b3f-451c-b17b-db3b11cbb3bd | Normal | Lifeline MTG Proxy | -
+c176d2da-38a7-484e-9026-5c3fe128c085 | Normal | Marsh Flats Italian MTG Proxy | -
+26ee92e8-c928-4e51-9b5f-fa4dcebbc94b | Normal | Misty Rainforest Italian MTG Proxy | -
+dda1fcba-0a13-4d34-b807-fccc96ecf198 | Normal | Mox Emerald Beta black border mtg proxy cards power nine | -
+97d0a872-3a2d-40f2-b680-c1ad1e2ce6db | Normal | Mox Jet Beta black border mtg proxy cards power nine | -
+08668af3-bbb8-439f-af99-33a16ccdf1cd | Normal | Mox Pearl Beta black border mtg proxy cards power nine | -
+00e6b2f0-40e7-4ebc-86aa-45da30247d86 | Normal | MTG MAGIC BETA WHOLE SET Blue Core Paper 330 cards total | -
+1634e992-6205-4c68-b30c-967789c19231 | Normal | Pernicious Deed MTG Proxy | -
+02b92c09-8f92-4264-8e73-ff10761d9b59 | Normal | PIXEL LANDS 02 SLD | -
+ac44c7cc-3511-42e3-b4a1-168ae91fcabe | Normal | PIXEL SNOW-COVERED LANDS SLD Set | -
+20906c18-fa27-4b08-89e2-251afe1cecb3 | Normal | Polluted Delta Italian MTG Proxy | -
+d4eb6eb7-8591-488b-9205-c05b26fbfd71 | Normal | Power 9 30th Retro Frame | -
+a8065c72-df41-4235-8f43-92e9d187bb38 | Normal | Power 9 Beta English | -
+a7d081db-303b-4f7d-aae8-5acce27cad88 | Normal | Power 9 Unlimited | -
+71f73b03-b699-445e-837e-203a9b467a95 | Normal | Rings of Brighthearth MTG Proxy | -
+bc696e74-2c32-4718-b332-0ecf15f08100 | Normal | Scalding Tarn Italian MTG Proxy | -
+2b3d142d-86de-4c31-92a0-e30508ad81d2 | Normal | SHOCK LANDS RETRO FRAME REGULAR | -
+79a2940a-0f45-4664-a67c-8b5b961cc402 | Normal | Shock Lands Russian language | -
+f0c96598-16d6-4ae5-9596-48d0cf318b00 | Normal | Signets SLD (none foil) 11 cards | -
+54eb5772-16e5-4500-ba07-2b38a2ba3229 | Normal | Stifle MTG Proxy | ped 1 wl 1
+adbbd1d5-7c90-4ca1-b6c6-2c88a33eeb5a | Normal | UNGLUED BASIC LANDS | -
+8d6795ae-74b0-46fc-9d4b-014f6d6ef944 | Normal | Unglued Forest MTG Proxy | -
+3d3951a0-5762-408d-873e-c2b57bd05cd9 | Normal | Unglued Island MTG Proxy | -
+3d6032f6-b06e-41f6-bbde-b4659591332d | Normal | Unglued Mountain MTG Proxy | -
+6af6d796-9c41-4105-b56c-5cbf7b26aad9 | Normal | Unglued Plains MTG Proxy | -
+d58d1bfe-fdbd-4326-81f0-5e50964fab40 | Normal | Unglued Swamp MTG Proxy | -
+9af79650-95be-4bab-a07b-4a76717a27bb | Normal | Unhinged LANDS English | -
+c072a4b9-e013-464d-8c8d-a9914d83050c | Normal | Verdant Catacombs Italian MTG Proxy | -
+18ff3da9-ef29-4fd4-a409-e8e4bb949453 | Normal | Windswept Heath Italian MTG Proxy | -
+9ca1b407-10c7-43e4-91ed-d1feb866071b | Normal | Wooded Foothills Italian MTG Proxy | -
+8d710a78-6dc9-4afd-8e26-ba9898688200 | Normal | Yawgmoth’s Will MTG Proxy | -
