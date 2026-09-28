@@ -5,7 +5,8 @@ import { corsHeaders } from "./_cors.js";
 // Lista os pedidos do console: todos os que já têm ao menos um lote, pagos ou
 // não. O console precisa dos pendentes para poder cobrar e marcar como pago —
 // filtrar só os pagos aqui os tornava invisíveis. Pedido sem lote é o
-// carrinho-rascunho do cliente e fica de fora.
+// carrinho-rascunho do cliente e fica de fora. Pedidos das antigas encomendas
+// em grupo (kind = CAMPAIGN) também ficam fora: o console é só do individual.
 export async function onRequest(context) {
   const CORS = corsHeaders(context, "POST, OPTIONS");
   const json = (b, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
@@ -25,7 +26,7 @@ export async function onRequest(context) {
   const rows = [];
   try {
     for (let offset = 0; ; offset += pageSize) {
-      const url = `${SB_URL}/rest/v1/orders?select=${encodeURIComponent(select)}&order=created_at.desc&limit=${pageSize}&offset=${offset}`;
+      const url = `${SB_URL}/rest/v1/orders?kind=eq.INDIVIDUAL&select=${encodeURIComponent(select)}&order=created_at.desc&limit=${pageSize}&offset=${offset}`;
       const res = await fetch(url, { headers });
       if (!res.ok) {
         const text = await res.text().catch(() => "");
