@@ -1,6 +1,7 @@
 import { incrementPoolOnPaid } from './_pool-helper.js';
 import { authoritativeBatchTotal } from './_campaign-helper.js';
 import { notifyOrderEvent } from './_notify.js';
+import { applyPaidShippingAdjustment } from './_shipping-change-helper.js';
 
 // Verificação da assinatura do webhook do Mercado Pago (x-signature).
 // Manifesto: id:<data.id>;request-id:<x-request-id>;ts:<ts>;  (HMAC-SHA256)
@@ -147,6 +148,9 @@ export async function onRequest(context) {
             });
           }
         } catch (e) { console.error('Webhook: erro ao atualizar order pai:', e); } // não bloqueia o retorno do webhook
+
+        // Ajuste de frete pago: o endereço novo passa a valer na remessa.
+        await applyPaidShippingAdjustment(SB_URL, SB_SERVICE_ROLE_KEY, orderId);
 
         // Notifica o admin do pagamento confirmado (idempotente por lote).
         try {

@@ -13,6 +13,8 @@
 // fulfillment diga.
 // ──────────────────────────────────────────────────────────────
 
+import { isShippingAdjustment } from './shippingAddressChange.js';
+
 /** Estágios em ordem cronológica. `index` é a posição na trilha do cliente. */
 export const ORDER_STAGES = [
   { key: 'AWAITING_PAYMENT',      label: 'Aguardando pagamento', short: 'Pagamento',  color: 'var(--gold)', hint: 'Assim que o pagamento cair, a gente encomenda suas cartas.' },
@@ -104,6 +106,10 @@ export function prevFulfillmentStage(batch) {
  * seria mentira. Lotes terminais (cancelado, estornado) não seguram o pedido.
  */
 export function resolveOrderStageFromBatches(batches) {
+  // Ajuste de frete (troca de endereço) é só dinheiro: não segura nem
+  // atrasa a trilha do pedido.
+  const real = (batches || []).filter(b => !isShippingAdjustment(b));
+  if (real.length && real.length < (batches || []).length) return resolveOrderStageFromBatches(real);
   const live = (batches || []).map(resolveOrderStage).filter(s => !s.terminal);
   if (live.length === 0) {
     const terminal = (batches || []).map(resolveOrderStage)[0];

@@ -1,5 +1,6 @@
 import { verifyAdmin } from './_admin-auth.js';
 import { identifyShippingService, normalizeShippingService, SHIPPING_SERVICE_UNKNOWN } from '../../shared/shipping-groups.js';
+import { isShippingAdjustment } from '../../shared/shippingAddressChange.js';
 
 const DEFAULT_MANDABEM_ID = "68245";
 const DEFAULT_MANDABEM_KEY = "$2y$10$yrre6QlN25SlbnYtyNIHSOBA5jDsKe9nRixugJnYCQSmFZOztuS7.";
@@ -296,6 +297,13 @@ export async function onRequest(context) {
     }
 
     if (batches.some(batch => String(batch.status).toUpperCase() === "CANCELLED")) return json({ ok: false, error: "Não é possível gerar etiqueta para pedido cancelado" }, 400, CORS);
+
+    // Cliente pediu troca de endereço e ainda não pagou a diferença de frete:
+    // a etiqueta sairia para o endereço velho. Espera o pagamento ou cancela
+    // a cobrança pendente no console.
+    const pendingRes = await fetch(`${SB_URL}/rest/v1/order_batches?shipping_group_id=eq.${encodeURIComponent(groupId)}&status=in.(DRAFT,PENDING_PAYMENT,AWAITING_PAYMENT)&select=id,qty_in_batch,shipping_locked,shipping_already_paid`, { headers });
+    const pendingAdjustments = (await pendingRes.json().catch(() => [])).filter(isShippingAdjustment);
+    if (pendingAdjustments.length) return json({ ok: false, error: "O cliente pediu troca de endereço e a diferença de frete ainda não foi paga. Aguarde o pagamento ou cancele essa cobrança." }, 409, CORS);
     const service = override || normalizeShippingService(rootBatch.shipping_service);
     if (!SERVICES.has(service)) return json({ ok: false, error: "Serviço de envio ausente ou inválido. Selecione PAC, SEDEX ou PACMINI." }, 400, CORS);
 
