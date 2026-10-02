@@ -1,3 +1,5 @@
+import { quoteShipping } from "./_frete-helper.js";
+
 export async function onRequest(context) {
   const CORS = {
     "Access-Control-Allow-Origin": "*",
@@ -11,83 +13,16 @@ export async function onRequest(context) {
 
   try {
     const body = await context.request.json().catch(() => ({}));
-    const cepDestino = String(body.cepDestino ?? "").replace(/\D/g, "");
-    const quantidade = Number(body.quantidade ?? 0);
+    const result = await quoteShipping(context.env, body.cepDestino, body.quantidade);
 
-    if (cepDestino.length !== 8 || !Number.isFinite(quantidade) || quantidade <= 0) {
-      return new Response(JSON.stringify({ opcoes: [], error: "Parâmetros inválidos" }), {
-        status: 400,
+    if (result.error) {
+      return new Response(JSON.stringify({ opcoes: [], error: result.error }), {
+        status: result.status || 500,
         headers: { ...CORS, "Content-Type": "application/json" },
       });
     }
 
-    const cepOri = "05410010";
-    const pesoKg = Math.max((quantidade * 2 + 50) / 1000, 0.3);
-    const altura = Math.min(Math.max(Math.ceil(quantidade / 50), 2), 4);
-
-    // Credenciais do MandaBem lidas exclusivamente das variáveis de ambiente
-    // do Cloudflare Pages (MANDA_BEM_API_ID / MANDA_BEM_API_TOKEN).
-    const plataforma_id = context.env?.MANDA_BEM_API_ID;
-    const plataforma_chave = context.env?.MANDA_BEM_API_TOKEN;
-    if (!plataforma_id || !plataforma_chave) {
-      return new Response(JSON.stringify({ opcoes: [], error: "Credenciais do MandaBem não configuradas" }), {
-        status: 500,
-        headers: { ...CORS, "Content-Type": "application/json" },
-      });
-    }
-
-    const arred = (n) => Math.round(n * 100) / 100;
-
-    async function consulta(servico) {
-      const payload =
-        "plataforma_id=" + plataforma_id +
-        "&plataforma_chave=" + encodeURIComponent(plataforma_chave) +
-        "&cep_origem=" + cepOri +
-        "&cep_destino=" + cepDestino +
-        "&servico=" + servico +
-        "&peso=" + String(pesoKg) +
-        "&altura=" + String(altura) +
-        "&largura=16&comprimento=24&valor_seguro=0";
-
-      const res = await fetch("https://mandabem.com.br/ws/valor_envio", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: payload,
-      });
-
-      const text = await res.text();
-      const idx = text.indexOf("{");
-      if (!res.ok || idx < 0) return null;
-
-      let j;
-      try { j = JSON.parse(text.slice(idx)); } catch { return null; }
-
-      const r = j?.resultado;
-      if (!r || String(r.sucesso).toLowerCase() !== "true") return null;
-
-      const bucket = r?.[servico];
-      const valorRaw = bucket?.valor;
-      const prazoRaw = bucket?.prazo ?? 0;
-
-      if (!valorRaw) return null;
-      let preco = Number(String(valorRaw).replace(/\./g, "").replace(",", "."));
-      if (!Number.isFinite(preco) || preco <= 0) return null;
-
-      if (preco > 300) preco = preco / 100;
-
-      return { nome: servico, preco: arred(preco + 1.2), prazo: Number(prazoRaw) || 0 };
-    }
-
-    const servicos = ["PAC", "SEDEX", "PACMINI"];
-    const results = await Promise.allSettled(servicos.map(consulta));
-
-    const opcoes = results
-      .filter(r => r.status === "fulfilled" && r.value)
-      .map(r => r.value);
-
-    opcoes.sort((a, b) => a.preco - b.preco);
-
-    return new Response(JSON.stringify({ opcoes }), {
+    return new Response(JSON.stringify({ opcoes: result.opcoes }), {
       status: 200,
       headers: { ...CORS, "Content-Type": "application/json" },
     });

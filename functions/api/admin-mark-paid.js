@@ -1,5 +1,6 @@
 import { incrementPoolOnPaid } from './_pool-helper.js';
 import { verifyAdmin } from './_admin-auth.js';
+import { applyPaidShippingAdjustment } from './_shipping-change-helper.js';
 
 export async function onRequest(context) {
   const CORS = {
@@ -53,6 +54,8 @@ export async function onRequest(context) {
       });
     }
 
+    // Ajuste de frete pago: o endereço novo passa a valer na remessa.
+    await applyPaidShippingAdjustment(SB_URL, SB_SERVICE_ROLE_KEY, batchId);
 
     return new Response(JSON.stringify({ ok:true }), {
       status: 200, headers: { ...CORS, "Content-Type":"application/json" }

@@ -1,5 +1,6 @@
 import { incrementPoolOnPaid } from './_pool-helper.js';
 import { authoritativeBatchTotal } from './_campaign-helper.js';
+import { applyPaidShippingAdjustment } from './_shipping-change-helper.js';
 
 export async function onRequest(context) {
   const CORS = {
@@ -155,6 +156,9 @@ export async function onRequest(context) {
         headers: { ...CORS, "Content-Type": "application/json" },
       });
     }
+
+    // Ajuste de frete pago: o endereço novo passa a valer na remessa.
+    if (batchStatus === "PAID") await applyPaidShippingAdjustment(SB_URL, SB_SERVICE_ROLE_KEY, batchId);
 
     let updated = null;
     try {

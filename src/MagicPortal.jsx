@@ -5,6 +5,7 @@ import { buildShippingGroups, SHIPPING_SERVICE_UNKNOWN } from '../shared/shippin
 import { buildCardsFromCsv, parseCardLinkList, chunkCardItems, mergeAddCardsResults, LINK_BATCH_SIZE } from '../shared/cardImport';
 import { pricePerCard as indivPricePerCard } from '../shared/individualPricing';
 import { canAddCardsToOrder, paidQtyOf, shippingAnchorOf } from '../shared/individualAddCards';
+import { canChangeShipmentAddress, isShippingAdjustment, pendingAdjustmentOf, shipmentOf } from '../shared/shippingAddressChange';
 import { aggregateOrderCards, formatSupplierCardList, totalCardQty } from '../shared/supplierCardList';
 import { ORDER_STAGES, groupBatchesIntoOrders, isPaid as isPaidBatchStatus, nextFulfillmentStage, prevFulfillmentStage, resolveOrderStage, resolveOrderStageFromBatches } from '../shared/orderStatus';
 import { boughtByCard, buildCollection, collectionStats, extrasByCard } from '../shared/collection';
@@ -449,7 +450,7 @@ const AddressDisplay=({address,onEdit})=>{
         {address.cep&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>CEP {address.cep}</div>}
       </>:<span style={{color:'var(--text-faint)'}}>Nenhum endereço cadastrado</span>}
     </div>
-    <button onClick={onEdit} style={{background:'var(--fill)',border:'1px solid var(--line)',borderRadius:'var(--r-control)',padding:'6px 10px',cursor:'pointer',color:'var(--text-dim)',display:'flex',alignItems:'center',gap:'var(--sp-1)',fontSize:'var(--fs-2xs)',flexShrink:0}}><Edit3 size={12}/> Editar</button>
+    {onEdit&&<button onClick={onEdit} style={{background:'var(--fill)',border:'1px solid var(--line)',borderRadius:'var(--r-control)',padding:'6px 10px',cursor:'pointer',color:'var(--text-dim)',display:'flex',alignItems:'center',gap:'var(--sp-1)',fontSize:'var(--fs-2xs)',flexShrink:0}}><Edit3 size={12}/> Editar</button>}
   </div>);
 };
 
@@ -1287,7 +1288,95 @@ function CollectionAlbum({token,collection,onSetExtra,theme}){
 // ── Um pedido na conta do cliente ─────────────────────────────────────────
 // A unidade aqui é o PEDIDO, não o lote de pagamento: quem adicionou cartas
 // depois enxergava dois "pedidos" onde existe uma remessa só.
-function ClientOrderCard({order,token,theme,expanded,onToggle,onAddCards,canAdd,onReloadOrders,toastFn}){
+// Troca de endereço de uma remessa já paga. Vale para a caixa inteira (o
+// pedido, as cartas adicionadas e os pedidos que pegaram carona no frete).
+// Frete mais caro no endereço novo → o cliente paga a diferença e o endereço
+// só troca quando o pagamento cai. Regras em shared/shippingAddressChange.js.
+function ShipmentAddressEditor({order,allBatches,token,toastFn,onReloadOrders}){
+  const mine=useMemo(()=>(allBatches||[]).map(b=>({...b,userId:'me'})),[allBatches]);
+  const paidBatch=order.batches.find(b=>isPaidBatchStatus(b)&&!isShippingAdjustment(b));
+  const shipment=paidBatch?shipmentOf(mine,paidBatch.id):null;
+  const [editing,setEditing]=useState(false);
+  const [addr,setAddr]=useState({});
+  const [options,setOptions]=useState(null);
+  const [service,setService]=useState(null);
+  const [busy,setBusy]=useState(false);
+  if(!shipment)return null;
+
+  const current=shipment.rootBatch?.shipping_address||null;
+  const pending=pendingAdjustmentOf(mine,shipment);
+  const canChange=canChangeShipmentAddress(shipment)&&!pending;
+  const otherOrders=new Set(shipment.batches.map(b=>String(b.order_id))).size-1;
+  const fmt=v=>'R$ '+Number(v||0).toFixed(2).replace('.',',');
+  const call=async payload=>{
+    const r=await fetch('/api/change-shipping-address',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:String(paidBatch.id),address:addr,...payload})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok||!j.ok)throw new Error(j.error||`HTTP ${r.status}`);
+    return j;
+  };
+
+  function startEdit(){setAddr({cep:'',rua:'',numero:'',complemento:'',bairro:'',cidade:'',uf:''});setOptions(null);setService(null);setEditing(true);}
+  async function quote(){
+    setBusy(true);setOptions(null);
+    try{
+      const j=await call({});
+      setOptions(j.options);
+      const keep=j.options.find(o=>o.service===j.currentService)||j.options[0];
+      setService(keep?.service||null);
+    }catch(e){toastFn('Erro: '+e.message,'error');}
+    setBusy(false);
+  }
+  async function confirmChange(){
+    const chosen=(options||[]).find(o=>o.service===service);
+    if(!chosen)return;
+    if(chosen.difference>0&&!confirm(`O frete para o endereço novo fica ${fmt(chosen.difference)} mais caro. O endereço só muda depois que você pagar essa diferença. Continuar?`))return;
+    setBusy(true);
+    try{
+      const j=await call({service,confirm:true});
+      if(j.applied){toastFn('Endereço de entrega atualizado!','success');setEditing(false);onReloadOrders&&onReloadOrders();setBusy(false);return;}
+      toastFn('Gerando link de pagamento da diferença...','info');
+      const mpRes=await fetch('/api/mp-create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderId:String(j.adjustmentBatchId),total:j.difference,descricao:`Diferença de frete - pedido #${j.rootShortId}`})});
+      const mp=await mpRes.json().catch(()=>({}));
+      const link=mp?.mpLink||mp?.init_point;
+      if(link){window.location.href=link;return;}
+      toastFn('Cobrança criada. Use o botão "Pagar diferença de frete" no pedido.','info');
+      setEditing(false);onReloadOrders&&onReloadOrders();
+    }catch(e){toastFn('Erro: '+e.message,'error');}
+    setBusy(false);
+  }
+
+  const label={fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-faint)',marginBottom:6,textTransform:'uppercase',letterSpacing:1};
+  return(<div style={{marginTop:10}}>
+    <div style={label}>Endereço de entrega</div>
+    {!editing&&<>
+      {current?<AddressDisplay address={current} onEdit={canChange?startEdit:undefined}/>:
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,fontSize:'var(--fs-xs)',color:'var(--text-dim)'}}>
+          <span>Endereço do seu cadastro</span>
+          {canChange&&<Btn variant="secondary" onClick={startEdit} style={{fontSize:'var(--fs-2xs)',padding:'6px 10px'}} sfx="nav"><Edit3 size={12}/> Trocar</Btn>}
+        </div>}
+      {pending&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--gold)',marginTop:6,lineHeight:1.4}}>
+        Troca para {pending.shipping_address?.rua}{pending.shipping_address?.numero?', '+pending.shipping_address.numero:''} ({pending.shipping_address?.cidade}/{pending.shipping_address?.uf}) aguardando o pagamento da diferença de {fmt(pending.total_locked)}.
+      </div>}
+      {!canChange&&!pending&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginTop:6}}>A etiqueta já foi gerada — o endereço não pode mais ser trocado por aqui.</div>}
+    </>}
+    {editing&&<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)'}}>
+      {otherOrders>0&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-dim)'}}>Vale também para {otherOrders} outro{otherOrders>1?'s':''} pedido{otherOrders>1?'s':''} que vão na mesma caixa.</div>}
+      <AddressForm address={addr} setAddress={a=>{setAddr(a);setOptions(null);}}/>
+      {!options&&<Btn full onClick={quote} disabled={busy} style={{fontSize:'var(--fs-xs)',padding:'10px 12px'}}>{busy?<Spin size={14}/>:<><Truck size={13}/> Calcular frete</>}</Btn>}
+      {options&&<div style={{display:'flex',flexDirection:'column',gap:6}}>
+        {options.map(o=>{const sel=o.service===service;return(
+          <button key={o.service} onClick={()=>setService(o.service)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 12px',borderRadius:'var(--r-control)',border:'1px solid '+(sel?'var(--gp)':'var(--line)'),background:sel?'var(--fill)':'transparent',color:'var(--text)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",fontSize:'var(--fs-xs)'}}>
+            <span style={{fontWeight:700}}>{o.service}{o.prazo?<span style={{fontWeight:400,color:'var(--text-faint)'}}> · {o.prazo} dias úteis</span>:null}</span>
+            <span style={{fontWeight:700,color:o.difference>0?'var(--gold)':'var(--ok)'}}>{o.difference>0?`+ ${fmt(o.difference)}`:'Sem custo'}</span>
+          </button>);})}
+        <Btn full onClick={confirmChange} disabled={busy||!service} style={{fontSize:'var(--fs-xs)',padding:'10px 12px'}}>{busy?<Spin size={14}/>:<><Check size={13}/> Confirmar novo endereço</>}</Btn>
+      </div>}
+      <Btn full variant="ghost" onClick={()=>setEditing(false)} disabled={busy} style={{fontSize:'var(--fs-2xs)',padding:'6px'}} sfx="">Cancelar</Btn>
+    </div>}
+  </div>);
+}
+
+function ClientOrderCard({order,allBatches,token,theme,expanded,onToggle,onAddCards,canAdd,onReloadOrders,toastFn}){
   const [cards,setCards]=useState(null);
   const [loadingCards,setLoadingCards]=useState(false);
   const stage=order.stage;
@@ -1344,6 +1433,8 @@ function ClientOrderCard({order,token,theme,expanded,onToggle,onAddCards,canAdd,
         )):<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>Detalhes não disponíveis</div>}
       </div>
 
+      <ShipmentAddressEditor order={order} allBatches={allBatches} token={token} toastFn={toastFn} onReloadOrders={onReloadOrders}/>
+
       {canAdd&&<div style={{marginTop:12,paddingTop:10,borderTop:'1px solid rgba(var(--ink),calc(0.05*var(--ink-a)))'}}>
         <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-dim)',lineHeight:1.4,marginBottom:8}}>A compra no fornecedor ainda não foi feita — dá tempo de mandar mais cartas para este mesmo pedido, sem pagar frete de novo.</div>
         <Btn full variant="secondary" onClick={()=>onAddCards(order)} style={{fontSize:'var(--fs-2xs)',padding:'9px 12px'}} sfx="nav"><Plus size={13}/> Adicionar cartas a este pedido</Btn>
@@ -1351,9 +1442,9 @@ function ClientOrderCard({order,token,theme,expanded,onToggle,onAddCards,canAdd,
 
       {pendingBatches.map(b=>(
         <div key={b.id} style={{display:'grid',gridTemplateColumns:'1fr auto auto',gap:'var(--sp-2)',marginTop:10}}>
-          <Btn variant="warn" onClick={()=>pagarAgoraPedido(b,toastFn)} style={{width:'100%',fontSize:'var(--fs-2xs)',justifyContent:'center'}} sfx="nav"><CreditCard size={12}/> Pagar R$ {Number(b.total_locked||0).toFixed(2).replace('.',',')}</Btn>
+          <Btn variant="warn" onClick={()=>pagarAgoraPedido(b,toastFn)} style={{width:'100%',fontSize:'var(--fs-2xs)',justifyContent:'center'}} sfx="nav"><CreditCard size={12}/> {isShippingAdjustment(b)?'Pagar diferença de frete':'Pagar'} R$ {Number(b.total_locked||0).toFixed(2).replace('.',',')}</Btn>
           <Btn variant="ghost" title="Conferir pagamento" onClick={async()=>{try{await mpSync(b.id);onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{fontSize:'var(--fs-2xs)',justifyContent:'center'}} sfx=""><RefreshCw size={12}/></Btn>
-          <Btn variant="danger" onClick={async()=>{if(!confirm('Cancelar este pedido?'))return;try{const res=await fetch('/api/cancel-order',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:String(b.id),orderId:String(b.order_id||'')})});const j=await res.json().catch(()=>({}));if(!res.ok||!j.ok)throw new Error(j.error||'Falha');toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{fontSize:'var(--fs-2xs)',justifyContent:'center'}} sfx=""><X size={12}/></Btn>
+          <Btn variant="danger" onClick={async()=>{if(!confirm(isShippingAdjustment(b)?'Cancelar a troca de endereço? O envio segue para o endereço atual.':'Cancelar este pedido?'))return;try{const res=await fetch('/api/cancel-order',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:String(b.id),orderId:String(b.order_id||'')})});const j=await res.json().catch(()=>({}));if(!res.ok||!j.ok)throw new Error(j.error||'Falha');toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{fontSize:'var(--fs-2xs)',justifyContent:'center'}} sfx=""><X size={12}/></Btn>
         </div>
       ))}
     </div>}
@@ -1447,14 +1538,14 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
       {orders.length===0&&<EmptyState icon={Package} title="Nenhum pedido ainda" sub="Monte sua primeira encomenda pelo catálogo" action={<Btn onClick={()=>nav('catalog')} sfx="nav"><BookOpen size={15}/> Ver catálogo</Btn>}/>}
       {liveOrders.map(o=>{
         const addOpen=openIndividualOrders[String(o.orderId)];
-        return <ClientOrderCard key={o.orderId} order={o} token={token} theme={theme} expanded={expandedOrder===o.orderId} onToggle={()=>setExpandedOrder(expandedOrder===o.orderId?null:o.orderId)} onAddCards={()=>onAddCards&&onAddCards(o)} canAdd={!!onAddCards&&!!addOpen} onReloadOrders={onReloadOrders} toastFn={toastFn}/>;
+        return <ClientOrderCard key={o.orderId} order={o} allBatches={myOrders} token={token} theme={theme} expanded={expandedOrder===o.orderId} onToggle={()=>setExpandedOrder(expandedOrder===o.orderId?null:o.orderId)} onAddCards={()=>onAddCards&&onAddCards(o)} canAdd={!!onAddCards&&!!addOpen} onReloadOrders={onReloadOrders} toastFn={toastFn}/>;
       })}
       {doneOrders.length>0&&<>
         <button onClick={()=>{SFX.toggle();setShowArchived(v=>!v);}} style={{background:'none',border:'none',color:'var(--text-faint)',fontSize:'var(--fs-2xs)',fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif",padding:'6px 2px',textAlign:'left',display:'flex',alignItems:'center',gap:4}}>
           <Archive size={12}/> Concluídos ({doneOrders.length}) <ChevronRight size={12} style={{transform:showArchived?'rotate(90deg)':'none',transition:'transform .2s'}}/>
         </button>
         {showArchived&&doneOrders.map(o=>(
-          <ClientOrderCard key={o.orderId} order={o} token={token} theme={theme} expanded={expandedOrder===o.orderId} onToggle={()=>setExpandedOrder(expandedOrder===o.orderId?null:o.orderId)} canAdd={false} onReloadOrders={onReloadOrders} toastFn={toastFn}/>
+          <ClientOrderCard key={o.orderId} order={o} allBatches={myOrders} token={token} theme={theme} expanded={expandedOrder===o.orderId} onToggle={()=>setExpandedOrder(expandedOrder===o.orderId?null:o.orderId)} canAdd={false} onReloadOrders={onReloadOrders} toastFn={toastFn}/>
         ))}
       </>}
     </div>}
@@ -2252,7 +2343,7 @@ function AdminPage({pricing:pricingProp,theme,token,nav,onReload,toast:toastFn,i
         userId:root.userId,
         // Só está pronta quando TODOS os lotes chegaram na preparação: senão a
         // etiqueta sairia sem as cartas que ainda estão vindo do fornecedor.
-        ready:group.batches.every(b=>['PREPARING','LABEL_GENERATED','DELIVERED'].includes(b.fulfillment_status)),
+        ready:group.batches.filter(b=>!isShippingAdjustment(b)).every(b=>['PREPARING','LABEL_GENERATED','DELIVERED'].includes(b.fulfillment_status)),
         stage:resolveOrderStageFromBatches(group.batches),
       };
     });
@@ -3208,7 +3299,7 @@ export default function MagicPortal(){
         const allOrds = await sbGet('orders', `user_id=eq.${userId}&select=id`, tkn);
         if (allOrds && allOrds.length > 0) {
           const ordIds = allOrds.map(o=>o.id).join(',');
-          const batches = await sbGet('order_batches', `order_id=in.(${ordIds})&select=id,status,payment_status,total_locked,payment_method,created_at,confirmed_at,qty_in_batch,shipping_locked,shipping_service,shipping_already_paid,shipping_group_id,mandabem_envio_id,mandabem_etiqueta,mandabem_rastreamento,mandabem_status,fulfillment_status,mp_link,brl_unit_price_locked,subtotal_locked,order_id,order_items(quantity,cards(name,type))`, tkn);
+          const batches = await sbGet('order_batches', `order_id=in.(${ordIds})&select=id,status,payment_status,total_locked,payment_method,created_at,confirmed_at,qty_in_batch,shipping_locked,shipping_service,shipping_address,shipping_already_paid,shipping_group_id,mandabem_envio_id,mandabem_etiqueta,mandabem_rastreamento,mandabem_status,fulfillment_status,mp_link,brl_unit_price_locked,subtotal_locked,order_id,order_items(quantity,cards(name,type))`, tkn);
           setMyOrders((batches||[]).map(b=>({ ...b, cards: Array.isArray(b.order_items) ? b.order_items.map(i=>({ name:i.cards?.name||'Carta', type:i.cards?.type||'', qty:Number(i.quantity||1) })) : undefined })));
         } else {
           setMyOrders([]);
