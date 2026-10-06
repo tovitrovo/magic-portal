@@ -21,6 +21,21 @@ function json(data, status, CORS) {
 function onlyDigits(value = "") { return String(value || "").replace(/\D/g, ""); }
 function clampText(value, max) { return String(value || "").trim().slice(0, max); }
 
+// A DC-e (declaração de conteúdo) que o MandaBem envia à SEFAZ só aceita
+// caracteres Latin-1 imprimíveis (U+0020–U+00FF), sem espaço nas pontas.
+// Travessão, aspas curvas etc. derrubam a etiqueta com "not a valid value".
+export function sanitizeDceText(value, max) {
+  const text = String(value || "")
+    .replace(/[\u2010-\u2015\u2212]/g, "-")
+    .replace(/[\u2018\u2019\u201A\u2032]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u2033]/g, '"')
+    .replace(/\u2026/g, "...")
+    .replace(/[^\x20-\x7E\u00A0-\u00FF]/g, ch => ch.normalize("NFD").replace(/[^\x20-\x7E\u00A0-\u00FF]/g, ""))
+    .replace(/\u00A0/g, " ")
+    .replace(/\s+/g, " ");
+  return text.trim().slice(0, max).trim();
+}
+
 
 export function normalizeMandaBemShipmentData(dados, envioId = '', refId = '') {
   if (!dados || typeof dados !== "object") return {};
@@ -323,7 +338,7 @@ export async function onRequest(context) {
     const params = new URLSearchParams();
     addCredentials(params, context.env);
     params.set("forma_envio", service);
-    params.set("destinatario", clampText(destination.name, 40));
+    params.set("destinatario", sanitizeDceText(destination.name, 40));
     params.set("cep", onlyDigits(destination.cep));
     params.set("logradouro", clampText(destination.rua, 60));
     params.set("numero", clampText(destination.numero, 6));
@@ -342,7 +357,7 @@ export async function onRequest(context) {
     params.set("cep_origem", onlyDigits(context.env.MANDABEM_CEP_ORIGEM || DEFAULT_ORIGIN_CEP));
     items.forEach((item, index) => {
       const name = `${item.cards?.name || "Carta"}${item.cards?.type ? ` (${item.cards.type})` : ""}`;
-      params.append(`produtos[${index}][nome]`, clampText(name, 80));
+      params.append(`produtos[${index}][nome]`, sanitizeDceText(name, 80) || "Carta");
       params.append(`produtos[${index}][quantidade]`, String(Math.max(Number(item.quantity || 1), 1)));
       params.append(`produtos[${index}][preco]`, Number(item.unit_price_brl || 0).toFixed(2));
     });
