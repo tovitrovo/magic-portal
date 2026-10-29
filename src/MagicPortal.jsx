@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from 'react';
 import { ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff, Archive, Sun, Moon, LayoutDashboard, Users, TrendingUp, BellRing, BellOff, Clock, Layers, ShoppingBag, ClipboardList, Zap, Store, Wallet, Activity, Inbox, LogIn, UserPlus } from 'lucide-react';
-import { buildCatalogQueries, buildLatestCardQuery, RECENT_CARDS_FILTER } from './catalogQuery';
+import { buildCatalogQueries, buildLatestCardQuery, RECENT_CARDS_FILTER, VARIANTS_FILTER } from './catalogQuery';
+import { VARIANTS } from '../shared/supplierSheet';
 import { buildShippingGroups, SHIPPING_SERVICE_UNKNOWN } from '../shared/shipping-groups';
 import { buildCardsFromCsv, parseCardLinkList, chunkCardItems, mergeAddCardsResults, LINK_BATCH_SIZE } from '../shared/cardImport';
 import { pricePerCard as indivPricePerCard } from '../shared/individualPricing';
@@ -571,11 +572,11 @@ const CATALOG_TCG='Magic';
 const CATALOG_TYPES=['Normal','Holo','Foil'];
 
 function CatalogPage({token,wishlist,cartItems=[],collectionByCard,onAddToWishlist,onAddToCart,priceBRL,theme,tutStep,onTutNext}){
-  const [search,setSearch]=useState('');const [typeF,setTypeF]=useState('Todos');const [cards,setCards]=useState([]);const [total,setTotal]=useState(0);
+  const [search,setSearch]=useState('');const [typeF,setTypeF]=useState('Todos');const [variantF,setVariantF]=useState('');const [cards,setCards]=useState([]);const [total,setTotal]=useState(0);
   const [page,setPage]=useState(0);const [loading,setLoading]=useState(false);
   const [detail,setDetail]=useState(null);
   const [flyAnim,setFlyAnim]=useState(false);const PAGE_SIZE=20;
-  const catalogFilters=['Todos',RECENT_CARDS_FILTER,...CATALOG_TYPES];
+  const catalogFilters=['Todos',RECENT_CARDS_FILTER,...CATALOG_TYPES,VARIANTS_FILTER];
   const firstAddBtnRef=useRef(null);const latestFetchRef=useRef(0);const [handPos,setHandPos]=useState(null);
   useEffect(()=>{
     if(tutStep!==2){setHandPos(null);return;}
@@ -595,7 +596,7 @@ function CatalogPage({token,wishlist,cartItems=[],collectionByCard,onAddToWishli
         if(!latestCreatedAt){setCards([]);setTotal(0);return;}
       }
 
-      const {cardsQuery,countQuery}=buildCatalogQueries({tcg:CATALOG_TCG,filter:typeF,search,page,pageSize:PAGE_SIZE,latestCreatedAt});
+      const {cardsQuery,countQuery}=buildCatalogQueries({tcg:CATALOG_TCG,filter:typeF,variant:variantF,search,page,pageSize:PAGE_SIZE,latestCreatedAt});
       const [data,countData]=await Promise.all([
         sbGet('cards',cardsQuery,token),
         sbGet('cards',countQuery,token),
@@ -606,9 +607,9 @@ function CatalogPage({token,wishlist,cartItems=[],collectionByCard,onAddToWishli
       setTotal(countData.length);
     } catch(e) { if(fetchId===latestFetchRef.current)console.error(e); }
     finally { if(fetchId===latestFetchRef.current)setLoading(false); }
-  },[search,typeF,page,token]);
+  },[search,typeF,variantF,page,token]);
 
-  useEffect(()=>{setPage(0);setCards([]);},[search,typeF]);
+  useEffect(()=>{setPage(0);setCards([]);},[search,typeF,variantF]);
   useEffect(()=>{const t=setTimeout(fetchCards,300);return()=>{clearTimeout(t);latestFetchRef.current++;};},[fetchCards,page]);
 
   function wish(card,qty){SFX.addCard();setFlyAnim(true);onAddToWishlist(card,qty);if(tutStep===2&&onTutNext)onTutNext();}
@@ -621,6 +622,9 @@ function CatalogPage({token,wishlist,cartItems=[],collectionByCard,onAddToWishli
       <div style={{display:'flex',gap:'var(--sp-1)',flexWrap:'wrap'}}>
         {catalogFilters.map(t=>(<button key={t} onClick={()=>{SFX.toggle();setTypeF(t);}} style={{flex:'1 1 64px',minWidth:t===RECENT_CARDS_FILTER?96:64,padding:'7px 6px',borderRadius:'var(--r-control)',border:'none',background:typeF===t?theme.primary:'var(--text-faint)',color:typeF===t?'var(--gp-ink)':'var(--text-faint)',fontWeight:600,fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap'}}>{t}</button>))}
       </div>
+      {typeF===VARIANTS_FILTER&&<div style={{display:'flex',gap:'var(--sp-1)',flexWrap:'wrap'}}>
+        {['',...VARIANTS].map(v=>(<button key={v||'all'} onClick={()=>{SFX.toggle();setVariantF(v);}} style={{padding:'5px 10px',borderRadius:'var(--r-pill)',border:'1px solid '+(variantF===v?theme.primary:'var(--line)'),background:variantF===v?wa(theme.primary,'22'):'transparent',color:variantF===v?theme.primary:'var(--text-dim)',fontWeight:600,fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap'}}>{v||'Todas'}</button>))}
+      </div>}
     </div>
     {loading&&cards.length===0?(
       // Skeleton em vez de spinner: antes a grade inteira era substituída a cada
@@ -661,7 +665,7 @@ function CatalogPage({token,wishlist,cartItems=[],collectionByCard,onAddToWishli
             <div style={{padding:'9px 3px 2px'}}>
               <div style={{fontWeight:700,fontSize:'var(--fs-sm)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</div>
               <div style={{display:'flex',alignItems:'center',marginTop:5}}>
-                <span style={{fontSize:'var(--fs-2xs)',color:TC[c.type],fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.type}</span>
+                <span style={{fontSize:'var(--fs-2xs)',color:TC[c.type],fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.variant||c.type}</span>
               </div>
             </div>
           </Card>);
@@ -698,7 +702,7 @@ function CardDetailModal({card,priceBRL,existing,ownedQty=0,onClose,onWish,onBuy
         {card.image_url&&<div style={{position:'absolute',right:8,bottom:8,width:32,height:32,borderRadius:'var(--r-control)',background:'var(--overlay-bg)',backdropFilter:'blur(6px)',border:'1px solid var(--line)',display:'grid',placeItems:'center',color:'#fff'}}><Search size={14}/></div>}
       </div>
       <div style={{marginTop:16}}>
-        <div style={{fontSize:'var(--fs-2xs)',letterSpacing:1.5,textTransform:'uppercase',color:tc,fontWeight:700}}>{card.type}</div>
+        <div style={{fontSize:'var(--fs-2xs)',letterSpacing:1.5,textTransform:'uppercase',color:tc,fontWeight:700}}>{card.type}{card.variant?` · ${card.variant}`:''}</div>
         <div id="card-detail-title" style={{fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)',color:'var(--text-strong)',marginTop:3,lineHeight:1.15}}>{card.name}</div>
         {(ownedQty>0||existing)&&<div style={{display:'flex',alignItems:'center',gap:'var(--sp-2)',marginTop:10,flexWrap:'wrap'}}>
           {ownedQty>0&&<Tag color="var(--ok)" style={{fontSize:'var(--fs-2xs)'}}><Check size={10}/> {ownedQty} na sua coleção</Tag>}
@@ -2094,6 +2098,11 @@ function AdminPage({pricing:pricingProp,theme,token,nav,onReload,toast:toastFn,i
   const [linkResult,setLinkResult]=useState(null);
   const [linkType,setLinkType]=useState('Normal');
 
+  // ── Catálogo: planilha do fornecedor (sincroniza 1x/dia sozinha) ─────
+  const [sheetSync,setSheetSync]=useState(null);
+  const [sheetUrlDraft,setSheetUrlDraft]=useState('');
+  const [sheetSaving,setSheetSaving]=useState(false);
+
   // ── Preços ──────────────────────────────────────────
   const [indivCfg,setIndivCfg]=useState(null);
   const [indivTiers,setIndivTiers]=useState([]);
@@ -2518,6 +2527,34 @@ function AdminPage({pricing:pricingProp,theme,token,nav,onReload,toast:toastFn,i
     setImporting(false);
   }
 
+  async function loadSheetSync(){
+    try{const {config}=await apiPost('/api/admin-catalog-sync',{action:'get'});setSheetSync(config);setSheetUrlDraft(u=>u||config?.sheet_url||'');return config;}
+    catch(e){console.warn('loadSheetSync',e);return null;}
+  }
+  useEffect(()=>{if(section==='catalog')loadSheetSync();},[section]);
+  // Enquanto a Edge Function roda em segundo plano, acompanha o status.
+  useEffect(()=>{
+    if(section!=='catalog'||!sheetSync?.running_since)return;
+    const id=setInterval(async()=>{const c=await loadSheetSync();if(c&&!c.running_since&&onReload)onReload();},5000);
+    return()=>clearInterval(id);
+  },[section,sheetSync?.running_since]);
+
+  async function saveSheetUrl(){
+    setSheetSaving(true);
+    try{const {config}=await apiPost('/api/admin-catalog-sync',{action:'save',sheet_url:sheetUrlDraft,sheet_tab:sheetSync?.sheet_tab||'SINGLES'});setSheetSync(config);SFX.success();if(toastFn)toastFn('Planilha salva!','success');}
+    catch(e){if(toastFn)toastFn('Erro ao salvar planilha: '+(e.message||String(e)),'error');}
+    setSheetSaving(false);
+  }
+
+  async function runSheetSync(){
+    try{
+      const r=await fetch(`${SB_URL}/functions/v1/sync-supplier-sheet`,{method:'POST',headers:{'Content-Type':'application/json',apikey:SB_KEY,Authorization:`Bearer ${token}`},body:'{}'});
+      const json=await r.json().catch(()=>({}));
+      if(!r.ok||json.ok===false)throw new Error(json.error||`HTTP ${r.status}`);
+      SFX.success();await loadSheetSync();
+    }catch(e){if(toastFn)toastFn('Erro ao sincronizar: '+(e.message||String(e)),'error');}
+  }
+
   function onLinkListChange(text){
     setLinkListText(text);
     setLinkResult(null);
@@ -2891,6 +2928,22 @@ function AdminPage({pricing:pricingProp,theme,token,nav,onReload,toast:toastFn,i
   // ─── Seção: Catálogo ───────────────────────────────
   function renderCatalog(){
     return(<div style={{display:'flex',flexDirection:'column',gap:10}}>
+      <AdminPanel title="Planilha do fornecedor" sub="Cartas novas da aba SINGLES entram sozinhas, 1x por dia" icon={RefreshCw} accent={theme.primary}>
+        <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',marginBottom:12,lineHeight:1.5}}>Lê as colunas <b>New Updated Cards</b>: a coluna decide o tipo (Regular, Holo, Foil), a foto vem do link do Google Photos. Link já importado não entra de novo. A planilha precisa estar como <b>qualquer pessoa com o link pode ver</b>.</div>
+        <input value={sheetUrlDraft} onChange={e=>setSheetUrlDraft(e.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..." style={adminInputStyle}/>
+        <div style={{display:'flex',gap:8,marginTop:10}}>
+          <Btn variant="secondary" onClick={saveSheetUrl} disabled={sheetSaving||!sheetUrlDraft.trim()||sheetUrlDraft.trim()===sheetSync?.sheet_url} style={{flex:1}} sfx="">{sheetSaving?<Spin size={14}/>:<><Check size={14}/> Salvar link</>}</Btn>
+          <Btn variant="success" onClick={runSheetSync} disabled={!sheetSync?.sheet_url||!!sheetSync?.running_since} style={{flex:1}} sfx="">{sheetSync?.running_since?<><Spin size={14}/> Sincronizando…</>:<><RefreshCw size={14}/> Sincronizar agora</>}</Btn>
+        </div>
+        {sheetSync?.last_result&&(()=>{const r=sheetSync.last_result;const bad=r.fatal||r.failed>0;return(<div style={{marginTop:10,padding:'10px 12px',borderRadius:'var(--r-control)',background:bad?'rgba(var(--gold-rgb),0.08)':'rgba(var(--ok-rgb),0.08)',border:'1px solid '+(bad?'rgba(var(--gold-rgb),0.2)':'rgba(var(--ok-rgb),0.2)'),fontSize:'var(--fs-xs)',color:'var(--text-muted)',lineHeight:1.6}}>
+          <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>Última sincronização: {sheetSync.last_run_at?new Date(sheetSync.last_run_at).toLocaleString('pt-BR'):'—'}</div>
+          {r.fatal?<div style={{color:'var(--danger)'}}>{r.fatal}</div>:<div>
+            Novas: <b>{r.added||0}</b> · Já existiam no banco: <b>{r.linked||0}</b> · Já importadas: <b>{r.already||0}</b>{r.failed>0?<> · <span style={{color:'var(--gold)'}}>{r.failed} falharam</span></>:null}{r.remaining>0?<> · {r.remaining} na fila</>:null}
+          </div>}
+          {(r.errors||[]).slice(0,10).map((e,i)=><div key={i} style={{marginTop:4,fontSize:'var(--fs-2xs)',color:'var(--danger)'}}>· [{e.type}] {e.name}: {e.error}</div>)}
+        </div>);})()}
+      </AdminPanel>
+
       <AdminPanel title="Importar catálogo (CSV)" sub="Substitui o catálogo de Magic a partir do CSV do fornecedor" icon={Upload} accent={theme.primary}>
         <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',marginBottom:12,lineHeight:1.5}}>O CSV deve ter as colunas <b>name, price, original_price, category, image_file</b>. As imagens devem estar no bucket <b>cards</b> com o mesmo nome do <b>image_file</b>. Re-enviar o mesmo CSV atualiza preços/imagens (não duplica).</div>
         <label style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'12px',borderRadius:'var(--r-control)',border:'1px dashed rgba(var(--ink),calc(0.15*var(--ink-a)))',background:'var(--fill-soft)',color:'var(--text-dim)',fontSize:'var(--fs-sm)',fontWeight:600,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>

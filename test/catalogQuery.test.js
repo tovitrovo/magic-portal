@@ -5,6 +5,7 @@ import {
   buildLatestCardQuery,
   getUtcDayRange,
   RECENT_CARDS_FILTER,
+  VARIANTS_FILTER,
 } from '../src/catalogQuery.js';
 
 test('busca o created_at mais alto somente no card game selecionado', () => {
@@ -67,4 +68,17 @@ test('Todos não adiciona restrição de tipo nem de data', () => {
   assert.doesNotMatch(cardsQuery, /type=eq\./);
   assert.doesNotMatch(cardsQuery, /created_at=gte/);
   assert.match(cardsQuery, /order=name/);
+});
+
+test('Variantes sem escolha lista toda carta com variante; com escolha filtra por ela', () => {
+  const base = { tcg: 'Magic', search: '', page: 0, pageSize: 20, filter: VARIANTS_FILTER };
+  const all = buildCatalogQueries(base);
+  for (const query of [all.cardsQuery, all.countQuery]) {
+    assert.match(query, /variant=not\.is\.null/);
+    assert.doesNotMatch(query, /type=eq\./);
+  }
+  const surge = buildCatalogQueries({ ...base, variant: 'Surge Foil' });
+  assert.match(surge.cardsQuery, /variant=eq\.Surge%20Foil/);
+  assert.match(surge.countQuery, /variant=eq\.Surge%20Foil/);
+  assert.match(surge.cardsQuery, /select=id,name,type,variant,/);
 });
