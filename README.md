@@ -34,6 +34,10 @@ npm test         # 156 testes (node:test), sem rede
 npm run build    # bundle de produção
 ```
 
+Deploy: todo merge na `main` publica sozinho no Cloudflare Pages
+(`.github/workflows/deploy.yml`). `npm run deploy` continua valendo para
+publicar à mão.
+
 Antes do primeiro uso, execute no **SQL Editor** do Supabase:
 `supabase/schema.sql` e depois `supabase/migrations/minimal-portal.sql`.
 
