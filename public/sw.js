@@ -30,8 +30,9 @@ self.addEventListener('push', (event) => {
     body: payload.body || '',
     icon: NOTIFICATION_ICON,
     badge: NOTIFICATION_BADGE,
-    // Agrupa por tipo: pedidos novos não somem atrás de um login.
-    tag: payload.type ? `cpj-${payload.type}` : 'cpj',
+    // Agrupa por tipo e pedido: pedidos novos não somem atrás de um login, e
+    // duas entregas no mesmo dia não se sobrescrevem.
+    tag: payload.type ? `cpj-${payload.type}${payload.data && payload.data.shortId ? `-${payload.data.shortId}` : ''}` : 'cpj',
     renotify: true,
     timestamp: payload.createdAt ? Date.parse(payload.createdAt) || Date.now() : Date.now(),
     data: { url: payload.url || '/?admin=notifications', ...(payload.data || {}) },

@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const themeCss = readFileSync(new URL('../src/theme.css', import.meta.url), 'utf8');
-const portal = readFileSync(new URL('../src/MagicPortal.jsx', import.meta.url), 'utf8');
+// O app está dividido entre a loja, o kit de UI e o console admin.
+const appSource = ['../src/MagicPortal.jsx', '../src/kit.jsx', '../src/admin/AdminConsole.jsx']
+  .map(p => readFileSync(new URL(p, import.meta.url), 'utf8')).join('\n');
+const portal = appSource;
 const responsive = readFileSync(new URL('../src/responsive.css', import.meta.url), 'utf8');
 
 /** Extrai os tokens (--nome: valor) do bloco cujo seletor casa com `selector`. */

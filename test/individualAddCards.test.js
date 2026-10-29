@@ -106,7 +106,10 @@ test('tierQty nunca reduz o volume do próprio carrinho', () => {
 // ── Contrato do endpoint e do cliente ───────────────────────────────────
 
 const endpoint = readFileSync(new URL('../functions/api/individual-checkout.js', import.meta.url), 'utf8');
-const app = readFileSync(new URL('../src/MagicPortal.jsx', import.meta.url), 'utf8');
+// O app está dividido entre a loja, o kit de UI e o console admin.
+const appSource = ['../src/MagicPortal.jsx', '../src/kit.jsx', '../src/admin/AdminConsole.jsx']
+  .map(p => readFileSync(new URL(p, import.meta.url), 'utf8')).join('\n');
+const app = appSource;
 
 test('o endpoint valida a janela pela regra compartilhada', () => {
   assert.match(endpoint, /canAddCardsToOrder\(batches\)/);

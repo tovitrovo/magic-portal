@@ -2,7 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const app = readFileSync(new URL('../src/MagicPortal.jsx', import.meta.url), 'utf8');
+// O app está dividido entre a loja, o kit de UI e o console admin.
+const appSource = ['../src/MagicPortal.jsx', '../src/kit.jsx', '../src/admin/AdminConsole.jsx']
+  .map(p => readFileSync(new URL(p, import.meta.url), 'utf8')).join('\n');
+const app = appSource;
 const css = readFileSync(new URL('../src/responsive.css', import.meta.url), 'utf8');
 
 test('mantém a navegação mobile e adiciona sidebar desktop no mesmo shell', () => {

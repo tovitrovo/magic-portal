@@ -10,6 +10,8 @@
  *   - A permissão só pode ser pedida a partir de um gesto do usuário.
  */
 
+import { defaultPushPrefs, prefsFromRow } from '../shared/notificationTypes.js';
+
 const SW_PATH = '/sw.js';
 
 export const PUSH_UNSUPPORTED = 'unsupported';
@@ -106,7 +108,7 @@ export async function getPushState(token) {
     permission: typeof Notification !== 'undefined' ? Notification.permission : 'default',
     subscribed: false,
     endpoint: null,
-    prefs: { newOrders: true, logins: true },
+    prefs: defaultPushPrefs(),
     serverConfigured: true,
   };
   if (!support.ok) return base;
@@ -125,10 +127,7 @@ export async function getPushState(token) {
     const { subscription } = await api('/api/push-subscribe', token, { action: 'status', endpoint: sub.endpoint });
     if (subscription) {
       base.subscribed = true;
-      base.prefs = {
-        newOrders: subscription.notify_new_orders !== false,
-        logins: subscription.notify_logins !== false,
-      };
+      base.prefs = prefsFromRow(subscription);
     }
   } catch (e) {
     console.warn('[push] falha ao consultar status:', e);
@@ -180,16 +179,13 @@ export async function enablePush(token, prefs = {}) {
   const { subscription } = await api('/api/push-subscribe', token, {
     action: 'subscribe',
     subscription: serializeSubscription(sub),
-    prefs: { newOrders: prefs.newOrders !== false, logins: prefs.logins !== false },
+    prefs: { ...defaultPushPrefs(), ...prefs },
     deviceLabel: isStandalone() ? 'App instalado' : 'Navegador',
   });
 
   return {
     endpoint: sub.endpoint,
-    prefs: {
-      newOrders: subscription?.notify_new_orders !== false,
-      logins: subscription?.notify_logins !== false,
-    },
+    prefs: prefsFromRow(subscription),
   };
 }
 
