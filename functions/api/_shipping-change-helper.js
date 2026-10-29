@@ -45,11 +45,12 @@ export async function applyPaidShippingAdjustment(SB_URL, SB_KEY, batchId) {
     if (!shipment) return;
     if (shipment.batches.some(b => b.mandabem_envio_id)) {
       console.error(`Ajuste de frete ${batchId} pago depois da etiqueta gerada — endereço NÃO aplicado.`);
-      return;
+      return "blocked";
     }
     await patchShipmentAddress(SB_URL, SB_KEY, batchesCarryingShipment(batches, shipment), {
       address: batch.shipping_address, service: batch.shipping_service,
     });
+    return "applied";
   } catch (e) {
     console.error("applyPaidShippingAdjustment:", e);
   }

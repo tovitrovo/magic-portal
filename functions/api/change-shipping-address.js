@@ -1,6 +1,7 @@
 import { verifyUser } from "./_admin-auth.js";
 import { corsHeaders } from "./_cors.js";
 import { quoteShipping } from "./_frete-helper.js";
+import { notifyAdmins } from "./_notify.js";
 import { loadUserBatches, patchShipmentAddress } from "./_shipping-change-helper.js";
 import { normalizeShippingService } from "../../shared/shipping-groups.js";
 import {
@@ -83,8 +84,19 @@ export async function onRequest(context) {
     // name/email do destinatário seguem os que já estavam no envio.
     const address = { ...newAddress, name: currentAddress.name || profile.name || "", ...(currentAddress.email ? { email: currentAddress.email } : {}) };
 
+    const shortId = String(shipment.rootId).slice(0, 8).toUpperCase();
+    const notifyChange = (detail) => notifyAdmins(context.env, {
+      type: "ADDRESS_CHANGED",
+      title: "📍 Cliente trocou o endereço",
+      body: `${profile.name || "Cliente"} · ${newAddress.cidade || ""}${newAddress.uf ? `/${newAddress.uf}` : ""} · ${detail} · #${shortId}`,
+      data: { shortId, clientName: profile.name || "", service: chosen.service },
+      actorUserId: auth.userId,
+      url: "/?admin=shipping",
+    }).catch(() => {});
+
     if (chosen.difference <= 0) {
       await patchShipmentAddress(SB_URL, SB_SERVICE_ROLE_KEY, batchesCarryingShipment(batches, shipment), { address, service: chosen.service });
+      await notifyChange("já vale");
       return json({ ok: true, applied: true, difference: 0 });
     }
 
@@ -101,6 +113,7 @@ export async function onRequest(context) {
     });
     if (!adjRes.ok) return json({ ok: false, error: `Falha ao criar cobrança: ${adjRes.status} ${(await adjRes.text()).slice(0, 160)}` }, 502);
     const adj = (await adjRes.json())[0];
+    await notifyChange("aguardando pagar a diferença do frete");
 
     return json({
       ok: true, applied: false, difference: chosen.difference,

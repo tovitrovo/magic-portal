@@ -8,11 +8,7 @@
  * webhook ou login. Erros vão para o log.
  */
 import { readVapidConfig, sendPush } from "./_webpush.js";
-
-/** Eventos que respeitam a preferência "novos pedidos" do dispositivo. */
-const ORDER_EVENTS = new Set(["NEW_ORDER", "ORDER_PAID", "BONUS_ORDER"]);
-/** Eventos que respeitam a preferência "logins" do dispositivo. */
-const ACCESS_EVENTS = new Set(["LOGIN", "SIGNUP"]);
+import { categoryOfType } from "../../shared/notificationTypes.js";
 
 function sbHeaders(key, extra = {}) {
   return { apikey: key, Authorization: `Bearer ${key}`, ...extra };
@@ -53,9 +49,9 @@ async function loadTargetSubscriptions(SB_URL, SB_KEY, type) {
   if (ids.length === 0) return [];
 
   const inList = ids.map((id) => `"${id}"`).join(",");
-  let filter = "";
-  if (ORDER_EVENTS.has(type)) filter = "&notify_new_orders=eq.true";
-  else if (ACCESS_EVENTS.has(type)) filter = "&notify_logins=eq.true";
+  // Cada categoria de evento é uma coluna de preferência do aparelho.
+  const category = categoryOfType(type);
+  const filter = category ? `&${category.column}=eq.true` : "";
 
   const url = `${SB_URL}/rest/v1/push_subscriptions?user_id=in.(${inList})${filter}&select=id,endpoint,p256dh,auth`;
   const subs = await fetch(url, { headers: sbHeaders(SB_KEY) })
@@ -135,6 +131,25 @@ export async function notifyAdmins(env, event) {
     console.error("notify: erro inesperado:", e);
     return { ok: false, error: String(e?.message || e) };
   }
+}
+
+/**
+ * Igual a notifyAdmins, mas no máximo uma vez por `dedupeKey` (gravada em
+ * data.dedupeKey). Para eventos que um cron ou um webhook repetido podem
+ * disparar de novo: rastreio, resumo diário, alertas de sistema.
+ */
+export async function notifyAdminsOnce(env, dedupeKey, event) {
+  const { SB_URL, SB_SERVICE_ROLE_KEY } = env || {};
+  if (!SB_URL || !SB_SERVICE_ROLE_KEY) return { ok: false, error: "Supabase não configurado" };
+  const key = String(dedupeKey || "").slice(0, 200);
+  if (key) {
+    const url = `${SB_URL}/rest/v1/app_notifications?data->>dedupeKey=eq.${encodeURIComponent(key)}&select=id&limit=1`;
+    const existing = await fetch(url, { headers: sbHeaders(SB_SERVICE_ROLE_KEY) })
+      .then((r) => (r.ok ? r.json() : []))
+      .catch(() => []);
+    if (Array.isArray(existing) && existing.length > 0) return { ok: true, skipped: "duplicado" };
+  }
+  return notifyAdmins(env, { ...event, data: { ...(event.data || {}), ...(key ? { dedupeKey: key } : {}) } });
 }
 
 /** Busca nome/email do cliente para enriquecer a mensagem. */

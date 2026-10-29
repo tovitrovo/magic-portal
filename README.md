@@ -30,7 +30,7 @@ tudo por um console: pedidos, compra no fornecedor, etiquetas e catálogo.
 ```bash
 npm install
 npm run dev      # Vite em modo dev
-npm test         # 156 testes (node:test), sem rede
+npm test         # 164 testes (node:test), sem rede
 npm run build    # bundle de produção
 ```
 
@@ -244,18 +244,39 @@ vazada do Auth não se liga por SQL: Dashboard → Authentication → Policies.
 
 ## 🎛️ Console de Administração
 
-Seis seções fixas. A unidade de trabalho é o **pedido** — é ele que vira uma
-compra no fornecedor e uma caixa no correio. Lote é só como o dinheiro entrou;
-um pedido com cartas adicionadas depois tem vários lotes e uma remessa só.
+Feito para o celular: cinco abas na barra inferior (no desktop viram abas no
+topo) e detalhes em folhas que sobem de baixo. A unidade de trabalho é o
+**pedido** — é ele que vira uma compra no fornecedor e uma caixa no correio.
+Lote é só como o dinheiro entrou; um pedido com cartas adicionadas depois tem
+vários lotes e uma remessa só. Código em `src/admin/` (telas em `views/`,
+estilo em `admin.css`); primitivas compartilhadas com a loja em `src/kit.jsx`.
 
-| Seção | O que tem lá |
-|-------|--------------|
-| **Visão geral** | KPIs (receita, hoje, aguardando pagamento, cartas vendidas), pendências acionáveis e atividade recente |
-| **Pedidos** | Lista de pedidos com filtro por estágio da trilha, busca e ordenação. A aba **Compras do dia** agrupa os pagos por dia para a compra no fornecedor |
-| **Envios** | Etiquetas MandaBem, uma por remessa, com endereço e rastreio |
-| **Clientes** | Contatos, histórico de compras e disparo assistido de WhatsApp |
-| **Catálogo** | Planilha do fornecedor sincronizada 1x/dia (ver [Planilha do fornecedor](#-planilha-do-fornecedor)), importação por CSV e cartas avulsas por link de imagem (ver [Adicionar cartas por link](#-adicionar-cartas-por-link)) |
-| **Ajustes** | Preços por volume, notificações e o mapa dos [status do pedido](#-status-do-pedido) |
+| Aba | O que tem lá |
+|-----|--------------|
+| **Hoje** | Fila de trabalho (problema na entrega, comprar no fornecedor, etiquetar, aguardando pagamento, em trânsito) — um toque leva ao lugar certo. Vendas de hoje/7 dias/total, status do rastreio automático e atividade recente |
+| **Pedidos** | Busca, filtros por estágio e a folha do pedido com **uma ação principal** (marcar pago → avançar → gerar etiqueta), trilha, cartas e "copiar lista p/ fornecedor". O modo **Fornecedor** agrupa os pagos por dia e avança o grupo inteiro |
+| **Envios** | Etiquetar · Trânsito · Problema · Entregues, com rastreio, WhatsApp do cliente e "verificar agora" |
+| **Clientes** | Busca, filtros, histórico e WhatsApp (individual ou em sequência) |
+| **Mais** | Catálogo, notificações no celular, automações, preços e o mapa dos [status do pedido](#-status-do-pedido) |
+
+### 🤖 Automações (rastreio MandaBem + resumo diário)
+
+Execute `supabase/migrations/admin-automation.sql` no SQL Editor do Supabase.
+Ele cria `automation_config`, as preferências novas de push e dois jobs do
+`pg_cron` que chamam `/api/cron` (com o segredo `x-cron-secret`):
+
+- **`mandabem-tracking`** (de hora em hora): consulta no MandaBem cada remessa
+  com etiqueta ainda não entregue (as menos recentes primeiro, até 12 por
+  execução), grava status e código, **marca "Entregue" sozinho** e manda push
+  quando a remessa é postada, entregue ou dá problema
+  (`shared/mandabemStatus.js` classifica o texto do status).
+- **`admin-daily-digest`** (08:07 em Brasília): push com vendas de ontem, a
+  fila do dia, problemas e etiquetas sem postagem há mais de 4 dias; também
+  avisa se a sincronização da planilha falhou.
+
+O domínio que o cron chama é gravado sozinho na primeira vez que o admin abre
+o console (`window.location.origin`). Status e "rodar agora" em
+**Mais → Automações**.
 
 ## 📥 Planilha do fornecedor
 
@@ -457,9 +478,18 @@ vira um ícone sem significado.
 
 ## 🔔 Notificações (Web Push + PWA)
 
-O admin recebe no celular: **pedido novo**, **pagamento confirmado**, **login**
-e **nova conta**. Tudo também fica no histórico em **Ajustes → Notificações**,
-mesmo sem push ativado.
+O admin recebe no celular, por categoria (ver `shared/notificationTypes.js`):
+
+| Categoria | Eventos |
+|-----------|---------|
+| Pedidos e pagamentos | pedido novo, pagamento confirmado, pedido bônus |
+| Envios e rastreio | etiqueta gerada, postado, entregue, cliente trocou o endereço |
+| Cancelamentos e falhas | cliente cancelou, pagamento recusado/reembolsado/estornado, problema na entrega, erro no rastreio ou na planilha |
+| Resumo diário | um push de manhã com vendas e pendências |
+| Logins e novas contas | cliente entrou ou criou conta |
+
+Tudo também fica no histórico (sino do console), mesmo sem push ativado.
+Rode `supabase/migrations/admin-automation.sql` para os tipos novos.
 
 ### 1. Banco
 
@@ -486,9 +516,8 @@ Trocar as chaves invalida as inscrições: cada aparelho precisa ativar de novo.
 
 ### 3. Ativar no aparelho
 
-Abra **Admin → Ajustes → Notificações → Ativar neste aparelho**. Cada
-aparelho é inscrito separadamente e escolhe quais eventos recebe (pedidos
-e/ou logins). O botão **Enviar teste** confirma a entrega ponta a ponta.
+Abra **Admin → Mais → Notificações no celular → Ativar neste aparelho**.
+Cada aparelho é inscrito separadamente e liga/desliga cada categoria. O botão **Enviar teste** confirma a entrega ponta a ponta.
 
 > **iPhone/iPad**: o Safari só entrega push quando o site está **instalado na
 > tela de início** (iOS 16.4+). Abra pelo app instalado antes de ativar.

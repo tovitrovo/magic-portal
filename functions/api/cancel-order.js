@@ -1,6 +1,7 @@
 import { decrementPoolOnCancel } from './_pool-helper.js';
 import { verifyUser } from './_admin-auth.js';
 import { corsHeaders } from './_cors.js';
+import { notifyAdmins, loadActorLabel } from './_notify.js';
 
 export async function onRequest(context) {
   const CORS = corsHeaders(context, "POST, OPTIONS");
@@ -60,6 +61,20 @@ export async function onRequest(context) {
         return new Response(JSON.stringify({ ok:false, error:"Acesso negado" }), { status:403, headers:{...CORS,"Content-Type":"application/json"}});
       }
     }
+
+    // Avisa o admin antes de apagar (depois não sobra o que contar).
+    try {
+      const client = (await loadActorLabel(context.env, userId)) || "Cliente";
+      const shortId = String(batchId || orderId).slice(0, 8).toUpperCase();
+      await notifyAdmins(context.env, {
+        type: "ORDER_CANCELLED",
+        title: "🚫 Cliente cancelou um pedido",
+        body: `${client} · #${shortId} · aguardando pagamento`,
+        data: { batchId: batchId || null, orderId: orderId || null, shortId, clientName: client },
+        actorUserId: userId,
+        url: "/?admin=orders",
+      });
+    } catch (e) { console.error("cancel-order: falha ao notificar:", e); }
 
     const del = async (table, filter) => {
       await fetch(`${SB_URL}/rest/v1/${table}?${filter}`, { method:"DELETE", headers });

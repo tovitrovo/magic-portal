@@ -1,6 +1,6 @@
 import { incrementPoolOnPaid } from './_pool-helper.js';
 import { authoritativeBatchTotal } from './_campaign-helper.js';
-import { notifyOrderEvent } from './_notify.js';
+import { notifyOrderEvent, notifyAdminsOnce, loadActorLabel, BRL } from './_notify.js';
 import { applyPaidShippingAdjustment } from './_shipping-change-helper.js';
 
 // Verificação da assinatura do webhook do Mercado Pago (x-signature).
@@ -26,6 +26,12 @@ async function verifyMpSignature(request, url, secret) {
   for (let i = 0; i < hex.length; i++) diff |= hex.charCodeAt(i) ^ v1.charCodeAt(i);
   return diff === 0;
 }
+
+const PAYMENT_FAILURES = {
+  rejected: "❌ Pagamento recusado",
+  refunded: "↩️ Pagamento reembolsado",
+  charged_back: "🚨 Pagamento estornado (chargeback)",
+};
 
 export async function onRequest(context) {
   // Webhook server-to-server: responder 200 rápido sempre.
@@ -150,12 +156,42 @@ export async function onRequest(context) {
         } catch (e) { console.error('Webhook: erro ao atualizar order pai:', e); } // não bloqueia o retorno do webhook
 
         // Ajuste de frete pago: o endereço novo passa a valer na remessa.
-        await applyPaidShippingAdjustment(SB_URL, SB_SERVICE_ROLE_KEY, orderId);
+        const adjustment = await applyPaidShippingAdjustment(SB_URL, SB_SERVICE_ROLE_KEY, orderId);
+        if (adjustment === "blocked") {
+          await notifyAdminsOnce(context.env, `adjblocked:${orderId}`, {
+            type: "SHIPMENT_PROBLEM",
+            title: "⚠️ Endereço novo pago depois da etiqueta",
+            body: `O cliente pagou a troca de endereço (#${orderId.slice(0, 8).toUpperCase()}), mas a etiqueta já tinha sido gerada para o endereço antigo. Resolva no MandaBem.`,
+            data: { batchId: orderId, shortId: orderId.slice(0, 8).toUpperCase() },
+            url: "/?admin=shipping",
+          });
+        }
 
         // Notifica o admin do pagamento confirmado (idempotente por lote).
         try {
           await notifyOrderEvent(context.env, orderId, 'ORDER_PAID');
         } catch (e) { console.error('Webhook: falha ao notificar pagamento:', e); }
+      }
+
+      // Recusado, reembolsado ou estornado: o admin precisa saber — um
+      // estorno depois da compra no fornecedor é prejuízo.
+      if (PAYMENT_FAILURES[status]) {
+        try {
+          const rows = await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(orderId)}&select=orders(user_id)`, {
+            headers: { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}` },
+          }).then((r) => (r.ok ? r.json() : [])).catch(() => []);
+          const userId = Array.isArray(rows) ? rows[0]?.orders?.user_id : null;
+          const client = (await loadActorLabel(context.env, userId)) || "Cliente";
+          const shortId = orderId.slice(0, 8).toUpperCase();
+          await notifyAdminsOnce(context.env, `payfail:${orderId}:${status}`, {
+            type: "PAYMENT_FAILED",
+            title: PAYMENT_FAILURES[status],
+            body: `${client} · ${BRL(amount)} · #${shortId}${statusDetail ? ` · ${statusDetail}` : ""}`,
+            data: { batchId: orderId, shortId, status, statusDetail, clientName: client },
+            actorUserId: userId || null,
+            url: "/?admin=orders",
+          });
+        } catch (e) { console.error('Webhook: falha ao notificar falha de pagamento:', e); }
       }
     }
 
