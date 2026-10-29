@@ -30,7 +30,7 @@ tudo por um console: pedidos, compra no fornecedor, etiquetas e catálogo.
 ```bash
 npm install
 npm run dev      # Vite em modo dev
-npm test         # 138 testes (node:test), sem rede
+npm test         # 156 testes (node:test), sem rede
 npm run build    # bundle de produção
 ```
 
@@ -254,8 +254,48 @@ um pedido com cartas adicionadas depois tem vários lotes e uma remessa só.
 | **Pedidos** | Lista de pedidos com filtro por estágio da trilha, busca e ordenação. A aba **Compras do dia** agrupa os pagos por dia para a compra no fornecedor |
 | **Envios** | Etiquetas MandaBem, uma por remessa, com endereço e rastreio |
 | **Clientes** | Contatos, histórico de compras e disparo assistido de WhatsApp |
-| **Catálogo** | Importação por CSV e adição de cartas avulsas por link de imagem (ver [Adicionar cartas por link](#-adicionar-cartas-por-link)) |
+| **Catálogo** | Planilha do fornecedor sincronizada 1x/dia (ver [Planilha do fornecedor](#-planilha-do-fornecedor)), importação por CSV e cartas avulsas por link de imagem (ver [Adicionar cartas por link](#-adicionar-cartas-por-link)) |
 | **Ajustes** | Preços por volume, notificações e o mapa dos [status do pedido](#-status-do-pedido) |
+
+## 📥 Planilha do fornecedor
+
+As cartas novas do fornecedor chegam sozinhas. Todo dia às 06:17 (Brasília)
+o `pg_cron` chama a Edge Function `supabase/functions/sync-supplier-sheet`,
+que:
+
+1. baixa a planilha salva em `catalog_sync.sheet_url` como **.xlsx**. O CSV
+   perde os hiperlinks, e é neles que estão as fotos;
+2. lê só as colunas **New Updated Cards** da aba `SINGLES`. **A coluna decide
+   o tipo**: Regular → Normal, Holo → Holo, Foil → Foil;
+3. limpa o nome: tira `foil`/`holo` **do fim** (o "Foil (PCY)" do meio
+   continua) e tira a **variante** (Surge Foil, Raised Golden Foil, Silver
+   Foil, ...), que vai para `cards.variant`. A lista fica em
+   `shared/supplierSheet.js`;
+4. para cada link do Google Photos ainda não visto em `cards.source_url`,
+   abre o álbum (uma foto por link), baixa a foto, sobe no bucket `cards` e
+   cria a carta **já ativa**. Se a carta já existia no banco com outro nome
+   (importada antes da automação), só grava o link nela.
+
+O link identifica a carta: se o fornecedor renomear uma linha, ela não entra
+de novo. A variante é só filtro (**Variantes** no catálogo); o preço continua
+vindo do tipo.
+
+No console (**Admin → Catálogo → Planilha do fornecedor**) dá para trocar o
+link, rodar na hora e ver o resultado da última sincronização. A planilha
+precisa estar como "qualquer pessoa com o link pode ver".
+
+**Ponto frágil:** o Google Photos não tem API para link de compartilhamento.
+A função lê a URL da foto no HTML da página do álbum. Se o Google mudar esse
+HTML, as cartas falham com "Foto não encontrada no álbum", e o erro aparece no
+painel.
+
+Setup: `supabase/migrations/supplier-sheet-sync.sql`, depois o deploy da
+função **sem verificação de JWT**. Ela faz a própria autenticação: segredo do
+cron ou token de admin.
+
+```bash
+supabase functions deploy sync-supplier-sheet --no-verify-jwt
+```
 
 ## 🔗 Adicionar cartas por link
 

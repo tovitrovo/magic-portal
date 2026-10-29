@@ -1,4 +1,6 @@
 export const RECENT_CARDS_FILTER = 'Mais recentes';
+// Acabamentos especiais (cards.variant). Sem variante escolhida, lista todas.
+export const VARIANTS_FILTER = 'Variantes';
 
 function encode(value) {
   return encodeURIComponent(String(value));
@@ -25,7 +27,7 @@ export function buildLatestCardQuery(tcg) {
   return `select=created_at&is_active=eq.true&tcg=eq.${encode(tcg)}&created_at=not.is.null&order=created_at.desc&limit=1`;
 }
 
-export function buildCatalogQueries({ tcg, filter, search, page, pageSize, latestCreatedAt }) {
+export function buildCatalogQueries({ tcg, filter, variant, search, page, pageSize, latestCreatedAt }) {
   let filters = `is_active=eq.true&tcg=eq.${encode(tcg)}`;
   let order = 'name';
 
@@ -33,6 +35,8 @@ export function buildCatalogQueries({ tcg, filter, search, page, pageSize, lates
     const { start, end } = getUtcDayRange(latestCreatedAt);
     filters += `&created_at=gte.${encode(start)}&created_at=lt.${encode(end)}`;
     order = 'created_at.desc';
+  } else if (filter === VARIANTS_FILTER) {
+    filters += variant ? `&variant=eq.${encode(variant)}` : '&variant=not.is.null';
   } else if (filter !== 'Todos') {
     filters += `&type=eq.${encode(filter)}`;
   }
@@ -42,7 +46,7 @@ export function buildCatalogQueries({ tcg, filter, search, page, pageSize, lates
   }
 
   return {
-    cardsQuery: `select=id,name,type,image_url,created_at&${filters}&order=${order}&limit=${pageSize}&offset=${page * pageSize}`,
+    cardsQuery: `select=id,name,type,variant,image_url,created_at&${filters}&order=${order}&limit=${pageSize}&offset=${page * pageSize}`,
     countQuery: `select=id&${filters}`,
   };
 }
