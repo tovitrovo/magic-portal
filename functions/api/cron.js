@@ -1,4 +1,4 @@
-import { sendDailyDigest, syncTracking } from "./_automation.js";
+import { sendCustomerReminders, sendDailyDigest, syncTracking } from "./_automation.js";
 
 /**
  * POST /api/cron — chamado pelo pg_cron do Supabase (ver
@@ -6,7 +6,7 @@ import { sendDailyDigest, syncTracking } from "./_automation.js";
  * agendador próprio; o banco já tem, e é ele que bate aqui.
  *
  * header: x-cron-secret = automation_config.cron_secret
- * body:   { job: 'tracking' | 'digest' }
+ * body:   { job: 'tracking' | 'digest' | 'reminders' }
  */
 function safeEqual(a, b) {
   const x = String(a || "");
@@ -35,5 +35,6 @@ export async function onRequest(context) {
   const job = String(body.job || "");
   if (job === "tracking") return json({ ok: true, job, result: await syncTracking(context.env) });
   if (job === "digest") return json({ ok: true, job, result: await sendDailyDigest(context.env) });
+  if (job === "reminders") return json({ ok: true, job, result: await sendCustomerReminders(context.env) });
   return json({ ok: false, error: "Job desconhecido" }, 400);
 }

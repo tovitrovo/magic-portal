@@ -1,13 +1,15 @@
 // Aba "Mais": catálogo, notificações no celular, automações, preços e o mapa do console.
 import { useEffect, useState } from 'react';
-import { Activity, BellOff, BellRing, BookOpen, Check, ChevronLeft, ChevronRight, DollarSign, HelpCircle, Plus, RefreshCw, Sun, Trash2, Truck, Upload, Zap } from 'lucide-react';
+import { Activity, BellOff, BellRing, BookOpen, Check, ChevronLeft, ChevronRight, Clock, DollarSign, HelpCircle, Mail, MessageCircle, Plus, RefreshCw, Send, ShoppingCart, Sun, Trash2, Truck, Upload, Zap } from 'lucide-react';
 import { buildCardsFromCsv, parseCardLinkList, chunkCardItems, mergeAddCardsResults, LINK_BATCH_SIZE } from '../../../shared/cardImport';
 import { NOTIFICATION_CATEGORIES } from '../../../shared/notificationTypes';
 import { ORDER_STAGES } from '../../../shared/orderStatus';
+import { BRL, DEFAULT_BROADCAST, REMINDER_AFTER_HOURS, canEmail, cartWhatsAppText, paymentWhatsAppText } from '../../../shared/reminders';
+import { normalizeWhatsAppNumber } from '../../whatsappCommunication';
 import { PUSH_NEEDS_INSTALL, disablePush, enablePush, sendTestPush, updatePushPrefs } from '../../push';
 import { SFX, Spin, CATALOG_TCG, CATALOG_TYPES } from '../../kit';
 import { SB_URL, SB_KEY } from '../../config';
-import { Badge, Loading, Toggle, timeAgo } from '../ui';
+import { Badge, Empty, Loading, SectionTitle, Toggle, timeAgo } from '../ui';
 
 const TRACKING_STALE_MS=3*3600*1000;
 
@@ -306,8 +308,104 @@ function AboutPage(){
   </>);
 }
 
+// ── Lembretes e e-mails ───────────────────────────────
+function waUrl(person,text){
+  const phone=normalizeWhatsAppNumber(person.whatsapp);
+  return phone?`https://wa.me/${phone}?text=${encodeURIComponent(text)}`:'';
+}
+
+function ReminderRow({icon:Icon,color,title,sub,person,text,remindedAt,busy,onEmail}){
+  const wa=waUrl(person,text);
+  const emailOk=canEmail(person);
+  return(<div className="adm-item" style={{'--c':color,flexWrap:'wrap',gap:8}}>
+    <span className="adm-avatar"><Icon size={16}/></span>
+    <span className="adm-item-main"><span className="adm-item-title"><span>{title}</span>{remindedAt&&<Badge color="var(--ok)">e-mail {timeAgo(remindedAt)}</Badge>}</span><span className="adm-item-sub" style={{display:'block'}}>{sub}</span></span>
+    <div style={{display:'flex',gap:6,width:'100%'}}>
+      {wa?<a className="adm-btn is-sm is-wa" style={{flex:1,textDecoration:'none'}} href={wa} target="_blank" rel="noopener noreferrer"><MessageCircle size={13}/> WhatsApp</a>
+        :<button className="adm-btn is-sm" style={{flex:1}} disabled><MessageCircle size={13}/> Sem WhatsApp</button>}
+      <button className="adm-btn is-sm" style={{flex:1}} disabled={!emailOk||busy} title={person.optOut?'Cliente se descadastrou':!emailOk?'Sem e-mail':''} onClick={onEmail}>
+        {busy?<Spin size={13}/>:<><Mail size={13}/> {person.optOut?'Descadastrado':emailOk?'E-mail':'Sem e-mail'}</>}
+      </button>
+    </div>
+  </div>);
+}
+
+function RemindersPage({ctx}){
+  const {apiPost,toast,automation:cfg,runAutomation,automationBusy}=ctx;
+  const [data,setData]=useState(null);
+  const [busy,setBusy]=useState('');
+  const [subject,setSubject]=useState(DEFAULT_BROADCAST.subject);
+  const [message,setMessage]=useState(DEFAULT_BROADCAST.message);
+
+  async function load(){
+    try{setData(await apiPost('/api/admin-reminders',{action:'list'}));}
+    catch(e){setData({error:e.message||String(e)});}
+  }
+  useEffect(()=>{load();},[]);
+
+  async function email(kind,id){
+    setBusy(kind+':'+id);
+    try{await apiPost('/api/admin-reminders',{action:'email',kind,id});SFX.success();toast&&toast('E-mail enviado','success');await load();}
+    catch(e){SFX.error();toast&&toast('Erro: '+(e.message||e),'error');}
+    setBusy('');
+  }
+  async function broadcast(){
+    if(!confirm(`Enviar "${subject}" para ${data.recipients} cliente(s)?`))return;
+    setBusy('broadcast');
+    try{
+      const {result}=await apiPost('/api/admin-reminders',{action:'broadcast',subject,message});
+      if(result.failed){SFX.error();toast&&toast(`${result.sent} enviado(s), ${result.failed} falharam: ${result.firstError||''}`,'error');}
+      else{SFX.success();toast&&toast(`Aviso enviado para ${result.sent} cliente(s)`,'success');}
+    }catch(e){SFX.error();toast&&toast('Erro: '+(e.message||e),'error');}
+    setBusy('');
+  }
+
+  if(!data)return <Loading/>;
+  if(data.error)return <div className="adm-info is-bad">{data.error}</div>;
+  const rr=cfg?.reminders_last_result||{};
+  const bl=cfg?.broadcast_last_result;
+  return(<>
+    {!data.emailConfigured&&<div className="adm-info is-warn">
+      <b>E-mail desligado.</b> Configure <span className="adm-mono">RESEND_API_KEY</span> e <span className="adm-mono">EMAIL_FROM</span> no Cloudflare Pages. O WhatsApp abaixo já funciona.
+    </div>}
+
+    <div className="adm-card adm-pad" style={{display:'flex',flexDirection:'column',gap:8}}>
+      <div style={{display:'flex',gap:10,alignItems:'center'}}>
+        <span className="adm-avatar" style={{'--c':'var(--gp)'}}><Send size={16}/></span>
+        <div style={{flex:1}}><b>Aviso para todos</b><div className="adm-muted">{data.recipients} cliente(s) com e-mail · use {'{nome}'} para o primeiro nome</div></div>
+      </div>
+      <input className="adm-input" value={subject} onChange={e=>setSubject(e.target.value)} placeholder="Assunto"/>
+      <textarea className="adm-textarea" rows={7} value={message} onChange={e=>setMessage(e.target.value)} placeholder="Mensagem"/>
+      {cfg?.broadcast_last_at&&<div className="adm-muted">Último aviso {timeAgo(cfg.broadcast_last_at)} atrás{bl?` · ${bl.sent||0} enviado(s)${bl.failed?` · ${bl.failed} falha(s)`:''}`:''}</div>}
+      <button className="adm-btn is-ok" disabled={!data.emailConfigured||!data.recipients||!subject.trim()||!message.trim()||busy==='broadcast'} onClick={broadcast}>
+        {busy==='broadcast'?<Spin size={14}/>:<><Send size={14}/> Enviar para {data.recipients} cliente(s)</>}
+      </button>
+    </div>
+
+    <div className="adm-card adm-pad" style={{display:'flex',flexDirection:'column',gap:8}}>
+      <div className="adm-muted">Parados há mais de {REMINDER_AFTER_HOURS}h. O e-mail automático sai de hora em hora (09h–21h), uma vez por carrinho e por pedido.{cfg?.reminders_last_run_at?` Última rodada ${timeAgo(cfg.reminders_last_run_at)} atrás · ${rr.sent||0} enviado(s)${rr.disabled?' · e-mail desligado':''}${rr.firstError?` · erro: ${rr.firstError}`:''}.`:''}</div>
+      <button className="adm-btn is-sm" disabled={automationBusy==='reminders'||!data.emailConfigured} onClick={async()=>{await runAutomation('reminders');load();}}>{automationBusy==='reminders'?<Spin size={13}/>:<><RefreshCw size={13}/> Enviar lembretes pendentes agora</>}</button>
+    </div>
+
+    <SectionTitle>Carrinhos parados ({data.carts.length})</SectionTitle>
+    {data.carts.length?<div className="adm-card adm-list">
+      {data.carts.map(c=><ReminderRow key={c.orderId} icon={ShoppingCart} color="var(--gold)"
+        title={c.name||c.email||'Cliente'} sub={`${c.qty} carta(s) · mexeu ${timeAgo(c.lastActivityAt)} atrás`}
+        person={c} text={cartWhatsAppText(c)} remindedAt={c.remindedAt} busy={busy==='cart:'+c.orderId} onEmail={()=>email('cart',c.orderId)}/>)}
+    </div>:<Empty icon={ShoppingCart} title="Nenhum carrinho parado"/>}
+
+    <SectionTitle>Pagamentos pendentes ({data.payments.length})</SectionTitle>
+    {data.payments.length?<div className="adm-card adm-list">
+      {data.payments.map(p=><ReminderRow key={p.batchId} icon={Clock} color="var(--danger)"
+        title={p.name||p.email||'Cliente'} sub={`#${p.shortId} · ${BRL(p.total)} · criado ${timeAgo(p.createdAt)} atrás`}
+        person={p} text={paymentWhatsAppText(p)} remindedAt={p.remindedAt} busy={busy==='payment:'+p.batchId} onEmail={()=>email('payment',p.batchId)}/>)}
+    </div>:<Empty icon={Clock} title="Nenhum pagamento pendente"/>}
+  </>);
+}
+
 const PAGES=[
   {key:'catalog',icon:BookOpen,color:'var(--gp)',label:'Catálogo',sub:'Planilha do fornecedor, CSV e cartas por link',Comp:CatalogPage},
+  {key:'reminders',icon:Mail,color:'var(--gp)',label:'Lembretes e e-mails',sub:'Carrinho parado, pagamento pendente e aviso para todos',Comp:RemindersPage},
   {key:'push',icon:BellRing,color:'var(--ok)',label:'Notificações no celular',sub:'Escolha o que chega por push',Comp:PushPage},
   {key:'automation',icon:Activity,color:'var(--indiv)',label:'Automações',sub:'Rastreio MandaBem e resumo diário',Comp:AutomationPage},
   {key:'prices',icon:DollarSign,color:'var(--gold)',label:'Preços',sub:'Faixas de volume, pisos e dólar',Comp:PricesPage},

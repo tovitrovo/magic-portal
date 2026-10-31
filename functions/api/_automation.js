@@ -8,6 +8,9 @@
  *                   e avisa o admin quando a remessa muda de fase.
  *   sendDailyDigest — um push por dia com vendas e a fila de trabalho, e
  *                   alerta se a sincronização da planilha falhou.
+ *   sendCustomerReminders — e-mail para o cliente com carrinho parado ou
+ *                   pagamento pendente há 48h (um lembrete por vez).
+ *   sendBroadcast — o aviso "vai sair pedido" para todos, disparado pelo admin.
  *
  * Nada aqui lança: o resultado volta como objeto e fica gravado em
  * `automation_config` para o console mostrar a última execução.
@@ -17,6 +20,11 @@ import { BRL, notifyAdminsOnce } from "./_notify.js";
 import { shipmentPhase, trackingEventFor, SHIPMENT_PHASES } from "../../shared/mandabemStatus.js";
 import { isPaid } from "../../shared/orderStatus.js";
 import { isShippingAdjustment } from "../../shared/shippingAddressChange.js";
+import {
+  UNPAID_BATCH_STATUSES, broadcastEmail, canEmail, cartReminderEmail, paymentReminderEmail,
+  pickAbandonedCarts, pickPendingPayments,
+} from "../../shared/reminders.js";
+import { emailConfigured, sendEmail, sendEmailBatch, unsubscribeUrl } from "./_email.js";
 
 /**
  * Remessas consultadas por execução. As Pages Functions têm teto de
@@ -172,7 +180,7 @@ export function summarizeQueue(paidOpenBatches, now = Date.now()) {
 }
 
 /** Texto do push do resumo diário. */
-export function formatDigest({ paidCount, paidTotal, awaiting }, q) {
+export function formatDigest({ paidCount, paidTotal, awaiting, carts = 0, stalePayments = 0, stalePaymentsTotal = 0 }, q) {
   const parts = [];
   parts.push(paidCount > 0 ? `Ontem: ${paidCount} pago(s) · ${BRL(paidTotal)}` : "Ontem: nenhum pagamento");
   const queue = [
@@ -183,6 +191,11 @@ export function formatDigest({ paidCount, paidTotal, awaiting }, q) {
     awaiting && `${awaiting} aguardando pgto`,
   ].filter(Boolean);
   parts.push(queue.length ? `Fila: ${queue.join(" · ")}` : "Fila vazia ✨");
+  const followUp = [
+    carts && `${carts} carrinho(s) parado(s)`,
+    stalePayments && `${stalePayments} pgto(s) pendente(s) há +2 dias (${BRL(stalePaymentsTotal)})`,
+  ].filter(Boolean);
+  if (followUp.length) parts.push(`💬 Cobrar: ${followUp.join(" · ")}`);
   const alerts = [q.problems && `${q.problems} com problema na entrega`, q.stalled && `${q.stalled} etiqueta(s) sem postagem há +${STALLED_DAYS} dias`].filter(Boolean);
   if (alerts.length) parts.push(`⚠️ ${alerts.join(" · ")}`);
   return parts.join("\n");
@@ -208,6 +221,11 @@ export async function sendDailyDigest(env, { force = false } = {}) {
       awaiting: (unpaid || []).length,
     };
     const queue = summarizeQueue(paidOpen);
+    // Lembretes: o que vale um WhatsApp hoje. Falha aqui não derruba o resumo.
+    const reminders = await loadReminderQueue(env).catch(() => ({ carts: [], payments: [] }));
+    totals.carts = reminders.carts.length;
+    totals.stalePayments = reminders.payments.length;
+    totals.stalePaymentsTotal = reminders.payments.reduce((s, p) => s + p.total, 0);
     Object.assign(result, totals, queue);
 
     const day = brDate();
@@ -237,5 +255,120 @@ export async function sendDailyDigest(env, { force = false } = {}) {
     console.error("digest: erro geral:", e);
   }
   await saveRun(env, { digest_last_run_at: startedAt, digest_last_result: result });
+  return result;
+}
+
+// ── Lembretes para o cliente ──────────────────────────────────
+
+async function siteUrlOf(env) {
+  const rows = await sb(env)("automation_config?id=eq.1&select=site_url").catch(() => []);
+  return (Array.isArray(rows) && rows[0]?.site_url) || null;
+}
+
+const PROFILE_FIELDS = "name,email,whatsapp,email_opt_out,email_unsub_token";
+
+/** Carrinhos parados e pagamentos pendentes há 48h+ (ver shared/reminders.js). */
+export async function loadReminderQueue(env, now = Date.now()) {
+  const rest = sb(env);
+  const cartSelect = `quantity,created_at,cards(name),orders!inner(id,status,user_id,cart_reminded_at,profiles(${PROFILE_FIELDS}))`;
+  const batchSelect = `id,order_id,status,payment_status,total_locked,qty_in_batch,created_at,payment_reminded_at,orders(id,user_id,profiles(${PROFILE_FIELDS}))`;
+  const since = new Date(now - 15 * 86400000).toISOString();
+  const [cartRows, batches] = await Promise.all([
+    rest(`order_items?in_cart=is.true&batch_id=is.null&orders.status=eq.DRAFT&select=${enc(cartSelect)}&limit=2000`),
+    rest(`order_batches?status=in.(${UNPAID_BATCH_STATUSES.join(",")})&created_at=gte.${enc(since)}&select=${enc(batchSelect)}&limit=500`),
+  ]);
+  return { carts: pickAbandonedCarts(cartRows, now), payments: pickPendingPayments(batches, now) };
+}
+
+/** Horário comercial em Brasília: ninguém recebe cobrança de madrugada. */
+export function isQuietHour(date = new Date()) {
+  const h = (date.getUTCHours() + 21) % 24;
+  return h < 9 || h >= 21;
+}
+
+async function emailCart(env, cart, siteUrl) {
+  const unsubUrl = unsubscribeUrl(siteUrl, cart.unsubToken);
+  const r = await sendEmail(env, { to: cart.email, ...cartReminderEmail(cart, { siteUrl, unsubUrl }), unsubUrl });
+  if (r.ok) {
+    await sb(env)(`orders?id=eq.${enc(cart.orderId)}`, {
+      method: "PATCH", headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ cart_reminded_at: new Date().toISOString() }),
+    });
+  }
+  return r;
+}
+
+async function emailPayment(env, p, siteUrl) {
+  const unsubUrl = unsubscribeUrl(siteUrl, p.unsubToken);
+  const r = await sendEmail(env, { to: p.email, ...paymentReminderEmail(p, { siteUrl, unsubUrl }), unsubUrl });
+  if (r.ok) {
+    await sb(env)(`order_batches?id=eq.${enc(p.batchId)}`, {
+      method: "PATCH", headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ payment_reminded_at: new Date().toISOString() }),
+    });
+  }
+  return r;
+}
+
+/** Um lembrete avulso, pedido pelo admin no console. */
+export async function sendSingleReminder(env, { kind, id }) {
+  const queue = await loadReminderQueue(env);
+  const siteUrl = await siteUrlOf(env);
+  const item = kind === "cart" ? queue.carts.find((c) => c.orderId === id) : queue.payments.find((p) => p.batchId === id);
+  if (!item) return { ok: false, error: "Lembrete não encontrado (já foi pago ou o carrinho mudou?)" };
+  if (!canEmail(item)) return { ok: false, error: item.optOut ? "Cliente se descadastrou dos e-mails" : "Cliente sem e-mail válido" };
+  return kind === "cart" ? emailCart(env, item, siteUrl) : emailPayment(env, item, siteUrl);
+}
+
+/** Cron: um e-mail por carrinho parado / pagamento pendente que ainda não foi lembrado. */
+export async function sendCustomerReminders(env, { force = false } = {}) {
+  const startedAt = new Date().toISOString();
+  const result = { carts: 0, payments: 0, sent: 0, skipped: 0, errors: 0, firstError: null };
+  try {
+    if (!emailConfigured(env)) result.disabled = "RESEND_API_KEY não configurada";
+    else if (!force && isQuietHour()) result.quiet = true;
+    else {
+      const [queue, siteUrl] = await Promise.all([loadReminderQueue(env), siteUrlOf(env)]);
+      const jobs = [
+        ...queue.carts.filter((c) => c.due).map((c) => ["cart", c]),
+        ...queue.payments.filter((p) => p.due).map((p) => ["payment", p]),
+      ];
+      for (const [kind, item] of jobs.slice(0, 40)) {
+        if (!canEmail(item)) { result.skipped++; continue; }
+        const r = kind === "cart" ? await emailCart(env, item, siteUrl) : await emailPayment(env, item, siteUrl);
+        if (r.ok) { result.sent++; result[kind === "cart" ? "carts" : "payments"]++; }
+        else { result.errors++; result.firstError = result.firstError || r.error; }
+      }
+    }
+  } catch (e) {
+    result.fatal = String(e?.message || e).slice(0, 240);
+    console.error("reminders: erro geral:", e);
+  }
+  await saveRun(env, { reminders_last_run_at: startedAt, reminders_last_result: result });
+  return result;
+}
+
+/** Perfis que recebem o aviso em massa: não-admin, com e-mail e sem descadastro. */
+async function broadcastAudience(env) {
+  const rows = await sb(env)("profiles?is_admin=not.is.true&email=not.is.null&select=id,name,email,email_opt_out,email_unsub_token&limit=5000");
+  return (rows || [])
+    .map((p) => ({ name: p.name, email: p.email, optOut: p.email_opt_out === true, unsubToken: p.email_unsub_token }))
+    .filter(canEmail);
+}
+
+export async function broadcastRecipientCount(env) {
+  return (await broadcastAudience(env)).length;
+}
+
+/** O aviso "vai sair pedido" — só pelo botão do admin. */
+export async function sendBroadcast(env, { subject, message }) {
+  const startedAt = new Date().toISOString();
+  const [people, siteUrl] = await Promise.all([broadcastAudience(env), siteUrlOf(env)]);
+  const messages = people.map((p) => {
+    const unsubUrl = unsubscribeUrl(siteUrl, p.unsubToken);
+    return { to: p.email, ...broadcastEmail({ subject, message }, p, { siteUrl, unsubUrl }), unsubUrl };
+  });
+  const result = { recipients: messages.length, ...(await sendEmailBatch(env, messages)) };
+  await saveRun(env, { broadcast_last_at: startedAt, broadcast_last_result: { ...result, subject } });
   return result;
 }
