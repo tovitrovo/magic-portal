@@ -32,10 +32,11 @@ test('define breakpoints de tablet e desktop sem sobrescrever o shell mobile', (
 });
 
 test('páginas prioritárias usam wrappers e grids responsivos reutilizáveis', () => {
-  for (const page of ['catalog', 'wants', 'cart', 'checkout', 'profile', 'admin']) {
+  for (const page of ['catalog', 'wants', 'profile', 'admin']) {
     assert.match(app, new RegExp(`portal-page portal-${page}`));
   }
   assert.match(app, /portal-card-grid portal-catalog-grid/);
   assert.match(app, /portal-card-grid portal-wants-grid/);
-  assert.match(app, /portal-card-grid portal-cart-grid/);
+  // Carrinho e checkout viraram uma folha só, aberta pela pílula.
+  assert.match(app, /className="portal-modal portal-order-sheet"/);
 });

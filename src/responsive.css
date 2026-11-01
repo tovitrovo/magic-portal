@@ -67,9 +67,8 @@
   .portal-shell [role="dialog"] { align-items:center !important; }
   .portal-modal { max-width:min(560px,calc(100vw - 64px)) !important; border-radius:var(--r-sheet) !important; }
 
-  .portal-cart-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px !important; }
-  .portal-checkout { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; gap:16px !important; }
-  .portal-checkout > button, .portal-checkout > [style*="text-align: center"] { grid-column:1 / -1; }
+  /* A folha do pedido no desktop: cartão centralizado, altura do conteúdo. */
+  .portal-order-sheet { max-height:min(86vh, 820px) !important; }
 }
 
 @media (min-width: 1280px) {

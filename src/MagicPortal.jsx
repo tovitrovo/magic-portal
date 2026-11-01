@@ -271,7 +271,6 @@ function baseUnitPriceFor(cardType, pricing, indiv) {
 // UI PRIMITIVES
 // ══════════════════════════════════════════════════════
 
-const SectionTitle=({children,sub})=><div style={{marginBottom:12}}><h2 style={{margin:0,fontSize:'var(--fs-lg)',fontFamily:"'Inter',system-ui,sans-serif",color:'var(--text-strong)',letterSpacing:.3}}>{children}</h2>{sub&&<p style={{margin:'3px 0 0',fontSize:'var(--fs-xs)',color:'var(--text-faint)'}}>{sub}</p>}</div>;
 const ManaOrb=({mana,selected,onClick,size=44})=>{const m=MANA_COLORS.find(c=>c.key===mana);return <button onClick={()=>{SFX.toggle();onClick&&onClick();}} style={{width:size,height:size,borderRadius:size,background:selected?wa(m.color,'28'):'var(--fill-soft)',border:'2.5px solid '+(selected?m.color:'var(--text-faint)'),display:'grid',placeItems:'center',cursor:'pointer',fontSize:size*.4,transition:'all .2s',boxShadow:selected?'0 0 14px '+wa(m.color,'35'):'none'}}>{m.emoji}</button>;};
 const GuildBadge=({guild,size=22})=>{if(!guild||!GT[guild])return null;const t=guildTheme(guild);return <div style={{width:size,height:size,borderRadius:size,background:'linear-gradient(135deg,'+t.primary+','+t.secondary+')',boxShadow:'0 0 '+size*.5+'px '+t.glow,flexShrink:0}}/>;};
 
@@ -454,8 +453,7 @@ const TUTORIAL_STEPS=[
   {title:'Catálogo',body:'Aqui ficam todas as cartas de Magic à venda. A tela é delas: o resto do app fica no menu da sua conta, no topo.',navTo:'catalog',spotlightId:null,icon:'📖'},
   {title:'Busca e filtros',body:'Filtre por tipo logo acima das cartas, ou toque na lupa para buscar pelo nome.',navTo:'catalog',spotlightId:'tut-search-area',scrollTo:true,icon:'🔍'},
   {title:'Montar o pedido',body:'O + põe a carta no pedido sem sair da tela. Tocar na carta abre o detalhe, onde você ajusta a quantidade ou guarda nos desejos.',navTo:'catalog',spotlightId:null,icon:'➕',interactive:true},
-  {title:'Seu pedido',body:'A pílula embaixo mostra quantas cartas faltam para o mínimo e o total. Toque nela para revisar e pagar. Quanto mais cartas, menor o preço de cada uma.',navTo:'cart',spotlightId:null,icon:'🛒'},
-  {title:'Pagamento',body:'Confira o endereço e o frete e pague com segurança pelo Mercado Pago.',navTo:'checkout',spotlightId:'tut-payment',icon:'💳'},
+  {title:'Seu pedido',body:'A pílula embaixo mostra quantas cartas faltam para o mínimo e o total. Tocando nela, o pedido abre por cima das cartas: lá você revisa, confere o frete e paga pelo Mercado Pago.',navTo:'catalog',spotlightId:null,icon:'🛒'},
   {title:'Menu da conta',body:'No avatar do topo ficam seus pedidos, a lista de desejos, a coleção e seus dados.',navTo:'catalog',spotlightId:'tut-account-btn',icon:'👤'},
 ];
 
@@ -736,102 +734,25 @@ function WishlistPage({wishlist,cartItems,collectionByCard,onAddToCart,onRemove,
 
 const MIN_ORDER_CARDS = 15;
 
-// Faixa fixa do modo "adicionar cartas": enquanto ela está na tela, o que for
-// fechado no checkout entra no pedido antigo, não num pedido novo.
-function AddingToOrderBanner({addTo,onCancel}){
-  return(<Card style={{padding:'10px 12px',borderColor:'rgba(var(--info-rgb),0.25)',background:'rgba(var(--info-rgb),0.07)'}}>
-    <div style={{display:'flex',alignItems:'center',gap:'var(--sp-2)'}}>
-      <Plus size={15} style={{color:'var(--info)',flexShrink:0}}/>
-      <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:'var(--fs-xs)',fontWeight:700,color:'var(--info)'}}>Adicionando ao pedido #{addTo.shortId}</div>
-        <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',lineHeight:1.4}}>Sem frete novo e sem mínimo — as cartas vão na mesma remessa das {addTo.qtyPaid} já pagas, e o preço segue a faixa do volume somado.</div>
-      </div>
-      {onCancel&&<button onClick={()=>{SFX.click();onCancel();}} aria-label="Sair do modo de adição e montar um pedido novo" title="Sair do modo de adição" style={{background:'none',border:'none',color:'var(--text-faint)',cursor:'pointer',flexShrink:0,padding:'var(--sp-1)'}}><X size={14}/></button>}
-    </div>
-  </Card>);
-}
-
-function CartPage({cartItems,pricing,theme,nav,onRemoveFromCart,onUpdateCartQty,toast,indiv=null,addTo=null,onCancelAdd}){
-  // Adição a um pedido já pago: sem mínimo (o pedido de destino já cumpriu o
-  // dele) e com a faixa de preço puxada pelo volume somado.
-  const isAdding=!!addTo;
-  const totalQty=cartItems.reduce((s,c)=>s+c.quantity,0);
-  const tierQty=totalQty+(isAdding?(addTo.qtyPaid||0):0);
-  const totalBRL=cartItems.reduce((s,c)=>s+c.quantity*unitPriceFor(c.card_type,tierQty,pricing,indiv),0);
-  // Economia por volume: diferença entre o preço cheio (faixa mais cara) e o preço atual.
-  const baseBRL=cartItems.reduce((s,c)=>s+c.quantity*baseUnitPriceFor(c.card_type,pricing,indiv),0);
-  const volumeDiscount=Math.max(0,baseBRL-totalBRL);
-  const minCards=isAdding?1:(Number(indiv?.pricing?.min_cards)||MIN_ORDER_CARDS);
-  const canCheckout=totalQty>=minCards;
-  const missingCards=Math.max(0,minCards-totalQty);
-  const [zoomSrc,setZoomSrc]=useState(null);
-
-  return(<div className="portal-page portal-cart" style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingBottom:cartItems.length>0?168:0}}>
-    {isAdding&&<AddingToOrderBanner addTo={addTo} onCancel={onCancelAdd}/>}
-    {cartItems.length>0&&<>
-      <div className="portal-card-grid portal-cart-grid" style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)'}}>
-        {cartItems.map((c)=>{const itemPrice=unitPriceFor(c.card_type,tierQty,pricing,indiv);const baseItemPrice=baseUnitPriceFor(c.card_type,pricing,indiv);return(
-          <Card key={c.id} style={{padding:'var(--sp-2)'}}>
-            <div style={{display:'flex',alignItems:'center',gap:'var(--sp-3)'}}>
-              <div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:54,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={9}/></div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:700,fontSize:'var(--fs-sm)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name}</div>
-                <div style={{display:'flex',gap:'var(--sp-1)',alignItems:'center',flexWrap:'wrap',marginTop:2}}>
-                  <span style={{fontSize:'var(--fs-2xs)',color:TC[c.card_type],fontWeight:700}}>{c.card_type}</span>
-                </div>
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'var(--sp-2)',marginTop:7}}>
-                  <div style={{display:'flex',alignItems:'center',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',borderRadius:'var(--r-control)',border:'1px solid var(--line-soft)'}}>
-                    <button onClick={()=>onUpdateCartQty(c.id,c.quantity-1)} aria-label={`Diminuir quantidade de ${c.card_name}`} style={{background:'none',border:'none',color:'var(--text-strong)',padding:'5px 11px',cursor:'pointer'}}><Minus size={12}/></button>
-                    <span style={{minWidth:18,textAlign:'center',fontSize:'var(--fs-sm)',fontWeight:700}}>{c.quantity}</span>
-                    <button onClick={()=>onUpdateCartQty(c.id,c.quantity+1)} aria-label={`Aumentar quantidade de ${c.card_name}`} style={{background:'none',border:'none',color:'var(--text-strong)',padding:'5px 11px',cursor:'pointer'}}><Plus size={12}/></button>
-                  </div>
-                  <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'var(--sp-1)'}}>
-                    <span style={{fontSize:'var(--fs-sm)',fontWeight:800,color:'var(--text-strong)',whiteSpace:'nowrap'}}>R$ {(c.quantity*itemPrice).toFixed(2).replace('.',',')}</span>
-                    <span style={{fontSize:'var(--fs-2xs)',color:'var(--text-dim)',whiteSpace:'nowrap'}}>{baseItemPrice>itemPrice&&<span style={{textDecoration:'line-through',marginRight:4,color:'var(--text-faint)'}}>R$ {baseItemPrice.toFixed(2).replace('.',',')}</span>}<span style={{color:baseItemPrice>itemPrice?'var(--ok)':'var(--text-dim)',fontWeight:baseItemPrice>itemPrice?700:400}}>R$ {itemPrice.toFixed(2).replace('.',',')}</span> /un</span>
-                  </div>
-                </div>
-              </div>
-              {/* Uma ação só: tirar do carrinho não mexe na lista de desejos,
-                  então "voltar para a lista" e "remover" viraram a mesma coisa. */}
-              <button onClick={()=>onRemoveFromCart(c.id)} title="Tirar do carrinho" aria-label={`Tirar ${c.card_name} do carrinho`} style={{alignSelf:'center',background:'rgba(var(--danger-rgb),0.08)',border:'1px solid rgba(var(--danger-rgb),0.15)',borderRadius:'var(--r-control)',padding:'10px 12px',cursor:'pointer',color:'var(--danger)',display:'flex',alignItems:'center',justifyContent:'center'}}><Trash2 size={14}/></button>
-            </div>
-          </Card>
-        );})}
-      </div>
-      <Btn full variant="ghost" onClick={()=>nav('catalog')} sfx="nav"><ArrowLeft size={14}/> Continuar escolhendo cartas</Btn>
-      {/* Barra de resumo fixa */}
-      <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:480,background:'var(--sheet-bg-alt)',backdropFilter:'blur(20px)',borderTop:'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',borderRadius:'20px 20px 0 0',padding:'13px 16px calc(12px + env(safe-area-inset-bottom))',zIndex:25,boxShadow:'0 -10px 30px rgba(var(--sunk),calc(0.4*var(--sunk-a)))'}}>
-        {!canCheckout&&(()=>{
-          const pct=Math.min(100,Math.round((totalQty/minCards)*100));
-          return(<div style={{marginBottom:10,padding:'9px 11px',borderRadius:'var(--r-control)',background:'rgba(var(--gold-rgb),0.08)',border:'1px solid rgba(var(--gold-rgb),0.2)'}}>
-            <div style={{display:'flex',alignItems:'center',gap:'var(--sp-2)',marginBottom:7}}>
-              <AlertTriangle size={13} style={{color:'var(--gold)',flexShrink:0}}/>
-              <span style={{fontSize:'var(--fs-xs)',color:'var(--gold)',fontWeight:600}}>Faltam {missingCards} carta{missingCards!==1?'s':''} para o mínimo de {minCards}</span>
-            </div>
-            <div role="progressbar" aria-valuenow={totalQty} aria-valuemin={0} aria-valuemax={minCards} aria-label={`${totalQty} de ${minCards} cartas para o mínimo do pedido`} style={{background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',borderRadius:'var(--r-pill)',height:6,overflow:'hidden'}}>
-              <div style={{width:pct+'%',height:'100%',borderRadius:'var(--r-pill)',background:'linear-gradient(90deg,var(--gold),var(--gp))',transition:'width .4s'}}/>
-            </div>
-            <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginTop:5,textAlign:'right'}}>{totalQty}/{minCards}</div>
-          </div>);
-        })()}
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:11}}>
-          <div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-dim)'}}>{totalQty} carta{totalQty!==1?'s':''}</div>{volumeDiscount>0&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--ok)',fontWeight:700,marginTop:2,display:'flex',alignItems:'center',gap:'var(--sp-1)'}}><Gift size={11}/> Desconto por volume −R$ {volumeDiscount.toFixed(2).replace('.',',')}</div>}<div style={{fontSize:'var(--fs-xl)',fontWeight:800,color:'var(--text-strong)',marginTop:1}}>≈ R$ {totalBRL.toFixed(2).replace('.',',')}</div></div>
-        </div>
-        <Btn full onClick={()=>nav('checkout')} disabled={!canCheckout} sfx="nav"><CreditCard size={15}/> {canCheckout?'Ir para checkout':`Mínimo ${minCards} (faltam ${missingCards})`}</Btn>
-      </div>
-    </>}
-    {cartItems.length===0&&<EmptyState icon={ShoppingCart} title="Carrinho vazio" sub="Escolha cartas no catálogo para montar sua encomenda" action={<Btn onClick={()=>nav('catalog')} sfx="nav"><BookOpen size={15}/> Ver catálogo</Btn>}/>}
-    <ImageLightbox src={zoomSrc} onClose={()=>setZoomSrc(null)}/>
-  </div>);
-}
-function CheckoutPage({cartItems=[],pricing,theme,nav,profile,token,onOrderDone,toast,unshippedPaidBatches=[],indiv=null,addTo=null,onCancelAdd}){
+// ══════════════════════════════════════════════════════
+// FOLHA DO PEDIDO — carrinho + checkout numa tela só
+// ══════════════════════════════════════════════════════
+//
+// Antes: aba Carrinho → "Ir para checkout" → "Avançar para endereço e frete"
+// → escolher frete → Pagar. Agora a pílula abre esta folha por cima do
+// catálogo e tudo acontece nela. Com endereço salvo, o frete é calculado e o
+// mais barato já vem marcado: do catálogo ao pagamento são dois toques.
+//
+// A lógica de dinheiro é a mesma do checkout antigo (mínimo, faixa de volume,
+// envio conjunto, modo de adição, salvar endereço, Mercado Pago); só a
+// apresentação mudou.
+function OrderSheet({cartItems=[],pricing,profile,token,onOrderDone,onSuccess,onClose,onUpdateCartQty,toast,unshippedPaidBatches=[],indiv=null,addTo=null,onCancelAdd}){
+  const dialogRef=useDialogA11y(onClose);
   // Adição a um pedido já pago: o frete e o mínimo já foram resolvidos no
-  // pedido de destino, então este checkout é só o pagamento das cartas novas.
+  // pedido de destino, então só as cartas novas são cobradas.
   const isAdding=!!addTo;
   const [freteOptions,setFreteOptions]=useState([]);const [selectedFrete,setSelectedFrete]=useState(null);
   const [lF,setLF]=useState(false);const [submitting,setSubmitting]=useState(false);
-  const [step,setStep]=useState('review');
-  const [zoomSrc,setZoomSrc]=useState(null);
   const [saveAddressChoice,setSaveAddressChoice]=useState(null);
   // Envio conjunto: manda com um pedido pago que ainda não foi postado, sem
   // pagar frete de novo.
@@ -858,14 +779,20 @@ function CheckoutPage({cartItems=[],pricing,theme,nav,profile,token,onOrderDone,
   const total=sub+fV;
   const cepClean=(addr.cep||'').replace(/\D/g,'');
   const addressUnchanged=addr.cep===(profile?.cep||'')&&addr.rua===(profile?.rua||'')&&addr.numero===(profile?.numero||'')&&addr.complemento===(profile?.complemento||'')&&addr.bairro===(profile?.bairro||'')&&addr.cidade===(profile?.cidade||'')&&addr.uf===(profile?.uf||'');
+  const brl=n=>'R$ '+Number(n||0).toFixed(2).replace('.',',');
 
   useEffect(()=>{if(useJointShipping){setSelectedFrete({carrier:'Envio conjunto',price:0,deadline_days:0});setFreteOptions([]);}else{setSelectedFrete(null);setFreteOptions([]);}},[useJointShipping]);
-  useEffect(()=>{if(step==='address'&&profileHasSavedAddress&&!editingAddr&&cepClean.length===8&&freteOptions.length===0&&!lF&&!useJointShipping)calcFrete();},[step]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Frete automático: com endereço salvo e o mínimo cumprido, calcula sozinho
+  // — e recalcula quando a quantidade muda, porque o pacote muda junto.
+  useEffect(()=>{
+    if(!canCheckout||shippingSkipped||editingAddr||!profileHasSavedAddress||cepClean.length!==8)return;
+    const t=setTimeout(calcFrete,400);return()=>clearTimeout(t);
+  },[canCheckout,totalQty,shippingSkipped,editingAddr]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function calcFrete(){
     if(shippingSkipped) return; // frete não é necessário
     if(cepClean.length<8){toast('CEP inválido','error');return;}
-    setLF(true);setFreteOptions([]);setSelectedFrete(null);
+    setLF(true);
     try{
       const r=await fetch(`/api/frete`,{
         method:'POST',headers:{'Content-Type':'application/json'},
@@ -874,11 +801,15 @@ function CheckoutPage({cartItems=[],pricing,theme,nav,profile,token,onOrderDone,
       const text=await r.text();
       let d;
       try{d=JSON.parse(text);}catch(pe){toast('Frete retornou resposta inválida','error');setLF(false);return;}
-      if(d.error){toast('Erro frete: '+d.error,'error');}
+      if(d.error){toast('Erro frete: '+d.error,'error');setFreteOptions([]);setSelectedFrete(null);}
       else if(d.opcoes&&d.opcoes.length>0){
-        const opts=d.opcoes.map(o=>({carrier:o.nome,service:o.nome,price:o.preco,deadline_days:o.prazo}));
-        setFreteOptions(opts);setSelectedFrete(opts[0]);SFX.success();
+        // Mais barato primeiro, e já marcado. Se o cliente tinha escolhido
+        // outro serviço, a escolha sobrevive ao recálculo.
+        const opts=d.opcoes.map(o=>({carrier:o.nome,service:o.nome,price:Number(o.preco),deadline_days:o.prazo})).sort((a,b)=>a.price-b.price);
+        setFreteOptions(opts);
+        setSelectedFrete(prev=>opts.find(o=>prev&&o.service===prev.service)||opts[0]);
       } else {
+        setFreteOptions([]);setSelectedFrete(null);
         toast('O MandaBem não retornou opções para este CEP. Tente outro ou entre em contato.','error');
       }
     }catch(e){console.warn('frete',e);toast('Erro ao conectar com frete','error');}
@@ -921,81 +852,110 @@ function CheckoutPage({cartItems=[],pricing,theme,nav,profile,token,onOrderDone,
       const mpLink=mpData?.mpLink||mpData?.init_point||mpData?.sandbox_init_point;
       if(mpLink){window.location.href=mpLink;return;}
       if(mpData.error){console.error('MP:',mpData.error);toast('Erro MP: '+mpData.error,'error');}
-      nav('success');
+      onSuccess();
     }catch(e){console.error('[finalize]',e);toast('Erro ao finalizar: '+e.message,'error');}
     setSubmitting(false);
   }
 
-  if(totalQty===0)return(<div style={{paddingTop:40}}><EmptyState icon={ShoppingCart} title="Carrinho vazio" sub="Escolha cartas no catálogo para montar sua encomenda" action={<Btn onClick={()=>nav('catalog')} sfx="nav"><BookOpen size={15}/> Ver catálogo</Btn>}/></div>);
+  const row={display:'flex',justifyContent:'space-between',fontSize:'var(--fs-sm)',color:'var(--text-dim)'};
+  const freteLabel=isAdding?`já pago no pedido #${addTo.shortId}`:useJointShipping?'envio conjunto · R$ 0,00':selectedFrete?brl(fV):lF?'calculando…':editingAddr?'calcule o frete':'—';
+  const pct=Math.min(100,Math.round((totalQty/minCards)*100));
 
-  // Bloquear checkout se mínimo não atingido
-  if(!canCheckout)return(<div style={{paddingTop:20}}>
-    <Card style={{padding:'var(--sp-4)',textAlign:'center',borderColor:'rgba(var(--gold-rgb),0.3)',background:'rgba(var(--gold-rgb),0.06)'}}>
-      <AlertTriangle size={32} style={{color:'var(--gold)',marginBottom:8}}/>
-      <div style={{fontWeight:700,fontSize:'var(--fs-md)',color:'var(--gold)',marginBottom:6}}>Mínimo não atingido</div>
-      <div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',lineHeight:1.5}}>Cada pedido precisa ter pelo menos <b style={{color:'var(--gold)'}}>{minCards} cartas</b>.<br/>Seu carrinho tem {totalQty} carta{totalQty!==1?'s':''}. Adicione mais <b style={{color:'var(--gold)'}}>{missingCards}</b>.</div>
-    </Card>
-    <div style={{textAlign:'center',marginTop:16}}><Btn onClick={()=>nav('cart')} sfx="nav"><ShoppingCart size={16}/> Voltar ao carrinho</Btn></div>
-  </div>);
-
-  return(<div className="portal-page portal-checkout" style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)'}}>
-    {isAdding&&<AddingToOrderBanner addTo={addTo} onCancel={onCancelAdd}/>}
-    <Card id="tut-checkout-summary" style={{padding:'var(--sp-4)'}}>
-      <SectionTitle sub={isAdding?`${totalQty} carta${totalQty!==1?'s':''} para somar ao pedido #${addTo.shortId}`:`${totalQty} carta${totalQty!==1?'s':''}`}>{isAdding?'Cartas a adicionar':'Resumo do pedido'}</SectionTitle>
-      {cart.map((c,i)=>{const ip=unitPriceFor(c.card_type,tierQty,pricing,indiv);return(<div key={'p'+i} style={{display:'flex',alignItems:'center',gap:'var(--sp-2)',padding:'5px 0',fontSize:'var(--fs-sm)',borderBottom:'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))'}}><div onClick={()=>c.card_image_url&&setZoomSrc(c.card_image_url)} style={{width:30,flexShrink:0,cursor:c.card_image_url?'zoom-in':'default'}}><CardThumb card={c} radius={6}/></div><span style={{flex:1,minWidth:0,color:'var(--text-muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name} <span style={{color:TC[c.card_type],fontSize:'var(--fs-2xs)',fontWeight:700}}>{c.card_type}</span> x{c.quantity}<span style={{color:'var(--text-faint)',fontSize:'var(--fs-2xs)'}}> · R$ {ip.toFixed(2).replace('.',',')}/un</span></span><span style={{fontWeight:700,whiteSpace:'nowrap'}}>R$ {(c.quantity*ip).toFixed(2)}</span></div>);})}
-      <div style={{marginTop:14,display:'flex',flexDirection:'column',gap:'var(--sp-1)'}}>
-        {volumeDiscount>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}><span>Subtotal (sem desconto)</span><span style={{color:'var(--text-faint)',textDecoration:'line-through'}}>R$ {baseSub.toFixed(2)}</span></div>}
-        {volumeDiscount>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-sm)',color:'var(--ok)',fontWeight:700}}><span>Desconto por volume</span><span>−R$ {volumeDiscount.toFixed(2)}</span></div>}
-        <div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}><span>Subtotal</span><span style={{color:'var(--text-strong)',fontWeight:600}}>R$ {sub.toFixed(2)}</span></div>
-        <div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}><span>Frete</span><span style={{color:shippingSkipped?'var(--ok)':'var(--text-strong)',fontWeight:600}}>{isAdding?`Já pago no pedido #${addTo.shortId} ✓`:useJointShipping?'Envio conjunto (R$ 0,00)':selectedFrete?'R$ '+fV.toFixed(2):lF?'Calculando...':'—'}</span></div>
-        <div style={{height:1,background:'var(--fill)',margin:'3px 0'}}/>
-        <div style={{display:'flex',justifyContent:'space-between',fontSize:'var(--fs-lg)',fontWeight:800}}><span>Total</span><span style={{color:theme.primary}}>R$ {total.toFixed(2)}</span></div>
+  return(<div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="order-sheet-title" style={{position:'fixed',inset:0,zIndex:110,display:'flex',alignItems:'flex-end',justifyContent:'center',animation:'fadeIn .15s ease'}}>
+    <div onClick={onClose} aria-hidden="true" style={{position:'absolute',inset:0,background:'var(--scrim)'}}/>
+    <div className="portal-modal portal-order-sheet" style={{position:'relative',width:'100%',maxWidth:480,maxHeight:'min(92vh, 860px)',background:'var(--sheet-bg)',borderRadius:'var(--r-sheet) var(--r-sheet) 0 0',display:'flex',flexDirection:'column',overflow:'hidden',animation:'sheetUp .22s ease'}}>
+      <div style={{padding:'10px 20px 12px',borderBottom:'1px solid var(--line)',display:'flex',flexDirection:'column',gap:10}}>
+        <div aria-hidden="true" style={{alignSelf:'center',width:40,height:5,borderRadius:3,background:'var(--line)'}}/>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <h2 id="order-sheet-title" style={{flex:1,margin:0,fontSize:'var(--fs-lg)',fontWeight:600,color:'var(--text-strong)'}}>{isAdding?`Adicionar ao pedido #${addTo.shortId}`:'Seu pedido'}</h2>
+          <button onClick={onClose} aria-label="Fechar pedido" className="mp-tap" style={{marginRight:-12,background:'none',border:'none',color:'var(--text-strong)',cursor:'pointer'}}><X size={18}/></button>
+        </div>
+        {isAdding
+          ? <div style={{display:'flex',alignItems:'center',gap:8,fontSize:'var(--fs-xs)',color:'var(--text-dim)',lineHeight:1.4}}>
+              <span style={{flex:1}}>Sem frete novo e sem mínimo: vai na mesma remessa das {addTo.qtyPaid} cartas já pagas.</span>
+              {onCancelAdd&&<button onClick={()=>{SFX.click();onCancelAdd();}} style={{flexShrink:0,height:32,padding:'0 10px',border:'1px solid var(--line)',borderRadius:'var(--r-pill)',background:'transparent',color:'var(--text-strong)',fontSize:'var(--fs-2xs)',fontWeight:600,cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>Fazer pedido novo</button>}
+            </div>
+          : totalQty>0&&<div style={{display:'flex',flexDirection:'column',gap:6}}>
+              <div role="progressbar" aria-valuenow={totalQty} aria-valuemin={0} aria-valuemax={minCards} aria-label={`${totalQty} de ${minCards} cartas para o mínimo do pedido`} style={{height:4,borderRadius:2,background:'var(--fill)',overflow:'hidden'}}>
+                <div style={{height:4,width:pct+'%',background:'var(--gp)',transition:'width .3s'}}/>
+              </div>
+              <span style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)'}}>{canCheckout?`${totalQty} cartas · pedido liberado`:`${totalQty} de ${minCards} cartas · faltam ${missingCards} para fechar o pedido`}</span>
+            </div>}
       </div>
-      {step==='review'&&!isAdding&&<Btn full onClick={()=>setStep('address')} style={{marginTop:12}} sfx="nav"><ArrowRight size={16}/> Avançar para endereço e frete</Btn>}
-    </Card>
 
-    {step==='address'&&!isAdding&&<Card style={{padding:'var(--sp-4)'}}>
-      <SectionTitle>Endereço de entrega</SectionTitle>
+      <div style={{flex:1,minHeight:0,overflowY:'auto',padding:'0 20px'}}>
+        {totalQty===0
+          ? <EmptyState icon={ShoppingCart} title="Seu pedido está vazio" sub="Toque no + das cartas para montar a encomenda."/>
+          : <ul style={{listStyle:'none',margin:0,padding:'4px 0'}}>
+              {cart.map(c=>{const ip=unitPriceFor(c.card_type,tierQty,pricing,indiv);return(
+                <li key={c.id} style={{display:'flex',alignItems:'center',gap:12,padding:'8px 0',borderBottom:'1px solid var(--line-soft)'}}>
+                  <div style={{width:36,flexShrink:0}}><CardThumb card={c} radius={4} style={{aspectRatio:'63 / 88',border:'none'}}/></div>
+                  <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:1}}>
+                    <span style={{fontSize:'var(--fs-sm)',fontWeight:500,color:'var(--text-strong)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.card_name}</span>
+                    <span style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)'}}>{brl(ip)} cada{c.card_type&&c.card_type!=='Normal'?` · ${c.card_type}`:''}</span>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',borderRadius:22,background:'var(--fill)'}}>
+                    <button onClick={()=>{SFX.click();onUpdateCartQty(c.id,c.quantity-1);}} aria-label={c.quantity===1?`Tirar ${c.card_name} do pedido`:`Tirar uma ${c.card_name}`} style={{width:44,height:44,border:'none',background:'transparent',color:'var(--text-strong)',display:'grid',placeItems:'center',cursor:'pointer'}}>{c.quantity===1?<Trash2 size={15}/>:<Minus size={16}/>}</button>
+                    <span aria-live="polite" style={{minWidth:18,textAlign:'center',fontSize:'var(--fs-sm)',fontWeight:600,color:'var(--text-strong)'}}>{c.quantity}</span>
+                    <button onClick={()=>{SFX.click();onUpdateCartQty(c.id,c.quantity+1);}} aria-label={`Pôr mais uma ${c.card_name}`} style={{width:44,height:44,border:'none',background:'transparent',color:'var(--text-strong)',display:'grid',placeItems:'center',cursor:'pointer'}}><Plus size={16}/></button>
+                  </div>
+                </li>);})}
+            </ul>}
 
-      {!shippingSkipped&&(profileHasSavedAddress&&!editingAddr?<AddressDisplay address={addr} onEdit={()=>{setEditingAddr(true);setFreteOptions([]);setSelectedFrete(null);}}/>:<AddressForm address={addr} setAddress={(a)=>setAddr(a)}/>)}
-      {!shippingSkipped&&(editingAddr||!profileHasSavedAddress)&&<Btn full variant="secondary" onClick={calcFrete} disabled={cepClean.length<8||lF} style={{marginTop:10}} sfx="click">{lF?<Spin size={14}/>:<><Truck size={15}/> Calcular frete</>}</Btn>}
-      {!shippingSkipped&&profileHasSavedAddress&&!editingAddr&&lF&&<div style={{marginTop:10,textAlign:'center',color:'var(--text-dim)',fontSize:'var(--fs-sm)',display:'flex',alignItems:'center',justifyContent:'center',gap:'var(--sp-1)'}}><Spin size={14}/> Calculando frete...</div>}
-      {!shippingSkipped&&freteOptions.length>0&&<div style={{marginTop:12}}>
-        <div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-dim)',marginBottom:8}}>Opções de envio</div>
-        {freteOptions.map((opt,i)=>(<button key={i} onClick={()=>{SFX.toggle();setSelectedFrete(opt);}} style={{width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',borderRadius:'var(--r-control)',border:'1px solid '+(selectedFrete===opt?wa(theme.primary,'30'):'var(--line-soft)'),background:selectedFrete===opt?wa(theme.primary,'10'):'var(--text-faint)',cursor:'pointer',marginBottom:4,fontFamily:"'Inter',system-ui,sans-serif"}}>
-          <div style={{textAlign:'left'}}><div style={{fontSize:'var(--fs-sm)',fontWeight:600,color:selectedFrete===opt?'var(--text-strong)':'var(--text-dim)'}}>{opt.carrier}</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{opt.deadline_days} dias úteis</div></div>
-          <div style={{display:'flex',alignItems:'center',gap:'var(--sp-1)'}}><span style={{fontSize:14,fontWeight:800,color:selectedFrete===opt?theme.primary:'var(--text-dim)'}}>R$ {Number(opt.price).toFixed(2)}</span>{selectedFrete===opt&&<CheckCircle size={16} style={{color:theme.primary}}/>}</div>
-        </button>))}
+        {/* Entrega: só quando o pedido pode fechar e há frete a resolver. */}
+        {canCheckout&&!isAdding&&<section aria-label="Entrega" style={{display:'flex',flexDirection:'column',gap:10,padding:'16px 0'}}>
+          {hasUnshippedPaidOrder&&<div style={{display:'flex',alignItems:'center',gap:12}}>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:'var(--fs-sm)',fontWeight:600,color:'var(--text-strong)'}}>Enviar junto, sem frete</div>
+              <div style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)',lineHeight:1.4}}>Você tem um pedido pago que ainda não foi postado.</div>
+            </div>
+            <button onClick={()=>{SFX.toggle();setUseJointShipping(v=>!v);}} role="switch" aria-checked={useJointShipping} aria-label="Enviar junto com um pedido pago que ainda não foi postado" style={{flexShrink:0,width:48,height:28,borderRadius:14,border:'none',background:useJointShipping?'var(--gp)':'var(--fill)',cursor:'pointer',position:'relative',transition:'background .2s'}}>
+              <span style={{position:'absolute',top:3,left:useJointShipping?23:3,width:22,height:22,borderRadius:11,background:useJointShipping?'var(--gp-ink)':'var(--sheet-bg)',transition:'left .2s',boxShadow:'0 1px 4px rgba(var(--sunk),calc(0.3*var(--sunk-a)))'}}/>
+            </button>
+          </div>}
+          {!shippingSkipped&&<>
+            {profileHasSavedAddress&&!editingAddr
+              ? <div style={{display:'flex',alignItems:'center',gap:10,fontSize:'var(--fs-sm)'}}>
+                  <MapPin size={16} style={{flexShrink:0,color:'var(--text-dim)'}}/>
+                  <span style={{flex:1,minWidth:0,color:'var(--text-dim)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{[addr.rua&&(addr.rua+(addr.numero?', '+addr.numero:'')),addr.cidade&&(addr.cidade+(addr.uf?'/'+addr.uf:''))].filter(Boolean).join(' · ')}</span>
+                  <button onClick={()=>{setEditingAddr(true);setFreteOptions([]);setSelectedFrete(null);}} style={{flexShrink:0,minHeight:44,padding:'0 4px',border:'none',background:'none',color:'var(--text-strong)',fontWeight:500,fontSize:'var(--fs-sm)',textDecoration:'underline',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>Trocar</button>
+                </div>
+              : <>
+                  <AddressForm address={addr} setAddress={(a)=>setAddr(a)}/>
+                  <Btn full variant="secondary" onClick={calcFrete} disabled={cepClean.length<8||lF} sfx="click">{lF?<Spin size={14}/>:<><Truck size={15}/> Calcular frete</>}</Btn>
+                </>}
+            {lF&&freteOptions.length===0&&!editingAddr&&<div style={{display:'flex',alignItems:'center',gap:8,fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}><Spin size={14}/> Calculando frete…</div>}
+            {freteOptions.length>0&&<div role="radiogroup" aria-label="Frete" style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:8,opacity:lF?.6:1}}>
+              {freteOptions.map((opt,i)=>{const on=selectedFrete&&selectedFrete.service===opt.service;return(
+                <button key={i} role="radio" aria-checked={!!on} onClick={()=>{SFX.toggle();setSelectedFrete(opt);}} style={{minHeight:56,padding:'8px 12px',borderRadius:12,border:'1.5px solid '+(on?'var(--text-strong)':'var(--line)'),background:'transparent',color:'var(--text-strong)',textAlign:'left',display:'flex',flexDirection:'column',justifyContent:'center',gap:2,cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>
+                  <span style={{fontSize:'var(--fs-sm)',fontWeight:600}}>{opt.carrier} · {brl(opt.price)}</span>
+                  <span style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)'}}>{opt.deadline_days} dias úteis</span>
+                </button>);})}
+            </div>}
+            {selectedFrete&&!addressUnchanged&&<div style={{display:'flex',alignItems:'center',gap:8,fontSize:'var(--fs-sm)'}}>
+              <span style={{flex:1,color:'var(--text-dim)'}}>Salvar este endereço?</span>
+              <Btn variant={saveAddressChoice===true?'primary':'ghost'} onClick={()=>setSaveAddressChoice(true)} style={{padding:'8px 14px',fontSize:'var(--fs-xs)'}} sfx="">Sim</Btn>
+              <Btn variant={saveAddressChoice===false?'secondary':'ghost'} onClick={()=>setSaveAddressChoice(false)} style={{padding:'8px 14px',fontSize:'var(--fs-xs)'}} sfx="">Não</Btn>
+            </div>}
+          </>}
+        </section>}
+      </div>
+
+      {totalQty>0&&<div id="tut-payment" style={{padding:'12px 20px max(20px, env(safe-area-inset-bottom))',borderTop:'1px solid var(--line)',display:'flex',flexDirection:'column',gap:8}}>
+        {volumeDiscount>0&&<div style={row}><span>Desconto por volume</span><span style={{color:'var(--ok)',fontWeight:600}}>−{brl(volumeDiscount)}</span></div>}
+        {canCheckout
+          ? <>
+              <div style={row}><span>Cartas</span><span style={{color:'var(--text-strong)'}}>{brl(sub)}</span></div>
+              <div style={row}><span>Frete</span><span style={{color:'var(--text-strong)'}}>{freteLabel}</span></div>
+              <Btn full onClick={finalize} disabled={submitting||(!shippingSkipped&&!selectedFrete)} sfx="" style={{height:54,borderRadius:27,fontSize:'var(--fs-md)'}}>{submitting?<Spin size={16} color="var(--gp-ink)"/>:<>Pagar {brl(total)}</>}</Btn>
+              <span style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)',textAlign:'center'}}>Pix ou cartão pelo Mercado Pago</span>
+            </>
+          : <>
+              <div style={row}><span>Subtotal</span><span style={{color:'var(--text-strong)',fontWeight:600}}>{brl(sub)}</span></div>
+              <Btn full onClick={onClose} sfx="nav" style={{height:54,borderRadius:27,fontSize:'var(--fs-md)'}}>Escolher mais {missingCards} carta{missingCards!==1?'s':''}</Btn>
+            </>}
       </div>}
-      {selectedFrete&&!shippingSkipped&&!addressUnchanged&&<div style={{marginTop:10,padding:'10px 12px',borderRadius:'var(--r-control)',background:'var(--fill-soft)',border:'1px solid var(--line-soft)'}}>
-        <div style={{fontSize:'var(--fs-xs)',fontWeight:700,marginBottom:8}}>Quer salvar esse endereço?</div>
-        <div style={{display:'flex',gap:'var(--sp-2)'}}>
-          <Btn variant={saveAddressChoice===true?'success':'ghost'} onClick={()=>setSaveAddressChoice(true)} style={{flex:1,padding:'8px 10px',fontSize:'var(--fs-xs)'}} sfx="">Sim</Btn>
-          <Btn variant={saveAddressChoice===false?'secondary':'ghost'} onClick={()=>setSaveAddressChoice(false)} style={{flex:1,padding:'8px 10px',fontSize:'var(--fs-xs)'}} sfx="">Não</Btn>
-        </div>
-      </div>}
-
-      {/* Envio conjunto — só aparece quando há um pedido pago que ainda não foi postado. */}
-      {hasUnshippedPaidOrder&&<div style={{marginTop:14,padding:'12px 14px',borderRadius:'var(--r-control)',background:useJointShipping?'rgba(var(--ok-rgb),0.06)':'var(--text-faint)',border:'1px solid '+(useJointShipping?'rgba(var(--ok-rgb),0.2)':'var(--line)')}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'var(--sp-2)'}}>
-          <div>
-            <div style={{fontSize:'var(--fs-sm)',fontWeight:700,color:useJointShipping?'var(--ok)':'var(--text-strong)',marginBottom:2,display:'flex',alignItems:'center',gap:'var(--sp-1)'}}><Truck size={14} style={{flexShrink:0}}/> Envio conjunto</div>
-            <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',lineHeight:1.4}}>Você tem um pedido pago que ainda não foi postado. Mande tudo na mesma remessa e não pague frete de novo.</div>
-          </div>
-          <button onClick={()=>{SFX.toggle();setUseJointShipping(v=>!v);}} role="switch" aria-checked={useJointShipping} aria-label="Enviar junto com um pedido pago que ainda não foi postado" style={{flexShrink:0,width:44,height:26,borderRadius:'var(--r-control)',border:'none',background:useJointShipping?'var(--ok)':'var(--fill)',cursor:'pointer',position:'relative',transition:'background .2s'}}>
-            <div style={{position:'absolute',top:3,left:useJointShipping?22:4,width:20,height:20,borderRadius:'var(--r-control)',background:'#fff',transition:'left .2s',boxShadow:'0 1px 4px rgba(var(--sunk),calc(0.3*var(--sunk-a)))'}}/>
-          </button>
-        </div>
-      </div>}
-
-      <Btn full variant="ghost" onClick={()=>setStep('review')} style={{marginTop:10}} sfx="nav"><ChevronLeft size={14}/> Voltar para revisão</Btn>
-    </Card>}
-
-    <Card id="tut-payment" style={{padding:'var(--sp-4)'}}>
-      <SectionTitle sub={isAdding?`Só as cartas novas — o frete do pedido #${addTo.shortId} já está pago`:'Pagamento seguro via Mercado Pago'}>Pagamento</SectionTitle>
-      <Btn full onClick={finalize} disabled={submitting||(!shippingSkipped&&!selectedFrete)} sfx="">{submitting?<Spin size={16}/>:<><CreditCard size={18}/> Pagar R$ {total.toFixed(2)}</>}</Btn>
-    </Card>
-    <ImageLightbox src={zoomSrc} onClose={()=>setZoomSrc(null)}/>
+    </div>
   </div>);
 }
 
@@ -1059,9 +1019,9 @@ function SuccessPage({lastOrder,theme,nav}){
   if(!lastOrder)return <EmptyState icon={Check} title="Sem pedido" sub=""/>;
   const qty=Number(lastOrder.totalPaid)||0;
   return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-4)',alignItems:'center',textAlign:'center',paddingTop:20}}>
-    <div style={{width:72,height:72,borderRadius:'var(--r-sheet)',background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',display:'grid',placeItems:'center',boxShadow:'0 0 36px '+theme.glow}}><Check size={32} color="#fff"/></div>
+    <div style={{width:72,height:72,borderRadius:'50%',background:'var(--gp)',color:'var(--gp-ink)',display:'grid',placeItems:'center'}}><Check size={32}/></div>
     <div>
-      <h1 style={{margin:0,fontFamily:"'Inter',system-ui,sans-serif",fontSize:'var(--fs-xl)'}}>Pedido registrado!</h1>
+      <h1 style={{margin:0,fontSize:'var(--fs-xl)',fontWeight:600,color:'var(--text-strong)'}}>Pedido feito</h1>
       <p style={{color:'var(--text-faint)',fontSize:'var(--fs-sm)',margin:'6px 0 0'}}>#{lastOrder.shortId||''} · {qty} carta{qty!==1?'s':''}{lastOrder.total?` · R$ ${Number(lastOrder.total).toFixed(2).replace('.',',')}`:''}</p>
     </div>
     <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',lineHeight:1.6,maxWidth:320}}>Assim que o pagamento cair, seu pedido entra na próxima compra no fornecedor. Você acompanha cada etapa em <b style={{color:'var(--text-muted)'}}>Minha conta → Meus pedidos</b>.</div>
@@ -1809,7 +1769,8 @@ export default function MagicPortal(){
 
   // UI state
   const [page,setPage]=useState('catalog');
-  const [profileTab,setProfileTab]=useState('orders'); // aba de "Minha conta" aberta pelo menu do avatar
+  const [profileTab,setProfileTab]=useState('orders');
+  const [orderOpen,setOrderOpen]=useState(false); // folha do pedido (carrinho + checkout) // aba de "Minha conta" aberta pelo menu do avatar
   const [showTutorial,setShowTutorial]=useState(false);
   const [tutStep,setTutStep]=useState(0);
   const [isFirstTimeTut,setIsFirstTimeTut]=useState(false);
@@ -1880,7 +1841,9 @@ export default function MagicPortal(){
   // Galeria: a interface é monocromática; a guilda vira só acento (--ga).
   const theme = { ...(colorMode === 'light' ? MONO.light : MONO.dark), accent: guildTheme(guild).primary };
   const isAdmin = profile?.is_admin || false;
-  const nav = useCallback(p=>{SFX.nav();setPage(p);if(p==='profile'&&!profile&&token&&session?.user?.id){loadAppData(token,session.user.id);};},[profile,token,session]);
+  // "cart" e "checkout" deixaram de ser páginas: são a folha do pedido, que
+  // abre por cima do catálogo (ou da lista de desejos, se o cliente estiver lá).
+  const nav = useCallback(p=>{SFX.nav();if(p==='cart'||p==='checkout'){setOrderOpen(true);setPage(cur=>cur==='wants'?'wants':'catalog');return;}setOrderOpen(false);setPage(p);if(p==='profile'&&!profile&&token&&session?.user?.id){loadAppData(token,session.user.id);};},[profile,token,session]);
 
   // Carrega faixas/config/dólar do pedido individual (preço ao vivo)
   useEffect(()=>{
@@ -2360,7 +2323,7 @@ export default function MagicPortal(){
           catálogo é a casa, e o resto (pedidos, desejos, coleção, conta) mora
           no menu do avatar. O carrinho vive na pílula flutuante. */}
       {page !== 'onboarding' && <header className="portal-header" style={{ padding: '10px 8px 6px 20px', display: 'flex', alignItems: 'center', gap: 4, position: 'sticky', top: 0, zIndex: 20, background: 'var(--chrome-bg)', backdropFilter: 'blur(16px)' }}>
-        {page !== 'catalog' && <button onClick={() => nav(page === 'admin' ? 'profile' : page === 'checkout' ? 'cart' : 'catalog')} className="mp-tap" aria-label="Voltar" style={{ marginLeft: -14, background: 'none', border: 'none', color: 'var(--text-strong)', cursor: 'pointer' }}><ChevronLeft size={22}/></button>}
+        {page !== 'catalog' && <button onClick={() => nav(page === 'admin' ? 'profile' : 'catalog')} className="mp-tap" aria-label="Voltar" style={{ marginLeft: -14, background: 'none', border: 'none', color: 'var(--text-strong)', cursor: 'pointer' }}><ChevronLeft size={22}/></button>}
         <h1 style={{ flex: 1, minWidth: 0, fontSize: 'var(--fs-md)', fontWeight: 600, letterSpacing: -0.2, color: 'var(--text-strong)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{({ catalog: 'Cartas para Jogar', wants: 'Lista de desejos', cart: 'Seu pedido', checkout: 'Pagamento', success: '', profile: 'Minha conta', admin: 'Admin' })[page] ?? 'Cartas para Jogar'}</h1>
         {/* Modo de adição: enquanto ele está ligado, o checkout entra num
             pedido já pago. Clicável para sair. */}
@@ -2386,15 +2349,14 @@ export default function MagicPortal(){
       <main className="portal-content" style={{ padding: page === 'onboarding' ? '0 20px' : '14px 20px' }}>
         {page === 'catalog' && <CatalogPage token={token} wishlist={wishlist} cartItems={cartItems} collectionByCard={collectionOwned} onAddToWishlist={handleAddToWishlist} onRemoveFromWishlist={handleRemoveFromWishlist} onAddToCart={handleAddCardToCart} onUpdateCartQty={handleUpdateCartQty} priceFor={priceFor} theme={theme} tutStep={showTutorial?tutStep:-1} onTutNext={tutNext} />}
         {page === 'wants' && <WishlistPage wishlist={wishlist} cartItems={cartItems} collectionByCard={collectionOwned} onAddToCart={handleAddToCart} onRemove={handleRemoveFromWishlist} onUpdateQty={handleUpdateWishlistQty} cartCount={cartCount} theme={theme} nav={nav} />}
-        {page === 'cart' && <CartPage cartItems={cartItems} pricing={pricing} theme={theme} nav={nav} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} toast={toast} indiv={indivPricing} addTo={addTo} onCancelAdd={()=>setAddTo(null)} />}
-        {page === 'checkout' && <CheckoutPage cartItems={cartItems} pricing={pricing} theme={theme} nav={nav} profile={profile} token={token} onOrderDone={handleOrderDone} toast={toast} unshippedPaidBatches={unshippedPaidBatches} indiv={indivPricing} addTo={addTo} onCancelAdd={()=>setAddTo(null)} />}
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
         {page === 'profile' && !profile && <div style={{padding:20,color:'var(--danger)',fontSize:'var(--fs-xs)'}}><div>profile: null</div><div>token: {token?'ok':'null'}</div><div>appLoading: {String(appLoading)}</div><Btn onClick={()=>loadAppData(token,session?.user?.id)} sfx="click"><RefreshCw size={14}/> Recarregar</Btn></div>}
         {page === 'profile' && profile && (() => { try { return <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} colorMode={colorMode} onColorModeChange={setColorMode} openIndividualOrders={openIndividualOrders} onAddCards={handleStartAddCards} collection={collection} onSetExtra={handleSetCollectionExtra} initialTab={profileTab} key={profileTab} />; } catch(e) { return <div style={{padding:20,color:'var(--danger)',fontSize:'var(--fs-xs)'}}>Crash: {e.message}</div>; } })()}
         {page === 'admin' && <AdminConsole pricing={pricing} theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} toast={toast} initialSection={adminTarget} />}
         {page === 'onboarding' && <OnboardingPage onComplete={handleOnboardingComplete} theme={theme} />}
       </main>
-      {(page === 'catalog' || page === 'wants') && !showTutorial && <OrderPill count={cartCount} minCards={minCards} total={cartTotal} isAdding={!!addTo} onOpen={() => nav('cart')} />}
+      {(page === 'catalog' || page === 'wants') && !showTutorial && !orderOpen && <OrderPill count={cartCount} minCards={minCards} total={cartTotal} isAdding={!!addTo} onOpen={() => nav('cart')} />}
+      {orderOpen && <OrderSheet cartItems={cartItems} pricing={pricing} profile={profile} token={token} onOrderDone={handleOrderDone} onSuccess={() => nav('success')} onClose={() => setOrderOpen(false)} onUpdateCartQty={handleUpdateCartQty} toast={toast} unshippedPaidBatches={unshippedPaidBatches} indiv={indivPricing} addTo={addTo} onCancelAdd={() => setAddTo(null)} />}
     </>}
   </div>);
 }
