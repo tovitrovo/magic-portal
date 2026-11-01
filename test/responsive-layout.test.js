@@ -8,12 +8,19 @@ const appSource = ['../src/MagicPortal.jsx', '../src/kit.jsx', '../src/admin/Adm
 const app = appSource;
 const css = readFileSync(new URL('../src/responsive.css', import.meta.url), 'utf8');
 
-test('mantém a navegação mobile e adiciona sidebar desktop no mesmo shell', () => {
-  assert.match(app, /className="portal-bottom-tabs"/);
-  assert.match(app, /className="portal-sidebar"/);
-  assert.match(css, /\.portal-sidebar \{ display: none; \}/);
-  assert.match(css, /@media \(min-width: 960px\)[\s\S]*?\.portal-sidebar \{[\s\S]*?display: flex;/);
-  assert.match(css, /@media \(min-width: 960px\)[\s\S]*?\.portal-bottom-tabs \{ display:none !important; \}/);
+test('a navegação é o topo com o menu da conta — sem abas embaixo nem lateral', () => {
+  assert.match(app, /function AccountMenu\(/, 'o menu do avatar substitui as abas');
+  assert.match(app, /<AccountMenu/, 'o topo precisa montar o menu da conta');
+  assert.match(app, /function OrderPill\(/, 'a pílula do pedido substitui a aba de carrinho');
+  assert.doesNotMatch(app, /className="portal-bottom-tabs"/, 'a barra de abas de baixo saiu');
+  assert.doesNotMatch(app, /className="portal-sidebar"/, 'a lateral do desktop saiu');
+  assert.doesNotMatch(css, /\.portal-sidebar/, 'sem regra órfã da lateral');
+});
+
+test('a grade do catálogo ganha colunas conforme a tela cresce', () => {
+  assert.match(css, /\.portal-catalog-grid \{[\s\S]*?repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css, /@media \(min-width: 960px\)[\s\S]*?\.portal-catalog-grid \{ grid-template-columns:repeat\(4,minmax\(0,1fr\)\); \}/);
+  assert.match(css, /@media \(min-width: 1280px\)[\s\S]*?\.portal-catalog-grid \{ grid-template-columns:repeat\(5,minmax\(0,1fr\)\); \}/);
 });
 
 test('define breakpoints de tablet e desktop sem sobrescrever o shell mobile', () => {

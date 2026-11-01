@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from 'react';
-import { ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff, Archive, Sun, Moon, LayoutDashboard, Users, TrendingUp, BellRing, BellOff, Clock, Layers, ShoppingBag, ClipboardList, Zap, Store, Wallet, Activity, Inbox, LogIn, UserPlus } from 'lucide-react';
+import { ScrollText, ShoppingCart, User, Shield, Plus, Minus, Trash2, ChevronRight, ChevronLeft, ChevronUp, Sparkles, LogOut, Check, Search, BookOpen, Eye, EyeOff, Mail, Lock, ArrowRight, ArrowLeft, X, Gift, Truck, CreditCard, Circle, CheckCircle, ArrowDown, Upload, Copy, Calendar, DollarSign, Settings, Camera, Phone, MessageCircle, Bell, Package, MapPin, Edit3, RefreshCw, Volume2, VolumeX, HelpCircle, Loader, AlertTriangle, Wifi, WifiOff, Archive, Sun, Moon, LayoutDashboard, Users, TrendingUp, BellRing, BellOff, Clock, Layers, ShoppingBag, ClipboardList, Zap, Store, Wallet, Activity, Inbox, LogIn, UserPlus } from 'lucide-react';
 import { buildCatalogQueries, buildLatestCardQuery, RECENT_CARDS_FILTER, VARIANTS_FILTER } from './catalogQuery';
 import { VARIANTS } from '../shared/supplierSheet';
 import { buildShippingGroups, SHIPPING_SERVICE_UNKNOWN } from '../shared/shipping-groups';
@@ -12,7 +12,7 @@ import { ORDER_STAGES, groupBatchesIntoOrders, isPaid as isPaidBatchStatus, next
 import { boughtByCard, buildCollection, collectionStats, extrasByCard } from '../shared/collection';
 import { DEFAULT_WHATSAPP_MESSAGES, WHATSAPP_AUDIENCES, buildShipmentWhatsAppUrl, buildWhatsAppUrl, getWhatsAppRecipients } from './whatsappCommunication';
 import { PUSH_NEEDS_INSTALL, disablePush, enablePush, getPushState, reportAccess, sendTestPush, updatePushPrefs } from './push';
-import { GT, GT_LIGHT, inkOn } from './guildTheme';
+import { GT, GT_LIGHT, MONO, inkOn } from './guildTheme';
 import { SFX, wa, useDialogA11y, TC, Card, Btn, Input, Tag, EmptyState, Spin, CardThumb, ImageLightbox, CATALOG_TCG, CATALOG_TYPES } from './kit';
 import { SB_URL, SB_KEY, mpSync } from './config';
 import AdminConsole from './admin/AdminConsole';
@@ -208,7 +208,7 @@ function setLightMode(on){LIGHT_MODE=!!on;}
 // Modo claro/escuro: preferência salva do usuário e, na primeira visita, o
 // que o sistema operacional já pede.
 const COLOR_MODE_KEY='cpj_color_mode';
-const MODE_BG={dark:'#08080f',light:'#f6f1e6'};
+const MODE_BG={dark:'#0b0b0c',light:'#fafaf8'};
 function readColorMode(){
   try{const saved=localStorage.getItem(COLOR_MODE_KEY);if(saved==='light'||saved==='dark')return saved;}catch(e){}
   try{if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)return 'light';}catch(e){}
@@ -268,39 +268,79 @@ function baseUnitPriceFor(cardType, pricing, indiv) {
 }
 
 // ══════════════════════════════════════════════════════
-// FLOATING MANA BACKGROUND
-// ══════════════════════════════════════════════════════
-
-function FloatingMana({theme}){
-  const symbols=['☀️','💧','💀','🔥','🌿','⚔️','🛡️','🔮','✨','💎'];
-  const items=useMemo(()=>symbols.map((s,i)=>({
-    emoji:s,
-    left:Math.random()*100,
-    delay:Math.random()*20,
-    dur:18+Math.random()*22,
-    size:14+Math.random()*16,
-    drift:-30+Math.random()*60,
-  })),[]);
-  return <div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:0,overflow:'hidden'}}>
-    {items.map((m,i)=><div key={i} style={{
-      position:'absolute',bottom:'-40px',left:m.left+'%',fontSize:m.size,opacity:0.04,
-      animation:`manaFloat ${m.dur}s ${m.delay}s linear infinite`,
-      filter:'blur(1px)',
-    }}>{m.emoji}</div>)}
-    <div style={{position:'absolute',top:0,left:'20%',width:'60%',height:'40%',background:`radial-gradient(ellipse,${theme.primary}08 0%,transparent 70%)`,pointerEvents:'none'}}/>
-    <div style={{position:'absolute',bottom:0,right:0,width:'40%',height:'30%',background:`radial-gradient(ellipse,${theme.secondary}06 0%,transparent 70%)`,pointerEvents:'none'}}/>
-  </div>;
-}
-
-// ══════════════════════════════════════════════════════
 // UI PRIMITIVES
 // ══════════════════════════════════════════════════════
 
-const SectionTitle=({children,sub})=><div style={{marginBottom:12}}><h2 style={{margin:0,fontSize:'var(--fs-lg)',fontFamily:"'Cinzel',serif",color:'var(--text-strong)',letterSpacing:.3}}>{children}</h2>{sub&&<p style={{margin:'3px 0 0',fontSize:'var(--fs-xs)',color:'var(--text-faint)'}}>{sub}</p>}</div>;
+const SectionTitle=({children,sub})=><div style={{marginBottom:12}}><h2 style={{margin:0,fontSize:'var(--fs-lg)',fontFamily:"'Inter',system-ui,sans-serif",color:'var(--text-strong)',letterSpacing:.3}}>{children}</h2>{sub&&<p style={{margin:'3px 0 0',fontSize:'var(--fs-xs)',color:'var(--text-faint)'}}>{sub}</p>}</div>;
 const ManaOrb=({mana,selected,onClick,size=44})=>{const m=MANA_COLORS.find(c=>c.key===mana);return <button onClick={()=>{SFX.toggle();onClick&&onClick();}} style={{width:size,height:size,borderRadius:size,background:selected?wa(m.color,'28'):'var(--fill-soft)',border:'2.5px solid '+(selected?m.color:'var(--text-faint)'),display:'grid',placeItems:'center',cursor:'pointer',fontSize:size*.4,transition:'all .2s',boxShadow:selected?'0 0 14px '+wa(m.color,'35'):'none'}}>{m.emoji}</button>;};
 const GuildBadge=({guild,size=22})=>{if(!guild||!GT[guild])return null;const t=guildTheme(guild);return <div style={{width:size,height:size,borderRadius:size,background:'linear-gradient(135deg,'+t.primary+','+t.secondary+')',boxShadow:'0 0 '+size*.5+'px '+t.glow,flexShrink:0}}/>;};
 
 const Toast=({msg,type='info',onClose})=>{const bg=type==='error'?'rgba(var(--danger-rgb),0.15)':type==='success'?'rgba(var(--ok-rgb),0.15)':'rgba(var(--info-rgb),0.15)';const c=type==='error'?'var(--danger)':type==='success'?'var(--ok)':'var(--info)';return <div style={{position:'fixed',top:16,left:'50%',transform:'translateX(-50%)',zIndex:200,padding:'10px 18px',borderRadius:'var(--r-card)',background:bg,border:'1px solid '+wa(c,'30'),color:c,fontSize:'var(--fs-sm)',fontWeight:600,display:'flex',alignItems:'center',gap:'var(--sp-2)',backdropFilter:'blur(12px)',maxWidth:'90%'}}>{type==='error'?<AlertTriangle size={15}/>:<Check size={15}/>}{msg}<button onClick={onClose} style={{background:'none',border:'none',color:c,cursor:'pointer',padding:'var(--sp-1)'}}><X size={14}/></button></div>;};
+
+// ══════════════════════════════════════════════════════
+// MENU DA CONTA — o avatar do topo
+// ══════════════════════════════════════════════════════
+//
+// Substitui a barra de abas de baixo e a lateral do desktop. O catálogo é
+// aberto centenas de vezes por compra; pedidos, desejos e conta, poucas. Por
+// isso eles saíram da tela e foram para cá. O anel do avatar é a cor da
+// guilda — o último lugar onde ela aparece na interface.
+function AccountMenu({isAdmin,activeOrders=0,wishCount=0,colorMode,onToggleColorMode,soundOn,onToggleSound,onNavigate,onLogout}){
+  const [open,setOpen]=useState(false);
+  const ref=useRef(null);
+  useEffect(()=>{
+    if(!open)return;
+    const onDown=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
+    const onKey=e=>{if(e.key==='Escape')setOpen(false);};
+    document.addEventListener('pointerdown',onDown);
+    document.addEventListener('keydown',onKey);
+    return()=>{document.removeEventListener('pointerdown',onDown);document.removeEventListener('keydown',onKey);};
+  },[open]);
+  const go=(p,tab)=>{setOpen(false);onNavigate(p,tab);};
+  const item={width:'100%',minHeight:44,padding:'0 12px',borderRadius:'var(--r-control)',border:'none',background:'transparent',color:'var(--text-strong)',display:'flex',alignItems:'center',gap:10,fontSize:'var(--fs-sm)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer',textAlign:'left'};
+  const hint={marginLeft:'auto',fontSize:'var(--fs-xs)',color:'var(--text-dim)'};
+  return(<div ref={ref} style={{position:'relative'}}>
+    <button id="tut-account-btn" onClick={()=>{SFX.toggle();setOpen(o=>!o);}} className="mp-tap" aria-haspopup="menu" aria-expanded={open} aria-label={activeOrders>0?`Menu da conta, ${activeOrders} pedido${activeOrders>1?'s':''} em andamento`:'Menu da conta'} style={{background:'none',border:'none',cursor:'pointer',position:'relative'}}>
+      <span style={{width:32,height:32,borderRadius:'50%',display:'grid',placeItems:'center',background:'var(--fill)',color:'var(--text-strong)',boxShadow:'0 0 0 2px var(--bg), 0 0 0 3.5px var(--ga)'}}><User size={16}/></span>
+      {activeOrders>0&&<span aria-hidden="true" style={{position:'absolute',top:7,right:7,width:10,height:10,borderRadius:'50%',background:'var(--info)',border:'2px solid var(--bg)'}}/>}
+    </button>
+    {open&&<div role="menu" aria-label="Conta" style={{position:'absolute',top:48,right:4,width:250,padding:6,borderRadius:14,background:'var(--sheet-bg)',border:'1px solid var(--line)',boxShadow:'0 12px 40px rgba(var(--sunk),calc(0.35*var(--sunk-a)))',display:'flex',flexDirection:'column',zIndex:60,animation:'fadeIn .12s ease'}}>
+      <button role="menuitem" style={item} onClick={()=>go('profile','orders')}><Package size={17}/>Meus pedidos{activeOrders>0&&<span style={{marginLeft:'auto',fontSize:'var(--fs-2xs)',fontWeight:600,color:'#fff',background:'var(--info)',padding:'2px 8px',borderRadius:'var(--r-pill)'}}>{activeOrders} em andamento</span>}</button>
+      <button role="menuitem" style={item} onClick={()=>go('wants')}><ScrollText size={17}/>Lista de desejos{wishCount>0&&<span style={hint}>{wishCount}</span>}</button>
+      <button role="menuitem" style={item} onClick={()=>go('profile','collection')}><Layers size={17}/>Minha coleção</button>
+      <button role="menuitem" style={item} onClick={()=>go('profile','account')}><MapPin size={17}/>Dados e endereço</button>
+      {isAdmin&&<button role="menuitem" style={item} onClick={()=>go('admin')}><Shield size={17}/>Admin</button>}
+      <span aria-hidden="true" style={{height:1,margin:'4px 8px',background:'var(--line)'}}/>
+      <button role="menuitemcheckbox" aria-checked={colorMode==='dark'} style={item} onClick={()=>{SFX.toggle();onToggleColorMode();}}>{colorMode==='light'?<Moon size={17}/>:<Sun size={17}/>}{colorMode==='light'?'Modo escuro':'Modo claro'}</button>
+      <button role="menuitemcheckbox" aria-checked={soundOn} style={item} onClick={onToggleSound}>{soundOn?<Volume2 size={17}/>:<VolumeX size={17}/>}Sons<span style={hint}>{soundOn?'ligados':'desligados'}</span></button>
+      <span aria-hidden="true" style={{height:1,margin:'4px 8px',background:'var(--line)'}}/>
+      <button role="menuitem" style={{...item,color:'var(--text-dim)'}} onClick={()=>{setOpen(false);onLogout();}}><LogOut size={17}/>Sair</button>
+    </div>}
+  </div>);
+}
+
+// ══════════════════════════════════════════════════════
+// PÍLULA DO PEDIDO — o carrinho que acompanha o catálogo
+// ══════════════════════════════════════════════════════
+//
+// O único elemento fixo da Galeria. Mostra o progresso até o mínimo e o total
+// já com a faixa de volume aplicada; tocar leva ao pedido. Ela "pula" a cada
+// carta somada — é o retorno do "+" da grade, no lugar de um toast.
+function OrderPill({count,minCards,total,isAdding,onOpen}){
+  const [pop,setPop]=useState(0);
+  const prev=useRef(count);
+  useEffect(()=>{if(count>prev.current)setPop(p=>p+1);prev.current=count;},[count]);
+  const label=count===0
+    ?`Mínimo ${minCards} cartas`
+    :isAdding?`${count} carta${count!==1?'s':''} a mais`:`${count} / ${minCards} cartas`;
+  const money='R$ '+total.toFixed(2).replace('.',',');
+  return(<button key={pop} className="portal-order-pill" onClick={()=>{SFX.nav();onOpen();}} aria-label={`Abrir pedido: ${label}, ${money}`} style={{position:'fixed',left:'50%',bottom:'max(24px, env(safe-area-inset-bottom))',transform:'translateX(-50%)',zIndex:40,height:52,padding:'0 22px',border:'none',borderRadius:26,background:'var(--gp)',color:'var(--gp-ink)',display:'flex',alignItems:'center',gap:12,fontFamily:"'Inter',system-ui,sans-serif",fontSize:'var(--fs-sm)',fontWeight:500,whiteSpace:'nowrap',boxShadow:'0 8px 28px rgba(var(--sunk),calc(0.3*var(--sunk-a)))',cursor:'pointer'}}>
+    <span style={{display:'inline-block',animation:pop?'pillPop .3s ease':'none'}}>{label}</span>
+    <span aria-hidden="true" style={{width:1,height:16,background:'currentColor',opacity:.35}}/>
+    <span>{money}</span>
+    <ChevronUp size={16}/>
+  </button>);
+}
 
 const AddressForm=({address,setAddress})=>{
   const [cepLoading,setCepLoading]=useState(false);
@@ -357,14 +397,6 @@ const AddressDisplay=({address,onEdit})=>{
   </div>);
 };
 
-function FlyingCard({show,onDone}){
-  useEffect(()=>{if(show){const t=setTimeout(()=>onDone&&onDone(),600);return()=>clearTimeout(t);}},[show]);
-  if(!show)return null;
-  return <div style={{position:'fixed',zIndex:999,pointerEvents:'none',top:'50%',left:'50%',animation:'flyToWants 0.6s ease-in forwards'}}>
-    <div style={{width:32,height:44,borderRadius:4,background:'linear-gradient(135deg,var(--gp),var(--gs))',boxShadow:'0 0 16px var(--gg)',border:'1px solid var(--line)'}}/>
-  </div>;
-}
-
 function VirtualKeyboard({onKey,onBackspace,onDone,maxLen=6,currentLen=0,doneLabel='OK'}){
   const rows=[['1','2','3'],['4','5','6'],['7','8','9'],['⌫','0',doneLabel]];
   return(<div style={{background:'rgba(var(--sunk),calc(0.6*var(--sunk-a)))',backdropFilter:'blur(10px)',borderRadius:'var(--r-card)',padding:'var(--sp-2)',border:'1px solid var(--line-soft)',maxWidth:220,margin:'0 auto'}}>
@@ -372,7 +404,7 @@ function VirtualKeyboard({onKey,onBackspace,onDone,maxLen=6,currentLen=0,doneLab
       {row.map(k=>{
         const isBack=k==='⌫';const isOk=k===doneLabel;const isNum=!isBack&&!isOk;
         const disabled=isNum&&currentLen>=maxLen;
-        return <button key={k} onClick={()=>{if(isBack){SFX.click();onBackspace();}else if(isOk){SFX.confirm();onDone();}else if(!disabled){SFX.click();onKey(k);}}} disabled={disabled} style={{width:60,height:48,borderRadius:'var(--r-control)',border:isOk?'none':'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',background:isOk?'var(--gp)':isBack?'rgba(var(--danger-rgb),0.1)':'var(--text-faint)',color:isOk?'#fff':isBack?'var(--danger)':'var(--text)',fontSize:isNum?20:isOk?13:18,fontWeight:700,cursor:disabled?'not-allowed':'pointer',fontFamily:"'Outfit',sans-serif",display:'grid',placeItems:'center',opacity:disabled?.3:1}}>{k}</button>;})}
+        return <button key={k} onClick={()=>{if(isBack){SFX.click();onBackspace();}else if(isOk){SFX.confirm();onDone();}else if(!disabled){SFX.click();onKey(k);}}} disabled={disabled} style={{width:60,height:48,borderRadius:'var(--r-control)',border:isOk?'none':'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',background:isOk?'var(--gp)':isBack?'rgba(var(--danger-rgb),0.1)':'var(--text-faint)',color:isOk?'#fff':isBack?'var(--danger)':'var(--text)',fontSize:isNum?20:isOk?13:18,fontWeight:700,cursor:disabled?'not-allowed':'pointer',fontFamily:"'Inter',system-ui,sans-serif",display:'grid',placeItems:'center',opacity:disabled?.3:1}}>{k}</button>;})}
     </div>))}
   </div>);
 }
@@ -391,7 +423,7 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
   return(<div style={{position:'fixed',inset:0,zIndex:100,pointerEvents:s.interactive?'none':'auto'}}>
     <div style={{position:'absolute',inset:0,pointerEvents:s.interactive?'none':'auto'}} onClick={isFirstTime||s.interactive?undefined:onSkip}/>
     {rect&&<div style={{position:'absolute',top:rect.top,left:rect.left,width:rect.width,height:rect.height,borderRadius:'var(--r-card)',border:'2.5px solid '+theme.primary,boxShadow:'0 0 30px '+theme.glow+', inset 0 0 20px '+theme.glow,background:'transparent',zIndex:101,pointerEvents:'none',animation:'tutPulse 1.5s ease-in-out infinite'}}/>}
-    <div style={{position:'fixed',bottom:70,left:'50%',transform:'translateX(-50%)',width:'calc(100% - 40px)',maxWidth:420,zIndex:102}}>
+    <div style={{position:'fixed',bottom:24,left:'50%',transform:'translateX(-50%)',width:'calc(100% - 40px)',maxWidth:420,zIndex:102}}>
       <Card glow={theme.glow} style={{padding:'var(--sp-4)',background:'var(--sheet-bg)',border:'1px solid '+wa(theme.primary,'30')}}>
         <div style={{fontSize:'var(--fs-md)',fontWeight:700,color:theme.primary,marginBottom:6}}>{s.title}</div>
         <div style={{fontSize:'var(--fs-sm)',lineHeight:1.7,color:'var(--text-muted)',marginBottom:8}}>{s.body}</div>
@@ -419,14 +451,12 @@ function TutorialOverlay({step,steps,onNext,onSkip,theme,onNavTo,isFirstTime}){
 }
 
 const TUTORIAL_STEPS=[
-  {title:'Catálogo',body:'Aqui ficam todas as cartas de Magic à venda. Busque pelo nome e filtre por tipo.',navTo:'catalog',tabIndex:0,spotlightId:null,icon:'📖'},
-  {title:'Busca e filtros',body:'Use a barra de busca e os filtros por tipo de carta.',navTo:'catalog',tabIndex:0,spotlightId:'tut-search-area',scrollTo:true,icon:'🔍'},
-  {title:'Comprar ou desejar',body:'O 🛒 põe a carta no carrinho agora. O 📜 guarda ela na lista de desejos, para quando você quiser.',navTo:'catalog',tabIndex:0,spotlightId:null,icon:'➕',interactive:true},
-  {title:'Lista de desejos',body:'Só desejo: aqui você anota quais cartas quer e quantas ainda faltam. Nada vai para o carrinho sozinho.',navTo:'wants',tabIndex:1,spotlightId:null,icon:'📋'},
-  {title:'Carrinho',body:'Edite quantidades, tire o que não quer agora e avance para o checkout. Quanto mais cartas, menor o preço de cada uma.',navTo:'cart',tabIndex:2,spotlightId:null,icon:'🛒'},
-  {title:'Checkout',body:'Revise o pedido, preencha o endereço e calcule o frete antes de finalizar.',navTo:'checkout',tabIndex:2,spotlightId:'tut-checkout-summary',icon:'📦'},
-  {title:'Pagamento',body:'Pague com segurança via Mercado Pago — cartão, boleto ou saldo.',navTo:'checkout',tabIndex:2,spotlightId:'tut-payment',icon:'💳'},
-  {title:'Minha conta',body:'Acompanhe o status de cada pedido, veja seu álbum de coleção e ajuste seus dados.',navTo:'profile',tabIndex:3,spotlightId:null,icon:'👤'},
+  {title:'Catálogo',body:'Aqui ficam todas as cartas de Magic à venda. A tela é delas: o resto do app fica no menu da sua conta, no topo.',navTo:'catalog',spotlightId:null,icon:'📖'},
+  {title:'Busca e filtros',body:'Filtre por tipo logo acima das cartas, ou toque na lupa para buscar pelo nome.',navTo:'catalog',spotlightId:'tut-search-area',scrollTo:true,icon:'🔍'},
+  {title:'Montar o pedido',body:'O + põe a carta no pedido sem sair da tela. Tocar na carta abre o detalhe, onde você ajusta a quantidade ou guarda nos desejos.',navTo:'catalog',spotlightId:null,icon:'➕',interactive:true},
+  {title:'Seu pedido',body:'A pílula embaixo mostra quantas cartas faltam para o mínimo e o total. Toque nela para revisar e pagar. Quanto mais cartas, menor o preço de cada uma.',navTo:'cart',spotlightId:null,icon:'🛒'},
+  {title:'Pagamento',body:'Confira o endereço e o frete e pague com segurança pelo Mercado Pago.',navTo:'checkout',spotlightId:'tut-payment',icon:'💳'},
+  {title:'Menu da conta',body:'No avatar do topo ficam seus pedidos, a lista de desejos, a coleção e seus dados.',navTo:'catalog',spotlightId:'tut-account-btn',icon:'👤'},
 ];
 
 // ══════════════════════════════════════════════════════
@@ -434,11 +464,14 @@ const TUTORIAL_STEPS=[
 // ══════════════════════════════════════════════════════
 
 
-function CatalogPage({token,wishlist,cartItems=[],collectionByCard,onAddToWishlist,onAddToCart,priceBRL,theme,tutStep,onTutNext}){
+function CatalogPage({token,wishlist,cartItems=[],collectionByCard,onAddToWishlist,onRemoveFromWishlist,onAddToCart,onUpdateCartQty,priceFor,theme,tutStep,onTutNext}){
   const [search,setSearch]=useState('');const [typeF,setTypeF]=useState('Todos');const [variantF,setVariantF]=useState('');const [cards,setCards]=useState([]);const [total,setTotal]=useState(0);
   const [page,setPage]=useState(0);const [loading,setLoading]=useState(false);
-  const [detail,setDetail]=useState(null);
-  const [flyAnim,setFlyAnim]=useState(false);const PAGE_SIZE=20;
+  // Índice da carta aberta no detalhe (não a carta): é o que deixa as setas
+  // andarem pela grade sem fechar a folha.
+  const [detailIdx,setDetailIdx]=useState(null);
+  const [searchOpen,setSearchOpen]=useState(false);
+  const PAGE_SIZE=20;
   const catalogFilters=['Todos',RECENT_CARDS_FILTER,...CATALOG_TYPES,VARIANTS_FILTER];
   const firstAddBtnRef=useRef(null);const latestFetchRef=useRef(0);const [handPos,setHandPos]=useState(null);
   useEffect(()=>{
@@ -472,72 +505,75 @@ function CatalogPage({token,wishlist,cartItems=[],collectionByCard,onAddToWishli
     finally { if(fetchId===latestFetchRef.current)setLoading(false); }
   },[search,typeF,variantF,page,token]);
 
-  useEffect(()=>{setPage(0);setCards([]);},[search,typeF,variantF]);
+  useEffect(()=>{setPage(0);setCards([]);setDetailIdx(null);},[search,typeF,variantF]);
   useEffect(()=>{const t=setTimeout(fetchCards,300);return()=>{clearTimeout(t);latestFetchRef.current++;};},[fetchCards,page]);
 
-  function wish(card,qty){SFX.addCard();setFlyAnim(true);onAddToWishlist(card,qty);if(tutStep===2&&onTutNext)onTutNext();}
-  function buy(card,qty){onAddToCart(card,qty);}
+  // "+" da grade e do detalhe: soma uma. O retorno é o selo ×N na carta e a
+  // pílula pulando — sem toast, que cobriria a grade a cada toque.
+  function add(card){onAddToCart(card,1);if(tutStep===2&&onTutNext)onTutNext();}
+  function dec(card){const row=cartItems.find(ci=>ci.card_id===card.id);if(row){SFX.click();onUpdateCartQty(row.id,row.quantity-1);}}
+  function toggleWish(card){const row=wishlist.find(w=>w.card_id===card.id);if(row)onRemoveFromWishlist(row.id);else{SFX.addCard();onAddToWishlist(card,1);}}
 
-  return(<div className="portal-page portal-catalog" style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)'}}>
-    <FlyingCard show={flyAnim} onDone={()=>setFlyAnim(false)}/>
+  const money=n=>'R$ '+Number(n||0).toFixed(2).replace('.',',');
+  const detail=detailIdx!==null?cards[detailIdx]:null;
+  const filterBtn=active=>({flex:'none',height:36,padding:0,border:'none',borderBottom:'1.5px solid '+(active?'var(--text-strong)':'transparent'),background:'transparent',color:active?'var(--text-strong)':'var(--text-dim)',fontSize:'var(--fs-sm)',fontWeight:500,cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif",whiteSpace:'nowrap'});
+
+  return(<div className="portal-page portal-catalog" style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingBottom:96}}>
     <div id="tut-search-area" style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)'}}>
-      <Input icon={Search} placeholder="Buscar carta..." value={search} onChange={e=>setSearch(e.target.value)}/>
-      <div style={{display:'flex',gap:'var(--sp-1)',flexWrap:'wrap'}}>
-        {catalogFilters.map(t=>(<button key={t} onClick={()=>{SFX.toggle();setTypeF(t);}} style={{flex:'1 1 64px',minWidth:t===RECENT_CARDS_FILTER?96:64,padding:'7px 6px',borderRadius:'var(--r-control)',border:'none',background:typeF===t?theme.primary:'var(--text-faint)',color:typeF===t?'var(--gp-ink)':'var(--text-faint)',fontWeight:600,fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap'}}>{t}</button>))}
+      <div style={{display:'flex',alignItems:'center',gap:'var(--sp-2)'}}>
+        {(searchOpen||search)
+          ? <label style={{flex:1,display:'flex',alignItems:'center',gap:'var(--sp-2)',height:44,padding:'0 12px',borderRadius:'var(--r-pill)',background:'var(--fill)'}}>
+              <Search size={17} style={{color:'var(--text-dim)',flexShrink:0}} aria-hidden="true"/>
+              <span className="mp-sr-only">Buscar carta</span>
+              <input autoFocus value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar carta" style={{flex:1,minWidth:0,border:'none',outline:'none',background:'transparent',color:'var(--text-strong)',fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif"}}/>
+              <button onClick={()=>{setSearch('');setSearchOpen(false);}} aria-label="Fechar busca" className="mp-tap" style={{marginRight:-10,background:'none',border:'none',color:'var(--text-dim)',cursor:'pointer'}}><X size={17}/></button>
+            </label>
+          : <>
+              <nav aria-label="Filtros" style={{flex:1,minWidth:0,display:'flex',gap:18,overflowX:'auto',scrollbarWidth:'none'}}>
+                {catalogFilters.map(t=>(<button key={t} aria-pressed={typeF===t} onClick={()=>{SFX.toggle();setTypeF(t);}} style={filterBtn(typeF===t)}>{t==='Todos'?'Todas':t===RECENT_CARDS_FILTER?'Novas':t}</button>))}
+              </nav>
+              <button onClick={()=>setSearchOpen(true)} aria-label="Buscar carta" className="mp-tap" style={{marginRight:-10,background:'none',border:'none',color:'var(--text-strong)',cursor:'pointer'}}><Search size={20}/></button>
+            </>}
       </div>
-      {typeF===VARIANTS_FILTER&&<div style={{display:'flex',gap:'var(--sp-1)',flexWrap:'wrap'}}>
-        {['',...VARIANTS].map(v=>(<button key={v||'all'} onClick={()=>{SFX.toggle();setVariantF(v);}} style={{padding:'5px 10px',borderRadius:'var(--r-pill)',border:'1px solid '+(variantF===v?theme.primary:'var(--line)'),background:variantF===v?wa(theme.primary,'22'):'transparent',color:variantF===v?theme.primary:'var(--text-dim)',fontWeight:600,fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",whiteSpace:'nowrap'}}>{v||'Todas'}</button>))}
+      {typeF===VARIANTS_FILTER&&<div style={{display:'flex',gap:14,overflowX:'auto',scrollbarWidth:'none'}}>
+        {['',...VARIANTS].map(v=>(<button key={v||'all'} aria-pressed={variantF===v} onClick={()=>{SFX.toggle();setVariantF(v);}} style={{...filterBtn(variantF===v),fontSize:'var(--fs-xs)',height:32}}>{v||'Todas'}</button>))}
       </div>}
     </div>
     {loading&&cards.length===0?(
-      // Skeleton em vez de spinner: antes a grade inteira era substituída a cada
-      // tecla digitada e a página saltava. Mantendo a altura, nada pula.
+      // Skeleton em vez de spinner: mantendo a altura, nada pula a cada tecla.
       <div className="portal-card-grid portal-catalog-grid" aria-hidden="true">
         {Array.from({length:6}).map((_,i)=>(
-          <Card key={'sk'+i} style={{padding:'var(--sp-2)'}}>
-            <div style={{width:'100%',aspectRatio:'0.72',borderRadius:'var(--r-control)',background:'var(--fill)',animation:'skPulse 1.2s ease-in-out infinite'}}/>
-            <div style={{padding:'9px 3px 2px'}}>
-              <div style={{height:11,width:'78%',borderRadius:4,background:'var(--fill)',animation:'skPulse 1.2s ease-in-out infinite'}}/>
-              <div style={{height:9,width:'42%',borderRadius:4,background:'var(--fill)',marginTop:6,animation:'skPulse 1.2s ease-in-out infinite'}}/>
-            </div>
-          </Card>
+          <div key={'sk'+i}>
+            <div style={{width:'100%',aspectRatio:'63 / 88',borderRadius:9,background:'var(--fill)',animation:'skPulse 1.2s ease-in-out infinite'}}/>
+            <div style={{height:11,width:'70%',borderRadius:4,background:'var(--fill)',marginTop:10,animation:'skPulse 1.2s ease-in-out infinite'}}/>
+            <div style={{height:10,width:'35%',borderRadius:4,background:'var(--fill)',marginTop:6,animation:'skPulse 1.2s ease-in-out infinite'}}/>
+          </div>
         ))}
       </div>
     ):(
       <div className="portal-card-grid portal-catalog-grid" style={{opacity:loading?0.55:1,transition:'opacity .15s'}}>
         {cards.map((c,i)=>{
-          // Precedência: já tenho > está no carrinho > está na lista de desejos.
-          const wishRow=wishlist.find(w=>w.card_id===c.id);
           const inCart=cartItems.find(ci=>ci.card_id===c.id);
           const ownedQty=collectionByCard?.get?.(c.id)||0;
-          const badge=ownedQty>0
-            ?{color:'var(--ok)',icon:Check,text:ownedQty>1?`tenho ${ownedQty}`:'tenho'}
-            :inCart?{color:'var(--gold)',icon:ShoppingCart,text:String(inCart.quantity)}
-            :wishRow?{color:theme.primary,icon:ScrollText,text:String(wishRow.quantity)}
-            :null;
-          return(<Card key={c.id} onClick={()=>{SFX.nav();setDetail(c);}} style={{padding:'var(--sp-2)'}}>
-            <div style={{position:'relative'}}>
-              <CardThumb card={c}/>
-              {badge&&<div style={{position:'absolute',top:7,left:7}}><Tag color={badge.color} style={{fontSize:'var(--fs-2xs)',padding:'2px 7px'}}><badge.icon size={10}/> {badge.text}</Tag></div>}
-              {/* Duas ações separadas: desejar não é comprar. */}
-              <div style={{position:'absolute',right:7,bottom:7,display:'flex',gap:5}}>
-                <button title="Guardar na lista de desejos" aria-label={`Guardar ${c.name} na lista de desejos`} onClick={e=>{e.stopPropagation();wish(c,1);}} style={{width:36,height:36,border:'1px solid '+wa(theme.primary,'55'),borderRadius:'var(--r-control)',background:wishRow?wa(theme.primary,'cc'):'var(--overlay-bg)',backdropFilter:'blur(6px)',color:wishRow?'var(--gp-ink)':theme.primary,display:'grid',placeItems:'center',cursor:'pointer'}}><ScrollText size={15}/></button>
-                <button ref={i===0?firstAddBtnRef:null} id={i===0?'tut-add-btn':undefined} title="Adicionar ao carrinho" aria-label={`Adicionar ${c.name} ao carrinho`} onClick={e=>{e.stopPropagation();buy(c,1);}} style={{width:40,height:40,border:'none',borderRadius:'var(--r-control)',background:'var(--gp)',color:'var(--gp-ink)',display:'grid',placeItems:'center',cursor:'pointer',boxShadow:'0 6px 16px var(--gg)'}}><ShoppingCart size={17}/></button>
+          return(<article key={c.id} style={{display:'flex',flexDirection:'column',gap:6,minWidth:0}}>
+            <button onClick={()=>{SFX.nav();setDetailIdx(i);}} aria-label={`Ver ${c.name}`} style={{position:'relative',display:'block',width:'100%',padding:0,border:'none',background:'none',cursor:'pointer',borderRadius:9}}>
+              <CardThumb card={c} radius={9} style={{aspectRatio:'63 / 88',border:'none'}}/>
+              {inCart&&<span style={{position:'absolute',left:8,top:8,minWidth:26,height:26,padding:'0 7px',borderRadius:13,background:'var(--ga)',color:'var(--ga-ink)',fontSize:'var(--fs-xs)',fontWeight:600,display:'grid',placeItems:'center',boxShadow:'0 2px 8px rgba(var(--sunk),calc(0.3*var(--sunk-a)))'}}>×{inCart.quantity}</span>}
+            </button>
+            <div style={{display:'flex',alignItems:'center',gap:6}}>
+              <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:1}}>
+                <h2 style={{margin:0,fontSize:'var(--fs-sm)',fontWeight:500,color:'var(--text-strong)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</h2>
+                <span style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{money(priceFor(c.type))}{c.variant?` · ${c.variant}`:c.type&&c.type!=='Normal'?` · ${c.type}`:''}{ownedQty>0?` · tenho ${ownedQty}`:''}</span>
               </div>
+              <button ref={i===0?firstAddBtnRef:null} id={i===0?'tut-add-btn':undefined} onClick={()=>add(c)} aria-label={`Adicionar uma ${c.name} ao pedido`} className="mp-tap" style={{flexShrink:0,marginRight:-10,background:'none',border:'none',color:'var(--text-strong)',cursor:'pointer'}}><Plus size={19}/></button>
             </div>
-            <div style={{padding:'9px 3px 2px'}}>
-              <div style={{fontWeight:700,fontSize:'var(--fs-sm)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</div>
-              <div style={{display:'flex',alignItems:'center',marginTop:5}}>
-                <span style={{fontSize:'var(--fs-2xs)',color:TC[c.type],fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.variant||c.type}</span>
-              </div>
-            </div>
-          </Card>);
+          </article>);
         })}
         {cards.length===0&&!loading&&<div style={{gridColumn:'1 / -1'}}><EmptyState icon={Search} title="Nenhuma carta encontrada" sub="Tente outro termo"/></div>}
       </div>
     )}
-    {cards.length>0&&<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'var(--sp-2)',padding:'4px 0 8px'}}>
-      <div aria-live="polite" style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)'}}>
+    {cards.length>0&&<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'var(--sp-2)',padding:'8px 0'}}>
+      <div aria-live="polite" style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)'}}>
         {cards.length} de {total} carta{total!==1?'s':''}
       </div>
       {cards.length<total&&<Btn variant="secondary" disabled={loading} onClick={()=>setPage(p=>p+1)} sfx="nav" style={{minWidth:200}}>
@@ -545,43 +581,74 @@ function CatalogPage({token,wishlist,cartItems=[],collectionByCard,onAddToWishli
       </Btn>}
     </div>}
     {tutStep===2&&handPos&&<div style={{position:'fixed',top:handPos.top,left:handPos.left,zIndex:200,pointerEvents:'none',fontSize:'var(--fs-xl)',animation:'tutHandBounce 0.8s ease-in-out infinite',transform:'translateX(-50%)'}}>👆</div>}
-    {detail&&<CardDetailModal card={detail} priceBRL={priceBRL} existing={wishlist.find(w=>w.card_id===detail.id)} ownedQty={collectionByCard?.get?.(detail.id)||0} onClose={()=>setDetail(null)} onWish={(c,q)=>{wish(c,q);}} onBuy={(c,q)=>{buy(c,q);}}/>}
+    {detail&&<CardDetailModal
+      card={detail}
+      price={priceFor(detail.type)}
+      cartRow={cartItems.find(ci=>ci.card_id===detail.id)}
+      wished={wishlist.some(w=>w.card_id===detail.id)}
+      ownedQty={collectionByCard?.get?.(detail.id)||0}
+      hasPrev={detailIdx>0}
+      hasNext={detailIdx<cards.length-1}
+      onPrev={()=>setDetailIdx(i=>Math.max(0,i-1))}
+      onNext={()=>setDetailIdx(i=>Math.min(cards.length-1,i+1))}
+      onAdd={()=>add(detail)}
+      onDec={()=>dec(detail)}
+      onToggleWish={()=>toggleWish(detail)}
+      onClose={()=>setDetailIdx(null)}/>}
   </div>);
 }
 
-// In-app card detail sheet — replaces opening the image in a new browser tab.
-function CardDetailModal({card,priceBRL,existing,ownedQty=0,onClose,onWish,onBuy}){
-  const [qty,setQty]=useState(1);
+// Folha de detalhe da carta. Não existe mais "Comprar": o −/+ mexe direto no
+// pedido, então o que a folha mostra é o que está no pedido. As setas (e o
+// arrasto lateral na imagem) passam para a carta vizinha sem fechar a folha.
+// Desejar é o gesto secundário e só existe aqui.
+function CardDetailModal({card,price,cartRow,wished,ownedQty=0,hasPrev,hasNext,onPrev,onNext,onAdd,onDec,onToggleWish,onClose}){
   const [zoom,setZoom]=useState(false);
-  const tc=TC[card.type]||'var(--text-dim)';
+  const touchX=useRef(null);
   const dialogRef=useDialogA11y(onClose);
+  const qty=cartRow?.quantity||0;
+  const meta=[card.type,card.variant].filter(Boolean).join(' · ');
+  const money='R$ '+Number(price||0).toFixed(2).replace('.',',');
+  useEffect(()=>{
+    const onKey=e=>{if(e.key==='ArrowLeft'&&hasPrev)onPrev();if(e.key==='ArrowRight'&&hasNext)onNext();};
+    document.addEventListener('keydown',onKey);return()=>document.removeEventListener('keydown',onKey);
+  },[hasPrev,hasNext,onPrev,onNext]);
+  const arrow=on=>({flexShrink:0,width:44,height:44,borderRadius:22,border:'none',background:'var(--fill)',color:'var(--text-strong)',display:'grid',placeItems:'center',cursor:on?'pointer':'default',opacity:on?1:.3});
   return(<div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="card-detail-title" style={{position:'fixed',inset:0,zIndex:120,display:'flex',alignItems:'flex-end',justifyContent:'center',animation:'fadeIn .15s ease'}}>
-    <div onClick={onClose} aria-hidden="true" style={{position:'absolute',inset:0,background:'rgba(var(--sunk),calc(0.72*var(--sunk-a)))',backdropFilter:'blur(6px)'}}/>
-    <div className="portal-modal" style={{position:'relative',width:'100%',maxWidth:480,maxHeight:'92vh',overflowY:'auto',background:'var(--sheet-bg)',borderRadius:'24px 24px 0 0',border:'1px solid var(--line)',padding:'12px 18px 24px',animation:'sheetUp .22s ease'}}>
-      <div style={{display:'flex',justifyContent:'center',marginBottom:6}}><div style={{width:40,height:5,borderRadius:'var(--r-pill)',background:'var(--fill)'}}/></div>
-      <button onClick={onClose} title="Fechar" aria-label="Fechar detalhe da carta" style={{position:'absolute',top:14,right:14,width:44,height:44,borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'var(--fill)',color:'var(--text-muted)',display:'grid',placeItems:'center',cursor:'pointer'}}><X size={16}/></button>
-      <div role={card.image_url?'button':undefined} tabIndex={card.image_url?0:undefined} aria-label={card.image_url?`Ampliar imagem de ${card.name}`:undefined} onKeyDown={e=>{if(card.image_url&&(e.key==='Enter'||e.key===' ')){e.preventDefault();setZoom(true);}}} style={{maxWidth:230,margin:'2px auto 0',position:'relative',cursor:card.image_url?'zoom-in':'default'}} onClick={()=>card.image_url&&setZoom(true)}>
-        <CardThumb card={card} radius={18}/>
-        {card.image_url&&<div style={{position:'absolute',right:8,bottom:8,width:32,height:32,borderRadius:'var(--r-control)',background:'var(--overlay-bg)',backdropFilter:'blur(6px)',border:'1px solid var(--line)',display:'grid',placeItems:'center',color:'#fff'}}><Search size={14}/></div>}
-      </div>
-      <div style={{marginTop:16}}>
-        <div style={{fontSize:'var(--fs-2xs)',letterSpacing:1.5,textTransform:'uppercase',color:tc,fontWeight:700}}>{card.type}{card.variant?` · ${card.variant}`:''}</div>
-        <div id="card-detail-title" style={{fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)',color:'var(--text-strong)',marginTop:3,lineHeight:1.15}}>{card.name}</div>
-        {(ownedQty>0||existing)&&<div style={{display:'flex',alignItems:'center',gap:'var(--sp-2)',marginTop:10,flexWrap:'wrap'}}>
-          {ownedQty>0&&<Tag color="var(--ok)" style={{fontSize:'var(--fs-2xs)'}}><Check size={10}/> {ownedQty} na sua coleção</Tag>}
-          {existing&&<Tag color="var(--gp)" style={{fontSize:'var(--fs-2xs)'}}><ScrollText size={10}/> {existing.quantity} na lista de desejos</Tag>}
-        </div>}
-      </div>
-      <div style={{display:'flex',gap:'var(--sp-2)',alignItems:'stretch',marginTop:20}}>
-        <div style={{display:'flex',alignItems:'center',gap:'var(--sp-3)',background:'var(--fill)',border:'1px solid var(--line)',borderRadius:'var(--r-card)',padding:'0 14px'}}>
-          <button onClick={()=>{SFX.toggle();setQty(q=>Math.max(1,q-1));}} aria-label="Diminuir quantidade" style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',display:'grid',padding:'var(--sp-2)'}}><Minus size={16}/></button>
-          <span aria-live="polite" aria-label={`Quantidade: ${qty}`} style={{minWidth:18,textAlign:'center',fontWeight:700,fontSize:'var(--fs-md)',color:'var(--text-strong)'}}>{qty}</span>
-          <button onClick={()=>{SFX.toggle();setQty(q=>q+1);}} aria-label="Aumentar quantidade" style={{background:'none',border:'none',color:'var(--text-strong)',cursor:'pointer',display:'grid',padding:'var(--sp-2)'}}><Plus size={16}/></button>
+    <div onClick={onClose} aria-hidden="true" style={{position:'absolute',inset:0,background:'var(--scrim)'}}/>
+    <div className="portal-modal" style={{position:'relative',width:'100%',maxWidth:480,maxHeight:'94vh',overflowY:'auto',background:'var(--sheet-bg)',borderRadius:'var(--r-sheet) var(--r-sheet) 0 0',padding:'10px 20px max(24px, env(safe-area-inset-bottom))',display:'flex',flexDirection:'column',gap:14,animation:'sheetUp .22s ease'}}>
+      <div aria-hidden="true" style={{alignSelf:'center',width:40,height:5,borderRadius:3,background:'var(--line)'}}/>
+      <button onClick={onClose} aria-label="Fechar" className="mp-tap" style={{position:'absolute',top:6,right:8,background:'none',border:'none',color:'var(--text-dim)',cursor:'pointer'}}><X size={18}/></button>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+        <button onClick={()=>hasPrev&&onPrev()} disabled={!hasPrev} aria-label="Carta anterior" style={arrow(hasPrev)}><ChevronLeft size={18}/></button>
+        <div
+          role={card.image_url?'button':undefined} tabIndex={card.image_url?0:undefined} aria-label={card.image_url?`Ampliar imagem de ${card.name}`:undefined}
+          onClick={()=>card.image_url&&setZoom(true)}
+          onKeyDown={e=>{if(card.image_url&&(e.key==='Enter'||e.key===' ')){e.preventDefault();setZoom(true);}}}
+          onTouchStart={e=>{touchX.current=e.touches[0].clientX;}}
+          onTouchEnd={e=>{const x0=touchX.current;touchX.current=null;if(x0==null)return;const dx=e.changedTouches[0].clientX-x0;if(dx>50&&hasPrev)onPrev();else if(dx<-50&&hasNext)onNext();}}
+          style={{width:'min(230px, 60vw)',cursor:card.image_url?'zoom-in':'default'}}>
+          <CardThumb key={card.id} card={card} radius={12} style={{aspectRatio:'63 / 88',border:'none'}}/>
         </div>
-        <Btn full sfx={null} onClick={()=>{onBuy(card,qty);onClose();}} style={{flex:1}}><ShoppingCart size={16}/> Comprar</Btn>
+        <button onClick={()=>hasNext&&onNext()} disabled={!hasNext} aria-label="Próxima carta" style={arrow(hasNext)}><ChevronRight size={18}/></button>
       </div>
-      {/* Desejar é o gesto secundário: guarda a carta sem mexer no carrinho. */}
-      <Btn full variant="ghost" sfx={null} onClick={()=>{onWish(card,qty);onClose();}} style={{marginTop:8}}><ScrollText size={15}/> Guardar na lista de desejos</Btn>
+      <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:12}}>
+        <div style={{minWidth:0}}>
+          <h2 id="card-detail-title" style={{margin:0,fontSize:'var(--fs-xl)',fontWeight:600,letterSpacing:-0.3,color:'var(--text-strong)',lineHeight:1.15}}>{card.name}</h2>
+          <div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',marginTop:3}}>{meta}{ownedQty>0?` · você tem ${ownedQty}`:''}</div>
+        </div>
+        <span style={{fontSize:'var(--fs-lg)',fontWeight:600,color:'var(--text-strong)',whiteSpace:'nowrap'}}>{money}</span>
+      </div>
+      {qty>0
+        ? <div style={{height:52,display:'flex',alignItems:'center',borderRadius:26,background:'var(--fill)'}}>
+            <button onClick={onDec} aria-label="Tirar uma do pedido" style={{width:64,height:52,border:'none',background:'transparent',color:'var(--text-strong)',display:'grid',placeItems:'center',cursor:'pointer'}}><Minus size={18}/></button>
+            <span aria-live="polite" style={{flex:1,textAlign:'center',fontSize:'var(--fs-md)',fontWeight:500,color:'var(--text-strong)'}}>{qty} no pedido</span>
+            <button onClick={onAdd} aria-label="Pôr mais uma no pedido" style={{width:64,height:52,border:'none',background:'transparent',color:'var(--text-strong)',display:'grid',placeItems:'center',cursor:'pointer'}}><Plus size={18}/></button>
+          </div>
+        : <button onClick={onAdd} style={{height:52,border:'none',borderRadius:26,background:'var(--gp)',color:'var(--gp-ink)',fontSize:'var(--fs-md)',fontWeight:500,fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer'}}>Adicionar ao pedido</button>}
+      <button onClick={onToggleWish} aria-pressed={wished} style={{height:44,border:'none',background:'transparent',color:'var(--text-dim)',fontSize:'var(--fs-sm)',fontFamily:"'Inter',system-ui,sans-serif",display:'flex',alignItems:'center',justifyContent:'center',gap:8,cursor:'pointer'}}>
+        <ScrollText size={16} fill={wished?'currentColor':'none'}/>{wished?'Nos seus desejos':'Guardar nos desejos'}
+      </button>
     </div>
     {zoom&&<ImageLightbox src={card.image_url} alt={card.name} onClose={()=>setZoom(false)}/>}
   </div>);
@@ -625,7 +692,7 @@ function WishlistPage({wishlist,cartItems,collectionByCard,onAddToCart,onRemove,
 
     {complete.length>0&&<div role="tablist" aria-label="Filtrar lista de desejos" style={{display:'flex',gap:'var(--sp-1)'}}>
       {[{key:'pending',label:`Falta comprar (${pending.length})`},{key:'done',label:`Já tenho (${complete.length})`}].map(t=>(
-        <button key={t.key} role="tab" aria-selected={filter===t.key} onClick={()=>{SFX.toggle();setFilter(t.key);}} style={{flex:1,padding:'9px 10px',borderRadius:'var(--r-control)',border:'1px solid '+(filter===t.key?wa(theme.primary,'55'):'var(--line-soft)'),background:filter===t.key?wa(theme.primary,'18'):'var(--fill-soft)',color:filter===t.key?theme.primary:'var(--text-dim)',fontWeight:700,fontSize:'var(--fs-xs)',fontFamily:"'Outfit',sans-serif",cursor:'pointer'}}>{t.label}</button>
+        <button key={t.key} role="tab" aria-selected={filter===t.key} onClick={()=>{SFX.toggle();setFilter(t.key);}} style={{flex:1,padding:'9px 10px',borderRadius:'var(--r-control)',border:'1px solid '+(filter===t.key?wa(theme.primary,'55'):'var(--line-soft)'),background:filter===t.key?wa(theme.primary,'18'):'var(--fill-soft)',color:filter===t.key?theme.primary:'var(--text-dim)',fontWeight:700,fontSize:'var(--fs-xs)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer'}}>{t.label}</button>
       ))}
     </div>}
 
@@ -895,7 +962,7 @@ function CheckoutPage({cartItems=[],pricing,theme,nav,profile,token,onOrderDone,
       {!shippingSkipped&&profileHasSavedAddress&&!editingAddr&&lF&&<div style={{marginTop:10,textAlign:'center',color:'var(--text-dim)',fontSize:'var(--fs-sm)',display:'flex',alignItems:'center',justifyContent:'center',gap:'var(--sp-1)'}}><Spin size={14}/> Calculando frete...</div>}
       {!shippingSkipped&&freteOptions.length>0&&<div style={{marginTop:12}}>
         <div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-dim)',marginBottom:8}}>Opções de envio</div>
-        {freteOptions.map((opt,i)=>(<button key={i} onClick={()=>{SFX.toggle();setSelectedFrete(opt);}} style={{width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',borderRadius:'var(--r-control)',border:'1px solid '+(selectedFrete===opt?wa(theme.primary,'30'):'var(--line-soft)'),background:selectedFrete===opt?wa(theme.primary,'10'):'var(--text-faint)',cursor:'pointer',marginBottom:4,fontFamily:"'Outfit',sans-serif"}}>
+        {freteOptions.map((opt,i)=>(<button key={i} onClick={()=>{SFX.toggle();setSelectedFrete(opt);}} style={{width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',borderRadius:'var(--r-control)',border:'1px solid '+(selectedFrete===opt?wa(theme.primary,'30'):'var(--line-soft)'),background:selectedFrete===opt?wa(theme.primary,'10'):'var(--text-faint)',cursor:'pointer',marginBottom:4,fontFamily:"'Inter',system-ui,sans-serif"}}>
           <div style={{textAlign:'left'}}><div style={{fontSize:'var(--fs-sm)',fontWeight:600,color:selectedFrete===opt?'var(--text-strong)':'var(--text-dim)'}}>{opt.carrier}</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{opt.deadline_days} dias úteis</div></div>
           <div style={{display:'flex',alignItems:'center',gap:'var(--sp-1)'}}><span style={{fontSize:14,fontWeight:800,color:selectedFrete===opt?theme.primary:'var(--text-dim)'}}>R$ {Number(opt.price).toFixed(2)}</span>{selectedFrete===opt&&<CheckCircle size={16} style={{color:theme.primary}}/>}</div>
         </button>))}
@@ -994,7 +1061,7 @@ function SuccessPage({lastOrder,theme,nav}){
   return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-4)',alignItems:'center',textAlign:'center',paddingTop:20}}>
     <div style={{width:72,height:72,borderRadius:'var(--r-sheet)',background:'linear-gradient(135deg,'+theme.primary+','+theme.secondary+')',display:'grid',placeItems:'center',boxShadow:'0 0 36px '+theme.glow}}><Check size={32} color="#fff"/></div>
     <div>
-      <h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)'}}>Pedido registrado!</h1>
+      <h1 style={{margin:0,fontFamily:"'Inter',system-ui,sans-serif",fontSize:'var(--fs-xl)'}}>Pedido registrado!</h1>
       <p style={{color:'var(--text-faint)',fontSize:'var(--fs-sm)',margin:'6px 0 0'}}>#{lastOrder.shortId||''} · {qty} carta{qty!==1?'s':''}{lastOrder.total?` · R$ ${Number(lastOrder.total).toFixed(2).replace('.',',')}`:''}</p>
     </div>
     <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',lineHeight:1.6,maxWidth:320}}>Assim que o pagamento cair, seu pedido entra na próxima compra no fornecedor. Você acompanha cada etapa em <b style={{color:'var(--text-muted)'}}>Minha conta → Meus pedidos</b>.</div>
@@ -1014,7 +1081,7 @@ function ProfileSection({title,icon:Icon,color,children,defaultOpen=false}){
   return(<div style={{borderRadius:'var(--r-card)',border:'1px solid var(--line-soft)',overflow:'hidden',background:'var(--fill-soft)'}}>
     <button onClick={()=>setOpen(o=>!o)} style={{width:'100%',background:'none',border:'none',padding:'14px 16px',display:'flex',alignItems:'center',gap:'var(--sp-2)',cursor:'pointer',color:'var(--text)'}}>
       <div style={{width:32,height:32,borderRadius:'var(--r-control)',background:wa(color,'18'),border:'1px solid '+wa(color,'30'),display:'grid',placeItems:'center',flexShrink:0}}><Icon size={15} style={{color}}/></div>
-      <span style={{flex:1,textAlign:'left',fontWeight:700,fontSize:14,fontFamily:"'Outfit',sans-serif"}}>{title}</span>
+      <span style={{flex:1,textAlign:'left',fontWeight:700,fontSize:14,fontFamily:"'Inter',system-ui,sans-serif"}}>{title}</span>
       <ChevronRight size={15} style={{color:'var(--text-faint)',transform:open?'rotate(90deg)':'none',transition:'transform .2s'}}/>
     </button>
     {open&&<div style={{padding:'0 16px 16px',borderTop:'1px solid rgba(var(--ink),calc(0.04*var(--ink-a)))'}}>{children}</div>}
@@ -1112,9 +1179,9 @@ function CollectionAlbum({token,collection,onSetExtra,theme}){
     <Input icon={Search} placeholder="Buscar no álbum..." value={search} onChange={e=>setSearch(e.target.value)}/>
     <div style={{display:'flex',gap:'var(--sp-1)',flexWrap:'wrap'}}>
       {['Todos',...CATALOG_TYPES].map(t=>(
-        <button key={t} onClick={()=>{SFX.toggle();setTypeF(t);}} style={{flex:'1 1 60px',padding:'7px 6px',borderRadius:'var(--r-control)',border:'none',background:typeF===t?theme.primary:'var(--text-faint)',color:typeF===t?'var(--gp-ink)':'var(--text-faint)',fontWeight:600,fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{t}</button>
+        <button key={t} onClick={()=>{SFX.toggle();setTypeF(t);}} style={{flex:'1 1 60px',padding:'7px 6px',borderRadius:'var(--r-control)',border:'none',background:typeF===t?theme.primary:'var(--text-faint)',color:typeF===t?'var(--gp-ink)':'var(--text-faint)',fontWeight:600,fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>{t}</button>
       ))}
-      <button onClick={()=>{SFX.toggle();setOnlyOwned(v=>!v);}} aria-pressed={onlyOwned} style={{flex:'1 1 100px',padding:'7px 6px',borderRadius:'var(--r-control)',border:'1px solid '+(onlyOwned?'rgba(var(--ok-rgb),0.4)':'var(--line-soft)'),background:onlyOwned?'rgba(var(--ok-rgb),0.14)':'var(--fill-soft)',color:onlyOwned?'var(--ok)':'var(--text-dim)',fontWeight:700,fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>Só as que tenho</button>
+      <button onClick={()=>{SFX.toggle();setOnlyOwned(v=>!v);}} aria-pressed={onlyOwned} style={{flex:'1 1 100px',padding:'7px 6px',borderRadius:'var(--r-control)',border:'1px solid '+(onlyOwned?'rgba(var(--ok-rgb),0.4)':'var(--line-soft)'),background:onlyOwned?'rgba(var(--ok-rgb),0.14)':'var(--fill-soft)',color:onlyOwned?'var(--ok)':'var(--text-dim)',fontWeight:700,fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>Só as que tenho</button>
     </div>
 
     <div className="portal-card-grid portal-catalog-grid" style={{opacity:loading?0.55:1,transition:'opacity .15s'}}>
@@ -1232,7 +1299,7 @@ function ShipmentAddressEditor({order,allBatches,token,toastFn,onReloadOrders}){
       {!options&&<Btn full onClick={quote} disabled={busy} style={{fontSize:'var(--fs-xs)',padding:'10px 12px'}}>{busy?<Spin size={14}/>:<><Truck size={13}/> Calcular frete</>}</Btn>}
       {options&&<div style={{display:'flex',flexDirection:'column',gap:6}}>
         {options.map(o=>{const sel=o.service===service;return(
-          <button key={o.service} onClick={()=>setService(o.service)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 12px',borderRadius:'var(--r-control)',border:'1px solid '+(sel?'var(--gp)':'var(--line)'),background:sel?'var(--fill)':'transparent',color:'var(--text)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",fontSize:'var(--fs-xs)'}}>
+          <button key={o.service} onClick={()=>setService(o.service)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 12px',borderRadius:'var(--r-control)',border:'1px solid '+(sel?'var(--gp)':'var(--line)'),background:sel?'var(--fill)':'transparent',color:'var(--text)',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif",fontSize:'var(--fs-xs)'}}>
             <span style={{fontWeight:700}}>{o.service}{o.prazo?<span style={{fontWeight:400,color:'var(--text-faint)'}}> · {o.prazo} dias úteis</span>:null}</span>
             <span style={{fontWeight:700,color:o.difference>0?'var(--gold)':'var(--ok)'}}>{o.difference>0?`+ ${fmt(o.difference)}`:'Sem custo'}</span>
           </button>);})}
@@ -1269,7 +1336,7 @@ function ClientOrderCard({order,allBatches,token,theme,expanded,onToggle,onAddCa
   },[expanded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return(<div style={{borderRadius:'var(--r-control)',border:`1px solid ${wa(stage.color,'2a')}`,overflow:'hidden',background:'rgba(var(--sunk),calc(0.2*var(--sunk-a)))'}}>
-    <button onClick={onToggle} style={{width:'100%',padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',gap:'var(--sp-2)',background:'none',border:'none',cursor:'pointer',color:'var(--text)',fontFamily:"'Outfit',sans-serif",textAlign:'left'}}>
+    <button onClick={onToggle} style={{width:'100%',padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',gap:'var(--sp-2)',background:'none',border:'none',cursor:'pointer',color:'var(--text)',fontFamily:"'Inter',system-ui,sans-serif",textAlign:'left'}}>
       <div style={{display:'flex',alignItems:'center',gap:'var(--sp-2)',minWidth:0}}>
         <div style={{width:36,height:36,borderRadius:'var(--r-control)',background:wa(stage.color,'1a'),display:'grid',placeItems:'center',flexShrink:0}}><Package size={15} style={{color:stage.color}}/></div>
         <div style={{minWidth:0}}>
@@ -1375,7 +1442,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
           {guild?'⚔️':'👤'}
         </div>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontWeight:800,fontSize:'var(--fs-lg)',fontFamily:"'Cinzel',serif",overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{profile?.name||'Aventureiro'}</div>
+          <div style={{fontWeight:800,fontSize:'var(--fs-lg)',fontFamily:"'Inter',system-ui,sans-serif",overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{profile?.name||'Aventureiro'}</div>
           <div style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)',marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{profile?.email||guild||'Escolha sua guilda'}</div>
         </div>
       </div>
@@ -1395,7 +1462,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
     <div role="tablist" aria-label="Seções da conta" style={{display:'flex',gap:'var(--sp-1)'}}>
       {ACCOUNT_TABS.map(t=>{
         const active=tab===t.key;
-        return(<button key={t.key} role="tab" aria-selected={active} onClick={()=>{SFX.toggle();setTab(t.key);}} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'10px 8px',borderRadius:'var(--r-control)',border:'1px solid '+(active?wa(theme.primary,'55'):'var(--line-soft)'),background:active?wa(theme.primary,'18'):'var(--fill-soft)',color:active?theme.primary:'var(--text-dim)',fontWeight:700,fontSize:'var(--fs-xs)',fontFamily:"'Outfit',sans-serif",cursor:'pointer'}}>
+        return(<button key={t.key} role="tab" aria-selected={active} onClick={()=>{SFX.toggle();setTab(t.key);}} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'10px 8px',borderRadius:'var(--r-control)',border:'1px solid '+(active?wa(theme.primary,'55'):'var(--line-soft)'),background:active?wa(theme.primary,'18'):'var(--fill-soft)',color:active?theme.primary:'var(--text-dim)',fontWeight:700,fontSize:'var(--fs-xs)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer'}}>
           <t.icon size={14}/>{t.label}
         </button>);
       })}
@@ -1408,7 +1475,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
         return <ClientOrderCard key={o.orderId} order={o} allBatches={myOrders} token={token} theme={theme} expanded={expandedOrder===o.orderId} onToggle={()=>setExpandedOrder(expandedOrder===o.orderId?null:o.orderId)} onAddCards={()=>onAddCards&&onAddCards(o)} canAdd={!!onAddCards&&!!addOpen} onReloadOrders={onReloadOrders} toastFn={toastFn}/>;
       })}
       {doneOrders.length>0&&<>
-        <button onClick={()=>{SFX.toggle();setShowArchived(v=>!v);}} style={{background:'none',border:'none',color:'var(--text-faint)',fontSize:'var(--fs-2xs)',fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif",padding:'6px 2px',textAlign:'left',display:'flex',alignItems:'center',gap:4}}>
+        <button onClick={()=>{SFX.toggle();setShowArchived(v=>!v);}} style={{background:'none',border:'none',color:'var(--text-faint)',fontSize:'var(--fs-2xs)',fontWeight:700,cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif",padding:'6px 2px',textAlign:'left',display:'flex',alignItems:'center',gap:4}}>
           <Archive size={12}/> Concluídos ({doneOrders.length}) <ChevronRight size={12} style={{transform:showArchived?'rotate(90deg)':'none',transition:'transform .2s'}}/>
         </button>
         {showArchived&&doneOrders.map(o=>(
@@ -1462,7 +1529,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
         <div style={{display:'flex',gap:'var(--sp-1)'}}>
           {[{key:'dark',label:'Escuro',icon:Moon},{key:'light',label:'Claro',icon:Sun}].map(opt=>{
             const active=colorMode===opt.key;
-            return(<button key={opt.key} onClick={()=>{SFX.toggle();onColorModeChange(opt.key);}} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:'var(--sp-1)',padding:'11px 8px',borderRadius:'var(--r-control)',border:'1px solid '+(active?wa(theme.primary,'55'):'var(--line)'),background:active?wa(theme.primary,'18'):'var(--text-faint)',color:active?theme.primary:'var(--text-dim)',fontSize:'var(--fs-sm)',fontWeight:700,cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>
+            return(<button key={opt.key} onClick={()=>{SFX.toggle();onColorModeChange(opt.key);}} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:'var(--sp-1)',padding:'11px 8px',borderRadius:'var(--r-control)',border:'1px solid '+(active?wa(theme.primary,'55'):'var(--line)'),background:active?wa(theme.primary,'18'):'var(--text-faint)',color:active?theme.primary:'var(--text-dim)',fontSize:'var(--fs-sm)',fontWeight:700,cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>
               <opt.icon size={15}/>{opt.label}
             </button>);
           })}
@@ -1572,7 +1639,7 @@ function AuthPage({onLogin,theme}){
   }
 
   if(forgotMode)return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingTop:16}}>
-    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>🔑</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)'}}>Recuperar Senha</h1></div>
+    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>🔑</div><h1 style={{margin:0,fontFamily:"'Inter',system-ui,sans-serif",fontSize:'var(--fs-xl)'}}>Recuperar Senha</h1></div>
     {resetSent?<Card glow="rgba(var(--ok-rgb),0.15)" style={{padding:'var(--sp-4)',textAlign:'center'}}>
       <Check size={32} style={{color:'var(--ok)',marginBottom:8}}/>
       <div style={{fontWeight:700,color:'var(--ok)',fontSize:'var(--fs-md)'}}>Email enviado!</div>
@@ -1583,24 +1650,24 @@ function AuthPage({onLogin,theme}){
       <Input icon={Mail} type="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="seu@email.com" value={email} onChange={e=>setEmail(e.target.value)}/>
       {err&&<div style={{fontSize:'var(--fs-xs)',color:'var(--danger)',textAlign:'center',padding:'var(--sp-1)'}}><AlertTriangle size={12}/> {err}</div>}
       <Btn full onClick={handleForgot} disabled={!email.includes('@')||loading} sfx="">{loading?<Spin size={16}/>:<><Mail size={16}/> Enviar link de recuperação</>}</Btn>
-      <button onClick={()=>{setForgotMode(false);setErr('');}} style={{background:'none',border:'none',color:'var(--gp)',fontSize:'var(--fs-sm)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",padding:'var(--sp-2)',textAlign:'center'}}>Voltar ao login</button>
+      <button onClick={()=>{setForgotMode(false);setErr('');}} style={{background:'none',border:'none',color:'var(--gp)',fontSize:'var(--fs-sm)',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif",padding:'var(--sp-2)',textAlign:'center'}}>Voltar ao login</button>
     </>}
   </div>);
 
   return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingTop:16}}>
-    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>⚔️</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)'}}>{mode==='login'?'Bem-vindo':'Junte-se'}</h1></div>
-    <div style={{display:'flex',borderRadius:'var(--r-control)',background:'var(--fill-soft)',padding:'var(--sp-1)',gap:'var(--sp-1)'}}>{['login','signup'].map(m=>(<button key={m} onClick={()=>{SFX.toggle();setMode(m);setErr('');setSenha('');setSenha2('');setShowVK(false);}} style={{flex:1,padding:'9px 0',borderRadius:'var(--r-control)',border:'none',background:mode===m?'var(--fill)':'transparent',color:mode===m?'var(--text-strong)':'var(--text-faint)',fontWeight:700,fontSize:'var(--fs-sm)',cursor:'pointer',fontFamily:"'Outfit',sans-serif"}}>{m==='login'?'Entrar':'Criar conta'}</button>))}</div>
+    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>⚔️</div><h1 style={{margin:0,fontFamily:"'Inter',system-ui,sans-serif",fontSize:'var(--fs-xl)'}}>{mode==='login'?'Bem-vindo':'Junte-se'}</h1></div>
+    <div style={{display:'flex',borderRadius:'var(--r-control)',background:'var(--fill-soft)',padding:'var(--sp-1)',gap:'var(--sp-1)'}}>{['login','signup'].map(m=>(<button key={m} onClick={()=>{SFX.toggle();setMode(m);setErr('');setSenha('');setSenha2('');setShowVK(false);}} style={{flex:1,padding:'9px 0',borderRadius:'var(--r-control)',border:'none',background:mode===m?'var(--fill)':'transparent',color:mode===m?'var(--text-strong)':'var(--text-faint)',fontWeight:700,fontSize:'var(--fs-sm)',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>{m==='login'?'Entrar':'Criar conta'}</button>))}</div>
     {mode==='signup'&&<Input icon={User} placeholder="Seu nome" value={name} onChange={e=>setName(e.target.value)}/>}
     <Input icon={Mail} type="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="seu@email.com" value={email} onChange={e=>setEmail(e.target.value)}/>
     {mode==='signup'&&<Input icon={Phone} placeholder="WhatsApp (11999999999)" value={whatsapp} onChange={e=>setWhatsapp(e.target.value.replace(/\D/g,'').slice(0,11))}/>}
     <div>
-      <div onClick={()=>openVK('senha')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-card)',border:'1px solid '+(showVK&&vkTarget==='senha'?'var(--gp)':'var(--line)'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:senha?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+      <div onClick={()=>openVK('senha')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-card)',border:'1px solid '+(showVK&&vkTarget==='senha'?'var(--gp)':'var(--line)'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:senha?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
         <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
         {senha?<span style={{letterSpacing:6}}>{'●'.repeat(senha.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-senha.length)}</span></span>:'Senha (6 dígitos)'}
       </div>
     </div>
     {mode==='signup'&&<div>
-      <div onClick={()=>openVK('senha2')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-card)',border:'1px solid '+(showVK&&vkTarget==='senha2'?'var(--gp)':'var(--line)'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:senha2?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+      <div onClick={()=>openVK('senha2')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-card)',border:'1px solid '+(showVK&&vkTarget==='senha2'?'var(--gp)':'var(--line)'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:senha2?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
         <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
         {senha2?<span style={{letterSpacing:6}}>{'●'.repeat(senha2.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-senha2.length)}</span></span>:'Confirmar senha'}
       </div>
@@ -1609,7 +1676,7 @@ function AuthPage({onLogin,theme}){
     {showVK&&<div style={{marginTop:4}}><VirtualKeyboard onKey={vkKey} onBackspace={vkBack} onDone={()=>setShowVK(false)} maxLen={6} currentLen={currentVKLen} doneLabel="Fechar"/></div>}
     {err&&<div style={{fontSize:'var(--fs-xs)',color:'var(--danger)',textAlign:'center',padding:'var(--sp-1)'}}><AlertTriangle size={12}/> {err}</div>}
     <Btn full onClick={submit} disabled={!canSubmit} sfx="">{loading?<Spin size={16}/>:<>{mode==='login'?'Entrar':'Criar conta'} <ArrowRight size={16}/></>}</Btn>
-    {mode==='login'&&<button onClick={()=>{setForgotMode(true);setErr('');}} style={{background:'none',border:'none',color:'var(--text-faint)',fontSize:'var(--fs-xs)',cursor:'pointer',fontFamily:"'Outfit',sans-serif",padding:'var(--sp-1)',textAlign:'center'}}>Esqueci minha senha</button>}
+    {mode==='login'&&<button onClick={()=>{setForgotMode(true);setErr('');}} style={{background:'none',border:'none',color:'var(--text-faint)',fontSize:'var(--fs-xs)',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif",padding:'var(--sp-1)',textAlign:'center'}}>Esqueci minha senha</button>}
   </div>);
 }
 
@@ -1633,12 +1700,12 @@ function RecoveryPage({token,onDone,theme}){
     setLoading(false);
   }
   return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingTop:16}}>
-    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>🔑</div><h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)'}}>Nova Senha</h1><p style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',marginTop:6}}>Digite sua nova senha de 6 dígitos</p></div>
-    <div onClick={()=>{setVkTarget('pw');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-card)',border:'1px solid '+(showVK&&vkTarget==='pw'?'var(--gp)':'var(--line)'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:pw?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>🔑</div><h1 style={{margin:0,fontFamily:"'Inter',system-ui,sans-serif",fontSize:'var(--fs-xl)'}}>Nova Senha</h1><p style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',marginTop:6}}>Digite sua nova senha de 6 dígitos</p></div>
+    <div onClick={()=>{setVkTarget('pw');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-card)',border:'1px solid '+(showVK&&vkTarget==='pw'?'var(--gp)':'var(--line)'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:pw?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
       <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
       {pw?<span style={{letterSpacing:6}}>{'●'.repeat(pw.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-pw.length)}</span></span>:'Nova senha'}
     </div>
-    <div onClick={()=>{setVkTarget('pw2');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-card)',border:'1px solid '+(showVK&&vkTarget==='pw2'?'var(--gp)':'var(--line)'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:pw2?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Outfit',sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+    <div onClick={()=>{setVkTarget('pw2');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-card)',border:'1px solid '+(showVK&&vkTarget==='pw2'?'var(--gp)':'var(--line)'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:pw2?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
       <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
       {pw2?<span style={{letterSpacing:6}}>{'●'.repeat(pw2.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-pw2.length)}</span></span>:'Confirmar senha'}
     </div>
@@ -1667,7 +1734,7 @@ function OnboardingPage({onComplete,theme}){
 
   if(askTutorial)return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-4)',paddingTop:40,alignItems:'center',textAlign:'center'}}>
     <div style={{width:56,height:56,borderRadius:'var(--r-card)',background:'var(--fill-soft)',border:'1px solid var(--line-soft)',display:'grid',placeItems:'center',fontSize:28}}>🧙</div>
-    <h2 style={{fontFamily:"'Cinzel',serif",fontSize:20}}>"Vamos explorar o portal juntos!"</h2>
+    <h2 style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:20}}>"Vamos explorar o portal juntos!"</h2>
     <p style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',maxWidth:300,fontStyle:'italic'}}>Um guia rápido sobre o ritual da encomenda — leva menos de 1 minuto</p>
     <div style={{display:'flex',gap:'var(--sp-2)',width:'100%',maxWidth:300}}>
       <Btn onClick={()=>onComplete(colors,guild,true)} style={{flex:1}} sfx="confirm">Vamos lá! 🔮</Btn>
@@ -1678,10 +1745,10 @@ function OnboardingPage({onComplete,theme}){
   return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-4)',paddingTop:16,minHeight:'70vh',justifyContent:'space-between'}}>
     <div>
       <div style={{display:'flex',alignItems:'center',gap:'var(--sp-2)',marginBottom:18}}><div style={{width:44,height:44,borderRadius:'var(--r-control)',background:'var(--fill-soft)',border:'1px solid var(--line-soft)',display:'grid',placeItems:'center',fontSize:'var(--fs-xl)'}}>{s.mood}</div><div><div style={{fontWeight:800,fontSize:14}}>Goblin Guia</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>Guardião do Portal</div></div></div>
-      <h1 style={{margin:0,fontFamily:"'Cinzel',serif",fontSize:'var(--fs-xl)'}}>{s.title}</h1>
+      <h1 style={{margin:0,fontFamily:"'Inter',system-ui,sans-serif",fontSize:'var(--fs-xl)'}}>{s.title}</h1>
       <p style={{fontSize:14,lineHeight:1.7,color:'var(--text-muted)',marginTop:10,fontStyle:'italic'}}>{s.body}</p>
       {s.illus&&s.illus()}
-      {s.hasColors&&<div style={{marginTop:18}}><div style={{display:'flex',justifyContent:'center',gap:'var(--sp-3)',marginBottom:14}}>{MANA_COLORS.map(m=><ManaOrb key={m.key} mana={m.key} selected={colors.includes(m.key)} onClick={()=>toggleC(m.key)} size={50}/>)}</div>{guild&&<div style={{textAlign:'center'}}><GuildBadge guild={guild} size={24}/><span style={{fontFamily:"'Cinzel',serif",fontSize:'var(--fs-lg)',fontWeight:700,color:gT.primary,marginLeft:8}}>{guild}</span></div>}</div>}
+      {s.hasColors&&<div style={{marginTop:18}}><div style={{display:'flex',justifyContent:'center',gap:'var(--sp-3)',marginBottom:14}}>{MANA_COLORS.map(m=><ManaOrb key={m.key} mana={m.key} selected={colors.includes(m.key)} onClick={()=>toggleC(m.key)} size={50}/>)}</div>{guild&&<div style={{textAlign:'center'}}><GuildBadge guild={guild} size={24}/><span style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:'var(--fs-lg)',fontWeight:700,color:gT.primary,marginLeft:8}}>{guild}</span></div>}</div>}
     </div>
     <div>
       <div style={{display:'flex',gap:'var(--sp-1)',justifyContent:'center',marginBottom:12}}>{steps.map((_,i)=><div key={i} style={{width:i===step?20:6,height:6,borderRadius:3,background:i===step?gT.primary:'var(--fill)'}}/>)}</div>
@@ -1742,6 +1809,7 @@ export default function MagicPortal(){
 
   // UI state
   const [page,setPage]=useState('catalog');
+  const [profileTab,setProfileTab]=useState('orders'); // aba de "Minha conta" aberta pelo menu do avatar
   const [showTutorial,setShowTutorial]=useState(false);
   const [tutStep,setTutStep]=useState(0);
   const [isFirstTimeTut,setIsFirstTimeTut]=useState(false);
@@ -1809,7 +1877,8 @@ export default function MagicPortal(){
   const guild = profile?.guild || 'Izzet';
   // Antes de montar os filhos, para que GuildBadge & cia. leiam a paleta certa.
   setLightMode(colorMode === 'light');
-  const theme = guildTheme(guild);
+  // Galeria: a interface é monocromática; a guilda vira só acento (--ga).
+  const theme = { ...(colorMode === 'light' ? MONO.light : MONO.dark), accent: guildTheme(guild).primary };
   const isAdmin = profile?.is_admin || false;
   const nav = useCallback(p=>{SFX.nav();setPage(p);if(p==='profile'&&!profile&&token&&session?.user?.id){loadAppData(token,session.user.id);};},[profile,token,session]);
 
@@ -1825,8 +1894,6 @@ export default function MagicPortal(){
 
   function toast(msg,type='info'){setToastMsg({msg,type});setTimeout(()=>setToastMsg(null),4000);}
 
-  // Preço de carta normal (usado como referência quando não há tipo específico)
-  const priceBRL = Number(pricing?.normal_price_brl) || 16;
 
   // ─── Load data after login ─────────────────────────
   async function loadAppData(tkn, userId) {
@@ -2106,8 +2173,8 @@ export default function MagicPortal(){
           setCartItems(prev => [...prev, { ...row, card_name: item.card_name, card_type: item.card_type, card_image_url: item.card_image_url }]);
         }
       }
+      // Sem toast: o retorno é o selo ×N na carta e a pílula do pedido pulando.
       SFX.addCard();
-      toast(`${amount}x ${item.card_name} no carrinho`, 'success');
     } catch(e) {
       console.error('[handleAddToCart]', e);
       toast('Erro ao adicionar ao carrinho: '+e.message,'error');
@@ -2214,7 +2281,17 @@ export default function MagicPortal(){
   const wishlistCount = wishlist.reduce((s, w) => s + Math.max(0, w.quantity - (collectionOwned.get(w.card_id) || 0)), 0);
   const cartCount = cartItems.reduce((s, c) => s + c.quantity, 0);
 
-  const bottomTabs = [{ key: 'catalog', icon: BookOpen, label: 'Catálogo' }, { key: 'wants', icon: ScrollText, label: 'Desejos' }, { key: 'cart', icon: ShoppingCart, label: 'Carrinho' }, { key: 'profile', icon: User, label: 'Conta' }];
+  // ── Pílula do pedido e preço na grade ─────────────
+  // Adição a um pedido pago: sem mínimo, e a faixa considera o que já foi pago.
+  const minCards = addTo ? 1 : (Number(indivPricing?.pricing?.min_cards) || MIN_ORDER_CARDS);
+  const cartTierQty = cartCount + (addTo ? (addTo.qtyPaid || 0) : 0);
+  const cartTotal = cartItems.reduce((s, c) => s + c.quantity * unitPriceFor(c.card_type, cartTierQty, pricing, indivPricing), 0);
+  // Preço que a grade mostra: o da PRÓXIMA carta, na faixa em que o pedido vai
+  // cair — pelo menos a do mínimo, que é o menor pedido possível.
+  const priceFor = useCallback(type => unitPriceFor(type, Math.max(cartTierQty + 1, minCards), pricing, indivPricing), [cartTierQty, minCards, pricing, indivPricing]);
+
+  // Pedidos ainda andando (nem entregues nem cancelados): é o aviso do avatar.
+  const activeOrderCount = useMemo(() => groupBatchesIntoOrders(myOrders).filter(g => { const st = resolveOrderStageFromBatches(g.batches); return !st.terminal && st.index >= 1 && st.key !== 'DELIVERED'; }).length, [myOrders]);
 
   // ── Pedidos do cliente ────────────────────────────
   const myOrderGroups = useMemo(() => groupBatchesIntoOrders(myOrders), [myOrders]);
@@ -2255,9 +2332,8 @@ export default function MagicPortal(){
     nav(cartCount > 0 ? 'cart' : 'catalog');
   }
 
-  return (<div className="portal-shell" data-page={page} style={{ '--gp': theme.primary, '--gs': theme.secondary, '--gg': theme.glow, '--gp-ink': inkOn(theme.primary), minHeight: '100vh', background: `radial-gradient(ellipse at 50% -20%,${theme.primary}12 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,${theme.secondary}08 0%,transparent 40%),var(--bg)`, color: 'var(--text)', fontFamily: "'Outfit',sans-serif", maxWidth: 480, margin: '0 auto', position: 'relative', paddingBottom: 78 }}>
-    <FloatingMana theme={theme}/>
-    <style>{"*{box-sizing:border-box;margin:0;padding:0}body{background:var(--bg);margin:0}input:focus{border-color:var(--gp)!important;outline:none}button:active:not(:disabled){transform:scale(.97)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(var(--ink),calc(.07*var(--ink-a)));border-radius:3px}@keyframes spin{to{transform:rotate(360deg)}}@keyframes tutPulse{0%,100%{opacity:1;box-shadow:0 0 0 9999px var(--scrim),0 0 30px var(--gg)}50%{opacity:.85;box-shadow:0 0 0 9999px var(--scrim),0 0 50px var(--gg)}}@keyframes tutArrowBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}@keyframes tutHandBounce{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-6px) scale(1.15)}}@keyframes manaFloat{0%{transform:translateY(0) translateX(0) rotate(0deg);opacity:0}10%{opacity:0.06}90%{opacity:0.03}100%{transform:translateY(-110vh) translateX(var(--drift,20px)) rotate(360deg);opacity:0}}@keyframes flyToWants{0%{transform:translate(-50%,-50%) scale(1);opacity:1}50%{transform:translate(calc(-50vw + 160px),-60vh) scale(0.6);opacity:0.8}100%{transform:translate(calc(-50vw + 160px),-80vh) scale(0.2);opacity:0}}@keyframes sheetUp{from{transform:translateY(48px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}"}</style>
+  return (<div className="portal-shell" data-page={page} style={{ '--gp': theme.primary, '--gs': theme.secondary, '--gg': theme.glow, '--gp-ink': inkOn(theme.primary), '--ga': theme.accent, '--ga-ink': inkOn(theme.accent), minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', fontFamily: "'Inter',system-ui,sans-serif", maxWidth: 480, margin: '0 auto', position: 'relative' }}>
+    <style>{"*{box-sizing:border-box;margin:0;padding:0}body{background:var(--bg);margin:0}input:focus{border-color:var(--gp)!important;outline:none}button:active:not(:disabled){transform:scale(.97)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(var(--ink),calc(.07*var(--ink-a)));border-radius:3px}@keyframes spin{to{transform:rotate(360deg)}}@keyframes tutPulse{0%,100%{opacity:1;box-shadow:0 0 0 9999px var(--scrim),0 0 30px var(--gg)}50%{opacity:.85;box-shadow:0 0 0 9999px var(--scrim),0 0 50px var(--gg)}}@keyframes tutArrowBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}@keyframes tutHandBounce{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-6px) scale(1.15)}}@keyframes sheetUp{from{transform:translateY(48px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes pillPop{0%{transform:scale(1)}40%{transform:scale(1.06)}100%{transform:scale(1)}}"}</style>
 
     {toastMsg && <Toast msg={toastMsg.msg} type={toastMsg.type} onClose={() => setToastMsg(null)} />}
     {showTutorial && <TutorialOverlay step={tutStep} steps={TUTORIAL_STEPS} onNext={tutNext} onSkip={tutSkip} theme={theme} onNavTo={p => setPage(p)} isFirstTime={isFirstTimeTut} />}
@@ -2280,69 +2356,45 @@ export default function MagicPortal(){
         <Spin size={14}/><span style={{ fontSize: 12, color: 'rgba(var(--ink),calc(0.5*var(--ink-a)))' }}>Carregando...</span>
       </div>}
 
-      <aside className="portal-sidebar" aria-label="Navegação principal">
-        <div className="portal-sidebar-brand">
-          <div className="portal-sidebar-mark">NOZ</div>
-          <div><strong>Cartas para Jogar</strong><span>Portal de encomendas</span></div>
-        </div>
-        <nav className="portal-sidebar-nav">
-          {bottomTabs.map((t) => {
-            const active = page === t.key;
-            const badge = t.key === 'cart' && cartCount > 0;
-            return <button key={t.key} className={active ? 'is-active' : ''} aria-current={active ? 'page' : undefined} onClick={() => nav(t.key)}>
-              <t.icon size={18}/><span>{t.label}</span>
-              {badge && <b>{cartCount}</b>}
-            </button>;
-          })}
-          {isAdmin && <button className={page === 'admin' ? 'is-active' : ''} aria-current={page === 'admin' ? 'page' : undefined} onClick={() => nav('admin')}><Shield size={18}/><span>Admin</span></button>}
-        </nav>
-        <div className="portal-sidebar-footer">
-          <GuildBadge guild={profile?.guild} size={28}/><div><strong>{profile?.name || 'Minha conta'}</strong><span>{profile?.email || session?.user?.email || ''}</span></div>
-        </div>
-      </aside>
-
-      {/* Header */}
-      {page !== 'onboarding' && <div className="portal-header" style={{ padding: '13px 20px 11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(var(--ink),calc(0.035*var(--ink-a)))', position: 'sticky', top: 0, zIndex: 10, background: 'var(--chrome-bg)', backdropFilter: 'blur(20px)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {(page === 'success' || page === 'admin' || page === 'checkout') && <button onClick={() => nav(page === 'admin' ? 'profile' : page === 'checkout' ? 'cart' : 'catalog')} className="mp-tap" aria-label="Voltar" style={{ background: 'none', border: 'none', color: 'var(--text-strong)', cursor: 'pointer' }}><ChevronLeft size={20} /></button>}
-          <span style={{ fontFamily: "'Cinzel',serif", fontSize: 'var(--fs-md)', fontWeight: 700, letterSpacing: .3 }}>{({ catalog: 'Catálogo', wants: 'Lista de desejos', cart: 'Carrinho', checkout: 'Checkout', success: '', profile: 'Minha conta', admin: 'Admin', onboarding: '' })[page] || ''}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {/* Modo de adição: enquanto ele está ligado, o checkout entra num
-              pedido já pago. Clicável para sair. */}
-          {addTo && ['catalog','wants','cart','checkout'].includes(page) && (
-            <button onClick={() => { SFX.click(); setAddTo(null); }} title="Sair do modo de adição" aria-label={`Adicionando cartas ao pedido ${addTo.shortId}. Toque para sair.`} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: 'var(--r-pill)', cursor: 'pointer', border: '1px solid rgba(var(--info-rgb),0.35)', background: 'rgba(var(--info-rgb),0.10)', color: 'var(--info)', fontSize: 'var(--fs-2xs)', fontWeight: 700, fontFamily: "'Outfit',sans-serif", whiteSpace: 'nowrap' }}>
-              <Plus size={11}/>#{addTo.shortId}
-            </button>
-          )}
-          <button onClick={() => { SFX.toggle(); setColorMode(m => m === 'light' ? 'dark' : 'light'); }} className="mp-tap" title={colorMode === 'light' ? 'Mudar para o modo escuro' : 'Mudar para o modo claro'} aria-label={colorMode === 'light' ? 'Mudar para o modo escuro' : 'Mudar para o modo claro'} style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer' }}>{colorMode === 'light' ? <Moon size={16} /> : <Sun size={16} />}</button>
-          <button onClick={() => setSoundOn(s => !s)} className="mp-tap" role="switch" aria-checked={soundOn} title={soundOn ? 'Desligar sons' : 'Ligar sons'} aria-label={soundOn ? 'Desligar sons' : 'Ligar sons'} style={{ background: 'none', border: 'none', color: soundOn ? 'var(--text-faint)' : 'rgba(var(--ink),calc(0.14*var(--ink-a)))', cursor: 'pointer' }}>{soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>
-        </div>
-      </div>}
-
-      {/* Bottom tabs */}
-      {page !== 'onboarding' && page !== 'success' && page !== 'admin' && page !== 'checkout' && <nav className="portal-bottom-tabs" id="tut-bottom-tabs" aria-label="Navegação principal" style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: 'var(--chrome-bg-strong)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(var(--ink),calc(0.04*var(--ink-a)))', display: 'flex', justifyContent: 'space-around', padding: '5px 0 10px', zIndex: 20 }}>
-        {bottomTabs.map((t, ti) => {
-          const active = page === t.key; const badge = t.key === 'cart' && cartCount > 0;
-          return (<button key={t.key} id={'tut-tab-' + ti} onClick={() => nav(t.key)} aria-current={active ? 'page' : undefined} aria-label={badge ? `${t.label}, ${cartCount} ${cartCount === 1 ? 'item' : 'itens'}` : t.label} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '4px 10px', borderRadius: 10, position: 'relative', color: active ? theme.primary : 'rgba(var(--ink),calc(0.22*var(--ink-a)))', transition: 'all .2s' }}>
-            <t.icon size={20} />{badge && <div style={{ position: 'absolute', top: 0, right: 3, minWidth: 17, height: 17, padding: '0 4px', borderRadius: 9, background: theme.primary, fontSize: 'var(--fs-2xs)', fontWeight: 800, color: 'var(--gp-ink)', display: 'grid', placeItems: 'center' }}>{cartCount}</div>}
-            <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: active ? 700 : 400 }}>{t.label}</span>{active && <div style={{ width: 4, height: 4, borderRadius: 2, background: theme.primary }} />}
-          </button>);
-        })}
-      </nav>}
+      {/* Topo: a única navegação do app. Sem barra de abas embaixo — o
+          catálogo é a casa, e o resto (pedidos, desejos, coleção, conta) mora
+          no menu do avatar. O carrinho vive na pílula flutuante. */}
+      {page !== 'onboarding' && <header className="portal-header" style={{ padding: '10px 8px 6px 20px', display: 'flex', alignItems: 'center', gap: 4, position: 'sticky', top: 0, zIndex: 20, background: 'var(--chrome-bg)', backdropFilter: 'blur(16px)' }}>
+        {page !== 'catalog' && <button onClick={() => nav(page === 'admin' ? 'profile' : page === 'checkout' ? 'cart' : 'catalog')} className="mp-tap" aria-label="Voltar" style={{ marginLeft: -14, background: 'none', border: 'none', color: 'var(--text-strong)', cursor: 'pointer' }}><ChevronLeft size={22}/></button>}
+        <h1 style={{ flex: 1, minWidth: 0, fontSize: 'var(--fs-md)', fontWeight: 600, letterSpacing: -0.2, color: 'var(--text-strong)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{({ catalog: 'Cartas para Jogar', wants: 'Lista de desejos', cart: 'Seu pedido', checkout: 'Pagamento', success: '', profile: 'Minha conta', admin: 'Admin' })[page] ?? 'Cartas para Jogar'}</h1>
+        {/* Modo de adição: enquanto ele está ligado, o checkout entra num
+            pedido já pago. Clicável para sair. */}
+        {addTo && ['catalog','wants','cart','checkout'].includes(page) && (
+          <button onClick={() => { SFX.click(); setAddTo(null); }} title="Sair do modo de adição" aria-label={`Adicionando cartas ao pedido ${addTo.shortId}. Toque para sair.`} style={{ display: 'flex', alignItems: 'center', gap: 4, height: 32, padding: '0 10px', borderRadius: 'var(--r-pill)', border: '1px solid var(--line)', background: 'var(--fill-soft)', color: 'var(--text-strong)', fontSize: 'var(--fs-2xs)', fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter',system-ui,sans-serif" }}>
+            <Plus size={11}/>#{addTo.shortId}<X size={11}/>
+          </button>
+        )}
+        <AccountMenu
+          isAdmin={isAdmin}
+          activeOrders={activeOrderCount}
+          wishCount={wishlistCount}
+          colorMode={colorMode}
+          onToggleColorMode={() => setColorMode(m => m === 'light' ? 'dark' : 'light')}
+          soundOn={soundOn}
+          onToggleSound={() => setSoundOn(s => !s)}
+          onNavigate={(p, tab) => { if (p === 'profile') setProfileTab(tab || 'orders'); nav(p); }}
+          onLogout={handleLogout}
+        />
+      </header>}
 
       {/* Pages */}
       <main className="portal-content" style={{ padding: page === 'onboarding' ? '0 20px' : '14px 20px' }}>
-        {page === 'catalog' && <CatalogPage token={token} wishlist={wishlist} cartItems={cartItems} collectionByCard={collectionOwned} onAddToWishlist={handleAddToWishlist} onAddToCart={handleAddCardToCart} priceBRL={priceBRL} theme={theme} tutStep={showTutorial?tutStep:-1} onTutNext={tutNext} />}
+        {page === 'catalog' && <CatalogPage token={token} wishlist={wishlist} cartItems={cartItems} collectionByCard={collectionOwned} onAddToWishlist={handleAddToWishlist} onRemoveFromWishlist={handleRemoveFromWishlist} onAddToCart={handleAddCardToCart} onUpdateCartQty={handleUpdateCartQty} priceFor={priceFor} theme={theme} tutStep={showTutorial?tutStep:-1} onTutNext={tutNext} />}
         {page === 'wants' && <WishlistPage wishlist={wishlist} cartItems={cartItems} collectionByCard={collectionOwned} onAddToCart={handleAddToCart} onRemove={handleRemoveFromWishlist} onUpdateQty={handleUpdateWishlistQty} cartCount={cartCount} theme={theme} nav={nav} />}
         {page === 'cart' && <CartPage cartItems={cartItems} pricing={pricing} theme={theme} nav={nav} onRemoveFromCart={handleRemoveFromCart} onUpdateCartQty={handleUpdateCartQty} toast={toast} indiv={indivPricing} addTo={addTo} onCancelAdd={()=>setAddTo(null)} />}
         {page === 'checkout' && <CheckoutPage cartItems={cartItems} pricing={pricing} theme={theme} nav={nav} profile={profile} token={token} onOrderDone={handleOrderDone} toast={toast} unshippedPaidBatches={unshippedPaidBatches} indiv={indivPricing} addTo={addTo} onCancelAdd={()=>setAddTo(null)} />}
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
         {page === 'profile' && !profile && <div style={{padding:20,color:'var(--danger)',fontSize:'var(--fs-xs)'}}><div>profile: null</div><div>token: {token?'ok':'null'}</div><div>appLoading: {String(appLoading)}</div><Btn onClick={()=>loadAppData(token,session?.user?.id)} sfx="click"><RefreshCw size={14}/> Recarregar</Btn></div>}
-        {page === 'profile' && profile && (() => { try { return <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} colorMode={colorMode} onColorModeChange={setColorMode} openIndividualOrders={openIndividualOrders} onAddCards={handleStartAddCards} collection={collection} onSetExtra={handleSetCollectionExtra} />; } catch(e) { return <div style={{padding:20,color:'var(--danger)',fontSize:'var(--fs-xs)'}}>Crash: {e.message}</div>; } })()}
+        {page === 'profile' && profile && (() => { try { return <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} colorMode={colorMode} onColorModeChange={setColorMode} openIndividualOrders={openIndividualOrders} onAddCards={handleStartAddCards} collection={collection} onSetExtra={handleSetCollectionExtra} initialTab={profileTab} key={profileTab} />; } catch(e) { return <div style={{padding:20,color:'var(--danger)',fontSize:'var(--fs-xs)'}}>Crash: {e.message}</div>; } })()}
         {page === 'admin' && <AdminConsole pricing={pricing} theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} toast={toast} initialSection={adminTarget} />}
         {page === 'onboarding' && <OnboardingPage onComplete={handleOnboardingComplete} theme={theme} />}
       </main>
+      {(page === 'catalog' || page === 'wants') && !showTutorial && <OrderPill count={cartCount} minCards={minCards} total={cartTotal} isAdding={!!addTo} onOpen={() => nav('cart')} />}
     </>}
   </div>);
 }

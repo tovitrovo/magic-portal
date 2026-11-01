@@ -80,7 +80,7 @@ test('nenhuma superfície escura cravada em hex sobrou no app', () => {
   // Exceções conscientes, com motivo:
   const permitido = new Set([
     '#0f0a03', // INK_DARK — tinta sobre preenchimento claro, não é superfície
-    '#08080f', // MODE_BG.dark — é a definição do fundo escuro em si
+    '#0b0b0c', // MODE_BG.dark — é a definição do fundo escuro em si
   ]);
   for (const [rotulo, fonte] of [['MagicPortal.jsx', portal], ['responsive.css', responsive]]) {
     const escuros = (fonte.match(/#[0-9a-f]{3,8}\b/gi) || [])

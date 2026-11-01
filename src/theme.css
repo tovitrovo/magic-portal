@@ -19,26 +19,27 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #08080f;
-  --ink: 255, 255, 255;
+  --bg: #0b0b0c;
+  --ink: 242, 242, 240;
   --ink-a: 1;
   --sunk: 0, 0, 0;
   --sunk-a: 1;
-  --text: #e9edf7;
-  --text-strong: #ffffff;
+  --text: #e6e6e3;
+  --text-strong: #f2f2f0;
 
-  /* Superfícies estruturais */
-  --card-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.018) 100%);
-  --card-border: rgba(255, 255, 255, 0.06);
+  /* Superfícies estruturais — Galeria: planas, sem gradiente nem brilho. A
+     carta é o único elemento com cor na tela; o resto recua. */
+  --card-bg: #151517;
+  --card-border: rgba(242, 242, 240, 0.06);
   --card-shadow: none;
-  --field-bg: rgba(0, 0, 0, 0.3);
-  --chrome-bg: rgba(8, 8, 15, 0.88);
-  --chrome-bg-strong: rgba(8, 8, 15, 0.94);
-  --overlay-bg: rgba(8, 8, 12, 0.6);
-  --sheet-bg: rgba(12, 12, 20, 0.97);
-  --sheet-bg-alt: rgba(13, 13, 23, 0.97);
-  --scrim: rgba(0, 0, 0, 0.78);
-  --fade-to-bg: linear-gradient(180deg, transparent, #08080f 32%);
+  --field-bg: #151517;
+  --chrome-bg: rgba(11, 11, 12, 0.9);
+  --chrome-bg-strong: rgba(11, 11, 12, 0.96);
+  --overlay-bg: rgba(11, 11, 12, 0.6);
+  --sheet-bg: #18181a;
+  --sheet-bg-alt: #18181a;
+  --scrim: rgba(0, 0, 0, 0.6);
+  --fade-to-bg: linear-gradient(180deg, transparent, #0b0b0c 32%);
 
   /* Acentos semânticos */
   --ok: #2ee59d;
@@ -69,31 +70,31 @@
   --tc-foil: #d94452;
 }
 
-/* ── Modo claro: off-white quente + tinta marrom ────────
-   O fundo puxa para o creme (#f6f1e6) e a "tinta" é um marrom escuro, não
-   preto — é o que mantém a página quente em vez de acinzentada. */
+/* ── Modo claro: off-white levemente quente + tinta quase preta ──
+   Galeria: o fundo é um branco de papel (#fafaf8), sem o creme de antes —
+   quem dá cor à página são as cartas. */
 :root[data-theme='light'] {
   color-scheme: light;
 
-  --bg: #f6f1e6;
-  --ink: 46, 36, 25;
-  --ink-a: 1.55;
-  --sunk: 92, 70, 44;
-  --sunk-a: 0.5;
-  --text: #2e2419;
-  --text-strong: #17110a;
+  --bg: #fafaf8;
+  --ink: 20, 20, 20;
+  --ink-a: 1.35;
+  --sunk: 20, 20, 20;
+  --sunk-a: 0.35;
+  --text: #2a2a28;
+  --text-strong: #141414;
 
-  --card-bg: linear-gradient(180deg, #fffdf7 0%, #fdfaf2 100%);
-  --card-border: rgba(46, 36, 25, 0.1);
-  --card-shadow: 0 1px 2px rgba(92, 70, 44, 0.07), 0 8px 20px rgba(92, 70, 44, 0.05);
-  --field-bg: #fffdf7;
-  --chrome-bg: rgba(246, 241, 230, 0.9);
-  --chrome-bg-strong: rgba(246, 241, 230, 0.95);
-  --overlay-bg: rgba(246, 241, 230, 0.72);
-  --sheet-bg: #fffdf7;
-  --sheet-bg-alt: #fffdf7;
-  --scrim: rgba(46, 36, 25, 0.55);
-  --fade-to-bg: linear-gradient(180deg, transparent, #f6f1e6 32%);
+  --card-bg: #ffffff;
+  --card-border: rgba(20, 20, 20, 0.08);
+  --card-shadow: none;
+  --field-bg: #ffffff;
+  --chrome-bg: rgba(250, 250, 248, 0.9);
+  --chrome-bg-strong: rgba(250, 250, 248, 0.96);
+  --overlay-bg: rgba(250, 250, 248, 0.72);
+  --sheet-bg: #ffffff;
+  --sheet-bg-alt: #ffffff;
+  --scrim: rgba(20, 20, 20, 0.45);
+  --fade-to-bg: linear-gradient(180deg, transparent, #fafaf8 32%);
 
   /* Versões escurecidas para manter contraste sobre o creme */
   --ok: #0d8a5c;
@@ -164,8 +165,8 @@
   /* ── Raio ────────────────────────────────────────────
      Eram nove valores entre 9 e 24; viram quatro papéis. */
   --r-control: 10px;
-  --r-card: 16px;
-  --r-sheet: 24px;
+  --r-card: 12px;
+  --r-sheet: 22px;
   --r-pill: 999px;
 
   /* ── Espaçamento (múltiplos de 4) ──────────────────── */

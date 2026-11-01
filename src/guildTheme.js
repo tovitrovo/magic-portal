@@ -79,3 +79,20 @@ export function contrastRatio(a, b) {
 export function inkOn(bg) {
   return contrastRatio(bg, INK_LIGHT) >= contrastRatio(bg, INK_DARK) ? INK_LIGHT : INK_DARK;
 }
+
+// ══════════════════════════════════════════════════════
+// GALERIA — interface monocromática
+// ══════════════════════════════════════════════════════
+//
+// No redesenho "Galeria" a cor deixou de pintar a interface: botão primário,
+// filtro ativo e destaques usam a própria tinta do tema (quase preto no claro,
+// quase branco no escuro), e quem dá cor à tela são as cartas. A guilda
+// sobrevive como acento pequeno — o anel do avatar e o selo de quantidade na
+// carta —, que é onde a identidade da conta ainda aparece.
+//
+// O formato é o mesmo de GT/GT_LIGHT ({ primary, secondary, glow }) para que
+// todo call site que lê `theme.primary` continue funcionando sem mudança.
+export const MONO = {
+  dark: { primary: '#f2f2f0', secondary: '#f2f2f0', glow: 'transparent' },
+  light: { primary: '#141414', secondary: '#141414', glow: 'transparent' },
+};
