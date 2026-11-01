@@ -383,7 +383,7 @@ function RemindersPage({ctx}){
     </div>
 
     <div className="adm-card adm-pad" style={{display:'flex',flexDirection:'column',gap:8}}>
-      <div className="adm-muted">Parados há mais de {REMINDER_AFTER_HOURS}h. O e-mail automático sai de hora em hora (09h–21h), uma vez por carrinho e por pedido.{cfg?.reminders_last_run_at?` Última rodada ${timeAgo(cfg.reminders_last_run_at)} atrás · ${rr.sent||0} enviado(s)${rr.disabled?' · e-mail desligado':''}${rr.firstError?` · erro: ${rr.firstError}`:''}.`:''}</div>
+      <div className="adm-muted">Parados entre {REMINDER_AFTER_HOURS}h e 14 dias. O e-mail automático sai de hora em hora (09h–21h), uma vez por carrinho e por pedido.{cfg?.reminders_last_run_at?` Última rodada ${timeAgo(cfg.reminders_last_run_at)} atrás · ${rr.sent||0} enviado(s)${rr.disabled?' · e-mail desligado':''}${rr.firstError?` · erro: ${rr.firstError}`:''}.`:''}</div>
       <button className="adm-btn is-sm" disabled={automationBusy==='reminders'||!data.emailConfigured} onClick={async()=>{await runAutomation('reminders');load();}}>{automationBusy==='reminders'?<Spin size={13}/>:<><RefreshCw size={13}/> Enviar lembretes pendentes agora</>}</button>
     </div>
 

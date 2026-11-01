@@ -9,10 +9,14 @@
 
 /** Tempo parado até virar lembrete. */
 export const REMINDER_AFTER_HOURS = 48;
-/** Pagamento pendente mais velho que isso já esfriou: não insistimos. */
-export const PAYMENT_REMINDER_MAX_DAYS = 14;
-/** Status de lote que ainda espera pagamento. */
-export const UNPAID_BATCH_STATUSES = ['DRAFT', 'AWAITING_PAYMENT', 'PENDING_PAYMENT'];
+/** Carrinho ou pagamento parado há mais que isso já esfriou: não insistimos. */
+export const REMINDER_MAX_DAYS = 14;
+/**
+ * Status de lote que ainda espera o cliente pagar — valores do enum
+ * `batch_status`. PAYMENT_REVIEW fica de fora: o cliente já pagou e o
+ * Mercado Pago está analisando.
+ */
+export const UNPAID_BATCH_STATUSES = ['DRAFT', 'AWAITING_PAYMENT'];
 
 const HOUR = 3600 * 1000;
 const time = (iso) => (iso ? Date.parse(iso) || 0 : 0);
@@ -25,8 +29,8 @@ export function firstName(name) {
  * Carrinhos parados a partir das linhas `order_items` (in_cart, sem lote)
  * com o pedido-rascunho embutido em `orders`. Um por pedido.
  *
- * Parado = o item mais novo tem mais de `hours`. Já lembrado só volta a
- * contar se o cliente mexeu no carrinho depois do lembrete.
+ * Parado = o item mais novo tem entre `hours` e REMINDER_MAX_DAYS. Já
+ * lembrado só volta a contar se o cliente mexeu no carrinho depois do lembrete.
  *
  * Devolve `{ orderId, userId, name, email, whatsapp, optOut, unsubToken,
  * items:[{name,qty}], qty, lastActivityAt, remindedAt, due }`.
@@ -51,7 +55,11 @@ export function pickAbandonedCarts(rows, now = Date.now(), hours = REMINDER_AFTE
     cart.qty += qty;
     if (time(row.created_at) > time(cart.lastActivityAt)) cart.lastActivityAt = row.created_at;
   }
-  const carts = [...byOrder.values()].filter((c) => c.lastActivityAt && now - time(c.lastActivityAt) >= hours * HOUR);
+  const oldest = now - REMINDER_MAX_DAYS * 24 * HOUR;
+  const carts = [...byOrder.values()].filter((c) => {
+    const t = time(c.lastActivityAt);
+    return t && now - t >= hours * HOUR && t >= oldest;
+  });
   for (const c of carts) c.due = !c.remindedAt || time(c.remindedAt) < time(c.lastActivityAt);
   return carts.sort((a, b) => time(a.lastActivityAt) - time(b.lastActivityAt));
 }
@@ -59,10 +67,10 @@ export function pickAbandonedCarts(rows, now = Date.now(), hours = REMINDER_AFTE
 /**
  * Pagamentos pendentes a partir de `order_batches` com `orders(profiles)`.
  * Pendente = lote não pago, com cartas ou frete, criado entre `hours` e
- * PAYMENT_REMINDER_MAX_DAYS atrás. Um lembrete por lote.
+ * REMINDER_MAX_DAYS atrás. Um lembrete por lote.
  */
 export function pickPendingPayments(batches, now = Date.now(), hours = REMINDER_AFTER_HOURS) {
-  const oldest = now - PAYMENT_REMINDER_MAX_DAYS * 24 * HOUR;
+  const oldest = now - REMINDER_MAX_DAYS * 24 * HOUR;
   return (batches || [])
     .filter((b) => UNPAID_BATCH_STATUSES.includes(String(b?.status || '').toUpperCase()))
     .filter((b) => String(b?.payment_status || '').toLowerCase() !== 'approved')

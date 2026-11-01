@@ -25,6 +25,11 @@ test('carrinho só vira lembrete depois de 48h sem mexer', () => {
   assert.equal(pickAbandonedCarts(rows, NOW).length, 0);
 });
 
+test('carrinho esquecido há mais de 14 dias não é cobrado', () => {
+  const rows = [{ quantity: 1, created_at: hoursAgo(24 * 15), cards: { name: 'X' }, orders: order() }];
+  assert.equal(pickAbandonedCarts(rows, NOW).length, 0);
+});
+
 test('carrinho já lembrado só volta a contar se o cliente mexeu depois', () => {
   const rows = [{ quantity: 1, created_at: hoursAgo(100), cards: { name: 'X' }, orders: order({ cart_reminded_at: hoursAgo(50) }) }];
   assert.equal(pickAbandonedCarts(rows, NOW)[0].due, false);
@@ -77,4 +82,15 @@ test('não manda lembrete de madrugada (horário de Brasília)', () => {
   assert.equal(isQuietHour(new Date('2026-10-31T05:00:00Z')), true);  // 02h
   assert.equal(isQuietHour(new Date('2026-10-31T15:00:00Z')), false); // 12h
   assert.equal(isQuietHour(new Date('2026-11-01T00:30:00Z')), true);  // 21h30
+});
+
+test('filtros de status só usam valores do enum batch_status', async () => {
+  const { readFileSync } = await import('node:fs');
+  const ENUM = new Set(['DRAFT', 'AWAITING_PAYMENT', 'PAYMENT_REVIEW', 'PAID_CONFIRMED', 'CANCELLED', 'PAID']);
+  const src = readFileSync(new URL('../functions/api/_automation.js', import.meta.url), 'utf8');
+  for (const m of src.matchAll(/const (TERMINAL|PAID_STATUSES) = "([^"]+)"/g)) {
+    for (const v of m[2].split(',')) assert.ok(ENUM.has(v), `${m[1]}: ${v} não existe no enum`);
+  }
+  const { UNPAID_BATCH_STATUSES } = await import('../shared/reminders.js');
+  for (const v of UNPAID_BATCH_STATUSES) assert.ok(ENUM.has(v), v);
 });

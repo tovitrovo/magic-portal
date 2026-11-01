@@ -34,8 +34,11 @@ import { emailConfigured, sendEmail, sendEmailBatch, unsubscribeUrl } from "./_e
 export const TRACKING_PER_RUN = 12;
 /** Etiqueta gerada e não postada há mais que isso entra como "parada" no resumo. */
 const STALLED_DAYS = 4;
-const TERMINAL = "CANCELLED,FAILED,REFUNDED,CHARGEDBACK";
-const PAID_STATUSES = "PAID,PAID_CONFIRMED,CONFIRMED,APPROVED";
+// Filtros do PostgREST: só valores do enum `batch_status` (DRAFT,
+// AWAITING_PAYMENT, PAYMENT_REVIEW, PAID_CONFIRMED, CANCELLED, PAID). Um valor
+// fora dele faz o banco recusar a consulta inteira com 400.
+const TERMINAL = "CANCELLED";
+const PAID_STATUSES = "PAID,PAID_CONFIRMED";
 
 const enc = encodeURIComponent;
 
@@ -210,7 +213,7 @@ export async function sendDailyDigest(env, { force = false } = {}) {
     const week = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
     const [paidRecent, unpaid, paidOpen, sheet] = await Promise.all([
       rest(`order_batches?confirmed_at=gte.${enc(since)}&select=status,payment_status,total_locked,qty_in_batch,shipping_locked,shipping_already_paid`),
-      rest(`order_batches?status=in.(DRAFT,AWAITING_PAYMENT,PENDING_PAYMENT)&created_at=gte.${enc(week)}&qty_in_batch=gt.0&select=id`),
+      rest(`order_batches?status=in.(${UNPAID_BATCH_STATUSES.join(",")})&created_at=gte.${enc(week)}&qty_in_batch=gt.0&select=id`),
       rest(`order_batches?status=in.(${PAID_STATUSES})&or=(fulfillment_status.is.null,fulfillment_status.neq.DELIVERED)&select=fulfillment_status,mandabem_status,mandabem_generated_at,qty_in_batch,shipping_locked,shipping_already_paid`),
       rest("catalog_sync?id=eq.1&select=last_run_at,last_result").catch(() => []),
     ]);

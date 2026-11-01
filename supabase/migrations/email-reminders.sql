@@ -20,7 +20,8 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email_unsub_token uuid NOT 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_email_unsub_token ON public.profiles(email_unsub_token);
 
 -- ── Quando cada coisa foi lembrada ───────────────────────────
--- Itens antigos ganham "agora" como data: ninguém é cobrado no dia da migração.
+-- created_at já existe em produção; fica aqui para bancos novos. Carrinho
+-- parado há mais de 14 dias não é cobrado (shared/reminders.js).
 ALTER TABLE public.order_items   ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 ALTER TABLE public.orders        ADD COLUMN IF NOT EXISTS cart_reminded_at timestamptz;
 ALTER TABLE public.order_batches ADD COLUMN IF NOT EXISTS payment_reminded_at timestamptz;
