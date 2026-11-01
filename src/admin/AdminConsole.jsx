@@ -36,7 +36,7 @@ const SECTIONS=[
   {key:'clients',icon:Users,label:'Clientes',title:'Clientes'},
   {key:'more',icon:MoreHorizontal,label:'Mais',title:'Mais'},
 ];
-const MORE_PAGES=['catalog','automation','push','prices','about'];
+const MORE_PAGES=['catalog','reminders','automation','push','prices','about'];
 const SHIPPABLE=['PREPARING','LABEL_GENERATED','DELIVERED'];
 
 // Deep link (push) → { section, morePage, notifications }.
@@ -142,6 +142,9 @@ export default function AdminConsole({theme,token,nav,onReload,toast:toastFn,ini
         ok(result.fatal?null:`${result.checked} remessa(s) consultada(s) · ${result.updated} atualizada(s)`);
         if(result.fatal&&toastFn)toastFn('Rastreio: '+result.fatal,'error');
         await loadOrders();
+      }else if(job==='reminders'){
+        if(result.fatal||result.firstError){if(toastFn)toastFn('Lembretes: '+(result.fatal||result.firstError),'error');}
+        else ok(result.disabled?'E-mail não configurado':`${result.sent} lembrete(s) enviado(s)`);
       }else ok('Resumo enviado');
       loadNotifications(true);
     }catch(e){fail('Erro ao rodar: ',e);}
