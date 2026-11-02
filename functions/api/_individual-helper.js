@@ -33,15 +33,18 @@ export async function quoteItems(SB_URL, SB_KEY, items, inputs = null, options =
   // Relê os tipos reais das cartas
   const ids = [...new Set(list.map(i => i.card_id))];
   const inList = ids.map(id => `"${id}"`).join(",");
-  const r = await fetch(`${SB_URL}/rest/v1/cards?id=in.(${inList})&select=id,type,name`, { headers });
+  const r = await fetch(`${SB_URL}/rest/v1/cards?id=in.(${inList})&select=id,type,name,supplier_extra_usd`, { headers });
   const cards = await r.json().catch(() => []);
   const typeById = new Map((Array.isArray(cards) ? cards : []).map(c => [c.id, c.type]));
   const nameById = new Map((Array.isArray(cards) ? cards : []).map(c => [c.id, c.name]));
+  // Adicional do fornecedor relido do banco, como o tipo: o cliente não escolhe o preço.
+  const extraById = new Map((Array.isArray(cards) ? cards : []).map(c => [c.id, Number(c.supplier_extra_usd) || 0]));
 
   const cartItems = list.map(i => ({
     card_id: i.card_id,
     name: nameById.get(i.card_id) || null,
     type: typeById.get(i.card_id) || "Normal",
+    extra_usd: extraById.get(i.card_id) || 0,
     quantity: Math.max(0, Math.floor(Number(i.quantity) || 0)),
   }));
 

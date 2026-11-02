@@ -5,13 +5,14 @@ import { corsHeaders } from "./_cors.js";
 //
 //   { action:'search', q, status:'all'|'active'|'inactive', offset }
 //       → { cards:[{id,name,type,image_url,is_active,created_at}], total }
-//   { action:'update', id, patch:{ name?, type?, image_url?, is_active? } }
+//   { action:'update', id, patch:{ name?, type?, image_url?, is_active?, supplier_extra_usd? } }
 //       → { card }
 //
-// Só esses quatro campos são editáveis aqui. Custo, referência de importação
+// Só esses campos são editáveis aqui (supplier_extra_usd: adicional do
+// fornecedor para cartas especiais, ver shared/individualPricing.js). Custo, referência de importação
 // e tcg continuam sendo da planilha/CSV — editar à mão quebraria o upsert.
 const PAGE = 30;
-const EDITABLE = ["name", "type", "image_url", "is_active"];
+const EDITABLE = ["name", "type", "image_url", "is_active", "supplier_extra_usd"];
 
 export function sanitizeCardPatch(patch) {
   const out = {};
@@ -20,6 +21,12 @@ export function sanitizeCardPatch(patch) {
     if (!(key in p)) continue;
     const v = p[key];
     if (key === "is_active") { out.is_active = v === true; continue; }
+    if (key === "supplier_extra_usd") {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n < 0 || n > 100) return { error: "Adicional do fornecedor inválido (US$ 0 a 100)" };
+      out.supplier_extra_usd = Math.round(n * 100) / 100;
+      continue;
+    }
     if (key === "image_url") {
       const s = String(v ?? "").trim();
       if (s && !/^https:\/\//i.test(s)) return { error: "A imagem precisa ser um link https://" };
@@ -58,7 +65,7 @@ export async function onRequest(context) {
       const q = String(body.q || "").trim().replace(/[*,()]/g, " ").slice(0, 80);
       if (q) filters.push(`name=ilike.*${encodeURIComponent(q)}*`);
       const offset = Math.max(0, Math.floor(Number(body.offset) || 0));
-      const res = await fetch(`${SB_URL}/rest/v1/cards?${filters.join("&")}&select=id,name,type,image_url,is_active,created_at&order=name.asc&limit=${PAGE}&offset=${offset}`, {
+      const res = await fetch(`${SB_URL}/rest/v1/cards?${filters.join("&")}&select=id,name,type,image_url,is_active,created_at,supplier_extra_usd&order=name.asc&limit=${PAGE}&offset=${offset}`, {
         headers: { ...headers, Prefer: "count=exact" },
       });
       if (!res.ok) return json({ ok: false, error: `Erro do banco: ${res.status}` }, 502);

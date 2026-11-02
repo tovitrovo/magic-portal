@@ -45,12 +45,19 @@ export function floorForType(type, pricing = {}) {
 function round2(n) { return Math.round((Number(n) + Number.EPSILON) * 100) / 100; }
 
 // Preço de UMA carta (R$), dada a quantidade total do carrinho e o tipo.
-export function pricePerCard({ qty, type, tiers, pricing = {}, fxRate }) {
+//
+// extraUsd: adicional do fornecedor para cartas especiais (cards.
+// supplier_extra_usd). A planilha marca algumas com "($5 a card)": o
+// fornecedor cobra US$ 5 nelas, não o preço da faixa. O adicional entra no
+// custo da faixa ANTES do multiplicador e do dólar, então essas cartas seguem
+// a mesma fórmula e o mesmo desconto por volume das outras.
+export function pricePerCard({ qty, type, tiers, pricing = {}, fxRate, extraUsd = 0 }) {
   const tier = pickTier(qty, tiers);
-  if (!tier) return floorForType(type, pricing);
+  const extra = Math.max(0, Number(extraUsd) || 0);
   const multiplier = Number(pricing.multiplier ?? DEFAULTS.multiplier);
   const rate = Number(fxRate) > 0 ? Number(fxRate) : Number(pricing.fx_fallback_rate ?? DEFAULTS.fx_fallback_rate);
-  const computed = Number(tier.usd_per_card) * multiplier * rate;
+  if (!tier) return round2(floorForType(type, pricing) + extra * multiplier * rate);
+  const computed = (Number(tier.usd_per_card) + extra) * multiplier * rate;
   return round2(Math.max(computed, floorForType(type, pricing)));
 }
 
@@ -66,7 +73,7 @@ export function quoteCart({ items, tiers, pricing = {}, fxRate, tierQty = null }
   const totalQty = list.reduce((s, i) => s + Math.max(0, Math.floor(Number(i.quantity) || 0)), 0);
   const qtyForTier = Math.max(totalQty, Math.max(0, Math.floor(Number(tierQty) || 0)));
   const lines = list.map((i) => {
-    const unit = pricePerCard({ qty: qtyForTier, type: i.type, tiers, pricing, fxRate });
+    const unit = pricePerCard({ qty: qtyForTier, type: i.type, tiers, pricing, fxRate, extraUsd: i.extra_usd });
     const quantity = Math.max(0, Math.floor(Number(i.quantity) || 0));
     return { ...i, quantity, unit_price_brl: unit, line_total_brl: round2(unit * quantity) };
   });
