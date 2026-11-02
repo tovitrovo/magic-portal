@@ -10,6 +10,7 @@ import { CF_PREFIX, sb, loadCampaignById, packCounts, progressOf } from "./_crow
 
 const enc = encodeURIComponent;
 const REFUNDS_PER_CALL = 15; // teto de subrequests das Pages Functions
+const IMAGE_SLOTS = ["hero", "pack", "box", "back", "gallery"];
 
 const EDITABLE = {
   title: "text", subtitle: "text", description: "text", status: "status", finish: "finish",
@@ -26,6 +27,8 @@ const EDITABLE = {
  *   { action:'final', cards:[oracle_id] }              → fecha a lista final do pacote
  *   { action:'invite', subject, message }              → e-mail para toda a base do portal
  *   { action:'refund_all' }                            → reembolsa os apoios pagos (em partes)
+ *   { action:'image', slot, dataUrl }                  → sobe uma imagem da landing (slot: hero|pack|box|back|gallery)
+ *   { action:'image', slot, remove:true, url? }        → tira a imagem do slot (na galeria, a do url)
  */
 export async function onRequest(context) {
   const CORS = corsHeaders(context, "POST, OPTIONS");
@@ -69,6 +72,34 @@ export async function onRequest(context) {
       campaign.final_cards = final;
     }
 
+    if (action === "image") {
+      const slot = String(body.slot || "");
+      if (!IMAGE_SLOTS.includes(slot)) return json({ ok: false, error: "Espaço de imagem inválido" }, 400);
+      const images = { ...(campaign.images || {}) };
+      if (body.remove) {
+        if (slot === "gallery") images.gallery = (images.gallery || []).filter((u) => u !== body.url);
+        else delete images[slot];
+      } else {
+        const m = String(body.dataUrl || "").match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/);
+        if (!m) return json({ ok: false, error: "Envie uma imagem JPG, PNG ou WebP" }, 400);
+        const bytes = Uint8Array.from(atob(m[2]), (ch) => ch.charCodeAt(0));
+        if (bytes.byteLength > 6 * 1024 * 1024) return json({ ok: false, error: "Imagem acima de 6 MB" }, 413);
+        const ext = m[1] === "image/png" ? "png" : m[1] === "image/webp" ? "webp" : "jpg";
+        const file = `crowdfund/${campaign.slug}-${slot}-${Date.now()}.${ext}`;
+        const up = await fetch(`${SB_URL}/storage/v1/object/cards/${file}`, {
+          method: "POST",
+          headers: { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}`, "Content-Type": m[1], "x-upsert": "true" },
+          body: bytes,
+        });
+        if (!up.ok) return json({ ok: false, error: `Storage: ${up.status} ${(await up.text()).slice(0, 160)}` }, 502);
+        const url = `${SB_URL}/storage/v1/object/public/cards/${file}`;
+        if (slot === "gallery") images.gallery = [...(images.gallery || []), url].slice(0, 12);
+        else images[slot] = url;
+      }
+      await rest(`crowdfund_campaigns?id=eq.${enc(campaign.id)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ images, updated_at: new Date().toISOString() }) });
+      campaign.images = images;
+    }
+
     if (action === "invite") {
       if (!emailConfigured(env)) return json({ ok: false, error: "Configure RESEND_API_KEY no Cloudflare Pages" }, 400);
       const subject = String(body.subject || DEFAULT_CROWDFUND_INVITE.subject).slice(0, 200);
@@ -102,12 +133,12 @@ export async function onRequest(context) {
       return json({ ok: true, result: { ...result, left } });
     }
 
-    if (!["get", "save", "final"].includes(action)) return json({ ok: false, error: "Ação desconhecida" }, 400);
+    if (!["get", "save", "final", "image"].includes(action)) return json({ ok: false, error: "Ação desconhecida" }, 400);
 
     // Visão completa para o console.
     const [counts, pledges, votes, fx, audience, siteUrl] = await Promise.all([
       packCounts(env, campaign.id),
-      rest(`crowdfund_pledges?campaign_id=eq.${enc(campaign.id)}&select=id,user_id,packs,first_pack,breakdown,total_brl,status,expires_at,paid_at,refunded_at,created_at,profiles(name,email,whatsapp)&order=first_pack.asc&limit=2000`),
+      rest(`crowdfund_pledges?campaign_id=eq.${enc(campaign.id)}&select=id,user_id,packs,first_pack,breakdown,total_brl,shipping_brl,shipping_service,shipping_address,status,expires_at,paid_at,refunded_at,created_at,profiles(name,email,whatsapp)&order=first_pack.asc&limit=2000`),
       rest(`crowdfund_votes?campaign_id=eq.${enc(campaign.id)}&select=oracle_id,card_name,pt_name,image_url,set_code,usd_price,user_id,created_at&limit=20000`),
       getUsdBrlRate(SB_URL, SB_SERVICE_ROLE_KEY).catch(() => ({ rate: 5.5, source: "fallback" })),
       broadcastAudience(env).then((a) => a.length).catch(() => null),

@@ -2436,7 +2436,7 @@ export default function MagicPortal(){
 
       {/* Pages */}
       <main className="portal-content" style={{ padding: page === 'onboarding' ? '0 20px' : '14px 20px' }}>
-        {page === 'crowdfund' && <CrowdfundPage token={token} toast={toast} returnedFromPayment={cfIntent === 'ok'} />}
+        {page === 'crowdfund' && <CrowdfundPage token={token} toast={toast} returnedFromPayment={cfIntent === 'ok'} profile={profile} AddressForm={AddressForm} AddressDisplay={AddressDisplay} />}
         {page === 'catalog' && <button onClick={() => nav('crowdfund')} style={{ width: '100%', marginBottom: 14, padding: '12px 14px', borderRadius: 'var(--r-card)', border: '1px solid var(--line)', background: 'var(--fill-soft)', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
           <span style={{ fontSize: 22 }}>🇧🇷</span>
           <span style={{ flex: 1, minWidth: 0 }}><b style={{ display: 'block', color: 'var(--text-strong)', fontSize: 'var(--fs-sm)' }}>Cartas em português: vote e garanta o seu</b><span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-dim)' }}>Financiamento coletivo · fundadores pagam menos</span></span>

@@ -186,9 +186,17 @@ As regras:
 5. **Votação.** Busca no Scryfall excluindo cartas com selo holográfico
    (`NO_STAMP_FILTER`); o servidor confere a carta e pega o nome em português.
    O admin marca as cartas finais e publica a lista.
-6. **Convite.** E-mail para a base do portal (Resend) e link/texto/HTML para
+6. **Frete na hora.** O cliente informa o endereço na compra; o servidor cota
+   no MandaBem (peso de todas as cartas do apoio) e o frete entra no mesmo
+   pagamento. `shipping_brl` fica separado e não conta como receita. Sem
+   limite de pacotes por apoio.
+7. **Landing visual.** Capa, pacote, caixa, detalhe do texto em PT e galeria
+   (até 12 fotos) vêm de `crowdfund_campaigns.images`, enviados em
+   Financiamento coletivo → Imagens (vão para o bucket `cards/crowdfund/`).
+   Sem foto, a capa mostra as cartas mais votadas em leque.
+8. **Convite.** E-mail para a base do portal (Resend) e link/texto/HTML para
    colar no Wix.
-7. **Meta não bateu.** "Reembolsar todos" devolve cada apoio pago pelo
+9. **Meta não bateu.** "Reembolsar todos" devolve cada apoio pago pelo
    Mercado Pago e cancela a campanha.
 
 ## 💚 Lista de desejos

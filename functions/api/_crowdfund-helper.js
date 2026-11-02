@@ -31,11 +31,12 @@ export async function loadCampaignById(env, id) {
 /** Pacotes ocupados (pagos + reservas válidas) e pagos. */
 export async function packCounts(env, campaignId) {
   const now = new Date().toISOString();
-  const rows = await sb(env)(`crowdfund_pledges?campaign_id=eq.${enc(campaignId)}&or=(status.eq.PAID,and(status.eq.PENDING,expires_at.gt.${enc(now)}))&select=packs,status,total_brl`);
+  const rows = await sb(env)(`crowdfund_pledges?campaign_id=eq.${enc(campaignId)}&or=(status.eq.PAID,and(status.eq.PENDING,expires_at.gt.${enc(now)}))&select=packs,status,total_brl,shipping_brl`);
+  // Receita sem o frete: o frete é repasse para o MandaBem.
   let taken = 0, paid = 0, paidRevenue = 0, backers = 0;
   for (const r of rows || []) {
     taken += r.packs;
-    if (r.status === "PAID") { paid += r.packs; paidRevenue += Number(r.total_brl) || 0; backers++; }
+    if (r.status === "PAID") { paid += r.packs; paidRevenue += (Number(r.total_brl) || 0) - (Number(r.shipping_brl) || 0); backers++; }
   }
   return { taken, paid, paidRevenue: Math.round(paidRevenue * 100) / 100, backers };
 }

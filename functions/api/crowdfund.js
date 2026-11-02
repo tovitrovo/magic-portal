@@ -1,5 +1,6 @@
 import { corsHeaders } from "./_cors.js";
 import { verifyUser } from "./_admin-auth.js";
+import { quoteShipping } from "./_frete-helper.js";
 import { packPrices, quotePledge, rankVotes } from "../../shared/crowdfund.js";
 import {
   sb, loadPublicCampaign, packCounts, progressOf, createPreference,
@@ -7,7 +8,6 @@ import {
 } from "./_crowdfund-helper.js";
 
 const enc = encodeURIComponent;
-const MAX_PACKS_PER_PLEDGE = 12;
 const OPEN = ["OPEN", "FUNDED"];
 
 /**
@@ -15,7 +15,8 @@ const OPEN = ["OPEN", "FUNDED"];
  *
  *   { action:'get' }                 → campanha, progresso, ranking; com login, os meus apoios e votos
  *   { action:'quote', packs }        → preço de N pacotes agora
- *   { action:'pledge', packs }       → reserva os pacotes (45 min) e devolve o link do Mercado Pago
+ *   { action:'pledge', packs, shipping:{ service, address } }
+ *                                    → cota o frete no MandaBem, reserva os pacotes (45 min) e devolve o link do Mercado Pago
  *   { action:'pay', pledgeId }       → link de novo para um apoio pendente
  *   { action:'sync', pledgeId }      → "já paguei": confere no Mercado Pago
  *   { action:'cancel', pledgeId }    → desiste de um apoio ainda não pago
@@ -51,7 +52,7 @@ export async function onRequest(context) {
       const [counts, votes, mine, myVotes] = await Promise.all([
         packCounts(env, campaign.id),
         rest(`crowdfund_votes?campaign_id=eq.${enc(campaign.id)}&select=oracle_id,card_name,pt_name,image_url,set_code,usd_price,user_id,created_at&limit=20000`),
-        userId ? rest(`crowdfund_pledges?campaign_id=eq.${enc(campaign.id)}&user_id=eq.${enc(userId)}&status=in.(PENDING,PAID,REFUNDED)&select=id,packs,first_pack,breakdown,total_brl,status,expires_at,mp_link,paid_at,created_at&order=created_at.desc`) : [],
+        userId ? rest(`crowdfund_pledges?campaign_id=eq.${enc(campaign.id)}&user_id=eq.${enc(userId)}&status=in.(PENDING,PAID,REFUNDED)&select=id,packs,first_pack,breakdown,total_brl,shipping_brl,shipping_service,status,expires_at,mp_link,paid_at,created_at&order=created_at.desc`) : [],
         userId ? rest(`crowdfund_votes?campaign_id=eq.${enc(campaign.id)}&user_id=eq.${enc(userId)}&select=oracle_id`) : [],
       ]);
       const progress = progressOf(campaign, counts);
@@ -73,7 +74,6 @@ export async function onRequest(context) {
     if (action === "quote" || action === "pledge") {
       if (!isOpen) return json({ ok: false, error: "A campanha não está aceitando apoios agora" }, 409);
       const packs = Math.floor(Number(body.packs) || 0);
-      if (packs > MAX_PACKS_PER_PLEDGE) return json({ ok: false, error: `Máximo de ${MAX_PACKS_PER_PLEDGE} pacotes por apoio` }, 400);
 
       if (action === "quote") {
         const counts = await packCounts(env, campaign.id);
@@ -82,6 +82,25 @@ export async function onRequest(context) {
       }
 
       if (!env.MP_ACCESS_TOKEN) return json({ ok: false, error: "Mercado Pago não configurado" }, 500);
+
+      // Frete na hora: o servidor cota de novo no MandaBem (o valor do app é só
+      // prévia) para o peso de todas as cartas do apoio.
+      const ship = body.shipping || {};
+      const addr = ship.address || {};
+      const cep = String(addr.cep || "").replace(/\D/g, "");
+      if (cep.length !== 8 || !addr.rua || !addr.numero || !addr.cidade || !addr.uf) {
+        return json({ ok: false, error: "Preencha o endereço completo para calcular o frete" }, 400);
+      }
+      const frete = await quoteShipping(env, cep, packs * (Number(campaign.cards_per_pack) || 56));
+      if (frete.error) return json({ ok: false, error: `Frete: ${frete.error}` }, 502);
+      const option = (frete.opcoes || []).find((o) => o.nome === ship.service) || null;
+      if (!option) return json({ ok: false, error: "Escolha um serviço de frete válido" }, 400);
+      const shippingBrl = Number(option.preco) || 0;
+      const address = {
+        cep, rua: String(addr.rua).slice(0, 200), numero: String(addr.numero).slice(0, 20),
+        complemento: String(addr.complemento || "").slice(0, 100), bairro: String(addr.bairro || "").slice(0, 100),
+        cidade: String(addr.cidade).slice(0, 100), uf: String(addr.uf).slice(0, 2).toUpperCase(),
+      };
       // Reserva atômica: se outro apoio entrou entre a cotação e a gravação,
       // a função devolve null e a gente cota de novo com a fila atualizada.
       let pledgeId = null, quote = null;
@@ -93,15 +112,22 @@ export async function onRequest(context) {
           method: "POST",
           body: JSON.stringify({
             p_campaign: campaign.id, p_user: userId, p_packs: packs, p_expected_first: quote.firstPack,
-            p_breakdown: quote.breakdown, p_total: quote.total, p_ttl_minutes: 45,
+            p_breakdown: quote.breakdown, p_total: Math.round((quote.total + shippingBrl) * 100) / 100, p_ttl_minutes: 45,
           }),
         });
       }
       if (!pledgeId) return json({ ok: false, error: "Muita gente comprando agora — tente de novo em alguns segundos" }, 409);
+      await rest(`crowdfund_pledges?id=eq.${enc(pledgeId)}`, {
+        method: "PATCH", headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ shipping_service: option.nome, shipping_brl: shippingBrl, shipping_address: address }),
+      });
+      if (body.saveAddress) {
+        await rest(`profiles?id=eq.${enc(userId)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(address) }).catch(() => {});
+      }
       const pledge = (await rest(`crowdfund_pledges?id=eq.${enc(pledgeId)}&select=*&limit=1`))[0];
       const origin = new URL(context.request.url).origin;
       const link = await createPreference(env, origin, pledge, campaign);
-      return json({ ok: true, pledgeId, mpLink: link, total: quote.total, breakdown: quote.breakdown, firstPack: quote.firstPack });
+      return json({ ok: true, pledgeId, mpLink: link, total: pledge.total_brl, shipping: shippingBrl, breakdown: quote.breakdown, firstPack: quote.firstPack });
     }
 
     // Ações sobre um apoio meu.
@@ -160,6 +186,6 @@ function publicCampaign(c) {
     id: c.id, slug: c.slug, title: c.title, subtitle: c.subtitle, description: c.description,
     status: c.status, finish: c.finish, cards_per_pack: c.cards_per_pack, box_packs: c.box_packs,
     goal_packs: c.goal_packs, deadline: c.deadline, max_votes_per_user: c.max_votes_per_user,
-    final_cards: c.final_cards || [],
+    final_cards: c.final_cards || [], images: c.images || {},
   };
 }

@@ -135,3 +135,12 @@ VALUES (
   now() + interval '30 days'
 )
 ON CONFLICT (slug) DO NOTHING;
+
+-- ── Frete na hora e imagens da landing ─────────────────────────
+-- O frete (MandaBem) é cotado no servidor no momento do apoio e entra no
+-- total cobrado; shipping_brl fica separado para não inflar a receita.
+ALTER TABLE public.crowdfund_pledges ADD COLUMN IF NOT EXISTS shipping_service text;
+ALTER TABLE public.crowdfund_pledges ADD COLUMN IF NOT EXISTS shipping_brl numeric NOT NULL DEFAULT 0;
+ALTER TABLE public.crowdfund_pledges ADD COLUMN IF NOT EXISTS shipping_address jsonb;
+-- Imagens da landing: { hero, pack, box, back, gallery: [url, ...] }
+ALTER TABLE public.crowdfund_campaigns ADD COLUMN IF NOT EXISTS images jsonb NOT NULL DEFAULT '{}'::jsonb;

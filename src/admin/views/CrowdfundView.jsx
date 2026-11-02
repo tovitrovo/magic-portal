@@ -1,6 +1,6 @@
 // Console do financiamento coletivo: progresso, dinheiro, votação, apoios e convite.
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Copy, Mail, Plus, RefreshCw, Send, Trash2, Undo2 } from 'lucide-react';
+import { Check, Copy, ImagePlus, Mail, Plus, RefreshCw, Send, Trash2, Undo2 } from 'lucide-react';
 import { BRL, financeSummary, SUPPLIER_LOT_USD } from '../../../shared/crowdfund';
 import { SFX, Spin } from '../../kit';
 import { Badge, Empty, Loading, SectionTitle, Segmented, timeAgo } from '../ui';
@@ -38,12 +38,14 @@ export default function CrowdfundView({ ctx }) {
     <Segmented value={tab} onChange={setTab} options={[
       { key: 'overview', label: 'Resumo' },
       { key: 'setup', label: 'Campanha' },
+      { key: 'images', label: 'Imagens' },
       { key: 'cards', label: 'Cartas', count: d.ranking.length },
       { key: 'pledges', label: 'Apoios', count: paidCount },
       { key: 'email', label: 'Convite' },
     ]} />
     {tab === 'overview' && <Overview d={d} />}
     {tab === 'setup' && <Setup d={d} load={load} toast={toast} />}
+    {tab === 'images' && <Images d={d} load={load} toast={toast} />}
     {tab === 'cards' && <Cards d={d} load={load} toast={toast} />}
     {tab === 'pledges' && <Pledges d={d} load={load} toast={toast} />}
     {tab === 'email' && <Invite d={d} apiPost={apiPost} toast={toast} />}
@@ -195,8 +197,9 @@ function Pledges({ d, load, toast }) {
   const [filter, setFilter] = useState('PAID');
   const [busy, setBusy] = useState(false);
   const list = d.pledges.filter(p => filter === 'ALL' || p.status === filter);
-  const csv = ['nº,nome,email,whatsapp,pacotes,total,status,pago em',
-    ...d.pledges.filter(p => p.status === 'PAID').map(p => [p.first_pack, p.profiles?.name, p.profiles?.email, p.profiles?.whatsapp, p.packs, p.total_brl, p.status, p.paid_at].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))].join('\n');
+  const addrText = a => a ? `${a.rua}, ${a.numero}${a.complemento ? ' ' + a.complemento : ''} - ${a.bairro || ''} - ${a.cidade}/${a.uf} - CEP ${a.cep}` : '';
+  const csv = ['nº,nome,email,whatsapp,pacotes,total,frete,serviço,endereço,status,pago em',
+    ...d.pledges.filter(p => p.status === 'PAID').map(p => [p.first_pack, p.profiles?.name, p.profiles?.email, p.profiles?.whatsapp, p.packs, p.total_brl, p.shipping_brl, p.shipping_service, addrText(p.shipping_address), p.status, p.paid_at].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))].join('\n');
   async function refundAll() {
     if (!window.confirm('Reembolsar TODOS os apoios pagos pelo Mercado Pago e cancelar a campanha? Não dá para desfazer.')) return;
     setBusy(true);
@@ -219,7 +222,8 @@ function Pledges({ d, load, toast }) {
       {list.map(p => <div key={p.id} className="adm-item" style={{ cursor: 'default', '--c': PLEDGE_COLORS[p.status] }}>
         <span className="adm-item-main">
           <span className="adm-item-title"><span>{p.profiles?.name || p.profiles?.email || 'Cliente'}</span><Badge color={PLEDGE_COLORS[p.status]}>{PLEDGE_LABELS[p.status]}</Badge></span>
-          <span className="adm-item-sub">nº {p.first_pack}{p.packs > 1 ? `–${p.first_pack + p.packs - 1}` : ''} · {p.packs} pacote(s) · {BRL(p.total_brl)} · {timeAgo(p.paid_at || p.created_at)}</span>
+          <span className="adm-item-sub">nº {p.first_pack}{p.packs > 1 ? `–${p.first_pack + p.packs - 1}` : ''} · {p.packs} pacote(s) · {BRL(p.total_brl)}{Number(p.shipping_brl) > 0 ? ` (frete ${p.shipping_service} ${BRL(p.shipping_brl)})` : ''} · {timeAgo(p.paid_at || p.created_at)}</span>
+          {p.shipping_address && <span className="adm-item-sub" style={{ display: 'block' }}>{addrText(p.shipping_address)}</span>}
         </span>
       </div>)}
     </div> : <Empty title="Nada aqui" />}
@@ -268,6 +272,78 @@ function Invite({ d, apiPost, toast }) {
         <button className="adm-btn" style={{ flex: 1 }} disabled={!e.wix} onClick={() => copy(e.wix.text, toast)}><Copy size={14} /> Copiar texto</button>
         <button className="adm-btn" style={{ flex: 1 }} disabled={!e.wix} onClick={() => copy(e.wix.html, toast)}><Copy size={14} /> Copiar HTML</button>
       </div>
+    </div>
+  </>);
+}
+
+// ── Imagens da landing ───────────────────────────────────
+const SLOTS = [
+  { key: 'hero', label: 'Capa (topo da página)', hint: 'Vertical 4:5, ex.: 1200×1500. Foto das cartas em leque ou na mesa.', ratio: '4/5' },
+  { key: 'pack', label: 'Pacote', hint: 'Vertical 3:4. O pacote fechado ou aberto.', ratio: '3/4' },
+  { key: 'box', label: 'Caixa com 4', hint: 'Vertical 3:4. A caixa do playset.', ratio: '3/4' },
+  { key: 'back', label: 'Detalhe do texto em português', hint: 'Horizontal 16:9. Close no texto da carta.', ratio: '16/9' },
+];
+
+// Reduz no navegador antes de subir: foto de celular tem 5–10 MB.
+function shrink(file, max = 1800) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(img.src);
+      resolve(cv.toDataURL('image/jpeg', 0.86));
+    };
+    img.onerror = () => reject(new Error('Não consegui abrir essa imagem'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function Images({ d, load, toast }) {
+  const imgs = d.campaign.images || {};
+  const [busy, setBusy] = useState('');
+  async function upload(slot, file) {
+    if (!file) return;
+    setBusy(slot);
+    try { await load({ action: 'image', slot, dataUrl: await shrink(file) }); SFX.success(); toast('Imagem salva', 'success'); }
+    catch (e) { toast(e.message, 'error'); }
+    setBusy('');
+  }
+  async function remove(slot, url) {
+    setBusy(slot);
+    try { await load({ action: 'image', slot, remove: true, url }); }
+    catch (e) { toast(e.message, 'error'); }
+    setBusy('');
+  }
+  const Picker = ({ slot, children }) => <label className="adm-btn is-sm" style={{ cursor: 'pointer' }}>
+    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { upload(slot, e.target.files?.[0]); e.target.value = ''; }} />
+    {busy === slot ? <Spin size={13} /> : children}
+  </label>;
+  return (<>
+    <div className="adm-info">Sem foto, cada espaço mostra um fundo verde e amarelo (e a capa mostra as cartas mais votadas). As imagens são reduzidas antes de subir.</div>
+    {SLOTS.map(s => <div key={s.key} className="adm-card adm-pad" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+      <div style={{ width: 84, flexShrink: 0, aspectRatio: s.ratio, borderRadius: 10, overflow: 'hidden', background: 'var(--fill-soft)', display: 'grid', placeItems: 'center' }}>
+        {imgs[s.key] ? <img src={imgs[s.key]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <ImagePlus size={20} style={{ color: 'var(--text-dim)' }} />}
+      </div>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <b>{s.label}</b><span className="adm-muted" style={{ fontSize: 'var(--fs-2xs)' }}>{s.hint}</span>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <Picker slot={s.key}><ImagePlus size={13} /> {imgs[s.key] ? 'Trocar' : 'Enviar'}</Picker>
+          {imgs[s.key] && <button className="adm-btn is-sm is-ghost" disabled={busy === s.key} onClick={() => remove(s.key)}><Trash2 size={13} /></button>}
+        </div>
+      </div>
+    </div>)}
+    <div className="adm-card adm-pad" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <b>Galeria</b><span className="adm-muted" style={{ fontSize: 'var(--fs-2xs)' }}>Até 12 fotos, vertical 4:5. Aparecem num carrossel depois do pacote e da caixa.</span>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6 }}>
+        {(imgs.gallery || []).map(u => <div key={u} style={{ position: 'relative', aspectRatio: '4/5', borderRadius: 8, overflow: 'hidden' }}>
+          <img src={u} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <button onClick={() => remove('gallery', u)} aria-label="Remover" style={{ position: 'absolute', top: 3, right: 3, width: 24, height: 24, borderRadius: 12, border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}><Trash2 size={12} /></button>
+        </div>)}
+      </div>
+      {(imgs.gallery || []).length < 12 && <Picker slot="gallery"><ImagePlus size={13} /> Adicionar foto</Picker>}
     </div>
   </>);
 }

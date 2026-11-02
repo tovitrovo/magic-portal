@@ -1,12 +1,15 @@
-// Página do financiamento coletivo: pacotes de cartas em português.
+// Landing do financiamento coletivo: pacotes de cartas em português.
 //
-// Três coisas numa tela só, nessa ordem:
-//   1. por que entrar agora (faixas de preço e a meta);
-//   2. comprar pacote ou caixa (preço cotado pela fila, pago no Mercado Pago);
-//   3. votar nas cartas (busca no Scryfall, só cartas sem selo holográfico).
-// Preço e vagas vêm do servidor (/api/crowdfund); a cotação local é só prévia.
+// Ordem da página, de cima para baixo:
+//   1. hero com imagem e a meta (por que entrar agora);
+//   2. o que vem no pacote e na caixa (fotos), galeria e detalhe em português;
+//   3. faixas de preço e compra (frete do MandaBem cotado na hora);
+//   4. votação das cartas (Scryfall, só cartas sem selo holográfico).
+// As imagens vêm de campaign.images e são trocadas no console do admin; sem
+// imagem, cada espaço mostra um fundo desenhado (e as cartas mais votadas).
+// Preço, frete e vagas são do servidor (/api/crowdfund); aqui é só prévia.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Clock, Heart, Loader, Minus, Package, Plus, RefreshCw, Search, Sparkles, Trophy, X } from 'lucide-react';
+import { Check, Clock, Heart, ImageIcon, Loader, MapPin, Minus, Package, Plus, RefreshCw, Search, Sparkles, Trophy, Truck, Users, X } from 'lucide-react';
 import { BRL, SUGGESTION_PRESETS, quotePledge, scryfallQuery, scryfallToVote } from '../shared/crowdfund';
 import { SFX, Btn, Card, Tag, Spin, CardThumb } from './kit';
 
@@ -36,10 +39,34 @@ const PLEDGE_STATUS = {
 };
 
 const section = { display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' };
-const h2 = { fontSize: 'var(--fs-lg)', fontWeight: 650, color: 'var(--text-strong)', letterSpacing: -0.2 };
+const h2 = { fontSize: 'var(--fs-xl)', fontWeight: 700, color: 'var(--text-strong)', letterSpacing: -0.4, lineHeight: 1.2 };
+const kicker = { fontSize: 'var(--fs-2xs)', fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: 'var(--ok)' };
 const muted = { fontSize: 'var(--fs-sm)', color: 'var(--text-dim)', lineHeight: 1.5 };
+// Fundo desenhado dos espaços sem foto: verde e amarelo discretos.
+const ART_BG = 'radial-gradient(120% 90% at 0% 0%, rgba(0,156,59,.55), transparent 60%), radial-gradient(90% 80% at 100% 100%, rgba(255,223,0,.35), transparent 60%), linear-gradient(160deg,#0f1a14,#0b0b0c)';
 
-export default function CrowdfundPage({ token, toast, returnedFromPayment }) {
+/** Espaço de imagem: a foto, ou o fundo desenhado com um rótulo. */
+function Slot({ src, ratio = '4/3', label, radius = 'var(--r-card)', children, style }) {
+  const [err, setErr] = useState(false);
+  const has = src && !err;
+  return (<div style={{ position: 'relative', aspectRatio: ratio, borderRadius: radius, overflow: 'hidden', background: has ? '#111' : ART_BG, border: '1px solid var(--line-soft)', ...style }}>
+    {has && <img src={src} alt={label || ''} loading="lazy" onError={() => setErr(true)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+    {!has && !children && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: 'rgba(255,255,255,.55)' }}><div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, fontSize: 'var(--fs-xs)', fontWeight: 600 }}><ImageIcon size={26} strokeWidth={1.5} />{label}</div></div>}
+    {children}
+  </div>);
+}
+
+/** Leque de cartas (as mais votadas) para o hero sem foto. */
+function CardFan({ cards }) {
+  const list = cards.filter(c => c.image_url).slice(0, 5);
+  if (!list.length) return <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: 90, opacity: .25 }}>🃏</div>;
+  const mid = (list.length - 1) / 2;
+  return (<div style={{ position: 'absolute', left: 0, right: 0, top: '7%', height: '46%', display: 'flex', justifyContent: 'center', alignItems: 'flex-end' }}>
+    {list.map((c, i) => <img key={c.oracle_id} src={c.image_url} alt="" style={{ width: '26%', marginLeft: i ? '-11%' : 0, borderRadius: 10, transform: `rotate(${(i - mid) * 9}deg) translateY(${Math.abs(i - mid) * 10}px)`, transformOrigin: 'bottom center', boxShadow: '0 10px 30px rgba(0,0,0,.5)', zIndex: 10 - Math.abs(i - mid) }} />)}
+  </div>);
+}
+
+export default function CrowdfundPage({ token, toast, returnedFromPayment, profile, AddressForm, AddressDisplay }) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState('');
   const load = useCallback(async () => {
@@ -62,50 +89,119 @@ export default function CrowdfundPage({ token, toast, returnedFromPayment }) {
   if (!data.campaign) return <Card><div style={muted}>Nenhuma campanha aberta agora. Fique de olho no seu e-mail!</div></Card>;
 
   const { campaign: c, progress: pr } = data;
-  return (<div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-6)', paddingBottom: 40 }}>
-    <Hero c={c} pr={pr} voters={data.voters} />
+  const img = c.images || {};
+  const go = id => { SFX.nav(); document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  return (<div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-7, 40px)', paddingBottom: 48 }}>
+    <Hero c={c} pr={pr} img={img} ranking={data.ranking} voters={data.voters} onBuy={() => go('apoiar')} onVote={() => go('votar')} />
+    <WhatsInside c={c} img={img} />
+    <Gallery img={img} ranking={data.ranking} />
     <TierLadder c={c} pr={pr} />
-    <BuyBox c={c} pr={pr} isOpen={data.isOpen} token={token} toast={toast} onDone={load} />
+    <BuyBox c={c} pr={pr} isOpen={data.isOpen} token={token} toast={toast} onDone={load} profile={profile} AddressForm={AddressForm} AddressDisplay={AddressDisplay} />
     {data.myPledges?.length > 0 && <MyPledges pledges={data.myPledges} c={c} token={token} toast={toast} onChange={load} />}
-    {c.final_cards?.length > 0
-      ? <FinalList cards={c.final_cards} total={c.cards_per_pack} />
-      : <Voting c={c} ranking={data.ranking} myVotes={data.myVotes} token={token} toast={toast} onChange={load} />}
+    <div id="votar" style={{ scrollMarginTop: 70 }}>
+      {c.final_cards?.length > 0
+        ? <FinalList cards={c.final_cards} total={c.cards_per_pack} />
+        : <Voting c={c} ranking={data.ranking} myVotes={data.myVotes} token={token} toast={toast} onChange={load} />}
+    </div>
     <HowItWorks c={c} />
+    {data.isOpen && !pr.soldOut && <Btn full onClick={() => go('apoiar')}>Garantir meu pacote</Btn>}
   </div>);
 }
 
 // ── 1. Hero ──────────────────────────────────────────────
-function Hero({ c, pr, voters }) {
+function Hero({ c, pr, img, ranking, voters, onBuy, onVote }) {
   const left = timeLeft(c.deadline);
-  return (<div style={{ ...section, gap: 'var(--sp-4)' }}>
-    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-      <Tag color="var(--ok)">🇧🇷 Em português</Tag>
-      <Tag>{c.cards_per_pack} cartas diferentes</Tag>
-      {c.finish !== 'Normal' && <Tag color="var(--gold)"><Sparkles size={12} /> {c.finish}</Tag>}
-      {left && <Tag><Clock size={12} /> {left}</Tag>}
-    </div>
-    <h2 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, lineHeight: 1.15, letterSpacing: -0.6, color: 'var(--text-strong)' }}>{c.title}</h2>
-    {c.subtitle && <p style={{ ...muted, fontSize: 'var(--fs-md)' }}>{c.subtitle}</p>}
+  const price = pr.current ? BRL(pr.current.per_card_brl) : null;
+  return (<div style={{ display: 'flex', flexDirection: 'column', gap: 0, margin: '-14px -20px 0' }}>
+    <Slot src={img.hero} ratio="4/5" radius="0" label="" style={{ border: 'none' }}>
+      {!img.hero && <CardFan cards={ranking || []} />}
+      <div style={{ position: 'absolute', inset: 0, zIndex: 15, background: 'linear-gradient(180deg, rgba(0,0,0,.15) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,.55) 58%, rgba(0,0,0,.94) 100%)' }} />
+      <div style={{ position: 'absolute', left: 20, right: 20, bottom: 22, zIndex: 20, display: 'flex', flexDirection: 'column', gap: 12, color: '#fff' }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <span style={pill('#009c3b')}>🇧🇷 Em português</span>
+          <span style={pill()}>{c.cards_per_pack} cartas diferentes</span>
+          {c.finish !== 'Normal' && <span style={pill('#b8860b')}><Sparkles size={11} /> {c.finish}</span>}
+          {left && <span style={pill()}><Clock size={11} /> {left}</span>}
+        </div>
+        <h2 style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.05, letterSpacing: -1, textShadow: '0 2px 20px rgba(0,0,0,.4)' }}>{c.title}</h2>
+        {c.subtitle && <p style={{ fontSize: 'var(--fs-md)', lineHeight: 1.45, color: 'rgba(255,255,255,.85)' }}>{c.subtitle}</p>}
+        {price && <div style={{ fontSize: 'var(--fs-sm)', color: 'rgba(255,255,255,.85)' }}>A partir de <b style={{ color: '#fff', fontSize: 'var(--fs-lg)' }}>{price}</b> por carta na faixa {pr.current.label}</div>}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={onBuy} style={{ flex: 1, minHeight: 48, borderRadius: 'var(--r-pill)', border: 'none', background: '#fff', color: '#000', fontWeight: 700, fontSize: 'var(--fs-md)', cursor: 'pointer', fontFamily: 'inherit' }}>Garantir o meu</button>
+          <button onClick={onVote} style={{ minHeight: 48, padding: '0 18px', borderRadius: 'var(--r-pill)', border: '1px solid rgba(255,255,255,.5)', background: 'rgba(255,255,255,.08)', color: '#fff', fontWeight: 600, fontSize: 'var(--fs-sm)', cursor: 'pointer', fontFamily: 'inherit', backdropFilter: 'blur(8px)' }}>Votar nas cartas</button>
+        </div>
+      </div>
+    </Slot>
 
-    <Card style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <b style={{ fontSize: 'var(--fs-xl)', color: 'var(--text-strong)' }}>{pr.paid} <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-dim)', fontWeight: 500 }}>de {pr.goal} pacotes para imprimir</span></b>
-        <span style={{ fontWeight: 700, color: pr.goalReached ? 'var(--ok)' : 'var(--text-strong)' }}>{pr.goalPct}%</span>
+    <div style={{ margin: '-1px 20px 0', position: 'relative' }}>
+      <Card style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <b style={{ fontSize: 'var(--fs-xl)', color: 'var(--text-strong)' }}>{pr.paid} <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-dim)', fontWeight: 500 }}>de {pr.goal} pacotes para imprimir</span></b>
+          <span style={{ fontWeight: 700, color: pr.goalReached ? 'var(--ok)' : 'var(--text-strong)' }}>{pr.goalPct}%</span>
+        </div>
+        <div style={{ height: 10, borderRadius: 10, background: 'var(--fill-soft)', overflow: 'hidden' }}>
+          <div style={{ width: pr.goalPct + '%', height: '100%', background: 'linear-gradient(90deg,#009c3b,#ffdf00)', transition: 'width .6s' }} />
+        </div>
+        <div style={{ display: 'flex', gap: 14, ...muted, fontSize: 'var(--fs-xs)' }}>
+          <span><Users size={12} style={{ verticalAlign: -2 }} /> {pr.backers} apoiador(es)</span>
+          <span><Heart size={12} style={{ verticalAlign: -2 }} /> {voters} votante(s)</span>
+          {pr.current && <span><Package size={12} style={{ verticalAlign: -2 }} /> {pr.current.left} vaga(s) de {pr.current.label.toLowerCase()}</span>}
+        </div>
+        <div style={{ ...muted, fontSize: 'var(--fs-xs)' }}>
+          {pr.goalReached ? '🎉 Meta batida: o lote vai ser impresso! Ainda dá para garantir o seu.' : `Faltam ${pr.goal - pr.paid} pacotes pagos para o lote sair. Se não bater até o prazo, todo mundo recebe o dinheiro de volta.`}
+        </div>
+      </Card>
+    </div>
+  </div>);
+}
+const pill = (bg) => ({ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 999, background: bg || 'rgba(255,255,255,.16)', backdropFilter: 'blur(8px)', fontSize: 'var(--fs-2xs)', fontWeight: 700, color: '#fff' });
+
+// ── 2. O que vem, galeria e detalhe ──────────────────────
+function WhatsInside({ c, img }) {
+  return (<div style={section}>
+    <span style={kicker}>O que vem</span>
+    <h3 style={h2}>Um pacote, {c.cards_per_pack} cartas.<br />Uma caixa, um playset.</h3>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <figure style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <Slot src={img.pack} ratio="3/4" label="Foto do pacote" />
+        <figcaption><b style={{ color: 'var(--text-strong)', fontSize: 'var(--fs-sm)' }}>Pacote</b><div style={{ ...muted, fontSize: 'var(--fs-xs)' }}>{c.cards_per_pack} cartas diferentes, uma de cada</div></figcaption>
+      </figure>
+      <figure style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <Slot src={img.box} ratio="3/4" label="Foto da caixa" />
+        <figcaption><b style={{ color: 'var(--text-strong)', fontSize: 'var(--fs-sm)' }}>Caixa com {c.box_packs}</b><div style={{ ...muted, fontSize: 'var(--fs-xs)' }}>{c.box_packs} cópias de cada carta: deck pronto</div></figcaption>
+      </figure>
+    </div>
+    <Slot src={img.back} ratio="16/9" label="Foto de perto do texto em português">
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '28px 16px 14px', background: 'linear-gradient(180deg,transparent,rgba(0,0,0,.8))', color: '#fff' }}>
+        <b style={{ fontSize: 'var(--fs-md)' }}>Texto inteiro em português</b>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'rgba(255,255,255,.8)' }}>Para ler na mesa sem tradutor e ensinar quem está começando.</div>
       </div>
-      <div style={{ height: 10, borderRadius: 10, background: 'var(--fill-soft)', overflow: 'hidden' }}>
-        <div style={{ width: pr.goalPct + '%', height: '100%', background: pr.goalReached ? 'var(--ok)' : 'var(--gp)', transition: 'width .6s' }} />
-      </div>
-      <div style={{ ...muted, fontSize: 'var(--fs-xs)' }}>
-        {pr.goalReached ? '🎉 Meta batida: o lote vai ser impresso! Ainda dá para garantir o seu.' : `Faltam ${pr.goal - pr.paid} pacotes pagos para o lote sair. Se não bater até o prazo, todo mundo recebe o dinheiro de volta.`}
-        {' '}{pr.backers} apoiador(es) · {voters} votante(s).
-      </div>
-    </Card>
+    </Slot>
+    {c.description && <p style={muted}>{c.description}</p>}
+  </div>);
+}
+
+function Gallery({ img, ranking }) {
+  const photos = img.gallery || [];
+  const cards = photos.length ? [] : (ranking || []).filter(r => r.image_url).slice(0, 10);
+  if (!photos.length && !cards.length) return null;
+  return (<div style={section}>
+    <span style={kicker}>{photos.length ? 'Galeria' : 'As mais pedidas até agora'}</span>
+    <div style={{ display: 'flex', gap: 10, overflowX: 'auto', scrollSnapType: 'x mandatory', margin: '0 -20px', padding: '0 20px 6px' }}>
+      {photos.map(u => <Slot key={u} src={u} ratio="4/5" style={{ flex: '0 0 72%', scrollSnapAlign: 'start' }} />)}
+      {cards.map(r => <div key={r.oracle_id} style={{ flex: '0 0 42%', scrollSnapAlign: 'start' }}>
+        <CardThumb card={{ name: r.card_name, image_url: r.image_url }} radius={10} />
+        <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-strong)', marginTop: 4 }}>{r.pt_name || r.card_name}</div>
+        <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-dim)' }}>♥ {r.votes} voto{r.votes > 1 ? 's' : ''}</div>
+      </div>)}
+    </div>
   </div>);
 }
 
 // ── Faixas de preço ──────────────────────────────────────
 function TierLadder({ c, pr }) {
   return (<div style={section}>
+    <span style={kicker}>Preço de fundador</span>
     <h3 style={h2}>Quem chega primeiro paga menos</h3>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {pr.tiers.map(t => {
@@ -129,32 +225,67 @@ function TierLadder({ c, pr }) {
   </div>);
 }
 
-// ── 2. Comprar ───────────────────────────────────────────
-function BuyBox({ c, pr, isOpen, token, toast, onDone }) {
-  const [packs, setPacks] = useState(c.box_packs);
+// ── 3. Comprar (com frete na hora) ───────────────────────
+const addressReady = a => a && String(a.cep || '').replace(/\D/g, '').length === 8 && a.rua && a.numero && a.cidade && a.uf;
+
+function BuyBox({ c, pr, isOpen, token, toast, onDone, profile, AddressForm, AddressDisplay }) {
+  const available = pr.capacity - pr.taken;
+  const [packs, setPacks] = useState(Math.min(c.box_packs, Math.max(1, available)));
   const [busy, setBusy] = useState(false);
+  const saved = { cep: profile?.cep || '', rua: profile?.rua || '', numero: profile?.numero || '', complemento: profile?.complemento || '', bairro: profile?.bairro || '', cidade: profile?.cidade || '', uf: profile?.uf || '' };
+  const hasSaved = addressReady(saved);
+  const [addr, setAddr] = useState(saved);
+  const [editAddr, setEditAddr] = useState(!hasSaved);
+  const [frete, setFrete] = useState({ loading: false, options: [], error: '' });
+  const [service, setService] = useState(null);
+  // O perfil chega depois do primeiro render: preenche o endereço salvo.
+  useEffect(() => {
+    if (hasSaved && !String(addr.cep || '').trim()) { setAddr(saved); setEditAddr(false); }
+  }, [hasSaved]); // eslint-disable-line react-hooks/exhaustive-deps
   const tiers = pr.tiers.map(({ upto, per_card_brl, label }) => ({ upto, per_card_brl, label }));
   const q = useMemo(() => quotePledge({ tiers, taken: pr.taken, packs, cardsPerPack: c.cards_per_pack }), [pr.taken, packs, c.cards_per_pack]); // eslint-disable-line react-hooks/exhaustive-deps
-  const available = pr.capacity - pr.taken;
+
+  // Frete cotado de novo a cada mudança de quantidade ou de CEP.
+  const cep = String(addr.cep || '').replace(/\D/g, '');
+  useEffect(() => {
+    if (cep.length !== 8 || packs < 1) { setFrete({ loading: false, options: [], error: '' }); return; }
+    let alive = true;
+    setFrete(f => ({ ...f, loading: true, error: '' }));
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch('/api/frete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cepDestino: cep, quantidade: packs * c.cards_per_pack }) });
+        const d = await r.json();
+        if (!alive) return;
+        const opts = (d.opcoes || []).map(o => ({ service: o.nome, price: Number(o.preco), days: o.prazo })).sort((a, b) => a.price - b.price);
+        setFrete({ loading: false, options: opts, error: d.error || (opts.length ? '' : 'Sem opções de frete para este CEP') });
+        setService(prev => (opts.find(o => o.service === prev) || opts[0])?.service || null);
+      } catch { if (alive) setFrete({ loading: false, options: [], error: 'Não foi possível calcular o frete' }); }
+    }, 400);
+    return () => { alive = false; clearTimeout(t); };
+  }, [cep, packs, c.cards_per_pack]);
+
+  const chosen = frete.options.find(o => o.service === service) || null;
+  const total = q.ok ? Math.round((q.total + (chosen?.price || 0)) * 100) / 100 : 0;
+  const ready = q.ok && addressReady(addr) && chosen && !frete.loading;
 
   async function pledge() {
     setBusy(true);
     try {
-      const r = await api(token, { action: 'pledge', packs });
+      const r = await api(token, { action: 'pledge', packs, shipping: { service, address: addr }, saveAddress: !hasSaved });
       SFX.confirm();
       window.location.href = r.mpLink;
     } catch (e) { toast(e.message, 'error'); setBusy(false); onDone(); }
   }
 
-  if (!isOpen) return <Card><b style={{ color: 'var(--text-strong)' }}>{pr.soldOut ? 'Esgotado!' : 'Apoios encerrados'}</b><div style={muted}>{pr.soldOut ? 'Todos os pacotes desse lote foram vendidos.' : 'Essa campanha não está aceitando novos apoios.'}</div></Card>;
-  if (pr.soldOut) return <Card><b>Esgotado!</b></Card>;
+  if (!isOpen || pr.soldOut) return <div id="apoiar"><Card><b style={{ color: 'var(--text-strong)' }}>{pr.soldOut ? 'Esgotado!' : 'Apoios encerrados'}</b><div style={muted}>{pr.soldOut ? 'Todos os pacotes desse lote foram vendidos.' : 'Essa campanha não está aceitando novos apoios.'}</div></Card></div>;
 
   const options = [
     { n: 1, title: '1 pacote', sub: `${c.cards_per_pack} cartas, uma de cada` },
-    { n: c.box_packs, title: `Caixa com ${c.box_packs}`, sub: `Playset: ${c.box_packs} cópias de cada carta`, best: true },
+    { n: c.box_packs, title: `Caixa com ${c.box_packs}`, sub: `Playset: ${c.box_packs} cópias de cada`, best: true },
   ];
-  return (<div style={section} id="apoiar">
-    <h3 style={h2}>Garanta o seu</h3>
+  return (<div style={{ ...section, scrollMarginTop: 70 }} id="apoiar">
+    <span style={kicker}>Garanta o seu</span>
+    <h3 style={h2}>Escolha quantos pacotes</h3>
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
       {options.map(o => {
         const on = packs === o.n;
@@ -171,20 +302,39 @@ function BuyBox({ c, pr, isOpen, token, toast, onDone }) {
       <span style={muted}>Outra quantidade</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <button className="mp-tap" aria-label="Menos um pacote" onClick={() => setPacks(p => Math.max(1, p - 1))} style={stepBtn}><Minus size={15} /></button>
-        <b style={{ minWidth: 28, textAlign: 'center', color: 'var(--text-strong)' }}>{packs}</b>
-        <button className="mp-tap" aria-label="Mais um pacote" onClick={() => setPacks(p => Math.min(12, available, p + 1))} style={stepBtn}><Plus size={15} /></button>
+        <input aria-label="Pacotes" inputMode="numeric" value={packs} onChange={e => { const n = parseInt(e.target.value.replace(/\D/g, ''), 10); setPacks(Number.isFinite(n) ? Math.max(1, Math.min(available, n)) : 1); }} style={{ width: 52, textAlign: 'center', fontWeight: 700, fontSize: 16, padding: '6px 0', borderRadius: 'var(--r-control)', border: '1px solid var(--line)', background: 'var(--field-bg)', color: 'var(--text-strong)', fontFamily: 'inherit' }} />
+        <button className="mp-tap" aria-label="Mais um pacote" onClick={() => setPacks(p => Math.min(available, p + 1))} style={stepBtn}><Plus size={15} /></button>
       </div>
     </div>
+
+    <Card style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 14 }}>
+      <b style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-strong)' }}><MapPin size={15} /> Entrega</b>
+      {!editAddr && AddressDisplay
+        ? <AddressDisplay address={addr} onEdit={() => setEditAddr(true)} />
+        : AddressForm ? <AddressForm address={addr} setAddress={setAddr} /> : null}
+      {frete.loading && <div style={{ ...muted, display: 'flex', gap: 6, alignItems: 'center' }}><Spin size={14} /> Calculando frete…</div>}
+      {!frete.loading && frete.error && <div style={{ ...muted, color: 'var(--danger)' }}>{frete.error}</div>}
+      {!frete.loading && frete.options.map(o => <label key={o.service} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 'var(--r-control)', border: '1px solid ' + (service === o.service ? 'var(--gp)' : 'var(--line)'), cursor: 'pointer' }}>
+        <input type="radio" name="cf-frete" checked={service === o.service} onChange={() => setService(o.service)} />
+        <Truck size={15} />
+        <span style={{ flex: 1 }}><b style={{ color: 'var(--text-strong)', fontSize: 'var(--fs-sm)' }}>{o.service}</b>{o.days ? <span style={{ ...muted, fontSize: 'var(--fs-xs)' }}> · {o.days} dia(s) úteis depois do envio</span> : null}</span>
+        <b style={{ fontSize: 'var(--fs-sm)' }}>{BRL(o.price)}</b>
+      </label>)}
+      {cep.length !== 8 && <div style={{ ...muted, fontSize: 'var(--fs-xs)' }}>Digite o CEP para calcular o frete.</div>}
+    </Card>
+
     {q.ok && <Card style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 14 }}>
       {q.breakdown.map(b => <div key={b.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-sm)' }}><span style={{ color: 'var(--text-dim)' }}>{b.packs}× {b.label} ({BRL(b.per_card_brl)}/carta)</span><span>{BRL(b.packs * b.per_pack_brl)}</span></div>)}
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, color: 'var(--text-strong)', borderTop: '1px solid var(--line-soft)', paddingTop: 6 }}><span>Total</span><span>{BRL(q.total)}</span></div>
-      <div style={{ ...muted, fontSize: 'var(--fs-xs)' }}>Média de {BRL(q.perCardAvg)} por carta · frete à parte, calculado quando o lote chegar.</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-sm)' }}><span style={{ color: 'var(--text-dim)' }}>Frete {chosen ? chosen.service : ''}</span><span>{chosen ? BRL(chosen.price) : '—'}</span></div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, color: 'var(--text-strong)', borderTop: '1px solid var(--line-soft)', paddingTop: 6 }}><span>Total</span><span>{chosen ? BRL(total) : '—'}</span></div>
+      <div style={{ ...muted, fontSize: 'var(--fs-xs)' }}>Média de {BRL(q.perCardAvg)} por carta.</div>
     </Card>}
     {!q.ok && <div style={{ ...muted, color: 'var(--danger)' }}>{q.error}</div>}
-    <Btn full disabled={!q.ok || busy || !token} onClick={pledge}>{busy ? <Spin size={16} color="currentColor" /> : <>Apoiar com {q.ok ? BRL(q.total) : '—'}</>}</Btn>
+    <Btn full disabled={!ready || busy || !token} onClick={pledge}>{busy ? <Spin size={16} color="currentColor" /> : <>Apoiar com {ready ? BRL(total) : '—'}</>}</Btn>
     <div style={{ ...muted, fontSize: 'var(--fs-xs)', textAlign: 'center' }}>Seus pacotes ficam reservados por 45 minutos enquanto você paga. Pix ou cartão pelo Mercado Pago.</div>
   </div>);
 }
+
 const stepBtn = { width: 36, height: 36, borderRadius: 18, border: '1px solid var(--line)', background: 'var(--fill-soft)', color: 'var(--text-strong)', display: 'grid', placeItems: 'center', cursor: 'pointer' };
 
 function MyPledges({ pledges, c, token, toast, onChange }) {
@@ -206,7 +356,7 @@ function MyPledges({ pledges, c, token, toast, onChange }) {
       const st = PLEDGE_STATUS[p.status] || PLEDGE_STATUS.PENDING;
       return (<Card key={p.id} style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-          <div><b style={{ color: 'var(--text-strong)' }}>{p.packs} pacote(s) · {BRL(p.total_brl)}</b><div style={{ ...muted, fontSize: 'var(--fs-xs)' }}>Pacote nº {p.first_pack}{p.packs > 1 ? `–${p.first_pack + p.packs - 1}` : ''} · {(p.breakdown || []).map(b => b.label).join(' + ')}</div></div>
+          <div><b style={{ color: 'var(--text-strong)' }}>{p.packs} pacote(s) · {BRL(p.total_brl)}</b>{Number(p.shipping_brl) > 0 && <span style={{ ...muted, fontSize: 'var(--fs-2xs)' }}> com frete {p.shipping_service}</span>}<div style={{ ...muted, fontSize: 'var(--fs-xs)' }}>Pacote nº {p.first_pack}{p.packs > 1 ? `–${p.first_pack + p.packs - 1}` : ''} · {(p.breakdown || []).map(b => b.label).join(' + ')}</div></div>
           <Tag color={st.color} style={{ alignSelf: 'flex-start' }}>{st.label}</Tag>
         </div>
         {p.status === 'PENDING' && <div style={{ display: 'flex', gap: 6 }}>
@@ -219,7 +369,7 @@ function MyPledges({ pledges, c, token, toast, onChange }) {
   </div>);
 }
 
-// ── 3. Votação ───────────────────────────────────────────
+// ── 4. Votação ───────────────────────────────────────────
 function Voting({ c, ranking, myVotes, token, toast, onChange }) {
   const [term, setTerm] = useState('');
   const [preset, setPreset] = useState('commander');
@@ -258,6 +408,7 @@ function Voting({ c, ranking, myVotes, token, toast, onChange }) {
 
   return (<div style={section}>
     <div>
+      <span style={kicker}>Você escolhe</span>
       <h3 style={h2}>Quais cartas você quer em português?</h3>
       <p style={muted}>Vote em até {c.max_votes_per_user} cartas. As {c.cards_per_pack} mais pedidas viram o pacote. Só aparecem cartas que têm versão sem selo holográfico. {token && <b style={{ color: 'var(--text-strong)' }}>Você tem {left} voto(s).</b>}</p>
     </div>
@@ -326,10 +477,11 @@ function HowItWorks({ c }) {
     ['O que vem no pacote?', `${c.cards_per_pack} cartas diferentes, todas em português e iguais em todos os pacotes. A caixa com ${c.box_packs} pacotes dá ${c.box_packs} cópias de cada carta: um playset completo.`],
     ['Por que o preço muda?', 'Os primeiros apoios pagam a impressão do lote inteiro, por isso pagam menos. Cada faixa que esgota libera a próxima, mais cara.'],
     ['E se a meta não bater?', `O lote só é encomendado com ${c.goal_packs} pacotes pagos. Se não bater até o prazo, devolvemos 100% do valor pelo Mercado Pago.`],
-    ['Quando chega?', 'Depois que a meta bate, encomendamos a impressão. Avisamos cada etapa por e-mail e aqui no portal. O frete é cobrado à parte quando o lote chegar.'],
-    ['São cartas oficiais?', 'Não. São impressões personalizadas para jogar casual e em mesa de amigos, não para torneio oficial.'],
+    ['Quando chega?', 'Depois que a meta bate, encomendamos a impressão. Avisamos cada etapa por e-mail e aqui no portal, e enviamos para o endereço do seu apoio.'],
+    ['E o frete?', 'É calculado na hora da compra pelo seu CEP e entra no mesmo pagamento. Nada para pagar depois.'],
   ];
   return (<div style={section}>
+    <span style={kicker}>Dúvidas</span>
     <h3 style={h2}>Como funciona</h3>
     {items.map(([q, a]) => <details key={q} style={{ borderBottom: '1px solid var(--line-soft)', paddingBottom: 10 }}>
       <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--text-strong)', fontSize: 'var(--fs-sm)' }}>{q}</summary>
