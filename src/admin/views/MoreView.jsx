@@ -8,6 +8,7 @@ import { PUSH_NEEDS_INSTALL, disablePush, enablePush, sendTestPush, updatePushPr
 import { SFX, Spin, CATALOG_TCG, CATALOG_TYPES } from '../../kit';
 import { SB_URL, SB_KEY } from '../../config';
 import { Badge, Loading, Toggle, timeAgo } from '../ui';
+import CardEditor from './CardEditor';
 
 const TRACKING_STALE_MS=3*3600*1000;
 
@@ -182,7 +183,7 @@ function CatalogPage({ctx}){
   const [deactivate,setDeactivate]=useState(true);const [importing,setImporting]=useState(false);const [importResult,setImportResult]=useState(null);
   const [linkText,setLinkText]=useState('');const [linkPreview,setLinkPreview]=useState(null);const [linkType,setLinkType]=useState('Normal');
   const [linkAdding,setLinkAdding]=useState(false);const [linkProgress,setLinkProgress]=useState(null);const [linkResult,setLinkResult]=useState(null);
-  const [tool,setTool]=useState(null); // 'csv' | 'link'
+  const [tool,setTool]=useState(null); // 'csv' | 'link' | 'edit'
 
   async function loadSheet(){
     try{const {config}=await apiPost('/api/admin-catalog-sync',{action:'get'});setSheet(config);setSheetUrl(u=>u||config?.sheet_url||'');return config;}
@@ -270,6 +271,8 @@ function CatalogPage({ctx}){
     </div>
 
     <div className="adm-card adm-list adm-menu">
+      <button className="adm-item" style={{'--c':'var(--ok)'}} onClick={()=>setTool(tool==='edit'?null:'edit')} aria-expanded={tool==='edit'}><span className="adm-avatar"><BookOpen size={16}/></span><span className="adm-item-main"><span className="adm-item-title"><span>Editar cartas</span></span><span className="adm-item-sub" style={{display:'block'}}>Tirar do catálogo, corrigir nome, tipo ou imagem</span></span><ChevronRight size={16} style={{color:'var(--text-faint)',transform:tool==='edit'?'rotate(90deg)':'none'}}/></button>
+      {tool==='edit'&&<div className="adm-pad" style={{display:'flex',flexDirection:'column',gap:10}}><CardEditor ctx={ctx}/></div>}
       <button className="adm-item" style={{'--c':'var(--indiv)'}} onClick={()=>setTool(tool==='link'?null:'link')}><span className="adm-avatar"><Plus size={16}/></span><span className="adm-item-main"><span className="adm-item-title"><span>Adicionar cartas por link</span></span><span className="adm-item-sub" style={{display:'block'}}>Nome | link da imagem, uma por linha</span></span><ChevronRight size={16} style={{transform:tool==='link'?'rotate(90deg)':'none'}}/></button>
       {tool==='link'&&<div className="adm-pad" style={{display:'flex',flexDirection:'column',gap:10}}>
         <select className="adm-select" value={linkType} onChange={e=>setLinkType(e.target.value)}>{CATALOG_TYPES.map(t=><option key={t} value={t}>{t}</option>)}</select>

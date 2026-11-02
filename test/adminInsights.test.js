@@ -94,3 +94,13 @@ test('monthKey', () => {
   assert.equal(monthKey(new Date(2026, 10, 3)), '2026-11');
   assert.equal(monthKey('lixo'), '');
 });
+
+test('edição de carta: só campos permitidos, com validação', async () => {
+  const { sanitizeCardPatch } = await import('../functions/api/admin-cards.js');
+  assert.deepEqual(sanitizeCardPatch({ name: '  Sol Ring ', cost_usd: 0, import_ref: 'x' }), { patch: { name: 'Sol Ring' } }, 'custo e referência de importação não são editáveis aqui');
+  assert.deepEqual(sanitizeCardPatch({ is_active: 'true' }), { patch: { is_active: false } }, 'só true literal ativa');
+  assert.deepEqual(sanitizeCardPatch({ image_url: '' }), { patch: { image_url: null } });
+  assert.match(sanitizeCardPatch({ image_url: 'http://x.com/a.png' }).error, /https/);
+  assert.match(sanitizeCardPatch({ name: '   ' }).error, /nome/);
+  assert.match(sanitizeCardPatch({}).error, /Nada/);
+});
