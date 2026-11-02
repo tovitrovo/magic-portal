@@ -62,6 +62,11 @@ export function fulfillmentIndex(fulfillmentStatus) {
  */
 export function resolveOrderStage(batch) {
   const status = String(batch?.status || '').toUpperCase();
+  // Cancelado com o dinheiro devolvido: o enum de produção não tem REFUNDED,
+  // então o reembolso mora em payment_status (webhook do MP e console).
+  if (status === 'CANCELLED' && String(batch?.payment_status || '').toLowerCase() === 'refunded') {
+    return { ...TERMINAL_STAGES.REFUNDED, index: -1, terminal: true };
+  }
   if (TERMINAL_STAGES[status]) return { ...TERMINAL_STAGES[status], index: -1, terminal: true };
 
   if (!isPaid(batch)) return { ...ORDER_STAGES[0], index: 0, terminal: false };

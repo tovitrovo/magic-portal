@@ -10,6 +10,7 @@ import { PUSH_NEEDS_INSTALL, disablePush, enablePush, sendTestPush, updatePushPr
 import { SFX, Spin, CATALOG_TCG, CATALOG_TYPES } from '../../kit';
 import { SB_URL, SB_KEY } from '../../config';
 import { Badge, Empty, Loading, SectionTitle, Toggle, timeAgo } from '../ui';
+import CardEditor from './CardEditor';
 
 const TRACKING_STALE_MS=3*3600*1000;
 
@@ -140,23 +141,23 @@ function PricesPage({ctx}){
     let alive=true;
     fetch('/api/pricing-individual').then(r=>r.json()).then(d=>{
       if(!alive||!d?.ok)return;
-      setCfg(d.pricing||{});setTiers((d.tiers||[]).slice().sort((a,b)=>Number(a.min_qty)-Number(b.min_qty)));setFx(d.fx||null);
+      setCfg({supplier_freight_brl:50,...(d.pricing||{})});setTiers((d.tiers||[]).slice().sort((a,b)=>Number(a.min_qty)-Number(b.min_qty)));setFx(d.fx||null);
     }).catch(e=>console.warn('pricing-individual:',e));
     return ()=>{alive=false;};
   },[]);
   async function save(){
     setSaving(true);
     try{
-      await apiPost('/api/admin-save-individual-pricing',{pricing:cfg,tiers:tiers.map(t=>({min_qty:t.min_qty,max_qty:t.max_qty,usd_per_card:t.usd_per_card}))});
-      SFX.success();toast&&toast('Preços salvos!','success');onReload&&onReload();
+      const res=await apiPost('/api/admin-save-individual-pricing',{pricing:cfg,tiers:tiers.map(t=>({min_qty:t.min_qty,max_qty:t.max_qty,usd_per_card:t.usd_per_card}))});
+      SFX.success();toast&&toast((res.warnings||[]).length?res.warnings[0]:'Preços salvos!',(res.warnings||[]).length?'error':'success');onReload&&onReload();
     }catch(e){toast&&toast('Erro ao salvar: '+(e.message||String(e)),'error');}
     setSaving(false);
   }
   if(!cfg)return <Loading/>;
   return(<>
-    <div className="adm-info">Preço/carta = custo da faixa × multiplicador × dólar, com piso por tipo. Dólar em uso: <b style={{color:'var(--gp)'}}>R$ {fx?Number(fx.rate).toFixed(2):'—'}</b>{fx?` (${fx.source})`:''}</div>
+    <div className={'adm-info'+(fx&&(fx.source==='stale'||fx.source==='fallback')?' is-warn':'')}>Preço/carta = custo da faixa × multiplicador × dólar oficial do dia (PTAX do Banco Central), com piso por tipo. Dólar em uso: <b style={{color:'var(--gp)'}}>R$ {fx?Number(fx.rate).toFixed(2).replace('.',','):'—'}</b>{fx?.fetched_at?` · atualizado ${timeAgo(fx.fetched_at)}`:''}{fx&&(fx.source==='stale'||fx.source==='fallback')?<><br/><b>A cotação não está atualizando.</b> Os preços usam o último valor conhecido{fx.source==='fallback'?' (dólar reserva abaixo)':''}.</>:null}</div>
     <div className="adm-card adm-pad" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-      {[['multiplier','Multiplicador','0.1'],['min_cards','Mínimo de cartas','1'],['normal_floor_brl','Piso Normal (R$)','0.5'],['holo_floor_brl','Piso Holo (R$)','0.5'],['foil_floor_brl','Piso Foil (R$)','0.5'],['fx_fallback_rate','Dólar reserva','0.01']].map(([k,l,step])=>(
+      {[['supplier_freight_brl','Frete AliExpress por pedido (R$)','1'],['multiplier','Multiplicador','0.1'],['min_cards','Mínimo de cartas','1'],['normal_floor_brl','Piso Normal (R$)','0.5'],['holo_floor_brl','Piso Holo (R$)','0.5'],['foil_floor_brl','Piso Foil (R$)','0.5'],['fx_fallback_rate','Dólar reserva','0.01']].map(([k,l,step])=>(
         <div key={k}><label className="adm-label">{l}</label><input className="adm-input" type="number" inputMode="decimal" step={step} min="0" value={cfg[k]??''} onChange={e=>setCfg(c=>({...c,[k]:e.target.value===''?'':Number(e.target.value)}))} style={{fontWeight:700}}/></div>
       ))}
     </div>
@@ -184,7 +185,7 @@ function CatalogPage({ctx}){
   const [deactivate,setDeactivate]=useState(true);const [importing,setImporting]=useState(false);const [importResult,setImportResult]=useState(null);
   const [linkText,setLinkText]=useState('');const [linkPreview,setLinkPreview]=useState(null);const [linkType,setLinkType]=useState('Normal');
   const [linkAdding,setLinkAdding]=useState(false);const [linkProgress,setLinkProgress]=useState(null);const [linkResult,setLinkResult]=useState(null);
-  const [tool,setTool]=useState(null); // 'csv' | 'link'
+  const [tool,setTool]=useState(null); // 'csv' | 'link' | 'edit'
 
   async function loadSheet(){
     try{const {config}=await apiPost('/api/admin-catalog-sync',{action:'get'});setSheet(config);setSheetUrl(u=>u||config?.sheet_url||'');return config;}
@@ -272,6 +273,8 @@ function CatalogPage({ctx}){
     </div>
 
     <div className="adm-card adm-list adm-menu">
+      <button className="adm-item" style={{'--c':'var(--ok)'}} onClick={()=>setTool(tool==='edit'?null:'edit')} aria-expanded={tool==='edit'}><span className="adm-avatar"><BookOpen size={16}/></span><span className="adm-item-main"><span className="adm-item-title"><span>Editar cartas</span></span><span className="adm-item-sub" style={{display:'block'}}>Tirar do catálogo, corrigir nome, tipo ou imagem</span></span><ChevronRight size={16} style={{color:'var(--text-faint)',transform:tool==='edit'?'rotate(90deg)':'none'}}/></button>
+      {tool==='edit'&&<div className="adm-pad" style={{display:'flex',flexDirection:'column',gap:10}}><CardEditor ctx={ctx}/></div>}
       <button className="adm-item" style={{'--c':'var(--indiv)'}} onClick={()=>setTool(tool==='link'?null:'link')}><span className="adm-avatar"><Plus size={16}/></span><span className="adm-item-main"><span className="adm-item-title"><span>Adicionar cartas por link</span></span><span className="adm-item-sub" style={{display:'block'}}>Nome | link da imagem, uma por linha</span></span><ChevronRight size={16} style={{transform:tool==='link'?'rotate(90deg)':'none'}}/></button>
       {tool==='link'&&<div className="adm-pad" style={{display:'flex',flexDirection:'column',gap:10}}>
         <select className="adm-select" value={linkType} onChange={e=>setLinkType(e.target.value)}>{CATALOG_TYPES.map(t=><option key={t} value={t}>{t}</option>)}</select>

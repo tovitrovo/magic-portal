@@ -21,6 +21,7 @@ export async function onRequest(context) {
   const body = await context.request.json().catch(() => ({}));
   const headers = { apikey: SB_SERVICE_ROLE_KEY, Authorization: `Bearer ${SB_SERVICE_ROLE_KEY}`, "Content-Type": "application/json" };
 
+  const warnings = [];
   try {
     // ── Config (singleton) ──
     if (body.pricing && typeof body.pricing === "object") {
@@ -35,6 +36,15 @@ export async function onRequest(context) {
           method: "PATCH", headers: { ...headers, Prefer: "return=minimal" }, body: JSON.stringify(fields),
         });
         if (!r.ok) return json({ ok: false, error: `Falha ao salvar config: ${r.status} ${(await r.text()).slice(0, 160)}` }, 502);
+      }
+      // Frete do fornecedor (custo, não preço). Em PATCH separado: se a coluna
+      // ainda não existe (migração add-supplier-freight.sql não aplicada), o
+      // resto da config salva normalmente e só este campo volta como aviso.
+      if (p.supplier_freight_brl != null && Number.isFinite(Number(p.supplier_freight_brl)) && Number(p.supplier_freight_brl) >= 0) {
+        const fr = await fetch(`${SB_URL}/rest/v1/individual_pricing?is_active=eq.true`, {
+          method: "PATCH", headers: { ...headers, Prefer: "return=minimal" }, body: JSON.stringify({ supplier_freight_brl: Number(p.supplier_freight_brl) }),
+        });
+        if (!fr.ok) warnings.push("Frete do fornecedor não salvo: rode a migração supabase/migrations/add-supplier-freight.sql");
       }
     }
 
@@ -58,7 +68,7 @@ export async function onRequest(context) {
       }
     }
 
-    return json({ ok: true });
+    return json({ ok: true, warnings });
   } catch (e) {
     return json({ ok: false, error: String(e?.message || e) }, 500);
   }

@@ -17,10 +17,12 @@ import { aggregateOrderCards, formatSupplierCardList, totalCardQty } from '../..
 import { ORDER_STAGES, groupBatchesIntoOrders, isPaid as isPaidBatchStatus, resolveOrderStage, resolveOrderStageFromBatches } from '../../shared/orderStatus';
 import { shipmentPhase } from '../../shared/mandabemStatus';
 import { buildShipmentWhatsAppUrl } from '../whatsappCommunication';
+import { SUPPLIER_FREIGHT_BRL_DEFAULT, abandonedCarts, customerStats, monthKey, profitSummary, wishlistDemand } from '../../shared/adminInsights';
+import { FX_ALERT_HOURS, costFx, isStale } from '../../shared/fx';
 import { getPushState } from '../push';
 import { SFX, ImageLightbox } from '../kit';
 import { mpSync } from '../config';
-import { daysAgo, isToday, shortBatchId } from './ui';
+import { brl as brlText, daysAgo, isToday, shortBatchId } from './ui';
 import HomeView from './views/HomeView';
 import OrdersView from './views/OrdersView';
 import ShippingView from './views/ShippingView';
@@ -72,6 +74,13 @@ export default function AdminConsole({theme,token,nav,onReload,toast:toastFn,ini
   const [automation,setAutomation]=useState(null);
   const [automationBusy,setAutomationBusy]=useState('');
   const [pushState,setPushState]=useState(null);
+  // Indicadores de venda: carrinhos parados, demanda de desejos e o preço
+  // vigente (faixas + dólar), que é a base do custo estimado.
+  const [cartRows,setCartRows]=useState(null);
+  const [wishRows,setWishRows]=useState(null);
+  const [pricingInfo,setPricingInfo]=useState(null);
+  const [profitMonth,setProfitMonth]=useState(()=>monthKey(new Date()));
+  const [clientsTab,setClientsTab]=useState('clients'); // 'clients' | 'carts' | 'wishes'
 
   // ── Estado de interface compartilhado entre telas ───
   const [orderFilter,setOrderFilter]=useState('ALL');
@@ -99,6 +108,16 @@ export default function AdminConsole({theme,token,nav,onReload,toast:toastFn,ini
     try{setIndivOrders((await apiPost('/api/admin-individual-orders')).orders||[]);}
     catch(e){fail('Erro ao carregar pedidos: ',e);}
     setLoading(false);
+  }
+  async function loadInsights(){
+    const [carts,wishes,price]=await Promise.allSettled([
+      apiPost('/api/admin-insights',{action:'carts'}),
+      apiPost('/api/admin-insights',{action:'wishlist'}),
+      fetch('/api/pricing-individual').then(r=>r.json()),
+    ]);
+    if(carts.status==='fulfilled')setCartRows(carts.value.items||[]);else{console.warn('carts:',carts.reason);setCartRows(r=>r||[]);}
+    if(wishes.status==='fulfilled')setWishRows(wishes.value.items||[]);else{console.warn('wishlist:',wishes.reason);setWishRows(r=>r||[]);}
+    if(price.status==='fulfilled'&&price.value?.ok)setPricingInfo(price.value);
   }
   async function loadProfiles(){
     try{setAllProfiles((await apiPost('/api/admin-profiles')).profiles||[]);}
@@ -151,12 +170,12 @@ export default function AdminConsole({theme,token,nav,onReload,toast:toastFn,ini
     setAutomationBusy('');
   }
 
-  useEffect(()=>{loadOrders();loadNotifications();loadProfiles();loadAutomation();refreshPushState();},[]);
+  useEffect(()=>{loadOrders();loadNotifications();loadProfiles();loadAutomation();refreshPushState();loadInsights();},[]);
   // O push avisa no celular; aqui a tela de quem está com o console aberto acompanha.
   useEffect(()=>{const id=setInterval(()=>loadNotifications(true),60000);return ()=>clearInterval(id);},[]);
 
   async function reloadAll(){
-    await Promise.all([loadOrders(),loadNotifications(),loadProfiles(),loadAutomation()]);
+    await Promise.all([loadOrders(),loadNotifications(),loadProfiles(),loadAutomation(),loadInsights()]);
     if(onReload)onReload();
   }
 
@@ -282,6 +301,18 @@ export default function AdminConsole({theme,token,nav,onReload,toast:toastFn,ini
     return Object.values(groups).sort((a,b)=>b.hasActiveOrder-a.hasActiveOrder||b.hasOrder-a.hasOrder||a.name.localeCompare(b.name));
   },[orders,allProfiles]);
 
+  // ─── Indicadores ───────────────────────────────────
+  const minCards=Number(pricingInfo?.pricing?.min_cards)||15;
+  const carts=useMemo(()=>abandonedCarts(cartRows||[],{minCards}),[cartRows,minCards]);
+  const wishDemand=useMemo(()=>wishlistDemand(wishRows||[]),[wishRows]);
+  // Preço usa o dólar oficial; o CUSTO usa o dólar que o admin paga no Inter.
+  const fxRate=Number(pricingInfo?.fx?.rate)||0;
+  const fxCost=costFx(fxRate);
+  const fxBroken=!!pricingInfo?.fx&&(pricingInfo.fx.source==='fallback'||(pricingInfo.fx.source==='stale'&&isStale(pricingInfo.fx.fetched_at,FX_ALERT_HOURS)));
+  const freightBrl=pricingInfo?.pricing?.supplier_freight_brl!=null?Number(pricingInfo.pricing.supplier_freight_brl):SUPPLIER_FREIGHT_BRL_DEFAULT;
+  const profit=useMemo(()=>profitSummary(orders,{tiers:pricingInfo?.tiers||[],fxRate:fxCost,freightBrl,month:profitMonth}),[orders,pricingInfo,fxCost,freightBrl,profitMonth]);
+  const custStats=useMemo(()=>customerStats(clients),[clients]);
+
   // ─── Ações de pedido ───────────────────────────────
   async function loadBatchCards(batchIds){
     const missing=batchIds.filter(id=>!batchCards[id]);
@@ -316,13 +347,27 @@ export default function AdminConsole({theme,token,nav,onReload,toast:toastFn,ini
     finally{setBusy(null);}
   }
 
+  // Pedido pago: o padrão é devolver o dinheiro pelo Mercado Pago e só então
+  // cancelar. "Sem reembolso" fica para quem já devolveu por fora.
   async function cancelBatch(batchId,paid){
-    const msg=paid?'Cancelar pedido pago? O reembolso deve ser feito manualmente no Mercado Pago.':'Cancelar este pedido pendente?';
-    if(!confirm(msg))return;
-    try{await apiPost('/api/admin-cancel-batch',{batchId});ok('Pedido cancelado');await loadOrders();}
-    catch(e){fail('Erro ao cancelar: ',e);}
+    const batch=allBatches.find(b=>String(b.id)===String(batchId));
+    const value=brlText(batch?.total_locked);
+    if(!paid){
+      if(!confirm('Cancelar este pedido pendente?'))return;
+      try{await apiPost('/api/admin-cancel-batch',{batchId});ok('Pedido cancelado');await loadOrders();}
+      catch(e){fail('Erro ao cancelar: ',e);}
+      return;
+    }
+    const withRefund=confirm(`Reembolsar ${value} no Mercado Pago e cancelar o pedido?\n\nO dinheiro volta para o cliente pelo mesmo meio de pagamento.\n\n(Cancelar aqui = escolher sem reembolso.)`);
+    if(!withRefund&&!confirm('Cancelar SEM reembolsar?\n\nUse só se você já devolveu o dinheiro por fora.'))return;
+    setBusy('cancel:'+batchId);
+    try{
+      const res=await apiPost('/api/admin-cancel-batch',{batchId,refund:withRefund});
+      ok(withRefund?(res.refund?.alreadyRefunded?'Já estava reembolsado no Mercado Pago — pedido cancelado':`Reembolso de ${brlText(res.refund?.amount)} feito e pedido cancelado`):'Pedido cancelado');
+      await loadOrders();
+    }catch(e){fail(withRefund?'Reembolso não feito: ':'Erro ao cancelar: ',e);}
+    setBusy(null);
   }
-
   async function markBatchPaid(batchId){
     if(!confirm('Marcar este pedido como PAGO manualmente?'))return;
     try{await apiPost('/api/admin-mark-paid',{batchId});ok('Pedido marcado como pago');await loadOrders();}
@@ -411,7 +456,7 @@ export default function AdminConsole({theme,token,nav,onReload,toast:toastFn,ini
     const t=n.type;
     if(t==='LOGIN'||t==='SIGNUP'){go('clients');setSearchClients(n.data?.name||n.data?.clientName||'');return;}
     if(t==='DAILY_DIGEST'){go('overview');return;}
-    if(t==='SYSTEM_ERROR'){go('more',n.data?.job==='sheet-sync'?'catalog':'automation');return;}
+    if(t==='SYSTEM_ERROR'){go('more',n.data?.job==='sheet-sync'?'catalog':n.data?.job==='fx'?'prices':'automation');return;}
     if(t.startsWith('SHIPMENT_')||t==='ADDRESS_CHANGED'){
       go('shipping');setShipTab(t==='SHIPMENT_PROBLEM'?'problem':t==='SHIPMENT_DELIVERED'?'delivered':t==='SHIPMENT_LABEL'||t==='SHIPMENT_POSTED'?'transit':'label');
       return;
@@ -436,6 +481,7 @@ export default function AdminConsole({theme,token,nav,onReload,toast:toastFn,ini
     copyOrderCards,cancelBatch,markBatchPaid,syncBatchMP,moveStage,generateLabel,markDelivered,sendTrackingWhatsApp,copyText,
     openNotification,openNotifications:()=>{setShowNotifications(true);loadNotifications();},
     go,morePage,setMorePage,onReload,reloadOrders:loadOrders,
+    carts,cartsLoading:cartRows===null,wishDemand,wishLoading:wishRows===null,profit,profitMonth,setProfitMonth,custStats,pricingInfo,fxRate,fxCost,fxBroken,clientsTab,setClientsTab,reloadInsights:loadInsights,
   };
 
   const current=SECTIONS.find(s=>s.key===section)||SECTIONS[0];

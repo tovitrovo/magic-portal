@@ -5,10 +5,10 @@ import { readFileSync } from 'node:fs';
 const app = readFileSync(new URL('../src/MagicPortal.jsx', import.meta.url), 'utf8');
 
 function checkoutSource() {
-  const start = app.indexOf('function CheckoutPage(');
-  assert.ok(start > -1, 'CheckoutPage não encontrado');
+  const start = app.indexOf('function OrderSheet(');
+  assert.ok(start > -1, 'OrderSheet (carrinho + checkout) não encontrado');
   const end = app.indexOf('async function pagarAgoraPedido', start);
-  assert.ok(end > start, 'fim do CheckoutPage não encontrado');
+  assert.ok(end > start, 'fim do OrderSheet não encontrado');
   return app.slice(start, end);
 }
 

@@ -59,3 +59,11 @@ test('toda guilda define primary, secondary e glow', () => {
     }
   }
 });
+
+test('a paleta monocromática da Galeria tem tinta AA nos dois modos', async () => {
+  const { MONO } = await import('../src/guildTheme.js');
+  for (const [modo, { primary }] of Object.entries(MONO)) {
+    const ratio = contrastRatio(primary, inkOn(primary));
+    assert.ok(ratio >= AA, `MONO.${modo}: ${primary} + ${inkOn(primary)} dá ${ratio.toFixed(2)}:1`);
+  }
+});

@@ -1,6 +1,7 @@
 // Aba "Pedidos": lista com filtros, compras no fornecedor e a folha de detalhe.
-import { Fragment, useMemo } from 'react';
-import { ArrowLeft, ArrowRight, Check, CheckCircle, ClipboardList, Copy, MessageCircle, Package, RefreshCw, ShoppingCart, Truck, X } from 'lucide-react';
+import { Fragment, useMemo, useState } from 'react';
+import { ArrowLeft, ArrowRight, Check, CheckCircle, ClipboardList, Copy, Download, MessageCircle, Package, RefreshCw, ShoppingCart, Truck, X } from 'lucide-react';
+import { ordersCsv } from '../../../shared/adminInsights';
 import { isPaid, nextFulfillmentStage, prevFulfillmentStage, resolveOrderStage } from '../../../shared/orderStatus';
 import { CardThumb, Spin, TC } from '../../kit';
 import { Badge, Chips, Empty, Loading, SearchBox, Segmented, Sheet, StageBar, StageSteps, brl, initials, shortBatchId } from '../ui';
@@ -142,6 +143,97 @@ function SupplierView({ctx}){
   });
 }
 
+// ── Exportar ──────────────────────────────────────────────────────────────
+// Planilha para contador, imposto e conferência: uma linha por lote (é como
+// o dinheiro entrou), abre direto no Excel em português.
+function periodRange(key){
+  const now=new Date();
+  const start=(y,m)=>new Date(y,m,1,0,0,0,0);
+  const end=(y,m)=>new Date(y,m+1,0,23,59,59,999);
+  if(key==='this')return {from:start(now.getFullYear(),now.getMonth()),to:end(now.getFullYear(),now.getMonth())};
+  if(key==='last')return {from:start(now.getFullYear(),now.getMonth()-1),to:end(now.getFullYear(),now.getMonth()-1)};
+  if(key==='year')return {from:start(now.getFullYear(),0),to:end(now.getFullYear(),11)};
+  return {from:null,to:null};
+}
+
+export function downloadCsv(filename,text){
+  const blob=new Blob([text],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function ExportSheet({ctx,orders,onClose}){
+  const [period,setPeriod]=useState('this');
+  const [from,setFrom]=useState('');const [to,setTo]=useState('');
+  const range=period==='custom'?{from:from?new Date(from+'T00:00:00'):null,to:to?new Date(to+'T23:59:59'):null}:periodRange(period);
+  const csv=useMemo(()=>ordersCsv(orders,{stageOf:b=>resolveOrderStage(b).label,from:range.from,to:range.to}),[orders,period,from,to]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rows=csv.split('\r\n').length-1;
+  const tag=period==='custom'?`${from||'inicio'}_${to||'hoje'}`:period==='this'||period==='last'?(range.from?`${range.from.getFullYear()}-${String(range.from.getMonth()+1).padStart(2,'0')}`:''):period==='year'?String(new Date().getFullYear()):'tudo';
+  return(<>
+    <Segmented value={period} onChange={setPeriod} options={[{key:'this',label:'Este mês'},{key:'last',label:'Mês passado'},{key:'year',label:'Ano'},{key:'all',label:'Tudo'},{key:'custom',label:'Datas'}]}/>
+    {period==='custom'&&<div className="adm-row-actions">
+      <label className="adm-muted" style={{flex:1}}>De<input type="date" className="adm-input" value={from} onChange={e=>setFrom(e.target.value)}/></label>
+      <label className="adm-muted" style={{flex:1}}>Até<input type="date" className="adm-input" value={to} onChange={e=>setTo(e.target.value)}/></label>
+    </div>}
+    <div className="adm-info"><b>{rows}</b> linha(s) — uma por pagamento, com cliente, status, cartas, frete e rastreio. Abre direto no Excel.</div>
+    <button className="adm-btn is-primary" disabled={!rows} onClick={()=>{downloadCsv(`pedidos-${tag}.csv`,csv);ctx.toast&&ctx.toast('Planilha baixada','success');onClose();}}><Download size={15}/> Baixar planilha</button>
+  </>);
+}
+
+// ── Tabela (desktop) ──────────────────────────────────────────────────────
+// No computador, comprar e etiquetar rende mais com colunas, ordenação e
+// seleção múltipla. No celular continua a lista de sempre.
+const SORTS={
+  date:o=>Date.parse(o.createdAt)||0,
+  client:o=>o.clientName.toLowerCase(),
+  qty:o=>o.qty,
+  total:o=>o.total,
+  stage:o=>o.stage.terminal?99:o.stage.index,
+};
+
+function OrdersTable({ctx,list}){
+  const {openOrder,moveStage,busy}=ctx;
+  const [sort,setSort]=useState({key:'date',dir:-1});
+  const [selected,setSelected]=useState(()=>new Set());
+  const sorted=useMemo(()=>{const f=SORTS[sort.key];return [...list].sort((a,b)=>{const x=f(a),y=f(b);return (x>y?1:x<y?-1:0)*sort.dir;});},[list,sort]);
+  const chosen=sorted.filter(o=>selected.has(o.orderId));
+  // Avançar em lote só quando todos os escolhidos estão na mesma etapa.
+  const nexts=[...new Set(chosen.map(o=>o.paidBatches.length?nextFulfillmentStage(o.paidBatches[0])?.key:null))];
+  const nextStage=nexts.length===1&&nexts[0]?nextFulfillmentStage(chosen[0].paidBatches[0]):null;
+  const allOn=sorted.length>0&&sorted.every(o=>selected.has(o.orderId));
+  const toggle=id=>setSelected(prev=>{const s=new Set(prev);s.has(id)?s.delete(id):s.add(id);return s;});
+  const head=(key,label,align)=>(<th aria-sort={sort.key===key?(sort.dir>0?'ascending':'descending'):'none'} style={{textAlign:align||'left'}}>
+    <button onClick={()=>setSort(s=>({key,dir:s.key===key?-s.dir:(key==='client'?1:-1)}))}>{label}{sort.key===key?(sort.dir>0?' ↑':' ↓'):''}</button>
+  </th>);
+  return(<div className="adm-orders-table">
+    {chosen.length>0&&<div className="adm-bulkbar" role="region" aria-label="Ações em lote">
+      <b>{chosen.length} selecionado(s)</b>
+      {nextStage?<button className="adm-btn is-sm is-primary" disabled={busy==='bulk'} onClick={async()=>{await moveStage(chosen,nextStage,'bulk');setSelected(new Set());}}>{busy==='bulk'?<Spin size={13}/>:<><ArrowRight size={13}/> Avançar para "{nextStage.label}"</>}</button>
+        :<span className="adm-muted">Para avançar em lote, escolha pedidos da mesma etapa.</span>}
+      <button className="adm-btn is-sm" onClick={()=>{downloadCsv('pedidos-selecionados.csv',ordersCsv(chosen,{stageOf:b=>resolveOrderStage(b).label}));}}><Download size={13}/> Exportar</button>
+      <button className="adm-btn is-sm is-ghost" onClick={()=>setSelected(new Set())}>Limpar</button>
+    </div>}
+    <div className="adm-table-scroll"><table>
+      <thead><tr>
+        <th style={{width:36}}><input type="checkbox" aria-label="Selecionar todos" checked={allOn} onChange={()=>setSelected(allOn?new Set():new Set(sorted.map(o=>o.orderId)))}/></th>
+        {head('date','Data')}{head('client','Cliente')}<th>Pedido</th>{head('qty','Cartas','right')}{head('total','Total','right')}{head('stage','Etapa')}
+      </tr></thead>
+      <tbody>{sorted.map(o=>(
+        <tr key={o.orderId} className={selected.has(o.orderId)?'is-selected':''}>
+          <td><input type="checkbox" aria-label={`Selecionar pedido ${o.shortId}`} checked={selected.has(o.orderId)} onChange={()=>toggle(o.orderId)}/></td>
+          <td>{new Date(o.createdAt).toLocaleDateString('pt-BR')}</td>
+          <td><button className="adm-link" onClick={()=>openOrder(o)}>{o.clientName}</button></td>
+          <td className="adm-mono">#{o.shortId}{o.batches.length>1?<span className="adm-muted"> +{o.batches.length-1}</span>:null}</td>
+          <td style={{textAlign:'right'}}>{o.qty}</td>
+          <td style={{textAlign:'right',fontVariantNumeric:'tabular-nums'}}>{brl(o.total)}</td>
+          <td><Badge color={o.stage.color}>{o.stage.short}</Badge></td>
+        </tr>))}
+      </tbody>
+    </table></div>
+  </div>);
+}
+
 export default function OrdersView({ctx}){
   const {orders,loading,orderFilter,setOrderFilter,orderMode,setOrderMode,searchOrders,setSearchOrders,openOrder,openOrderId,setOpenOrderId,queue}=ctx;
   const filtered=useMemo(()=>{
@@ -154,20 +246,30 @@ export default function OrdersView({ctx}){
     return [...list].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
   },[orders,orderFilter,searchOrders]);
   const open=orders.find(o=>o.orderId===openOrderId);
+  const [exporting,setExporting]=useState(false);
 
   return(<>
     <Segmented value={orderMode} onChange={setOrderMode} options={[{key:'list',label:'Todos os pedidos',icon:ClipboardList},{key:'supplier',label:'Fornecedor',icon:ShoppingCart,count:queue.toBuy}]}/>
     {orderMode==='list'?<>
-      <SearchBox value={searchOrders} onChange={setSearchOrders} placeholder="Cliente, #pedido ou código MP"/>
+      <div className="adm-row-actions" style={{alignItems:'stretch'}}>
+        <div style={{flex:1,minWidth:0}}><SearchBox value={searchOrders} onChange={setSearchOrders} placeholder="Cliente, #pedido ou código MP"/></div>
+        <button className="adm-btn" onClick={()=>setExporting(true)} aria-label="Exportar pedidos em planilha"><Download size={15}/> Exportar</button>
+      </div>
       <Chips value={orderFilter} onChange={setOrderFilter} options={ORDER_FILTERS.map(f=>({...f,count:f.test?orders.filter(f.test).length:orders.length}))}/>
       <div className="adm-card">
         {loading&&!filtered.length?<Loading/>:!filtered.length?<Empty icon={Package} title="Nenhum pedido" sub={searchOrders||orderFilter!=='ALL'?'Tente outro filtro':'Ainda não há pedidos'}/>:
-          <div className="adm-list">{filtered.map(o=><OrderRow key={o.orderId} o={o} onOpen={openOrder}/>)}</div>}
+          <>
+            <div className="adm-list adm-orders-list">{filtered.map(o=><OrderRow key={o.orderId} o={o} onOpen={openOrder}/>)}</div>
+            <OrdersTable ctx={ctx} list={filtered}/>
+          </>}
       </div>
     </>:<SupplierView ctx={ctx}/>}
 
     <Sheet open={!!open} onClose={()=>setOpenOrderId(null)} title={open?.clientName} sub={open?`Pedido #${open.shortId} · ${new Date(open.createdAt).toLocaleDateString('pt-BR')}`:''}>
       <OrderSheet ctx={ctx} order={open}/>
+    </Sheet>
+    <Sheet open={exporting} onClose={()=>setExporting(false)} title="Exportar pedidos" sub="Planilha CSV para Excel ou Google Planilhas">
+      <ExportSheet ctx={ctx} orders={orders} onClose={()=>setExporting(false)}/>
     </Sheet>
   </>);
 }
