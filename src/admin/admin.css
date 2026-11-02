@@ -191,3 +191,21 @@
   .adm-sheet { max-width:560px; max-height:86vh; border-radius:22px; border-bottom:1px solid var(--line-soft); }
   .adm-sheet-grip { display:none; }
 }
+
+/* ── Pedidos: lista no celular, tabela no computador ─────────────── */
+.adm-orders-table { display:none; }
+@media (min-width: 960px) {
+  .adm-orders-list { display:none; }
+  .adm-orders-table { display:block; overflow-x:auto; }
+  .adm-orders-table table { width:100%; border-collapse:collapse; font-size:var(--fs-sm); }
+  .adm-orders-table th { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); color:var(--text-dim); font-weight:500; white-space:nowrap; }
+  .adm-orders-table th button { border:none; background:none; padding:0; color:inherit; font:inherit; cursor:pointer; }
+  .adm-orders-table th[aria-sort="ascending"] button, .adm-orders-table th[aria-sort="descending"] button { color:var(--text-strong); }
+  .adm-orders-table td { padding:10px 12px; border-bottom:1px solid var(--line-soft); color:var(--text-strong); white-space:nowrap; }
+  .adm-orders-table tbody tr:hover { background:var(--fill-soft); }
+  .adm-orders-table tr.is-selected { background:var(--fill); }
+  .adm-orders-table input[type="checkbox"] { width:16px; height:16px; accent-color:var(--gp); cursor:pointer; }
+  .adm-link { border:none; background:none; padding:0; color:var(--text-strong); font:inherit; font-weight:500; cursor:pointer; text-decoration:underline; text-decoration-color:var(--line); text-underline-offset:3px; }
+  .adm-link:hover { text-decoration-color:currentColor; }
+  .adm-bulkbar { position:sticky; top:72px; z-index:5; display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 12px; margin-bottom:6px; border-radius:12px; background:var(--sheet-bg); border:1px solid var(--line); box-shadow:0 6px 20px rgba(var(--sunk),calc(.15*var(--sunk-a))); }
+}
