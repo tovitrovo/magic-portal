@@ -17,7 +17,7 @@ import { aggregateOrderCards, formatSupplierCardList, totalCardQty } from '../..
 import { ORDER_STAGES, groupBatchesIntoOrders, isPaid as isPaidBatchStatus, resolveOrderStage, resolveOrderStageFromBatches } from '../../shared/orderStatus';
 import { shipmentPhase } from '../../shared/mandabemStatus';
 import { buildShipmentWhatsAppUrl } from '../whatsappCommunication';
-import { abandonedCarts, customerStats, monthKey, profitSummary, wishlistDemand } from '../../shared/adminInsights';
+import { SUPPLIER_FREIGHT_BRL_DEFAULT, abandonedCarts, customerStats, monthKey, profitSummary, wishlistDemand } from '../../shared/adminInsights';
 import { FX_ALERT_HOURS, costFx, isStale } from '../../shared/fx';
 import { getPushState } from '../push';
 import { SFX, ImageLightbox } from '../kit';
@@ -306,7 +306,8 @@ export default function AdminConsole({theme,token,nav,onReload,toast:toastFn,ini
   const fxRate=Number(pricingInfo?.fx?.rate)||0;
   const fxCost=costFx(fxRate);
   const fxBroken=!!pricingInfo?.fx&&(pricingInfo.fx.source==='fallback'||(pricingInfo.fx.source==='stale'&&isStale(pricingInfo.fx.fetched_at,FX_ALERT_HOURS)));
-  const profit=useMemo(()=>profitSummary(orders,{tiers:pricingInfo?.tiers||[],fxRate:fxCost,month:profitMonth}),[orders,pricingInfo,fxCost,profitMonth]);
+  const freightBrl=pricingInfo?.pricing?.supplier_freight_brl!=null?Number(pricingInfo.pricing.supplier_freight_brl):SUPPLIER_FREIGHT_BRL_DEFAULT;
+  const profit=useMemo(()=>profitSummary(orders,{tiers:pricingInfo?.tiers||[],fxRate:fxCost,freightBrl,month:profitMonth}),[orders,pricingInfo,fxCost,freightBrl,profitMonth]);
   const custStats=useMemo(()=>customerStats(clients),[clients]);
 
   // ─── Ações de pedido ───────────────────────────────

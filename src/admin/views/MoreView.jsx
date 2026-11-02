@@ -139,15 +139,15 @@ function PricesPage({ctx}){
     let alive=true;
     fetch('/api/pricing-individual').then(r=>r.json()).then(d=>{
       if(!alive||!d?.ok)return;
-      setCfg(d.pricing||{});setTiers((d.tiers||[]).slice().sort((a,b)=>Number(a.min_qty)-Number(b.min_qty)));setFx(d.fx||null);
+      setCfg({supplier_freight_brl:50,...(d.pricing||{})});setTiers((d.tiers||[]).slice().sort((a,b)=>Number(a.min_qty)-Number(b.min_qty)));setFx(d.fx||null);
     }).catch(e=>console.warn('pricing-individual:',e));
     return ()=>{alive=false;};
   },[]);
   async function save(){
     setSaving(true);
     try{
-      await apiPost('/api/admin-save-individual-pricing',{pricing:cfg,tiers:tiers.map(t=>({min_qty:t.min_qty,max_qty:t.max_qty,usd_per_card:t.usd_per_card}))});
-      SFX.success();toast&&toast('Preços salvos!','success');onReload&&onReload();
+      const res=await apiPost('/api/admin-save-individual-pricing',{pricing:cfg,tiers:tiers.map(t=>({min_qty:t.min_qty,max_qty:t.max_qty,usd_per_card:t.usd_per_card}))});
+      SFX.success();toast&&toast((res.warnings||[]).length?res.warnings[0]:'Preços salvos!',(res.warnings||[]).length?'error':'success');onReload&&onReload();
     }catch(e){toast&&toast('Erro ao salvar: '+(e.message||String(e)),'error');}
     setSaving(false);
   }
@@ -155,7 +155,7 @@ function PricesPage({ctx}){
   return(<>
     <div className={'adm-info'+(fx&&(fx.source==='stale'||fx.source==='fallback')?' is-warn':'')}>Preço/carta = custo da faixa × multiplicador × dólar oficial do dia (PTAX do Banco Central), com piso por tipo. Dólar em uso: <b style={{color:'var(--gp)'}}>R$ {fx?Number(fx.rate).toFixed(2).replace('.',','):'—'}</b>{fx?.fetched_at?` · atualizado ${timeAgo(fx.fetched_at)}`:''}{fx&&(fx.source==='stale'||fx.source==='fallback')?<><br/><b>A cotação não está atualizando.</b> Os preços usam o último valor conhecido{fx.source==='fallback'?' (dólar reserva abaixo)':''}.</>:null}</div>
     <div className="adm-card adm-pad" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-      {[['multiplier','Multiplicador','0.1'],['min_cards','Mínimo de cartas','1'],['normal_floor_brl','Piso Normal (R$)','0.5'],['holo_floor_brl','Piso Holo (R$)','0.5'],['foil_floor_brl','Piso Foil (R$)','0.5'],['fx_fallback_rate','Dólar reserva','0.01']].map(([k,l,step])=>(
+      {[['supplier_freight_brl','Frete AliExpress por pedido (R$)','1'],['multiplier','Multiplicador','0.1'],['min_cards','Mínimo de cartas','1'],['normal_floor_brl','Piso Normal (R$)','0.5'],['holo_floor_brl','Piso Holo (R$)','0.5'],['foil_floor_brl','Piso Foil (R$)','0.5'],['fx_fallback_rate','Dólar reserva','0.01']].map(([k,l,step])=>(
         <div key={k}><label className="adm-label">{l}</label><input className="adm-input" type="number" inputMode="decimal" step={step} min="0" value={cfg[k]??''} onChange={e=>setCfg(c=>({...c,[k]:e.target.value===''?'':Number(e.target.value)}))} style={{fontWeight:700}}/></div>
       ))}
     </div>

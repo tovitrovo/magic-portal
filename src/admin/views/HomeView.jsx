@@ -89,7 +89,7 @@ export default function HomeView({ctx}){
         <div className="adm-card adm-kpi"><span>Ticket médio</span><strong>{brlCompact(profit.avgTicket)}</strong><small>por pedido, com frete</small></div>
         <div className="adm-card adm-kpi"><span>Recompra</span><strong>{pct(custStats?.repeatRate)}</strong><small>{custStats?.repeatBuyers||0} de {custStats?.buyers||0} compradores · conversão {pct(custStats?.conversion)}</small></div>
       </div>
-      <div className="adm-muted" style={{padding:'0 2px'}}>Lucro = cartas ({brl(profit.revenueCards)}) − custo estimado ({brl(profit.cost)}). O custo usa a faixa do fornecedor pelo volume de cada pedido e o dólar do Inter de hoje{fxRate?` (R$ ${fxCost.toFixed(2).replace('.',',')} = oficial R$ ${fxRate.toFixed(2).replace('.',',')} + 5,6% de IOF e spread do Inter)`:''}. Não desconta a taxa do Mercado Pago; o frete ({brl(profit.shipping)}) é repasse.</div>
+      <div className="adm-muted" style={{padding:'0 2px'}}>Lucro = cartas ({brl(profit.revenueCards)}) − custo estimado ({brl(profit.cost)}, sendo {brl(profit.freight)} de frete do AliExpress, um por pedido). As cartas usam a faixa do fornecedor pelo volume de cada pedido e o dólar do Inter de hoje{fxRate?` (R$ ${fxCost.toFixed(2).replace('.',',')} = oficial R$ ${fxRate.toFixed(2).replace('.',',')} + 5,6% de IOF e spread do Inter)`:''}. Não desconta a taxa do Mercado Pago; o frete ({brl(profit.shipping)}) é repasse.</div>
     </>}
 
     <button className="adm-card adm-auto" onClick={()=>go('more','automation')} style={{cursor:'pointer',textAlign:'left',fontFamily:'inherit',color:'inherit'}}>

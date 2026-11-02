@@ -45,11 +45,16 @@ const paidAtOf = b => b.confirmed_at || b.created_at || null;
  *
  * - receita das cartas: subtotal travado no pagamento (sem frete);
  * - frete: o que o cliente pagou de frete (repasse para o MandaBem);
- * - custo: estimado pela faixa do fornecedor e pelo dólar informado;
+ * - custo: cartas pela faixa do fornecedor × dólar informado (o do Inter),
+ *   mais o frete do fornecedor (AliExpress, em reais) UMA vez por pedido — cada
+ *   pedido é uma compra separada. Adições a um pedido pago vão na mesma caixa e
+ *   não pagam frete de novo; o frete conta no mês do primeiro pagamento;
  * - lucro: receita das cartas − custo. Não desconta a taxa do Mercado Pago.
  */
-export function profitSummary(orders, { tiers = [], fxRate = 0, month = monthKey(new Date()) } = {}) {
-  let revenueCards = 0, shipping = 0, qty = 0, cost = 0;
+export const SUPPLIER_FREIGHT_BRL_DEFAULT = 50;
+
+export function profitSummary(orders, { tiers = [], fxRate = 0, freightBrl = 0, month = monthKey(new Date()) } = {}) {
+  let revenueCards = 0, shipping = 0, qty = 0, cost = 0, freight = 0;
   const orderIds = new Set();
   (orders || []).forEach(order => {
     const paid = (order.batches || []).filter(isPaid);
@@ -57,6 +62,8 @@ export function profitSummary(orders, { tiers = [], fxRate = 0, month = monthKey
     // A faixa do fornecedor é a do pedido inteiro (adições viajam juntas).
     const orderQty = paid.reduce((s, b) => s + num(b.qty_in_batch), 0);
     const unitCost = estimateCardCostBrl(orderQty, tiers, fxRate);
+    const firstPaid = [...paid].sort((a, b) => String(paidAtOf(a)).localeCompare(String(paidAtOf(b))))[0];
+    if (monthKey(paidAtOf(firstPaid)) === month && orderQty > 0) freight += num(freightBrl);
     paid.forEach(b => {
       if (monthKey(paidAtOf(b)) !== month) return;
       const ship = num(b.shipping_locked);
@@ -66,6 +73,7 @@ export function profitSummary(orders, { tiers = [], fxRate = 0, month = monthKey
       orderIds.add(String(order.orderId ?? order.id));
     });
   });
+  cost += freight;
   const profit = revenueCards - cost;
   const count = orderIds.size;
   return {
@@ -76,6 +84,7 @@ export function profitSummary(orders, { tiers = [], fxRate = 0, month = monthKey
     shipping: round2(shipping),
     total: round2(revenueCards + shipping),
     cost: round2(cost),
+    freight: round2(freight),
     profit: round2(profit),
     margin: revenueCards > 0 ? profit / revenueCards : 0,
     avgTicket: count ? round2((revenueCards + shipping) / count) : 0,

@@ -104,3 +104,20 @@ test('edição de carta: só campos permitidos, com validação', async () => {
   assert.match(sanitizeCardPatch({ name: '   ' }).error, /nome/);
   assert.match(sanitizeCardPatch({}).error, /Nada/);
 });
+
+test('o frete do fornecedor entra uma vez por pedido, no mês do primeiro pagamento', () => {
+  const orders = [
+    { orderId: 'a', batches: [paid({ qty_in_batch: 15, subtotal_locked: 300, confirmed_at: '2026-11-03T12:00:00' })] },
+    // Adição em novembro de um pedido pago em outubro: vai na mesma caixa, sem frete novo.
+    { orderId: 'b', batches: [
+      paid({ qty_in_batch: 20, subtotal_locked: 280, confirmed_at: '2026-10-30T12:00:00' }),
+      paid({ qty_in_batch: 10, subtotal_locked: 140, confirmed_at: '2026-11-02T12:00:00' }),
+    ] },
+  ];
+  const s = profitSummary(orders, { tiers, fxRate: 5, freightBrl: 50, month: '2026-11' });
+  assert.equal(s.freight, 50, 'só o pedido a começou em novembro');
+  // cartas: 15 × 1,5 × 5 = 112,5 (a) + 10 × 1,5 × 5 = 75 (adição, faixa de 30) + frete 50
+  assert.equal(s.cost, 237.5);
+  assert.equal(s.profit, 440 - 237.5);
+  assert.equal(profitSummary(orders, { tiers, fxRate: 5, month: '2026-10' }).freight, 0, 'sem frete informado, não inventa');
+});
