@@ -15,6 +15,7 @@ import { PUSH_NEEDS_INSTALL, disablePush, enablePush, getPushState, reportAccess
 import { GT, GT_LIGHT, MONO, inkOn } from './guildTheme';
 import { SFX, wa, useDialogA11y, TC, Card, Btn, Input, Tag, EmptyState, Spin, CardThumb, ImageLightbox, CATALOG_TCG, CATALOG_TYPES } from './kit';
 import { SB_URL, SB_KEY, mpSync } from './config';
+import { findAlternatives, findTwin, indexActiveCards, searchStem } from '../shared/wishlistReconcile';
 import { PASSWORD_V2_FLAG, needsPasswordUpgrade, passwordChecks, passwordProblem } from '../shared/passwordPolicy';
 import AdminConsole from './admin/AdminConsole';
 import './theme.css';
@@ -666,7 +667,7 @@ function CardDetailModal({card,price,cartRow,wished,ownedQty=0,hasPrev,hasNext,o
 // aparece riscado do total. Comprar continua possível pelo botão discreto de
 // cada linha, para quem já decidiu.
 
-function WishlistPage({wishlist,cartItems,collectionByCard,onAddToCart,onRemove,onUpdateQty,cartCount,theme,nav}){
+function WishlistPage({token,wishlist,cartItems,collectionByCard,onAddToCart,onRemove,onUpdateQty,onSwap,cartCount,theme,nav}){
   const [searchW,setSearchW]=useState('');
   const [zoomSrc,setZoomSrc]=useState(null);
   const [filter,setFilter]=useState('pending'); // 'pending' | 'done'
@@ -681,6 +682,32 @@ function WishlistPage({wishlist,cartItems,collectionByCard,onAddToCart,onRemove,
   const missingUnits=pending.reduce((s,w)=>s+w.missing,0);
   const visible=filter==='done'?complete:pending;
   const filtered=searchW?visible.filter(w=>w.card_name.toLowerCase().includes(searchW.toLowerCase())):visible;
+  // Desejos em cartas que saíram do catálogo: procura a mesma carta ainda à
+  // venda (outro tipo, ou a gêmea se a checagem diária ainda não passou).
+  const [alts,setAlts]=useState({});
+  const gone=wishlist.filter(w=>w.card_active===false);
+  const goneKey=gone.map(w=>w.id+':'+w.card_id).join(',');
+  useEffect(()=>{
+    if(!token||!gone.length)return;
+    let alive=true;
+    (async()=>{
+      const out={};
+      for(const w of gone.slice(0,40)){
+        const stem=searchStem(w.card_name);
+        if(!stem)continue;
+        try{
+          const rows=await sbGet('cards',`is_active=eq.true&tcg=eq.${encodeURIComponent(CATALOG_TCG)}&name=ilike.*${encodeURIComponent(stem)}*&select=id,name,type,image_url,supplier_extra_usd,source_url,created_at&limit=40`,token);
+          const index=indexActiveCards(rows||[]);
+          const card={id:w.card_id,name:w.card_name,type:w.card_type};
+          const twin=findTwin(card,index);
+          out[w.id]=twin?[twin]:findAlternatives(card,index);
+        }catch(e){console.warn('[wishlist] alternativas:',e);}
+      }
+      if(alive)setAlts(out);
+    })();
+    return()=>{alive=false;};
+  },[token,goneKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const tabBtn=active=>({flex:'none',height:36,padding:0,border:'none',borderBottom:'1.5px solid '+(active?'var(--text-strong)':'transparent'),background:'transparent',color:active?'var(--text-strong)':'var(--text-dim)',fontSize:'var(--fs-sm)',fontWeight:500,cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif",whiteSpace:'nowrap'});
 
   return(<div className="portal-page portal-wants" style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingBottom:96}}>
@@ -705,7 +732,9 @@ function WishlistPage({wishlist,cartItems,collectionByCard,onAddToCart,onRemove,
 
     {filtered.length>0&&<ul className="portal-wants-grid" style={{listStyle:'none',margin:0,padding:0,display:'grid',columnGap:24}}>
       {filtered.map((w)=>{const img=w.card_image_url;const done=w.missing<=0;
-        const meta=[done?`completa · ${w.ownedQty} na coleção`:`${w.ownedQty} de ${w.quantity} na coleção`,w.card_type&&w.card_type!=='Normal'?w.card_type:null,w.inCartQty>0?`${w.inCartQty} no pedido`:null].filter(Boolean).join(' · ');
+        const off=w.card_active===false;
+        const options=off?(alts[w.id]||[]):[];
+        const meta=[off?'fora do catálogo no momento':null,done?`completa · ${w.ownedQty} na coleção`:`${w.ownedQty} de ${w.quantity} na coleção`,w.card_type&&w.card_type!=='Normal'?w.card_type:null,w.inCartQty>0?`${w.inCartQty} no pedido`:null].filter(Boolean).join(' · ');
         return(
         <li key={w.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:'1px solid var(--line-soft)',opacity:done?0.7:1}}>
           <button onClick={()=>img&&setZoomSrc(img)} disabled={!img} aria-label={img?`Ampliar imagem de ${w.card_name}`:w.card_name} style={{width:48,flexShrink:0,padding:0,border:'none',background:'none',cursor:img?'zoom-in':'default'}}><CardThumb card={w} radius={5} style={{aspectRatio:'63 / 88',border:'none'}}/></button>
@@ -713,7 +742,8 @@ function WishlistPage({wishlist,cartItems,collectionByCard,onAddToCart,onRemove,
             <span style={{fontSize:'var(--fs-sm)',fontWeight:500,color:'var(--text-strong)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{w.card_name}</span>
             <span style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{meta}</span>
             {/* Discreto de propósito: a lista é de desejo, comprar é opcional. */}
-            {!done&&<button onClick={()=>onAddToCart(w,w.missing)} aria-label={`Pôr ${w.missing} ${w.card_name} no pedido`} style={{alignSelf:'flex-start',minHeight:32,padding:'4px 0',border:'none',background:'none',color:'var(--text-strong)',fontSize:'var(--fs-xs)',fontWeight:500,textDecoration:'underline',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>Pôr {w.missing} no pedido</button>}
+            {off&&options.map(alt=>(<button key={alt.id} onClick={()=>onSwap&&onSwap(w,alt)} aria-label={`Trocar por ${alt.name} (${alt.type||'Normal'})`} style={{alignSelf:'flex-start',minHeight:32,padding:'4px 0',border:'none',background:'none',color:'var(--text-strong)',fontSize:'var(--fs-xs)',fontWeight:500,textDecoration:'underline',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>{alt.type===w.card_type?'Voltou ao catálogo · atualizar':`Tem em ${alt.type||'Normal'} · trocar`}</button>))}
+            {!done&&!off&&<button onClick={()=>onAddToCart(w,w.missing)} aria-label={`Pôr ${w.missing} ${w.card_name} no pedido`} style={{alignSelf:'flex-start',minHeight:32,padding:'4px 0',border:'none',background:'none',color:'var(--text-strong)',fontSize:'var(--fs-xs)',fontWeight:500,textDecoration:'underline',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>Pôr {w.missing} no pedido</button>}
           </div>
           <div style={{display:'flex',alignItems:'center',borderRadius:22,background:'var(--fill)',flexShrink:0}}>
             <button onClick={()=>w.quantity<=1?onRemove(w.id):onUpdateQty(w.id,w.quantity-1)} aria-label={w.quantity<=1?`Tirar ${w.card_name} da lista`:`Querer uma ${w.card_name} a menos`} style={{width:44,height:44,border:'none',background:'transparent',color:'var(--text-strong)',display:'grid',placeItems:'center',cursor:'pointer'}}>{w.quantity<=1?<Trash2 size={15}/>:<Minus size={16}/>}</button>
@@ -1895,10 +1925,10 @@ export default function MagicPortal(){
       // Fora do bloco de pedido de propósito: ela é do usuário, não da
       // campanha, então carrega mesmo quando não há encomenda aberta.
       try {
-        const rows = await sbGet('wishlist_items', `user_id=eq.${userId}&select=id,card_id,quantity,cards(name,type,image_url,supplier_extra_usd)&order=created_at.desc`, tkn);
+        const rows = await sbGet('wishlist_items', `user_id=eq.${userId}&select=id,card_id,quantity,cards(name,type,image_url,supplier_extra_usd,is_active)&order=created_at.desc`, tkn);
         setWishlist((rows || [])
           .filter(w => w && w.id && w.card_id)
-          .map(w => ({ ...w, card_name: w.cards?.name || '?', card_type: w.cards?.type || 'Normal', card_image_url: w.cards?.image_url || null, card_extra_usd: Number(w.cards?.supplier_extra_usd) || 0 })));
+          .map(w => ({ ...w, card_name: w.cards?.name || '?', card_type: w.cards?.type || 'Normal', card_image_url: w.cards?.image_url || null, card_extra_usd: Number(w.cards?.supplier_extra_usd) || 0, card_active: w.cards?.is_active !== false })));
       } catch(e) {
         // Banco sem a migração wishlist.sql ainda: a lista fica vazia em vez
         // de derrubar o resto do carregamento.
@@ -2186,6 +2216,31 @@ export default function MagicPortal(){
   }
 
   // ─── Lista de desejos: quantidade ─────────────────
+  // ─── Lista de desejos: trocar carta que saiu do catálogo ──
+  // A versão desejada saiu; o cliente escolhe outra (outro tipo). Se ele já
+  // desejava a escolhida, junta ficando com a maior quantidade.
+  async function handleSwapWish(item, alt) {
+    if (!token || !alt?.id) return;
+    try {
+      const existing = wishlist.find(w => w.card_id === alt.id && w.id !== item.id);
+      const card = { card_id: alt.id, card_name: alt.name, card_type: alt.type || 'Normal', card_image_url: alt.image_url || null, card_extra_usd: Number(alt.supplier_extra_usd) || 0, card_active: true };
+      if (existing) {
+        const quantity = Math.max(existing.quantity, item.quantity);
+        await sbPatch('wishlist_items', 'id=eq.' + existing.id, { quantity }, token);
+        await sbDelete('wishlist_items', 'id=eq.' + item.id, token);
+        setWishlist(prev => prev.filter(w => w.id !== item.id).map(w => w.id === existing.id ? { ...w, quantity } : w));
+      } else {
+        await sbPatch('wishlist_items', 'id=eq.' + item.id, { card_id: alt.id }, token);
+        setWishlist(prev => prev.map(w => w.id === item.id ? { ...w, ...card } : w));
+      }
+      SFX.success();
+      toast(`Trocado por ${alt.name} (${alt.type || 'Normal'})`, 'success');
+    } catch (e) {
+      console.error('[handleSwapWish]', e);
+      toast('Não deu para trocar: ' + e.message, 'error');
+    }
+  }
+
   async function handleUpdateWishlistQty(itemId, newQty) {
     if (!token) return;
     if (newQty <= 0) { handleRemoveFromWishlist(itemId); return; }
@@ -2369,7 +2424,7 @@ export default function MagicPortal(){
       {/* Pages */}
       <main className="portal-content" style={{ padding: page === 'onboarding' ? '0 20px' : '14px 20px' }}>
         {page === 'catalog' && <CatalogPage token={token} wishlist={wishlist} cartItems={cartItems} collectionByCard={collectionOwned} onAddToWishlist={handleAddToWishlist} onRemoveFromWishlist={handleRemoveFromWishlist} onAddToCart={handleAddCardToCart} onUpdateCartQty={handleUpdateCartQty} priceFor={priceFor} theme={theme} tutStep={showTutorial?tutStep:-1} onTutNext={tutNext} />}
-        {page === 'wants' && <WishlistPage wishlist={wishlist} cartItems={cartItems} collectionByCard={collectionOwned} onAddToCart={handleAddToCart} onRemove={handleRemoveFromWishlist} onUpdateQty={handleUpdateWishlistQty} cartCount={cartCount} theme={theme} nav={nav} />}
+        {page === 'wants' && <WishlistPage token={token} wishlist={wishlist} cartItems={cartItems} collectionByCard={collectionOwned} onAddToCart={handleAddToCart} onRemove={handleRemoveFromWishlist} onUpdateQty={handleUpdateWishlistQty} onSwap={handleSwapWish} cartCount={cartCount} theme={theme} nav={nav} />}
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
         {page === 'profile' && !profile && <div style={{padding:20,color:'var(--danger)',fontSize:'var(--fs-xs)'}}><div>profile: null</div><div>token: {token?'ok':'null'}</div><div>appLoading: {String(appLoading)}</div><Btn onClick={()=>loadAppData(token,session?.user?.id)} sfx="click"><RefreshCw size={14}/> Recarregar</Btn></div>}
         {page === 'profile' && profile && (() => { try { return <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} colorMode={colorMode} onColorModeChange={setColorMode} openIndividualOrders={openIndividualOrders} onAddCards={handleStartAddCards} collection={collection} onSetExtra={handleSetCollectionExtra} initialTab={profileTab} key={profileTab} onPasswordChanged={applyUpgradedUser} />; } catch(e) { return <div style={{padding:20,color:'var(--danger)',fontSize:'var(--fs-xs)'}}>Crash: {e.message}</div>; } })()}

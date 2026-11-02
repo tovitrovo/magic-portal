@@ -17,6 +17,7 @@
  */
 import { getMandaBemTrackingDetails, queryShipment } from "./_mandabem.js";
 import { getUsdBrlRate } from "./_fx-helper.js";
+import { indexActiveCards, planWishlistMoves } from "../../shared/wishlistReconcile.js";
 import { FX_ALERT_HOURS, isStale } from "../../shared/fx.js";
 import { BRL, notifyAdminsOnce } from "./_notify.js";
 import { shipmentPhase, trackingEventFor, SHIPMENT_PHASES } from "../../shared/mandabemStatus.js";
@@ -247,6 +248,10 @@ export async function sendDailyDigest(env, { force = false } = {}) {
     // também renova o cache uma vez por dia, mesmo sem ninguém no portal.
     result.fx = await checkFxHealth(env, day);
 
+    // Desejos presos em cartas que saíram do catálogo mas têm gêmea ativa
+    // (reimportação): move para a carta ativa antes de virar acúmulo.
+    result.wishlist = await reconcileWishlist(env).catch((e) => ({ fatal: String(e?.message || e).slice(0, 200) }));
+
     // Saúde da sincronização da planilha (Edge Function sync-supplier-sheet).
     const last = Array.isArray(sheet) ? sheet[0] : null;
     const lr = last?.last_result || {};
@@ -403,4 +408,52 @@ export async function sendBroadcast(env, { subject, message }) {
   const result = { recipients: messages.length, ...(await sendEmailBatch(env, messages)) };
   await saveRun(env, { broadcast_last_at: startedAt, broadcast_last_result: { ...result, subject } });
   return result;
+}
+
+/**
+ * Move desejos de cartas inativas para a gêmea ativa (mesmo nome normalizado
+ * e mesmo tipo — ver shared/wishlistReconcile.js). Se o cliente já desejava a
+ * gêmea, junta ficando com a maior quantidade. Outro tipo NÃO é movido: vira
+ * sugestão de troca na lista do cliente.
+ */
+export async function reconcileWishlist(env) {
+  const rest = sb(env);
+  const rows = await rest("wishlist_items?select=id,user_id,card_id,quantity,acquired_qty,cards!inner(name,type,is_active)&cards.is_active=eq.false&limit=2000");
+  if (!rows?.length) return { moved: 0, merged: 0, pending: 0 };
+
+  const active = [];
+  for (let offset = 0; ; offset += 1000) {
+    const page = await rest(`cards?is_active=eq.true&tcg=eq.Magic&select=id,name,type,source_url,image_url,created_at&order=id&limit=1000&offset=${offset}`);
+    if (!page?.length) break;
+    active.push(...page);
+    if (page.length < 1000) break;
+  }
+  const index = indexActiveCards(active);
+
+  const users = [...new Set(rows.map((r) => r.user_id))];
+  const existingRows = users.length
+    ? await rest(`wishlist_items?user_id=in.(${users.join(",")})&select=id,user_id,card_id,quantity,acquired_qty&limit=5000`)
+    : [];
+  const byKey = new Map((existingRows || []).map((w) => [`${w.user_id}|${w.card_id}`, w]));
+  const plan = planWishlistMoves(rows, index, new Set(byKey.keys()));
+
+  let moved = 0, merged = 0;
+  for (const p of plan) {
+    const key = `${p.userId}|${p.targetId}`;
+    if (p.merge) {
+      const target = byKey.get(key);
+      if (!target) continue;
+      const quantity = Math.max(Number(target.quantity) || 0, Number(p.quantity) || 0);
+      const acquired = Math.max(Number(target.acquired_qty) || 0, Number(p.acquiredQty) || 0);
+      await rest(`wishlist_items?id=eq.${target.id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ quantity, acquired_qty: acquired }) });
+      await rest(`wishlist_items?id=eq.${p.wishId}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
+      target.quantity = quantity; target.acquired_qty = acquired;
+      merged++;
+    } else {
+      await rest(`wishlist_items?id=eq.${p.wishId}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ card_id: p.targetId }) });
+      byKey.set(key, { id: p.wishId, user_id: p.userId, card_id: p.targetId, quantity: p.quantity, acquired_qty: p.acquiredQty });
+      moved++;
+    }
+  }
+  return { moved, merged, pending: rows.length - moved - merged };
 }
