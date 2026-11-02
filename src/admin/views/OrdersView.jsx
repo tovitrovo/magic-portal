@@ -214,7 +214,7 @@ function OrdersTable({ctx,list}){
       <button className="adm-btn is-sm" onClick={()=>{downloadCsv('pedidos-selecionados.csv',ordersCsv(chosen,{stageOf:b=>resolveOrderStage(b).label}));}}><Download size={13}/> Exportar</button>
       <button className="adm-btn is-sm is-ghost" onClick={()=>setSelected(new Set())}>Limpar</button>
     </div>}
-    <table>
+    <div className="adm-table-scroll"><table>
       <thead><tr>
         <th style={{width:36}}><input type="checkbox" aria-label="Selecionar todos" checked={allOn} onChange={()=>setSelected(allOn?new Set():new Set(sorted.map(o=>o.orderId)))}/></th>
         {head('date','Data')}{head('client','Cliente')}<th>Pedido</th>{head('qty','Cartas','right')}{head('total','Total','right')}{head('stage','Etapa')}
@@ -230,7 +230,7 @@ function OrdersTable({ctx,list}){
           <td><Badge color={o.stage.color}>{o.stage.short}</Badge></td>
         </tr>))}
       </tbody>
-    </table>
+    </table></div>
   </div>);
 }
 

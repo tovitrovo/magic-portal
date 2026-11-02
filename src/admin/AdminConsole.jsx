@@ -21,7 +21,7 @@ import { abandonedCarts, customerStats, monthKey, profitSummary, wishlistDemand 
 import { getPushState } from '../push';
 import { SFX, ImageLightbox } from '../kit';
 import { mpSync } from '../config';
-import { daysAgo, isToday, shortBatchId } from './ui';
+import { brl as brlText, daysAgo, isToday, shortBatchId } from './ui';
 import HomeView from './views/HomeView';
 import OrdersView from './views/OrdersView';
 import ShippingView from './views/ShippingView';
@@ -339,13 +339,27 @@ export default function AdminConsole({theme,token,nav,onReload,toast:toastFn,ini
     finally{setBusy(null);}
   }
 
+  // Pedido pago: o padrão é devolver o dinheiro pelo Mercado Pago e só então
+  // cancelar. "Sem reembolso" fica para quem já devolveu por fora.
   async function cancelBatch(batchId,paid){
-    const msg=paid?'Cancelar pedido pago? O reembolso deve ser feito manualmente no Mercado Pago.':'Cancelar este pedido pendente?';
-    if(!confirm(msg))return;
-    try{await apiPost('/api/admin-cancel-batch',{batchId});ok('Pedido cancelado');await loadOrders();}
-    catch(e){fail('Erro ao cancelar: ',e);}
+    const batch=allBatches.find(b=>String(b.id)===String(batchId));
+    const value=brlText(batch?.total_locked);
+    if(!paid){
+      if(!confirm('Cancelar este pedido pendente?'))return;
+      try{await apiPost('/api/admin-cancel-batch',{batchId});ok('Pedido cancelado');await loadOrders();}
+      catch(e){fail('Erro ao cancelar: ',e);}
+      return;
+    }
+    const withRefund=confirm(`Reembolsar ${value} no Mercado Pago e cancelar o pedido?\n\nO dinheiro volta para o cliente pelo mesmo meio de pagamento.\n\n(Cancelar aqui = escolher sem reembolso.)`);
+    if(!withRefund&&!confirm('Cancelar SEM reembolsar?\n\nUse só se você já devolveu o dinheiro por fora.'))return;
+    setBusy('cancel:'+batchId);
+    try{
+      const res=await apiPost('/api/admin-cancel-batch',{batchId,refund:withRefund});
+      ok(withRefund?(res.refund?.alreadyRefunded?'Já estava reembolsado no Mercado Pago — pedido cancelado':`Reembolso de ${brlText(res.refund?.amount)} feito e pedido cancelado`):'Pedido cancelado');
+      await loadOrders();
+    }catch(e){fail(withRefund?'Reembolso não feito: ':'Erro ao cancelar: ',e);}
+    setBusy(null);
   }
-
   async function markBatchPaid(batchId){
     if(!confirm('Marcar este pedido como PAGO manualmente?'))return;
     try{await apiPost('/api/admin-mark-paid',{batchId});ok('Pedido marcado como pago');await loadOrders();}
