@@ -18,6 +18,7 @@ import { SB_URL, SB_KEY, mpSync } from './config';
 import { findAlternatives, findTwin, indexActiveCards, searchStem } from '../shared/wishlistReconcile';
 import { PASSWORD_V2_FLAG, needsPasswordUpgrade, passwordChecks, passwordProblem } from '../shared/passwordPolicy';
 import AdminConsole from './admin/AdminConsole';
+import CrowdfundPage from './CrowdfundPage';
 import './theme.css';
 import './responsive.css';
 import './ui.css';
@@ -324,6 +325,7 @@ function AccountMenu({isAdmin,activeOrders=0,wishCount=0,colorMode,onToggleColor
       <button role="menuitem" style={item} onClick={()=>go('wants')}><ScrollText size={17}/>Lista de desejos{wishCount>0&&<span style={hint}>{wishCount}</span>}</button>
       <button role="menuitem" style={item} onClick={()=>go('profile','collection')}><Layers size={17}/>Minha coleção</button>
       <button role="menuitem" style={item} onClick={()=>go('profile','account')}><MapPin size={17}/>Dados e endereço</button>
+      <button role="menuitem" style={item} onClick={()=>go('crowdfund')}><Sparkles size={17}/>Cartas em português<span style={{...hint,color:'var(--ok)',fontWeight:600}}>novo</span></button>
       {isAdmin&&<button role="menuitem" style={item} onClick={()=>go('admin')}><Shield size={17}/>Admin</button>}
       <span aria-hidden="true" style={{height:1,margin:'4px 8px',background:'var(--line)'}}/>
       <button role="menuitemcheckbox" aria-checked={colorMode==='dark'} style={item} onClick={()=>{SFX.toggle();onToggleColorMode();}}>{colorMode==='light'?<Moon size={17}/>:<Sun size={17}/>}{colorMode==='light'?'Modo escuro':'Modo claro'}</button>
@@ -1808,7 +1810,10 @@ export default function MagicPortal(){
   const [addTo,setAddTo]=useState(null);
 
   // UI state
-  const [page,setPage]=useState('catalog');
+  // ?apoio (link do e-mail/Wix) abre a campanha; sobrevive ao login.
+  const [cfIntent]=useState(()=>{try{const q=new URLSearchParams(window.location.search);if(q.has('apoio')){const v=q.get('apoio')||'1';sessionStorage.setItem('cpj_cf_intent',v);window.history.replaceState(null,'',window.location.pathname);return v;}return sessionStorage.getItem('cpj_cf_intent');}catch{return null;}});
+  const homePage=cfIntent?'crowdfund':'catalog';
+  const [page,setPage]=useState(homePage);
   const [profileTab,setProfileTab]=useState('orders');
   const [orderOpen,setOrderOpen]=useState(false); // folha do pedido (carrinho + checkout) // aba de "Minha conta" aberta pelo menu do avatar
   const [showTutorial,setShowTutorial]=useState(false);
@@ -1894,6 +1899,8 @@ export default function MagicPortal(){
       .catch(e=>console.warn('pricing-individual:',e));
     return ()=>{alive=false;};
   },[session]);
+
+  useEffect(()=>{if(page==='crowdfund'&&session){try{sessionStorage.removeItem('cpj_cf_intent');}catch{}}},[page,session]);
 
   function toast(msg,type='info'){setToastMsg({msg,type});setTimeout(()=>setToastMsg(null),4000);}
 
@@ -2079,7 +2086,7 @@ export default function MagicPortal(){
       await loadAppData(res.access_token, res.user.id);
     } else {
       await loadAppData(res.access_token, res.user.id);
-      setPage('catalog');
+      setPage(homePage);
     }
   }
 
@@ -2104,8 +2111,8 @@ export default function MagicPortal(){
       setProfile(p => ({ ...p, mana_color_1: colors[0], mana_color_2: colors[1], guild }));
     }
     setIsNew(false);
-    if (showTut) { setIsFirstTimeTut(true); setShowTutorial(true); }
-    setPage('catalog');
+    if (showTut && !cfIntent) { setIsFirstTimeTut(true); setShowTutorial(true); }
+    setPage(homePage);
   }
 
   // ─── Save profile ─────────────────────────────────
@@ -2379,7 +2386,13 @@ export default function MagicPortal(){
     </div>}
 
     {/* Not logged in */}
-    {!session && !recoveryToken && <div className="portal-auth-container" style={{ padding: '14px 20px' }}><AuthPage onLogin={handleLogin} theme={theme} /></div>}
+    {!session && !recoveryToken && <div className="portal-auth-container" style={{ padding: '14px 20px' }}>
+      {cfIntent && <div style={{ marginTop: 16, padding: 14, borderRadius: 'var(--r-card)', border: '1px solid var(--line)', background: 'var(--fill-soft)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+        <span style={{ fontSize: 22 }}>🇧🇷</span>
+        <div><b style={{ color: 'var(--text-strong)' }}>Cartas de Magic em português</b><div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-dim)', lineHeight: 1.5 }}>Entre ou crie sua conta grátis para votar nas cartas e garantir seu pacote com preço de fundador.</div></div>
+      </div>}
+      <AuthPage onLogin={handleLogin} theme={theme} />
+    </div>}
 
     {/* Session exists but still loading */}
     {session && !recoveryToken && !profile && !appLoading && <div style={{ padding: '60px 20px', textAlign: 'center' }}><div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div><div style={{ fontSize: 14, color: 'rgba(var(--ink),calc(0.5*var(--ink-a)))', marginBottom: 16 }}>Erro ao carregar perfil</div><Btn onClick={() => loadAppData(token, session?.user?.id)} sfx="click"><RefreshCw size={16}/> Tentar novamente</Btn></div>}
@@ -2400,7 +2413,7 @@ export default function MagicPortal(){
           no menu do avatar. O carrinho vive na pílula flutuante. */}
       {page !== 'onboarding' && <header className="portal-header" style={{ padding: '10px 8px 6px 20px', display: 'flex', alignItems: 'center', gap: 4, position: 'sticky', top: 0, zIndex: 20, background: 'var(--chrome-bg)', backdropFilter: 'blur(16px)' }}>
         {page !== 'catalog' && <button onClick={() => nav(page === 'admin' ? 'profile' : 'catalog')} className="mp-tap" aria-label="Voltar" style={{ marginLeft: -14, background: 'none', border: 'none', color: 'var(--text-strong)', cursor: 'pointer' }}><ChevronLeft size={22}/></button>}
-        <h1 style={{ flex: 1, minWidth: 0, fontSize: 'var(--fs-md)', fontWeight: 600, letterSpacing: -0.2, color: 'var(--text-strong)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{({ catalog: 'Cartas para Jogar', wants: 'Lista de desejos', cart: 'Seu pedido', checkout: 'Pagamento', success: '', profile: 'Minha conta', admin: 'Admin' })[page] ?? 'Cartas para Jogar'}</h1>
+        <h1 style={{ flex: 1, minWidth: 0, fontSize: 'var(--fs-md)', fontWeight: 600, letterSpacing: -0.2, color: 'var(--text-strong)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{({ catalog: 'Cartas para Jogar', wants: 'Lista de desejos', cart: 'Seu pedido', checkout: 'Pagamento', success: '', profile: 'Minha conta', admin: 'Admin', crowdfund: 'Cartas em português' })[page] ?? 'Cartas para Jogar'}</h1>
         {/* Modo de adição: enquanto ele está ligado, o checkout entra num
             pedido já pago. Clicável para sair. */}
         {addTo && ['catalog','wants','cart','checkout'].includes(page) && (
@@ -2423,6 +2436,12 @@ export default function MagicPortal(){
 
       {/* Pages */}
       <main className="portal-content" style={{ padding: page === 'onboarding' ? '0 20px' : '14px 20px' }}>
+        {page === 'crowdfund' && <CrowdfundPage token={token} toast={toast} returnedFromPayment={cfIntent === 'ok'} />}
+        {page === 'catalog' && <button onClick={() => nav('crowdfund')} style={{ width: '100%', marginBottom: 14, padding: '12px 14px', borderRadius: 'var(--r-card)', border: '1px solid var(--line)', background: 'var(--fill-soft)', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+          <span style={{ fontSize: 22 }}>🇧🇷</span>
+          <span style={{ flex: 1, minWidth: 0 }}><b style={{ display: 'block', color: 'var(--text-strong)', fontSize: 'var(--fs-sm)' }}>Cartas em português: vote e garanta o seu</b><span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-dim)' }}>Financiamento coletivo · fundadores pagam menos</span></span>
+          <ChevronRight size={18}/>
+        </button>}
         {page === 'catalog' && <CatalogPage token={token} wishlist={wishlist} cartItems={cartItems} collectionByCard={collectionOwned} onAddToWishlist={handleAddToWishlist} onRemoveFromWishlist={handleRemoveFromWishlist} onAddToCart={handleAddCardToCart} onUpdateCartQty={handleUpdateCartQty} priceFor={priceFor} theme={theme} tutStep={showTutorial?tutStep:-1} onTutNext={tutNext} />}
         {page === 'wants' && <WishlistPage token={token} wishlist={wishlist} cartItems={cartItems} collectionByCard={collectionOwned} onAddToCart={handleAddToCart} onRemove={handleRemoveFromWishlist} onUpdateQty={handleUpdateWishlistQty} onSwap={handleSwapWish} cartCount={cartCount} theme={theme} nav={nav} />}
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}

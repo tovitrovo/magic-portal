@@ -171,3 +171,24 @@ export function broadcastEmail({ subject, message }, person, { siteUrl, unsubUrl
     cta: 'Entrar no Magic Portal', siteUrl, unsubUrl,
   });
 }
+
+// ── Financiamento coletivo ───────────────────────────────────
+
+export const DEFAULT_CROWDFUND_INVITE = {
+  subject: 'Cartas de Magic em português: entra como fundador ✨',
+  message: 'Oi, {nome}!\n\nVamos imprimir pela primeira vez um pacote de cartas de Magic em português: 56 cartas diferentes, escolhidas por votação da comunidade, entre staples e cartas caras.\n\nQuem entra primeiro paga menos por carta. As vagas de fundador são limitadas e o preço sobe a cada faixa.\n\nEntra, vota nas cartas que você quer ver em português e garante o seu pacote.',
+};
+
+/**
+ * Convite da campanha. `ctaUrl` é o link direto para a página (/?apoio).
+ * Sem `person`, `{nome}` vira "tudo bem?" — é a versão para colar no Wix.
+ */
+export function crowdfundInviteEmail({ subject, message }, person, { ctaUrl, unsubUrl }) {
+  const who = person || { name: '' };
+  const fill = (t) => (person ? personalize(t, who) : String(t || '').replaceAll('{nome}', '').replace(/Oi, !/g, 'Oi!'));
+  return layout({
+    subject: fill(subject),
+    paragraphs: fill(message).split(/\n{2,}/).map((s) => s.trim()).filter(Boolean),
+    cta: 'Quero meu pacote em português', siteUrl: ctaUrl, unsubUrl,
+  });
+}

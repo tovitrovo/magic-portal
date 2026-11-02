@@ -297,7 +297,7 @@ export async function checkFxHealth(env, day = brDate()) {
 
 // ── Lembretes para o cliente ──────────────────────────────────
 
-async function siteUrlOf(env) {
+export async function siteUrlOf(env) {
   const rows = await sb(env)("automation_config?id=eq.1&select=site_url").catch(() => []);
   return (Array.isArray(rows) && rows[0]?.site_url) || null;
 }
@@ -386,7 +386,7 @@ export async function sendCustomerReminders(env, { force = false } = {}) {
 }
 
 /** Perfis que recebem o aviso em massa: não-admin, com e-mail e sem descadastro. */
-async function broadcastAudience(env) {
+export async function broadcastAudience(env) {
   const rows = await sb(env)("profiles?is_admin=not.is.true&email=not.is.null&select=id,name,email,email_opt_out,email_unsub_token&limit=5000");
   return (rows || [])
     .map((p) => ({ name: p.name, email: p.email, optOut: p.email_opt_out === true, unsubToken: p.email_unsub_token }))

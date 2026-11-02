@@ -156,6 +156,41 @@ adição aparece em "Meus Pedidos" como uma linha própria — com "Pagar" e
 que foi paga, marcada com `+ adição ao #XXXX`. Nenhuma migração de banco é
 necessária: o modelo de `order_batches` já previa vários lotes por pedido.
 
+## 🇧🇷 Financiamento coletivo — cartas em português
+
+O fornecedor imprime **lotes de 100 pacotes iguais** (aba *Instructions*,
+item 9: US$ 3.500 normal, 4.000 foil, 4.500 holo). A campanha vende os
+pacotes antes de encomendar o lote.
+
+| Peça | Onde |
+|---|---|
+| Página do cliente | `src/CrowdfundPage.jsx` — link `/?apoio` (sobrevive ao login/cadastro), banner no catálogo e item no menu |
+| Console | Admin → Mais → **Financiamento coletivo** (`src/admin/views/CrowdfundView.jsx`) |
+| Regras de preço | `shared/crowdfund.js` (testes em `test/crowdfund.test.js`) |
+| API | `/api/crowdfund` (cliente) e `/api/admin-crowdfund` (admin) |
+| Banco | `supabase/migrations/crowdfund.sql` |
+
+As regras:
+
+1. **Fila com faixas.** O pacote nº 1 é o mais barato. Cada faixa (`tiers`)
+   vale até o pacote `upto`; uma caixa que atravessa faixas paga cada pacote
+   pela sua posição. A última faixa define quantos pacotes estão à venda.
+2. **A meta paga o lote.** `goal_packs` conta só pagos. O console avisa se a
+   receita líquida da meta não cobre o custo do lote (dólar do dia + spread do
+   PayPal + frete/AliExpress).
+3. **Reserva atômica.** `crowdfund_reserve()` trava a campanha, expira
+   reservas vencidas (45 min) e só grava se a posição cotada ainda for a mesma.
+4. **Pagamento.** Mercado Pago com `external_reference = cf_<id do apoio>`; o
+   `mp-webhook` desvia essas referências para `applyCrowdfundPayment`. Meta
+   batida → campanha vira `FUNDED` e o admin recebe push.
+5. **Votação.** Busca no Scryfall excluindo cartas com selo holográfico
+   (`NO_STAMP_FILTER`); o servidor confere a carta e pega o nome em português.
+   O admin marca as cartas finais e publica a lista.
+6. **Convite.** E-mail para a base do portal (Resend) e link/texto/HTML para
+   colar no Wix.
+7. **Meta não bateu.** "Reembolsar todos" devolve cada apoio pago pelo
+   Mercado Pago e cancela a campanha.
+
 ## 💚 Lista de desejos
 
 A lista de desejos é **do usuário** e é **só desejo**: ela responde "quais
