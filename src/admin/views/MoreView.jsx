@@ -153,7 +153,7 @@ function PricesPage({ctx}){
   }
   if(!cfg)return <Loading/>;
   return(<>
-    <div className="adm-info">Preço/carta = custo da faixa × multiplicador × dólar, com piso por tipo. Dólar em uso: <b style={{color:'var(--gp)'}}>R$ {fx?Number(fx.rate).toFixed(2):'—'}</b>{fx?` (${fx.source})`:''}</div>
+    <div className={'adm-info'+(fx&&(fx.source==='stale'||fx.source==='fallback')?' is-warn':'')}>Preço/carta = custo da faixa × multiplicador × dólar oficial do dia (PTAX do Banco Central), com piso por tipo. Dólar em uso: <b style={{color:'var(--gp)'}}>R$ {fx?Number(fx.rate).toFixed(2).replace('.',','):'—'}</b>{fx?.fetched_at?` · atualizado ${timeAgo(fx.fetched_at)}`:''}{fx&&(fx.source==='stale'||fx.source==='fallback')?<><br/><b>A cotação não está atualizando.</b> Os preços usam o último valor conhecido{fx.source==='fallback'?' (dólar reserva abaixo)':''}.</>:null}</div>
     <div className="adm-card adm-pad" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
       {[['multiplier','Multiplicador','0.1'],['min_cards','Mínimo de cartas','1'],['normal_floor_brl','Piso Normal (R$)','0.5'],['holo_floor_brl','Piso Holo (R$)','0.5'],['foil_floor_brl','Piso Foil (R$)','0.5'],['fx_fallback_rate','Dólar reserva','0.01']].map(([k,l,step])=>(
         <div key={k}><label className="adm-label">{l}</label><input className="adm-input" type="number" inputMode="decimal" step={step} min="0" value={cfg[k]??''} onChange={e=>setCfg(c=>({...c,[k]:e.target.value===''?'':Number(e.target.value)}))} style={{fontWeight:700}}/></div>

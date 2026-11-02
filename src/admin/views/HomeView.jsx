@@ -1,5 +1,5 @@
 // Aba "Hoje": a fila de trabalho na frente, números depois.
-import { AlertTriangle, BellRing, ChevronLeft, ChevronRight, Clock, Package, Plane, ScrollText, ShoppingBasket, ShoppingCart, Sparkles, Tag as TagIcon, Truck } from 'lucide-react';
+import { AlertTriangle, BellRing, DollarSign, ChevronLeft, ChevronRight, Clock, Package, Plane, ScrollText, ShoppingBasket, ShoppingCart, Sparkles, Tag as TagIcon, Truck } from 'lucide-react';
 import { monthLabel } from '../../../shared/adminInsights';
 import { greeting, brlCompact, brl, timeAgo, SectionTitle } from '../ui';
 import { FeedList } from './NotificationsSheet';
@@ -17,7 +17,7 @@ function Task({icon:Icon,color,count,label,sub,onClick,wide}){
 }
 
 export default function HomeView({ctx}){
-  const {queue,stats,go,setOrderFilter,setOrderMode,setShipTab,notifications,automation,pushState,carts=[],wishDemand=[],profit,profitMonth,setProfitMonth,custStats,fxRate,setClientsTab}=ctx;
+  const {queue,stats,go,setOrderFilter,setOrderMode,setShipTab,notifications,automation,pushState,carts=[],wishDemand=[],profit,profitMonth,setProfitMonth,custStats,fxRate,fxCost,fxBroken,pricingInfo,setClientsTab}=ctx;
   const toClients=tab=>()=>{setClientsTab&&setClientsTab(tab);go('clients');};
   const readyCarts=carts.filter(c=>c.missing<=5);
   const newWishes=wishDemand.filter(c=>c.isNew&&c.isActive);
@@ -28,6 +28,7 @@ export default function HomeView({ctx}){
   const toShipping=tab=>()=>{setShipTab(tab);go('shipping');};
 
   const tasks=[
+    fxBroken&&{key:'fx',icon:DollarSign,color:'var(--danger)',count:'US$',label:'Dólar parado',sub:`Preços usando R$ ${fxRate.toFixed(2).replace('.',',')} desde ${pricingInfo?.fx?.fetched_at?new Date(pricingInfo.fx.fetched_at).toLocaleDateString('pt-BR'):'—'}`,onClick:()=>go('more','prices'),wide:true},
     queue.problems>0&&{key:'problem',icon:AlertTriangle,color:'var(--danger)',count:queue.problems,label:'Problema na entrega',sub:'Devolvido, extraviado ou aguardando retirada',onClick:toShipping('problem'),wide:true},
     queue.toBuy>0&&{key:'buy',icon:ShoppingCart,color:'var(--indiv)',count:queue.toBuy,label:'Comprar no fornecedor',sub:'Pagos, ainda não encomendados',onClick:toOrders('ALL','supplier')},
     queue.toLabel>0&&{key:'label',icon:TagIcon,color:'var(--info)',count:queue.toLabel,label:'Gerar etiqueta',sub:'Prontos para o correio',onClick:toShipping('label')},
@@ -47,7 +48,7 @@ export default function HomeView({ctx}){
       <div style={{minWidth:0}}>
         <div style={{fontWeight:800,color:'var(--text-strong)'}}>{greeting()}!</div>
         <div className="adm-muted">
-          {tasks.length===0?'Nada pendente agora.':`${tasks.reduce((s,t)=>s+t.count,0)} item(ns) esperando por você.`}
+          {tasks.length===0?'Nada pendente agora.':`${tasks.reduce((s,t)=>s+(Number(t.count)||1),0)} item(ns) esperando por você.`}
           {stats.todayCount>0&&<> Hoje já entraram <b style={{color:'var(--ok)'}}>{brl(stats.todayRevenue)}</b>.</>}
         </div>
       </div>
@@ -88,7 +89,7 @@ export default function HomeView({ctx}){
         <div className="adm-card adm-kpi"><span>Ticket médio</span><strong>{brlCompact(profit.avgTicket)}</strong><small>por pedido, com frete</small></div>
         <div className="adm-card adm-kpi"><span>Recompra</span><strong>{pct(custStats?.repeatRate)}</strong><small>{custStats?.repeatBuyers||0} de {custStats?.buyers||0} compradores · conversão {pct(custStats?.conversion)}</small></div>
       </div>
-      <div className="adm-muted" style={{padding:'0 2px'}}>Lucro = cartas ({brl(profit.revenueCards)}) − custo estimado ({brl(profit.cost)}). O custo usa a faixa do fornecedor pelo volume de cada pedido e o dólar de hoje{fxRate?` (R$ ${fxRate.toFixed(2).replace('.',',')})`:''}. Não desconta a taxa do Mercado Pago; o frete ({brl(profit.shipping)}) é repasse.</div>
+      <div className="adm-muted" style={{padding:'0 2px'}}>Lucro = cartas ({brl(profit.revenueCards)}) − custo estimado ({brl(profit.cost)}). O custo usa a faixa do fornecedor pelo volume de cada pedido e o dólar do Inter de hoje{fxRate?` (R$ ${fxCost.toFixed(2).replace('.',',')} = oficial R$ ${fxRate.toFixed(2).replace('.',',')} + 4,6% de IOF e spread)`:''}. Não desconta a taxa do Mercado Pago; o frete ({brl(profit.shipping)}) é repasse.</div>
     </>}
 
     <button className="adm-card adm-auto" onClick={()=>go('more','automation')} style={{cursor:'pointer',textAlign:'left',fontFamily:'inherit',color:'inherit'}}>

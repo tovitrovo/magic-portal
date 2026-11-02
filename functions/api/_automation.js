@@ -13,6 +13,8 @@
  * `automation_config` para o console mostrar a última execução.
  */
 import { getMandaBemTrackingDetails, queryShipment } from "./_mandabem.js";
+import { getUsdBrlRate } from "./_fx-helper.js";
+import { FX_ALERT_HOURS, isStale } from "../../shared/fx.js";
 import { BRL, notifyAdminsOnce } from "./_notify.js";
 import { shipmentPhase, trackingEventFor, SHIPMENT_PHASES } from "../../shared/mandabemStatus.js";
 import { isPaid } from "../../shared/orderStatus.js";
@@ -220,6 +222,10 @@ export async function sendDailyDigest(env, { force = false } = {}) {
     });
     result.skipped = sent?.skipped || null;
 
+    // Saúde da cotação do dólar: o preço das cartas depende dela. Rodar aqui
+    // também renova o cache uma vez por dia, mesmo sem ninguém no portal.
+    result.fx = await checkFxHealth(env, day);
+
     // Saúde da sincronização da planilha (Edge Function sync-supplier-sheet).
     const last = Array.isArray(sheet) ? sheet[0] : null;
     const lr = last?.last_result || {};
@@ -238,4 +244,27 @@ export async function sendDailyDigest(env, { force = false } = {}) {
   }
   await saveRun(env, { digest_last_run_at: startedAt, digest_last_result: result });
   return result;
+}
+
+/**
+ * Confere se a cotação do dólar está atualizando. Se as fontes falharem e o
+ * sistema estiver usando cotação velha (ou a reserva fixa) há mais de
+ * FX_ALERT_HOURS, avisa o admin uma vez por dia.
+ */
+export async function checkFxHealth(env, day = brDate()) {
+  const { SB_URL, SB_SERVICE_ROLE_KEY } = env || {};
+  if (!SB_URL || !SB_SERVICE_ROLE_KEY) return { skipped: "sem Supabase" };
+  const fx = await getUsdBrlRate(SB_URL, SB_SERVICE_ROLE_KEY);
+  const broken = fx.source === "fallback" || (fx.source === "stale" && isStale(fx.fetched_at, FX_ALERT_HOURS));
+  if (broken) {
+    const since = fx.fetched_at ? new Date(fx.fetched_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "nunca";
+    await notifyAdminsOnce(env, `sys:fx:${day}`, {
+      type: "SYSTEM_ERROR",
+      title: "💱 Dólar parado",
+      body: `A cotação não atualiza desde ${since}. Os preços estão usando R$ ${Number(fx.rate).toFixed(2)}.`,
+      data: { job: "fx", rate: fx.rate, fetchedAt: fx.fetched_at, source: fx.source },
+      url: "/?admin=prices",
+    });
+  }
+  return { rate: fx.rate, source: fx.source, provider: fx.provider || null, broken };
 }

@@ -18,6 +18,7 @@ import { ORDER_STAGES, groupBatchesIntoOrders, isPaid as isPaidBatchStatus, reso
 import { shipmentPhase } from '../../shared/mandabemStatus';
 import { buildShipmentWhatsAppUrl } from '../whatsappCommunication';
 import { abandonedCarts, customerStats, monthKey, profitSummary, wishlistDemand } from '../../shared/adminInsights';
+import { FX_ALERT_HOURS, costFx, isStale } from '../../shared/fx';
 import { getPushState } from '../push';
 import { SFX, ImageLightbox } from '../kit';
 import { mpSync } from '../config';
@@ -301,8 +302,11 @@ export default function AdminConsole({theme,token,nav,onReload,toast:toastFn,ini
   const minCards=Number(pricingInfo?.pricing?.min_cards)||15;
   const carts=useMemo(()=>abandonedCarts(cartRows||[],{minCards}),[cartRows,minCards]);
   const wishDemand=useMemo(()=>wishlistDemand(wishRows||[]),[wishRows]);
+  // Preço usa o dólar oficial; o CUSTO usa o dólar que o admin paga no Inter.
   const fxRate=Number(pricingInfo?.fx?.rate)||0;
-  const profit=useMemo(()=>profitSummary(orders,{tiers:pricingInfo?.tiers||[],fxRate,month:profitMonth}),[orders,pricingInfo,fxRate,profitMonth]);
+  const fxCost=costFx(fxRate);
+  const fxBroken=!!pricingInfo?.fx&&(pricingInfo.fx.source==='fallback'||(pricingInfo.fx.source==='stale'&&isStale(pricingInfo.fx.fetched_at,FX_ALERT_HOURS)));
+  const profit=useMemo(()=>profitSummary(orders,{tiers:pricingInfo?.tiers||[],fxRate:fxCost,month:profitMonth}),[orders,pricingInfo,fxCost,profitMonth]);
   const custStats=useMemo(()=>customerStats(clients),[clients]);
 
   // ─── Ações de pedido ───────────────────────────────
@@ -448,7 +452,7 @@ export default function AdminConsole({theme,token,nav,onReload,toast:toastFn,ini
     const t=n.type;
     if(t==='LOGIN'||t==='SIGNUP'){go('clients');setSearchClients(n.data?.name||n.data?.clientName||'');return;}
     if(t==='DAILY_DIGEST'){go('overview');return;}
-    if(t==='SYSTEM_ERROR'){go('more',n.data?.job==='sheet-sync'?'catalog':'automation');return;}
+    if(t==='SYSTEM_ERROR'){go('more',n.data?.job==='sheet-sync'?'catalog':n.data?.job==='fx'?'prices':'automation');return;}
     if(t.startsWith('SHIPMENT_')||t==='ADDRESS_CHANGED'){
       go('shipping');setShipTab(t==='SHIPMENT_PROBLEM'?'problem':t==='SHIPMENT_DELIVERED'?'delivered':t==='SHIPMENT_LABEL'||t==='SHIPMENT_POSTED'?'transit':'label');
       return;
@@ -473,7 +477,7 @@ export default function AdminConsole({theme,token,nav,onReload,toast:toastFn,ini
     copyOrderCards,cancelBatch,markBatchPaid,syncBatchMP,moveStage,generateLabel,markDelivered,sendTrackingWhatsApp,copyText,
     openNotification,openNotifications:()=>{setShowNotifications(true);loadNotifications();},
     go,morePage,setMorePage,onReload,reloadOrders:loadOrders,
-    carts,cartsLoading:cartRows===null,wishDemand,wishLoading:wishRows===null,profit,profitMonth,setProfitMonth,custStats,pricingInfo,fxRate,clientsTab,setClientsTab,reloadInsights:loadInsights,
+    carts,cartsLoading:cartRows===null,wishDemand,wishLoading:wishRows===null,profit,profitMonth,setProfitMonth,custStats,pricingInfo,fxRate,fxCost,fxBroken,clientsTab,setClientsTab,reloadInsights:loadInsights,
   };
 
   const current=SECTIONS.find(s=>s.key===section)||SECTIONS[0];
