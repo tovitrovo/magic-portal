@@ -38,7 +38,7 @@ const SECTIONS=[
   {key:'clients',icon:Users,label:'Clientes',title:'Clientes'},
   {key:'more',icon:MoreHorizontal,label:'Mais',title:'Mais'},
 ];
-const MORE_PAGES=['catalog','reminders','automation','push','prices','about'];
+const MORE_PAGES=['crowdfund','catalog','reminders','automation','push','prices','about'];
 const SHIPPABLE=['PREPARING','LABEL_GENERATED','DELIVERED'];
 
 // Deep link (push) → { section, morePage, notifications }.

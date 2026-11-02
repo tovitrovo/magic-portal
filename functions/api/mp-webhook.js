@@ -2,6 +2,7 @@ import { incrementPoolOnPaid } from './_pool-helper.js';
 import { authoritativeBatchTotal } from './_campaign-helper.js';
 import { notifyOrderEvent, notifyAdminsOnce, loadActorLabel, BRL } from './_notify.js';
 import { applyPaidShippingAdjustment } from './_shipping-change-helper.js';
+import { CF_PREFIX, applyCrowdfundPayment } from './_crowdfund-helper.js';
 
 // Verificação da assinatura do webhook do Mercado Pago (x-signature).
 // Manifesto: id:<data.id>;request-id:<x-request-id>;ts:<ts>;  (HMAC-SHA256)
@@ -69,6 +70,15 @@ export async function onRequest(context) {
     if (!mpRes.ok) return new Response("ok", { status: 200 });
 
     const orderId = String(payment?.external_reference || ""); // batch.id
+
+    // Financiamento coletivo: a referência é "cf_<id do apoio>", não um lote.
+    if (orderId.startsWith(CF_PREFIX)) {
+      if (SB_URL && SB_SERVICE_ROLE_KEY) {
+        await applyCrowdfundPayment(context.env, orderId.slice(CF_PREFIX.length), payment)
+          .catch((e) => console.error("Webhook: falha no apoio do financiamento:", e));
+      }
+      return new Response("ok", { status: 200 });
+    }
     const status = String(payment?.status || "");
     const statusDetail = String(payment?.status_detail || "");
     const amount = payment?.transaction_amount ?? null;

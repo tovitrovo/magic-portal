@@ -11,6 +11,7 @@ import { SFX, Spin, CATALOG_TCG, CATALOG_TYPES } from '../../kit';
 import { SB_URL, SB_KEY } from '../../config';
 import { Badge, Empty, Loading, SectionTitle, Toggle, timeAgo } from '../ui';
 import CardEditor from './CardEditor';
+import CrowdfundView from './CrowdfundView';
 
 const TRACKING_STALE_MS=3*3600*1000;
 
@@ -407,6 +408,7 @@ function RemindersPage({ctx}){
 }
 
 const PAGES=[
+  {key:'crowdfund',icon:Zap,color:'var(--ok)',label:'Financiamento coletivo',sub:'Pacotes em português: apoios, votação e convite',Comp:CrowdfundView},
   {key:'catalog',icon:BookOpen,color:'var(--gp)',label:'Catálogo',sub:'Planilha do fornecedor, CSV e cartas por link',Comp:CatalogPage},
   {key:'reminders',icon:Mail,color:'var(--gp)',label:'Lembretes e e-mails',sub:'Carrinho parado, pagamento pendente e aviso para todos',Comp:RemindersPage},
   {key:'push',icon:BellRing,color:'var(--ok)',label:'Notificações no celular',sub:'Escolha o que chega por push',Comp:PushPage},
