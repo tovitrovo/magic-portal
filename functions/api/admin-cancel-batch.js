@@ -59,7 +59,9 @@ export async function onRequest(context) {
     const r = await fetch(`${SB_URL}/rest/v1/order_batches?id=eq.${encodeURIComponent(batchId)}`, {
       method: "PATCH",
       headers,
-      body: JSON.stringify(refund ? { status: "REFUNDED", payment_status: "refunded" } : { status: "CANCELLED" })
+      // O enum batch_status de produção não tem REFUNDED: o reembolso fica em
+      // payment_status, como o webhook do Mercado Pago já grava.
+      body: JSON.stringify(refund ? { status: "CANCELLED", payment_status: "refunded" } : { status: "CANCELLED" })
     });
 
     if (!r.ok) {

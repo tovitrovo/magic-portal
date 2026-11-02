@@ -62,5 +62,13 @@ test('o endpoint reembolsa ANTES de cancelar e para se o reembolso falhar', () =
   const patchAt = src.indexOf('method: "PATCH"');
   assert.ok(refundAt > 0 && patchAt > refundAt, 'reembolso vem antes do PATCH');
   assert.match(src, /if \(!refund\.ok\)[\s\S]{0,200}return new Response/, 'falha no reembolso não cancela');
-  assert.match(src, /status: "REFUNDED", payment_status: "refunded"/);
+  // Produção não tem REFUNDED no enum batch_status: grava CANCELLED + refunded.
+  assert.match(src, /status: "CANCELLED", payment_status: "refunded"/);
+  assert.doesNotMatch(src, /status: "REFUNDED"/);
+});
+
+test('cancelado com pagamento reembolsado aparece como "Reembolsado"', async () => {
+  const { resolveOrderStage } = await import('../shared/orderStatus.js');
+  assert.equal(resolveOrderStage({ status: 'CANCELLED', payment_status: 'refunded' }).key, 'REFUNDED');
+  assert.equal(resolveOrderStage({ status: 'CANCELLED', payment_status: 'approved' }).key, 'CANCELLED');
 });
