@@ -64,7 +64,9 @@ export const FX_ALERT_HOURS = 48;
 
 // ── Dólar que você paga de fato ──────────────────────────────────────────
 // O PREÇO usa o dólar oficial. O CUSTO (painel de lucro) usa o dólar do
-// Inter: o oficial mais o spread da conversão e o IOF. 4,6% = IOF de 3,5% +
-// ~1,1% de spread; calibre comparando com uma conversão real no app.
-export const INTER_FX_MARKUP = 0.046;
+// Inter: o oficial mais o spread da conversão e o IOF. Calibrado em
+// 02/11/2026 com o app do Inter ("Comprar Dólar"): cotação R$ 5,440 com
+// spread de 0,99% (comercial ≈ R$ 5,387), IOF de 3,5% e Valor Efetivo Total
+// de R$ 5,69 → 5,69 ÷ 5,387 = +5,6% sobre o dólar oficial.
+export const INTER_FX_MARKUP = 0.056;
 export const costFx = (officialRate, markup = INTER_FX_MARKUP) => Number(officialRate || 0) * (1 + markup);

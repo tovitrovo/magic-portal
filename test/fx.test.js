@@ -65,5 +65,6 @@ test('busca ao vivo: Banco Central primeiro, AwesomeAPI só se ele falhar', asyn
 
 test('custo usa o dólar do Inter (oficial + IOF e spread)', async () => {
   const { costFx } = await import('../shared/fx.js');
-  assert.equal(Math.round(costFx(5.18) * 100) / 100, 5.42);
+  // Calibração com o print do Inter: comercial R$ 5,387 → VET R$ 5,69.
+  assert.equal(Math.round(costFx(5.387) * 100) / 100, 5.69);
 });
