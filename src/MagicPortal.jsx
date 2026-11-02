@@ -15,6 +15,7 @@ import { PUSH_NEEDS_INSTALL, disablePush, enablePush, getPushState, reportAccess
 import { GT, GT_LIGHT, MONO, inkOn } from './guildTheme';
 import { SFX, wa, useDialogA11y, TC, Card, Btn, Input, Tag, EmptyState, Spin, CardThumb, ImageLightbox, CATALOG_TCG, CATALOG_TYPES } from './kit';
 import { SB_URL, SB_KEY, mpSync } from './config';
+import { PASSWORD_V2_FLAG, needsPasswordUpgrade, passwordChecks, passwordProblem } from '../shared/passwordPolicy';
 import AdminConsole from './admin/AdminConsole';
 import './theme.css';
 import './responsive.css';
@@ -139,7 +140,7 @@ async function sbDelete(table, query, token) {
 }
 
 async function sbAuthSignUp(email, password) {
-  const r = await fetch(`${SB_URL}/auth/v1/signup`, { method: 'POST', headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+  const r = await fetch(`${SB_URL}/auth/v1/signup`, { method: 'POST', headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, data: { [PASSWORD_V2_FLAG]: true } }) });
   if (!r.ok) { const t = await r.text(); if (t.includes('already registered') || t.includes('already been registered')) throw new Error('Este usuário já está cadastrado'); throw new Error(`Erro ao criar conta: ${t}`); }
   const d = await r.json();
   if (d.error || d.msg) { const m = d.error?.message || d.msg || ''; if (m.includes('already registered') || m.includes('already been registered')) throw new Error('Este usuário já está cadastrado'); throw new Error(`Erro ao criar conta: ${m}`); }
@@ -175,10 +176,24 @@ async function sbAuthResetPassword(email) {
 async function sbAuthUpdatePassword(newPassword, token) {
   const r = await fetch(`${SB_URL}/auth/v1/user`, {
     method: 'PUT', headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: newPassword })
+    // A marca vai junto: a partir daqui a conta não usa mais o código de 6 números.
+    body: JSON.stringify({ password: newPassword, data: { [PASSWORD_V2_FLAG]: true } })
   });
-  if (!r.ok) { const t = await r.text(); throw new Error('Erro ao alterar senha'); }
-  return true;
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    const msg = String(d.msg || d.error_description || d.message || '');
+    if (/different from the old|same as the old/i.test(msg)) throw new Error('A senha nova precisa ser diferente da atual');
+    if (/weak|short|at least/i.test(msg)) throw new Error('Senha fraca demais. Tente outra.');
+    throw new Error('Erro ao alterar senha');
+  }
+  return r.json().catch(() => null);
+}
+
+// Usuário atual, direto do servidor (metadados frescos).
+async function sbAuthGetUser(token) {
+  const r = await fetch(`${SB_URL}/auth/v1/user`, { headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${token}` } });
+  if (!r.ok) return null;
+  return r.json();
 }
 
 async function sbUpload(bucket, path, file, token) {
@@ -396,17 +411,6 @@ const AddressDisplay=({address,onEdit})=>{
   </div>);
 };
 
-function VirtualKeyboard({onKey,onBackspace,onDone,maxLen=6,currentLen=0,doneLabel='OK'}){
-  const rows=[['1','2','3'],['4','5','6'],['7','8','9'],['⌫','0',doneLabel]];
-  return(<div style={{background:'rgba(var(--sunk),calc(0.6*var(--sunk-a)))',backdropFilter:'blur(10px)',borderRadius:'var(--r-card)',padding:'var(--sp-2)',border:'1px solid var(--line-soft)',maxWidth:220,margin:'0 auto'}}>
-    {rows.map((row,ri)=>(<div key={ri} style={{display:'flex',justifyContent:'center',gap:'var(--sp-1)',marginBottom:4}}>
-      {row.map(k=>{
-        const isBack=k==='⌫';const isOk=k===doneLabel;const isNum=!isBack&&!isOk;
-        const disabled=isNum&&currentLen>=maxLen;
-        return <button key={k} onClick={()=>{if(isBack){SFX.click();onBackspace();}else if(isOk){SFX.confirm();onDone();}else if(!disabled){SFX.click();onKey(k);}}} disabled={disabled} style={{width:60,height:48,borderRadius:'var(--r-control)',border:isOk?'none':'1px solid rgba(var(--ink),calc(0.08*var(--ink-a)))',background:isOk?'var(--gp)':isBack?'rgba(var(--danger-rgb),0.1)':'var(--text-faint)',color:isOk?'#fff':isBack?'var(--danger)':'var(--text)',fontSize:isNum?20:isOk?13:18,fontWeight:700,cursor:disabled?'not-allowed':'pointer',fontFamily:"'Inter',system-ui,sans-serif",display:'grid',placeItems:'center',opacity:disabled?.3:1}}>{k}</button>;})}
-    </div>))}
-  </div>);
-}
 
 // ══════════════════════════════════════════════════════
 // TUTORIAL
@@ -1348,7 +1352,7 @@ const ACCOUNT_TABS=[
   {key:'account',label:'Conta',icon:User},
 ];
 
-function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProfile,onLogout,myOrders=[],onReloadOrders,toast:toastFn,colorMode='dark',onColorModeChange=()=>{},openIndividualOrders={},onAddCards,collection,onSetExtra,initialTab='orders'}){
+function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProfile,onLogout,myOrders=[],onReloadOrders,toast:toastFn,colorMode='dark',onColorModeChange=()=>{},openIndividualOrders={},onAddCards,collection,onSetExtra,initialTab='orders',onPasswordChanged}){
   const [tab,setTab]=useState(initialTab);
   const [colors,setColors]=useState(profile?.mana_color_1&&profile?.mana_color_2?[profile.mana_color_1,profile.mana_color_2]:['U','R']);
   const [editAddr,setEditAddr]=useState(false);
@@ -1358,10 +1362,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
   const [nameVal,setNameVal]=useState(profile?.name||'');
   const [wppVal,setWppVal]=useState(profile?.whatsapp||'');
   const [expandedOrder,setExpandedOrder]=useState(null);
-  const [showChangePw,setShowChangePw]=useState(false);
-  const [newPw,setNewPw]=useState('');const [newPw2,setNewPw2]=useState('');
-  const [pwVK,setPwVK]=useState(false);const [pwVKTarget,setPwVKTarget]=useState('pw1');
-  const [pwLoading,setPwLoading]=useState(false);const [pwMsg,setPwMsg]=useState(null);
+  const [showChangePw,setShowChangePw]=useState(false);const [pwSaved,setPwSaved]=useState(false);
   const [showArchived,setShowArchived]=useState(false);
 
   function toggleC(k){setColors(p=>{if(p.includes(k))return p.filter(c=>c!==k);if(p.length>=2)return[p[1],k];return[...p,k];});}
@@ -1369,16 +1370,6 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
   const origColors=[profile?.mana_color_1,profile?.mana_color_2].filter(Boolean);
   const changed=JSON.stringify(colors)!==JSON.stringify(origColors);
 
-  function pwVKKey(k){if(pwVKTarget==='pw1')setNewPw(p=>p.length<6?p+k:p);else setNewPw2(p=>p.length<6?p+k:p);}
-  function pwVKBack(){if(pwVKTarget==='pw1')setNewPw(p=>p.slice(0,-1));else setNewPw2(p=>p.slice(0,-1));}
-  async function changePassword(){
-    if(!/^[0-9]{6}$/.test(newPw)){setPwMsg({t:'error',m:'A senha deve conter 6 números'});return;}
-    if(newPw!==newPw2){setPwMsg({t:'error',m:'As senhas não coincidem'});return;}
-    setPwLoading(true);
-    try{await sbAuthUpdatePassword(newPw,token);SFX.success();setPwMsg({t:'success',m:'Senha alterada!'});setNewPw('');setNewPw2('');setPwVK(false);setTimeout(()=>setShowChangePw(false),1500);}
-    catch(e){setPwMsg({t:'error',m:e.message});}
-    setPwLoading(false);
-  }
   async function saveGuild(){setSaving(true);await onSaveProfile({mana_color_1:colors[0],mana_color_2:colors[1],guild:guild||''});setSaving(false);}
   async function saveAddr(){setSaving(true);await onSaveProfile(addr);setEditAddr(false);setSaving(false);}
   async function savePessoal(){setSaving(true);await onSaveProfile({name:nameVal,whatsapp:wppVal});setEditName(false);setSaving(false);}
@@ -1489,23 +1480,11 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
 
       <ProfileSection title="Alterar senha" icon={Lock} color="var(--danger)">
         <div style={{marginTop:12}}>
-          {!showChangePw?<Btn full variant="secondary" onClick={()=>setShowChangePw(true)} sfx="click">Escolher nova senha</Btn>:
-          <div style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)'}}>
-            <div onClick={()=>{setPwVKTarget('pw1');setPwVK(true);}} style={{padding:'12px 14px 12px 42px',borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'var(--field-bg)',cursor:'pointer',position:'relative',minHeight:44}}>
-              <Lock size={16} style={{position:'absolute',left:13,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
-              {newPw?<span style={{letterSpacing:6}}>{'●'.repeat(newPw.length)}</span>:<span style={{color:'var(--text-faint)',fontSize:'var(--fs-sm)'}}>Nova senha (6 dígitos)</span>}
-            </div>
-            <div onClick={()=>{setPwVKTarget('pw2');setPwVK(true);}} style={{padding:'12px 14px 12px 42px',borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'var(--field-bg)',cursor:'pointer',position:'relative',minHeight:44}}>
-              <Lock size={16} style={{position:'absolute',left:13,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
-              {newPw2?<span style={{letterSpacing:6}}>{'●'.repeat(newPw2.length)}</span>:<span style={{color:'var(--text-faint)',fontSize:'var(--fs-sm)'}}>Confirmar senha</span>}
-            </div>
-            {pwVK&&<VirtualKeyboard onKey={pwVKKey} onBackspace={pwVKBack} onDone={()=>setPwVK(false)} maxLen={6} currentLen={pwVKTarget==='pw1'?newPw.length:newPw2.length} doneLabel="Fechar"/>}
-            {pwMsg&&<div style={{fontSize:'var(--fs-xs)',color:pwMsg.t==='error'?'var(--danger)':'var(--ok)',textAlign:'center'}}>{pwMsg.m}</div>}
-            <div style={{display:'flex',gap:'var(--sp-2)'}}>
-              <Btn variant="primary" onClick={changePassword} disabled={pwLoading} style={{flex:1}} sfx="success">{pwLoading?<Spin size={14}/>:<><Check size={14}/> Confirmar</>}</Btn>
-              <Btn variant="ghost" onClick={()=>{setShowChangePw(false);setNewPw('');setNewPw2('');setPwMsg(null);}} style={{flex:1}} sfx="click">Cancelar</Btn>
-            </div>
-          </div>}
+          {pwSaved&&<div role="status" style={{fontSize:'var(--fs-sm)',color:'var(--text-strong)',marginBottom:10,display:'flex',alignItems:'center',gap:6}}><Check size={15}/> Senha alterada</div>}
+          {!showChangePw?<Btn full variant="secondary" onClick={()=>{setPwSaved(false);setShowChangePw(true);}} sfx="click">Escolher nova senha</Btn>:<>
+            <NewPasswordForm token={token} onSaved={user=>{setShowChangePw(false);setPwSaved(true);onPasswordChanged&&onPasswordChanged(user);}} submitLabel="Salvar senha nova"/>
+            <Btn full variant="ghost" onClick={()=>setShowChangePw(false)} style={{marginTop:6}} sfx="click">Cancelar</Btn>
+          </>}
         </div>
       </ProfileSection>
 
@@ -1523,26 +1502,52 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
 // AUTH
 // ══════════════════════════════════════════════════════
 
+// Campo de senha nativo. Substitui o teclado de números desenhado pelo app,
+// que era lento (o navegador segurava cada toque esperando um toque duplo) e
+// impedia o celular de salvar e preencher a senha. 16px de fonte: abaixo
+// disso o iPhone dá zoom na tela ao focar o campo.
+function PasswordField({value,onChange,placeholder,autoComplete,id,autoFocus,label}){
+  const [show,setShow]=useState(false);
+  return(<div style={{position:'relative'}}>
+    <Lock size={18} aria-hidden="true" style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)',pointerEvents:'none'}}/>
+    <input id={id} aria-label={label||placeholder} type={show?'text':'password'} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} autoComplete={autoComplete} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoFocus={autoFocus}
+      style={{width:'100%',minHeight:48,padding:'12px 52px 12px 42px',borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'var(--field-bg)',color:'var(--text)',fontSize:16,fontFamily:"'Inter',system-ui,sans-serif",outline:'none',boxSizing:'border-box'}}/>
+    <button type="button" onClick={()=>setShow(v=>!v)} aria-label={show?'Esconder senha':'Mostrar senha'} aria-pressed={show} className="mp-tap" style={{position:'absolute',right:2,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',color:'var(--text-dim)',cursor:'pointer'}}>{show?<EyeOff size={18}/>:<Eye size={18}/>}</button>
+  </div>);
+}
+
+// O que falta na senha nova, ao vivo — em vez de um erro só depois de enviar.
+function PasswordChecklist({value}){
+  return(<ul aria-label="Requisitos da senha" style={{listStyle:'none',margin:0,padding:'0 2px',display:'flex',gap:14,flexWrap:'wrap'}}>
+    {passwordChecks(value).map(c=>(<li key={c.key} style={{display:'flex',alignItems:'center',gap:5,fontSize:'var(--fs-xs)',color:c.ok?'var(--text-strong)':'var(--text-dim)'}}>
+      {c.ok?<Check size={13} aria-hidden="true"/>:<Circle size={11} aria-hidden="true"/>}<span>{c.label}</span><span className="mp-sr-only">{c.ok?'ok':'falta'}</span>
+    </li>))}
+  </ul>);
+}
+
+const AUTH_BRAND=({title,sub})=><div style={{display:'flex',flexDirection:'column',gap:6,padding:'24px 0 8px'}}><span style={{fontSize:'var(--fs-sm)',fontWeight:600,color:'var(--text-dim)'}}>Cartas para Jogar</span><h1 style={{margin:0,fontSize:'var(--fs-2xl)',fontWeight:600,letterSpacing:-0.5,color:'var(--text-strong)'}}>{title}</h1>{sub&&<p style={{margin:0,fontSize:'var(--fs-sm)',color:'var(--text-dim)',lineHeight:1.5}}>{sub}</p>}</div>;
+
 function AuthPage({onLogin,theme}){
   const [mode,setMode]=useState('login');const [email,setEmail]=useState('');const [senha,setSenha]=useState('');const [senha2,setSenha2]=useState('');
   const [name,setName]=useState('');const [whatsapp,setWhatsapp]=useState('');
-  const [showVK,setShowVK]=useState(false);const [vkTarget,setVkTarget]=useState('senha');
   const [loading,setLoading]=useState(false);const [err,setErr]=useState('');
   const [forgotMode,setForgotMode]=useState(false);const [resetSent,setResetSent]=useState(false);
 
-  function openVK(target){setVkTarget(target);setShowVK(true);}
-  function vkKey(k){if(vkTarget==='senha')setSenha(p=>p.length<6?p+k:p);else setSenha2(p=>p.length<6?p+k:p);}
-  function vkBack(){if(vkTarget==='senha')setSenha(p=>p.slice(0,-1));else setSenha2(p=>p.slice(0,-1));}
-  const currentVKLen=vkTarget==='senha'?senha.length:senha2.length;
+  // No login vale qualquer senha — inclusive o código antigo de 6 números,
+  // que entra uma última vez e cai na troca obrigatória (PasswordUpgradeGate).
+  const canSubmit=email.includes('@')&&!loading&&(mode==='login'
+    ?senha.length>0
+    :(!passwordProblem(senha)&&senha===senha2&&!!name&&whatsapp.length>=10));
 
-  const senhaOk=/^[0-9]{6}$/.test(senha);
-  const canSubmit=email.includes('@')&&senhaOk&&!loading&&(mode==='login'||senha===senha2);
-
-  async function submit(){
+  async function submit(e){
+    if(e)e.preventDefault();
     setErr('');
     const cleanEmail=email.trim().toLowerCase();
-    if(!senhaOk){setErr('A senha deve conter 6 números');return;}
-    if(mode==='signup'&&senha!==senha2){setErr('As senhas não coincidem');return;}
+    if(mode==='signup'){
+      const problem=passwordProblem(senha);
+      if(problem){setErr(problem);return;}
+      if(senha!==senha2){setErr('As senhas não coincidem');return;}
+    }
     setLoading(true);
     try {
       if(mode==='signup'){
@@ -1570,7 +1575,8 @@ function AuthPage({onLogin,theme}){
     setLoading(false);
   }
 
-  async function handleForgot(){
+  async function handleForgot(e){
+    if(e)e.preventDefault();
     const cleanEmail=email.trim().toLowerCase();
     if(!cleanEmail.includes('@')){setErr('Digite seu email primeiro');return;}
     setErr('');setLoading(true);
@@ -1581,81 +1587,102 @@ function AuthPage({onLogin,theme}){
     setLoading(false);
   }
 
-  if(forgotMode)return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingTop:16}}>
-    <div style={{display:'flex',flexDirection:'column',gap:6,padding:'24px 0 8px'}}><span style={{fontSize:'var(--fs-sm)',fontWeight:600,color:'var(--text-dim)'}}>Cartas para Jogar</span><h1 style={{margin:0,fontSize:'var(--fs-2xl)',fontWeight:600,letterSpacing:-0.5,color:'var(--text-strong)'}}>Recuperar senha</h1></div>
+  const emailField=<Input icon={Mail} type="email" name="email" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="seu@email.com" aria-label="Email" value={email} onChange={e=>setEmail(e.target.value)}/>;
+  const errBox=err&&<div role="alert" style={{fontSize:'var(--fs-sm)',color:'var(--danger)',textAlign:'center',padding:'var(--sp-1)'}}>{err}</div>;
+
+  if(forgotMode)return(<form onSubmit={handleForgot} style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingTop:16}}>
+    <AUTH_BRAND title="Recuperar senha"/>
     {resetSent?<Card style={{padding:'var(--sp-4)',textAlign:'center'}}>
       <Check size={28} style={{color:'var(--text-strong)',marginBottom:8}}/>
       <div style={{fontWeight:600,color:'var(--text-strong)',fontSize:'var(--fs-md)'}}>Email enviado</div>
-      <div style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)',marginTop:6}}>Verifique sua caixa de entrada e spam. Clique no link para redefinir sua senha.</div>
+      <div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',marginTop:6,lineHeight:1.5}}>Verifique sua caixa de entrada e o spam. O link abre a tela para criar a senha nova.</div>
       <Btn full variant="secondary" onClick={()=>{setForgotMode(false);setResetSent(false);}} style={{marginTop:16}} sfx="nav">Voltar ao login</Btn>
     </Card>:<>
-      <div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',textAlign:'center'}}>Digite seu email e enviaremos um link para redefinir sua senha.</div>
-      <Input icon={Mail} type="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="seu@email.com" value={email} onChange={e=>setEmail(e.target.value)}/>
-      {err&&<div style={{fontSize:'var(--fs-xs)',color:'var(--danger)',textAlign:'center',padding:'var(--sp-1)'}}><AlertTriangle size={12}/> {err}</div>}
-      <Btn full onClick={handleForgot} disabled={!email.includes('@')||loading} sfx="">{loading?<Spin size={16}/>:<>Enviar link de recuperação</>}</Btn>
-      <button onClick={()=>{setForgotMode(false);setErr('');}} style={{background:'none',border:'none',color:'var(--text-strong)',fontSize:'var(--fs-sm)',textDecoration:'underline',minHeight:44,cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif",padding:'var(--sp-2)',textAlign:'center'}}>Voltar ao login</button>
+      <div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',lineHeight:1.5}}>Digite seu email e enviaremos um link para criar uma senha nova.</div>
+      {emailField}
+      {errBox}
+      <Btn full type="submit" disabled={!email.includes('@')||loading} sfx="">{loading?<Spin size={16} color="var(--gp-ink)"/>:'Enviar link'}</Btn>
+      <button type="button" onClick={()=>{setForgotMode(false);setErr('');}} style={{background:'none',border:'none',color:'var(--text-strong)',fontSize:'var(--fs-sm)',textDecoration:'underline',minHeight:44,cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif",padding:'var(--sp-2)',textAlign:'center'}}>Voltar ao login</button>
     </>}
-  </div>);
+  </form>);
 
-  return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingTop:16}}>
-    <div style={{display:'flex',flexDirection:'column',gap:6,padding:'24px 0 8px'}}><span style={{fontSize:'var(--fs-sm)',fontWeight:600,color:'var(--text-dim)'}}>Cartas para Jogar</span><h1 style={{margin:0,fontSize:'var(--fs-2xl)',fontWeight:600,letterSpacing:-0.5,color:'var(--text-strong)'}}>{mode==='login'?'Boas-vindas de volta':'Crie sua conta'}</h1><p style={{margin:0,fontSize:'var(--fs-sm)',color:'var(--text-dim)',lineHeight:1.5}}>Suas cartas de Magic, encomendadas uma a uma.</p></div>
-    <div role="tablist" aria-label="Entrar ou criar conta" style={{display:'flex',borderRadius:'var(--r-pill)',background:'var(--fill)',padding:4,gap:4}}>{['login','signup'].map(m=>(<button key={m} role="tab" aria-selected={mode===m} onClick={()=>{SFX.toggle();setMode(m);setErr('');setSenha('');setSenha2('');setShowVK(false);}} style={{flex:1,minHeight:40,padding:'8px 0',borderRadius:'var(--r-pill)',border:'none',background:mode===m?'var(--sheet-bg)':'transparent',boxShadow:mode===m?'0 1px 3px rgba(var(--sunk),calc(0.2*var(--sunk-a)))':'none',color:mode===m?'var(--text-strong)':'var(--text-dim)',fontWeight:500,fontSize:'var(--fs-sm)',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>{m==='login'?'Entrar':'Criar conta'}</button>))}</div>
-    {mode==='signup'&&<Input icon={User} placeholder="Seu nome" value={name} onChange={e=>setName(e.target.value)}/>}
-    <Input icon={Mail} type="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="seu@email.com" value={email} onChange={e=>setEmail(e.target.value)}/>
-    {mode==='signup'&&<Input icon={Phone} placeholder="WhatsApp (11999999999)" value={whatsapp} onChange={e=>setWhatsapp(e.target.value.replace(/\D/g,'').slice(0,11))}/>}
-    <div>
-      <div onClick={()=>openVK('senha')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-control)',border:'1px solid '+(showVK&&vkTarget==='senha'?'var(--gp)':'var(--line)'),background:'var(--field-bg)',color:senha?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
-        <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
-        {senha?<span style={{letterSpacing:6}}>{'●'.repeat(senha.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-senha.length)}</span></span>:'Senha (6 dígitos)'}
-      </div>
-    </div>
-    {mode==='signup'&&<div>
-      <div onClick={()=>openVK('senha2')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-control)',border:'1px solid '+(showVK&&vkTarget==='senha2'?'var(--gp)':'var(--line)'),background:'var(--field-bg)',color:senha2?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
-        <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
-        {senha2?<span style={{letterSpacing:6}}>{'●'.repeat(senha2.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-senha2.length)}</span></span>:'Confirmar senha'}
-      </div>
-      {senha2.length===6&&senha!==senha2&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--danger)',marginTop:4,textAlign:'center'}}>As senhas não coincidem</div>}
-    </div>}
-    {showVK&&<div style={{marginTop:4}}><VirtualKeyboard onKey={vkKey} onBackspace={vkBack} onDone={()=>setShowVK(false)} maxLen={6} currentLen={currentVKLen} doneLabel="Fechar"/></div>}
-    {err&&<div style={{fontSize:'var(--fs-xs)',color:'var(--danger)',textAlign:'center',padding:'var(--sp-1)'}}><AlertTriangle size={12}/> {err}</div>}
-    <Btn full onClick={submit} disabled={!canSubmit} sfx="">{loading?<Spin size={16}/>:<>{mode==='login'?'Entrar':'Criar conta'}</>}</Btn>
-    {mode==='login'&&<button onClick={()=>{setForgotMode(true);setErr('');}} style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:'var(--fs-sm)',minHeight:44,cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif",padding:'var(--sp-1)',textAlign:'center'}}>Esqueci minha senha</button>}
-  </div>);
+  return(<form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingTop:16}}>
+    <AUTH_BRAND title={mode==='login'?'Boas-vindas de volta':'Crie sua conta'} sub="Suas cartas de Magic, encomendadas uma a uma."/>
+    <div role="tablist" aria-label="Entrar ou criar conta" style={{display:'flex',borderRadius:'var(--r-pill)',background:'var(--fill)',padding:4,gap:4}}>{['login','signup'].map(m=>(<button type="button" key={m} role="tab" aria-selected={mode===m} onClick={()=>{SFX.toggle();setMode(m);setErr('');setSenha('');setSenha2('');}} style={{flex:1,minHeight:40,padding:'8px 0',borderRadius:'var(--r-pill)',border:'none',background:mode===m?'var(--sheet-bg)':'transparent',boxShadow:mode===m?'0 1px 3px rgba(var(--sunk),calc(0.2*var(--sunk-a)))':'none',color:mode===m?'var(--text-strong)':'var(--text-dim)',fontWeight:500,fontSize:'var(--fs-sm)',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>{m==='login'?'Entrar':'Criar conta'}</button>))}</div>
+    {mode==='signup'&&<Input icon={User} name="name" autoComplete="name" placeholder="Seu nome" aria-label="Nome" value={name} onChange={e=>setName(e.target.value)}/>}
+    {emailField}
+    {mode==='signup'&&<Input icon={Phone} type="tel" name="tel" autoComplete="tel-national" inputMode="numeric" placeholder="WhatsApp (11999999999)" aria-label="WhatsApp" value={whatsapp} onChange={e=>setWhatsapp(e.target.value.replace(/\D/g,'').slice(0,11))}/>}
+    {mode==='login'
+      ? <>
+          <PasswordField value={senha} onChange={setSenha} placeholder="Senha" label="Senha" autoComplete="current-password"/>
+          <div style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)',lineHeight:1.5,padding:'0 2px'}}>Ainda usa o código de 6 números? Digite ele aqui uma última vez — depois você cria sua senha nova.</div>
+        </>
+      : <>
+          <PasswordField value={senha} onChange={setSenha} placeholder="Crie uma senha" label="Senha nova" autoComplete="new-password"/>
+          <PasswordChecklist value={senha}/>
+          <PasswordField value={senha2} onChange={setSenha2} placeholder="Repita a senha" label="Repita a senha" autoComplete="new-password"/>
+          {senha2.length>0&&senha!==senha2&&<div style={{fontSize:'var(--fs-xs)',color:'var(--danger)',padding:'0 2px'}}>As senhas não coincidem</div>}
+        </>}
+    {errBox}
+    <Btn full type="submit" disabled={!canSubmit} sfx="">{loading?<Spin size={16} color="var(--gp-ink)"/>:<>{mode==='login'?'Entrar':'Criar conta'}</>}</Btn>
+    {mode==='login'&&<button type="button" onClick={()=>{setForgotMode(true);setErr('');}} style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:'var(--fs-sm)',minHeight:44,cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif",padding:'var(--sp-1)',textAlign:'center'}}>Esqueci minha senha</button>}
+  </form>);
 }
 
 // ══════════════════════════════════════════════════════
 // PASSWORD RECOVERY PAGE
 // ══════════════════════════════════════════════════════
 
-function RecoveryPage({token,onDone,theme}){
+// Formulário de senha nova, compartilhado pela recuperação por email, pela
+// troca obrigatória (código → senha) e pela troca em Minha conta.
+function NewPasswordForm({token,onSaved,submitLabel='Salvar senha'}){
   const [pw,setPw]=useState('');const [pw2,setPw2]=useState('');
-  const [showVK,setShowVK]=useState(false);const [vkTarget,setVkTarget]=useState('pw');
   const [loading,setLoading]=useState(false);const [err,setErr]=useState('');
-  const currentVKLen=vkTarget==='pw'?pw.length:pw2.length;
-  function vkKey(k){if(vkTarget==='pw')setPw(p=>p.length<6?p+k:p);else setPw2(p=>p.length<6?p+k:p);}
-  function vkBack(){if(vkTarget==='pw')setPw(p=>p.slice(0,-1));else setPw2(p=>p.slice(0,-1));}
-  async function save(){
-    if(!/^[0-9]{6}$/.test(pw)){setErr('A senha deve conter 6 números');return;}
+  const problem=passwordProblem(pw);
+  async function save(e){
+    if(e)e.preventDefault();
+    if(problem){setErr(problem);return;}
     if(pw!==pw2){setErr('As senhas não coincidem');return;}
     setLoading(true);setErr('');
-    try{await sbAuthUpdatePassword(pw,token);onDone();}
-    catch(e){setErr(e.message);}
-    setLoading(false);
+    try{const user=await sbAuthUpdatePassword(pw,token);SFX.success();onSaved(user);}
+    catch(e){setErr(e.message);setLoading(false);}
   }
+  return(<form onSubmit={save} style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)'}}>
+    <PasswordField value={pw} onChange={setPw} placeholder="Senha nova" label="Senha nova" autoComplete="new-password" autoFocus/>
+    <PasswordChecklist value={pw}/>
+    <PasswordField value={pw2} onChange={setPw2} placeholder="Repita a senha" label="Repita a senha" autoComplete="new-password"/>
+    {pw2.length>0&&pw!==pw2&&<div style={{fontSize:'var(--fs-xs)',color:'var(--danger)',padding:'0 2px'}}>As senhas não coincidem</div>}
+    {err&&<div role="alert" style={{fontSize:'var(--fs-sm)',color:'var(--danger)',textAlign:'center'}}>{err}</div>}
+    <Btn full type="submit" disabled={!!problem||pw!==pw2||loading} sfx="">{loading?<Spin size={16} color="var(--gp-ink)"/>:submitLabel}</Btn>
+  </form>);
+}
+
+function RecoveryPage({token,onDone,theme}){
   return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingTop:16}}>
-    <div style={{display:'flex',flexDirection:'column',gap:6,padding:'24px 0 8px'}}><span style={{fontSize:'var(--fs-sm)',fontWeight:600,color:'var(--text-dim)'}}>Cartas para Jogar</span><h1 style={{margin:0,fontSize:'var(--fs-2xl)',fontWeight:600,letterSpacing:-0.5,color:'var(--text-strong)'}}>Nova senha</h1><p style={{margin:0,fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}>Digite sua nova senha de 6 dígitos</p></div>
-    <div onClick={()=>{setVkTarget('pw');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-control)',border:'1px solid '+(showVK&&vkTarget==='pw'?'var(--gp)':'var(--line)'),background:'var(--field-bg)',color:pw?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
-      <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
-      {pw?<span style={{letterSpacing:6}}>{'●'.repeat(pw.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-pw.length)}</span></span>:'Nova senha'}
-    </div>
-    <div onClick={()=>{setVkTarget('pw2');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-control)',border:'1px solid '+(showVK&&vkTarget==='pw2'?'var(--gp)':'var(--line)'),background:'var(--field-bg)',color:pw2?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
-      <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
-      {pw2?<span style={{letterSpacing:6}}>{'●'.repeat(pw2.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-pw2.length)}</span></span>:'Confirmar senha'}
-    </div>
-    {pw2.length===6&&pw!==pw2&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--danger)',marginTop:4,textAlign:'center'}}>As senhas não coincidem</div>}
-    {showVK&&<div style={{marginTop:4}}><VirtualKeyboard onKey={vkKey} onBackspace={vkBack} onDone={()=>setShowVK(false)} maxLen={6} currentLen={currentVKLen}/></div>}
-    {err&&<div style={{fontSize:'var(--fs-xs)',color:'var(--danger)',textAlign:'center'}}><AlertTriangle size={12}/> {err}</div>}
-    <Btn full onClick={save} disabled={pw.length<6||pw!==pw2||loading} sfx="">{loading?<Spin size={14}/>:<>Salvar nova senha</>}</Btn>
+    <AUTH_BRAND title="Senha nova" sub="Crie a senha que você vai usar daqui pra frente."/>
+    <NewPasswordForm token={token} onSaved={()=>onDone()} submitLabel="Salvar senha nova"/>
+  </div>);
+}
+
+// ── Troca obrigatória: do código de 6 números para senha ──────────────────
+// Aparece para quem entrou com o código (conta sem a marca password_v2).
+// Antes de bloquear, confere no servidor: a pessoa pode ter trocado a senha
+// em outro aparelho, e a sessão salva aqui ainda teria os metadados antigos.
+function PasswordUpgradeGate({token,onUpgraded,onLogout}){
+  const [checking,setChecking]=useState(true);
+  useEffect(()=>{
+    let alive=true;
+    sbAuthGetUser(token)
+      .then(user=>{if(alive&&user&&!needsPasswordUpgrade(user))onUpgraded(user);})
+      .catch(()=>{})
+      .finally(()=>{if(alive)setChecking(false);});
+    return()=>{alive=false;};
+  },[token]); // eslint-disable-line react-hooks/exhaustive-deps
+  if(checking)return(<div style={{padding:'80px 20px',display:'grid',placeItems:'center'}}><Spin size={20}/></div>);
+  return(<div className="portal-auth-container" style={{padding:'14px 20px 40px',display:'flex',flexDirection:'column',gap:'var(--sp-3)'}}>
+    <AUTH_BRAND title="O portal mudou" sub="O login agora é com senha, não mais com o código de 6 números. Crie sua senha para continuar — é ela que você vai usar a partir de agora."/>
+    <NewPasswordForm token={token} onSaved={onUpgraded} submitLabel="Criar senha e entrar"/>
+    <button type="button" onClick={onLogout} style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:'var(--fs-sm)',minHeight:44,cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>Sair</button>
   </div>);
 }
 
@@ -2026,6 +2053,12 @@ export default function MagicPortal(){
     }
   }
 
+  // Senha trocada (troca obrigatória ou em Minha conta): a sessão salva passa
+  // a carregar a marca, para a tela de troca não voltar a aparecer.
+  function applyUpgradedUser(user){
+    setSession(prev=>prev?{...prev,user:{...prev.user,...(user||{}),user_metadata:{...(prev.user?.user_metadata||{}),...(user?.user_metadata||{}),[PASSWORD_V2_FLAG]:true}}}:prev);
+  }
+
   function handleLogout(){
     localStorage.removeItem('cpj_session');
     setSession(null);setProfile(null);setPricing(null);
@@ -2296,7 +2329,11 @@ export default function MagicPortal(){
     {session && !recoveryToken && !profile && !appLoading && <div style={{ padding: '60px 20px', textAlign: 'center' }}><div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div><div style={{ fontSize: 14, color: 'rgba(var(--ink),calc(0.5*var(--ink-a)))', marginBottom: 16 }}>Erro ao carregar perfil</div><Btn onClick={() => loadAppData(token, session?.user?.id)} sfx="click"><RefreshCw size={16}/> Tentar novamente</Btn></div>}
 
     {/* Logged in */}
-    {session && !recoveryToken && <>
+    {/* Migração do login: quem entrou com o código de 6 números cria a senha
+        nova antes de qualquer outra coisa. Ver shared/passwordPolicy.js. */}
+    {session && !recoveryToken && needsPasswordUpgrade(session.user) && <PasswordUpgradeGate token={token} onUpgraded={applyUpgradedUser} onLogout={handleLogout} />}
+
+    {session && !recoveryToken && !needsPasswordUpgrade(session.user) && <>
       {/* Loading indicator - non-blocking */}
       {appLoading && <div style={{ position: 'fixed', top: 60, left: '50%', transform: 'translateX(-50%)', zIndex: 50, background: 'var(--chrome-bg)', borderRadius: 20, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
         <Spin size={14}/><span style={{ fontSize: 12, color: 'rgba(var(--ink),calc(0.5*var(--ink-a)))' }}>Carregando...</span>
@@ -2334,7 +2371,7 @@ export default function MagicPortal(){
         {page === 'wants' && <WishlistPage wishlist={wishlist} cartItems={cartItems} collectionByCard={collectionOwned} onAddToCart={handleAddToCart} onRemove={handleRemoveFromWishlist} onUpdateQty={handleUpdateWishlistQty} cartCount={cartCount} theme={theme} nav={nav} />}
         {page === 'success' && <SuccessPage lastOrder={lastOrder} theme={theme} nav={nav} />}
         {page === 'profile' && !profile && <div style={{padding:20,color:'var(--danger)',fontSize:'var(--fs-xs)'}}><div>profile: null</div><div>token: {token?'ok':'null'}</div><div>appLoading: {String(appLoading)}</div><Btn onClick={()=>loadAppData(token,session?.user?.id)} sfx="click"><RefreshCw size={14}/> Recarregar</Btn></div>}
-        {page === 'profile' && profile && (() => { try { return <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} colorMode={colorMode} onColorModeChange={setColorMode} openIndividualOrders={openIndividualOrders} onAddCards={handleStartAddCards} collection={collection} onSetExtra={handleSetCollectionExtra} initialTab={profileTab} key={profileTab} />; } catch(e) { return <div style={{padding:20,color:'var(--danger)',fontSize:'var(--fs-xs)'}}>Crash: {e.message}</div>; } })()}
+        {page === 'profile' && profile && (() => { try { return <ProfileView profile={profile} token={token} theme={theme} nav={nav} isAdmin={isAdmin} setShowTutorial={setShowTutorial} onSaveProfile={handleSaveProfile} onLogout={handleLogout} myOrders={myOrders} onReloadOrders={()=>loadAppData(token,session?.user?.id)} toast={toast} colorMode={colorMode} onColorModeChange={setColorMode} openIndividualOrders={openIndividualOrders} onAddCards={handleStartAddCards} collection={collection} onSetExtra={handleSetCollectionExtra} initialTab={profileTab} key={profileTab} onPasswordChanged={applyUpgradedUser} />; } catch(e) { return <div style={{padding:20,color:'var(--danger)',fontSize:'var(--fs-xs)'}}>Crash: {e.message}</div>; } })()}
         {page === 'admin' && <AdminConsole pricing={pricing} theme={theme} token={token} nav={nav} onReload={()=>loadAppData(token,session?.user?.id)} toast={toast} initialSection={adminTarget} />}
         {page === 'onboarding' && <OnboardingPage onComplete={handleOnboardingComplete} theme={theme} />}
       </main>
