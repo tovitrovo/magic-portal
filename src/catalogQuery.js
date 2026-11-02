@@ -46,7 +46,7 @@ export function buildCatalogQueries({ tcg, filter, variant, search, page, pageSi
   }
 
   return {
-    cardsQuery: `select=id,name,type,variant,image_url,created_at&${filters}&order=${order}&limit=${pageSize}&offset=${page * pageSize}`,
+    cardsQuery: `select=id,name,type,variant,image_url,created_at,supplier_extra_usd&${filters}&order=${order}&limit=${pageSize}&offset=${page * pageSize}`,
     countQuery: `select=id&${filters}`,
   };
 }

@@ -266,18 +266,18 @@ function getCardPrice(cardType, pricing) {
 
 // Preço unitário: faixa por volume (depende da qtd total do pedido) com piso
 // por tipo. Sem as faixas carregadas, cai no preço fixo por tipo.
-function unitPriceFor(cardType, totalQty, pricing, indiv) {
+function unitPriceFor(cardType, totalQty, pricing, indiv, extraUsd = 0) {
   if (indiv && Array.isArray(indiv.tiers) && indiv.tiers.length) {
-    return indivPricePerCard({ qty: totalQty, type: cardType, tiers: indiv.tiers, pricing: indiv.pricing, fxRate: indiv.fx && indiv.fx.rate });
+    return indivPricePerCard({ qty: totalQty, type: cardType, tiers: indiv.tiers, pricing: indiv.pricing, fxRate: indiv.fx && indiv.fx.rate, extraUsd });
   }
   return getCardPrice(cardType, pricing);
 }
 
 // Preço unitário "cheio" (faixa mais cara / menor volume), sem o desconto por
 // volume. Serve de referência para mostrar a economia ao cliente.
-function baseUnitPriceFor(cardType, pricing, indiv) {
+function baseUnitPriceFor(cardType, pricing, indiv, extraUsd = 0) {
   if (indiv && Array.isArray(indiv.tiers) && indiv.tiers.length) {
-    return Math.max(...indiv.tiers.map(t => indivPricePerCard({ qty: Number(t.min_qty) || 0, type: cardType, tiers: indiv.tiers, pricing: indiv.pricing, fxRate: indiv.fx && indiv.fx.rate })));
+    return Math.max(...indiv.tiers.map(t => indivPricePerCard({ qty: Number(t.min_qty) || 0, type: cardType, tiers: indiv.tiers, pricing: indiv.pricing, fxRate: indiv.fx && indiv.fx.rate, extraUsd })));
   }
   return getCardPrice(cardType, pricing);
 }
@@ -565,7 +565,7 @@ function CatalogPage({token,wishlist,cartItems=[],collectionByCard,onAddToWishli
             <div style={{display:'flex',alignItems:'center',gap:6}}>
               <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:1}}>
                 <h2 style={{margin:0,fontSize:'var(--fs-sm)',fontWeight:500,color:'var(--text-strong)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</h2>
-                <span style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{money(priceFor(c.type))}{c.variant?` · ${c.variant}`:c.type&&c.type!=='Normal'?` · ${c.type}`:''}{ownedQty>0?` · tenho ${ownedQty}`:''}</span>
+                <span style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{money(priceFor(c))}{c.variant?` · ${c.variant}`:c.type&&c.type!=='Normal'?` · ${c.type}`:''}{ownedQty>0?` · tenho ${ownedQty}`:''}</span>
               </div>
               <button ref={i===0?firstAddBtnRef:null} id={i===0?'tut-add-btn':undefined} onClick={()=>add(c)} aria-label={`Adicionar uma ${c.name} ao pedido`} className="mp-tap" style={{flexShrink:0,marginRight:-10,background:'none',border:'none',color:'var(--text-strong)',cursor:'pointer'}}><Plus size={19}/></button>
             </div>
@@ -585,7 +585,7 @@ function CatalogPage({token,wishlist,cartItems=[],collectionByCard,onAddToWishli
     {tutStep===2&&handPos&&<div style={{position:'fixed',top:handPos.top,left:handPos.left,zIndex:200,pointerEvents:'none',fontSize:'var(--fs-xl)',animation:'tutHandBounce 0.8s ease-in-out infinite',transform:'translateX(-50%)'}}>👆</div>}
     {detail&&<CardDetailModal
       card={detail}
-      price={priceFor(detail.type)}
+      price={priceFor(detail)}
       cartRow={cartItems.find(ci=>ci.card_id===detail.id)}
       wished={wishlist.some(w=>w.card_id===detail.id)}
       ownedQty={collectionByCard?.get?.(detail.id)||0}
@@ -769,9 +769,9 @@ function OrderSheet({cartItems=[],pricing,profile,token,onOrderDone,onSuccess,on
   const missingCards=Math.max(0,minCards-totalQty);
   // Faixa de preço da adição: volume somado (o que já foi pago + o carrinho).
   const tierQty=totalQty+(isAdding?(addTo.qtyPaid||0):0);
-  const sub=cart.reduce((s,c)=>s+c.quantity*unitPriceFor(c.card_type,tierQty,pricing,indiv),0);
+  const sub=cart.reduce((s,c)=>s+c.quantity*unitPriceFor(c.card_type,tierQty,pricing,indiv,c.card_extra_usd),0);
   // Economia por volume: preço cheio (faixa mais cara) menos o preço aplicado.
-  const baseSub=cart.reduce((s,c)=>s+c.quantity*baseUnitPriceFor(c.card_type,pricing,indiv),0);
+  const baseSub=cart.reduce((s,c)=>s+c.quantity*baseUnitPriceFor(c.card_type,pricing,indiv,c.card_extra_usd),0);
   const volumeDiscount=Math.max(0,baseSub-sub);
   // Frete: zero quando a remessa já existe (adição ou envio conjunto).
   const shippingSkipped=isAdding||useJointShipping;
@@ -887,7 +887,7 @@ function OrderSheet({cartItems=[],pricing,profile,token,onOrderDone,onSuccess,on
         {totalQty===0
           ? <EmptyState icon={ShoppingCart} title="Seu pedido está vazio" sub="Toque no + das cartas para montar a encomenda."/>
           : <ul style={{listStyle:'none',margin:0,padding:'4px 0'}}>
-              {cart.map(c=>{const ip=unitPriceFor(c.card_type,tierQty,pricing,indiv);return(
+              {cart.map(c=>{const ip=unitPriceFor(c.card_type,tierQty,pricing,indiv,c.card_extra_usd);return(
                 <li key={c.id} style={{display:'flex',alignItems:'center',gap:12,padding:'8px 0',borderBottom:'1px solid var(--line-soft)'}}>
                   <div style={{width:36,flexShrink:0}}><CardThumb card={c} radius={4} style={{aspectRatio:'63 / 88',border:'none'}}/></div>
                   <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:1}}>
@@ -1895,10 +1895,10 @@ export default function MagicPortal(){
       // Fora do bloco de pedido de propósito: ela é do usuário, não da
       // campanha, então carrega mesmo quando não há encomenda aberta.
       try {
-        const rows = await sbGet('wishlist_items', `user_id=eq.${userId}&select=id,card_id,quantity,cards(name,type,image_url)&order=created_at.desc`, tkn);
+        const rows = await sbGet('wishlist_items', `user_id=eq.${userId}&select=id,card_id,quantity,cards(name,type,image_url,supplier_extra_usd)&order=created_at.desc`, tkn);
         setWishlist((rows || [])
           .filter(w => w && w.id && w.card_id)
-          .map(w => ({ ...w, card_name: w.cards?.name || '?', card_type: w.cards?.type || 'Normal', card_image_url: w.cards?.image_url || null })));
+          .map(w => ({ ...w, card_name: w.cards?.name || '?', card_type: w.cards?.type || 'Normal', card_image_url: w.cards?.image_url || null, card_extra_usd: Number(w.cards?.supplier_extra_usd) || 0 })));
       } catch(e) {
         // Banco sem a migração wishlist.sql ainda: a lista fica vazia em vez
         // de derrubar o resto do carregamento.
@@ -1946,10 +1946,10 @@ export default function MagicPortal(){
 
         // ── Carrinho: order_items do rascunho, ainda sem batch ──────────────
         try {
-          const items = await sbGet('order_items', `order_id=eq.${ord.id}&batch_id=is.null&in_cart=is.true&select=id,card_id,quantity,cards(name,type,image_url)`, tkn);
+          const items = await sbGet('order_items', `order_id=eq.${ord.id}&batch_id=is.null&in_cart=is.true&select=id,card_id,quantity,cards(name,type,image_url,supplier_extra_usd)`, tkn);
           setCartItems((items || [])
             .filter(i => i && i.id && i.card_id)
-            .map(i=>({...i, card_name:i.cards?.name||'?', card_type:i.cards?.type||'Normal', card_image_url:i.cards?.image_url||null})));
+            .map(i=>({...i, card_name:i.cards?.name||'?', card_type:i.cards?.type||'Normal', card_image_url:i.cards?.image_url||null, card_extra_usd:Number(i.cards?.supplier_extra_usd)||0})));
         } catch(e) { console.warn('[loadAppData] Falha ao carregar o carrinho:', e); }
       } catch(eOrder) {
         if (isAuthFailure(eOrder)) throw eOrder;
@@ -2108,7 +2108,7 @@ export default function MagicPortal(){
         const created = await sbUpsert('wishlist_items', { user_id: userId, card_id: card.id, quantity: qty }, token, 'user_id,card_id');
         const row = Array.isArray(created) ? created[0] : created;
         if (row?.id) {
-          setWishlist(prev => [{ ...row, card_name: card.name, card_type: card.type || 'Normal', card_image_url: card.image_url || null }, ...prev.filter(w => w.card_id !== card.id)]);
+          setWishlist(prev => [{ ...row, card_name: card.name, card_type: card.type || 'Normal', card_image_url: card.image_url || null, card_extra_usd: Number(card.supplier_extra_usd) || 0 }, ...prev.filter(w => w.card_id !== card.id)]);
         }
       }
       toast(qty+'x '+card.name+' na sua lista de desejos!','success');
@@ -2128,6 +2128,7 @@ export default function MagicPortal(){
       card_name: card.name,
       card_type: card.type || 'Normal',
       card_image_url: card.image_url || null,
+      card_extra_usd: Number(card.supplier_extra_usd) || 0,
     }, qty);
   }
 
@@ -2149,7 +2150,7 @@ export default function MagicPortal(){
         const created = await sbPost('order_items', { order_id: orderId, card_id: item.card_id, quantity: amount, is_bonus: false, in_cart: true, unit_price_brl: 0 }, token);
         const row = Array.isArray(created) ? created[0] : created;
         if (row?.id) {
-          setCartItems(prev => [...prev, { ...row, card_name: item.card_name, card_type: item.card_type, card_image_url: item.card_image_url }]);
+          setCartItems(prev => [...prev, { ...row, card_name: item.card_name, card_type: item.card_type, card_image_url: item.card_image_url, card_extra_usd: Number(item.card_extra_usd) || 0 }]);
         }
       }
       // Sem toast: o retorno é o selo ×N na carta e a pílula do pedido pulando.
@@ -2264,10 +2265,10 @@ export default function MagicPortal(){
   // Adição a um pedido pago: sem mínimo, e a faixa considera o que já foi pago.
   const minCards = addTo ? 1 : (Number(indivPricing?.pricing?.min_cards) || MIN_ORDER_CARDS);
   const cartTierQty = cartCount + (addTo ? (addTo.qtyPaid || 0) : 0);
-  const cartTotal = cartItems.reduce((s, c) => s + c.quantity * unitPriceFor(c.card_type, cartTierQty, pricing, indivPricing), 0);
+  const cartTotal = cartItems.reduce((s, c) => s + c.quantity * unitPriceFor(c.card_type, cartTierQty, pricing, indivPricing, c.card_extra_usd), 0);
   // Preço que a grade mostra: o da PRÓXIMA carta, na faixa em que o pedido vai
   // cair — pelo menos a do mínimo, que é o menor pedido possível.
-  const priceFor = useCallback(type => unitPriceFor(type, Math.max(cartTierQty + 1, minCards), pricing, indivPricing), [cartTierQty, minCards, pricing, indivPricing]);
+  const priceFor = useCallback(card => unitPriceFor(card?.type, Math.max(cartTierQty + 1, minCards), pricing, indivPricing, card?.supplier_extra_usd), [cartTierQty, minCards, pricing, indivPricing]);
 
   // Pedidos ainda andando (nem entregues nem cancelados): é o aviso do avatar.
   const activeOrderCount = useMemo(() => groupBatchesIntoOrders(myOrders).filter(g => { const st = resolveOrderStageFromBatches(g.batches); return !st.terminal && st.index >= 1 && st.key !== 'DELIVERED'; }).length, [myOrders]);

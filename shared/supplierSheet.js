@@ -41,8 +41,21 @@ export function detectVariant(name) {
 // fim. A coluna já diz se a carta é Foil ou Holo. Só o FIM é cortado porque
 // "Foil (PCY)" é o nome de uma carta de verdade; "none foil" também fica,
 // porque descreve a carta, não o acabamento.
+// Marcação de preço especial no nome ("($5 a card)", "#88 $5"): é informação
+// de custo, não do nome da carta. supplierExtraUsd() lê o valor.
+const PRICE_MARK = /\(\s*\$\s*(\d+(?:[.,]\d+)?)\s*a\s*card\s*\)|\s\$\s*(\d+(?:[.,]\d+)?)\s*$/i;
+export const BASE_SUPPLIER_USD = 2.5;
+
+/** Adicional do fornecedor (US$) marcado no nome da planilha; 0 sem marcação. */
+export function supplierExtraUsd(raw) {
+  const m = String(raw == null ? '' : raw).match(PRICE_MARK);
+  if (!m) return 0;
+  const usd = Number(String(m[1] || m[2]).replace(',', '.'));
+  return Number.isFinite(usd) && usd > BASE_SUPPLIER_USD ? Math.round((usd - BASE_SUPPLIER_USD) * 100) / 100 : 0;
+}
+
 export function cleanCardName(raw) {
-  let n = String(raw == null ? '' : raw).replace(/ /g, ' ');
+  let n = String(raw == null ? '' : raw).replace(/ /g, ' ').replace(PRICE_MARK, ' ');
   const rule = VARIANT_RULES.find((v) => v.re.test(n));
   if (rule) n = n.replace(rule.re, ' ');
   n = n.replace(/\s+/g, ' ').trim();
@@ -59,7 +72,9 @@ export function cleanCardName(raw) {
 // ("Scalding TarnSPG#112foil", "... MTG Proxy Cards"), então só sobram
 // letras e números. Usar com o texto CRU da planilha, não o nome limpo.
 export function cardMatchKey(name) {
-  return String(name == null ? '' : name)
+  // A marcação de preço ("($5 a card)") sai antes: a carta renomeada no
+  // catálogo e a linha crua da planilha precisam bater na mesma chave.
+  return String(name == null ? '' : name).replace(PRICE_MARK, ' ')
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .replace(/mtg\s*proxy(\s*cards?)?|foil|holo/g, '')

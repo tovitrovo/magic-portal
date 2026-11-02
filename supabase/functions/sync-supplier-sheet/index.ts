@@ -15,7 +15,7 @@
 
 import {
   extractNewCards, findSheetPath, parseSharedStrings, parseSheetCells,
-  sheetExportUrl, extractPhotoUrl, isGooglePhotosLink, cardMatchKey, detectVariant,
+  sheetExportUrl, extractPhotoUrl, isGooglePhotosLink, cardMatchKey, detectVariant, supplierExtraUsd,
 } from '../../../shared/supplierSheet.js';
 import { slugify } from '../../../shared/cardImport.js';
 import { readZip } from '../../../shared/xlsxZip.js';
@@ -158,7 +158,7 @@ async function fetchPhoto(link: string) {
   return { buf, contentType: ext === '.jpg' ? 'image/jpeg' : ct, ext };
 }
 
-async function addCard(row: { name: string; type: string; variant: string | null; link: string }) {
+async function addCard(row: { name: string; raw: string; type: string; variant: string | null; link: string }) {
   const { buf, contentType, ext } = await fetchPhoto(row.link);
   const filename = `${slugify(row.name)}-${await shortHash(row.link)}${ext}`;
   const up = await fetch(`${SB_URL}/storage/v1/object/cards/${encodeURIComponent(filename)}`, {
@@ -173,6 +173,8 @@ async function addCard(row: { name: string; type: string; variant: string | null
     body: JSON.stringify({
       name: row.name, type: row.type, variant: row.variant, tcg: TCG, is_active: true,
       image_url: STORAGE_PUBLIC + filename, import_ref: filename, source_url: row.link,
+      // "($5 a card)" na planilha: o fornecedor cobra mais caro nesta carta.
+      supplier_extra_usd: supplierExtraUsd(row.raw),
     }),
   });
 }

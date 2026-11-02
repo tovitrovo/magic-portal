@@ -30,7 +30,7 @@ export default function CardEditor({ctx}){
   }
   useEffect(()=>{const t=setTimeout(()=>search(0),300);return()=>clearTimeout(t);},[q,status]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function open(card){setEditing(card);setForm({name:card.name||'',type:card.type||'Normal',image_url:card.image_url||'',is_active:card.is_active!==false});}
+  function open(card){setEditing(card);setForm({name:card.name||'',type:card.type||'Normal',image_url:card.image_url||'',is_active:card.is_active!==false,supplier_extra_usd:Number(card.supplier_extra_usd)||0});}
   async function save(patch,card=editing){
     setSaving(true);
     try{
@@ -57,7 +57,7 @@ export default function CardEditor({ctx}){
             <span style={{width:34,flexShrink:0}}><CardThumb card={c} radius={4} style={{aspectRatio:'63 / 88',border:'none'}}/></span>
             <span className="adm-item-main">
               <span className="adm-item-title"><span>{c.name}</span>{c.is_active===false&&<Badge color="var(--danger)">fora</Badge>}</span>
-              <span className="adm-item-sub" style={{display:'block'}}>{c.type||'Normal'}</span>
+              <span className="adm-item-sub" style={{display:'block'}}>{c.type||'Normal'}{Number(c.supplier_extra_usd)>0?` · +US$ ${Number(c.supplier_extra_usd).toFixed(2)} do fornecedor`:''}</span>
             </span>
             <button className="adm-btn is-sm" disabled={saving} onClick={()=>save({is_active:c.is_active===false},c)} aria-label={c.is_active===false?`Voltar ${c.name} ao catálogo`:`Tirar ${c.name} do catálogo`}>{c.is_active===false?<><Check size={13}/> Ativar</>:<><EyeOff size={13}/> Tirar</>}</button>
             <button className="adm-btn is-sm" onClick={()=>open(c)} aria-label={`Editar ${c.name}`}><Pencil size={13}/></button>
@@ -77,9 +77,11 @@ export default function CardEditor({ctx}){
           </div>
         </div>
         <label className="adm-muted">Imagem (link https)<input className="adm-input" value={form.image_url} placeholder="https://…" onChange={e=>setForm(f=>({...f,image_url:e.target.value}))}/></label>
+        <label className="adm-muted">Adicional do fornecedor (US$ por carta)<input className="adm-input" type="number" inputMode="decimal" step="0.5" min="0" value={form.supplier_extra_usd} onChange={e=>setForm(f=>({...f,supplier_extra_usd:e.target.value===''?0:Number(e.target.value)}))}/></label>
+        <div className="adm-muted" style={{marginTop:-4}}>Para cartas que o fornecedor cobra mais caro, como as marcadas "($5 a card)": US$ 5 − US$ 2,50 da faixa base = <b>2,50</b>. Entra no custo antes do multiplicador e do dólar.</div>
         <Toggle on={form.is_active} onChange={v=>setForm(f=>({...f,is_active:v}))} title="À venda no catálogo" hint="Desligado, a carta some do catálogo, mas continua nos pedidos e desejos de quem já tem"/>
         <div className="adm-info">O tipo muda o preço (Normal, Holo e Foil têm pisos diferentes). O custo continua vindo da planilha do fornecedor.</div>
-        <button className="adm-btn is-primary" disabled={saving||!form.name.trim()} onClick={()=>save({name:form.name,type:form.type,image_url:form.image_url,is_active:form.is_active})}>{saving?<Spin size={14}/>:<><Check size={14}/> Salvar</>}</button>
+        <button className="adm-btn is-primary" disabled={saving||!form.name.trim()} onClick={()=>save({name:form.name,type:form.type,image_url:form.image_url,is_active:form.is_active,supplier_extra_usd:form.supplier_extra_usd})}>{saving?<Spin size={14}/>:<><Check size={14}/> Salvar</>}</button>
       </>}
     </Sheet>
   </>);
