@@ -56,7 +56,7 @@ export default function HomeView({ctx}){
     <SectionTitle>Fila de trabalho</SectionTitle>
     {tasks.length>0
       ? <div className="adm-queue">{tasks.map(({key,...t})=><Task key={key} {...t}/>)}</div>
-      : <div className="adm-card adm-allclear"><Package size={22} style={{color:'var(--ok)'}}/><div><b>Tudo em dia ✨</b><span className="adm-muted">Nenhum pedido esperando ação sua.</span></div></div>}
+      : <div className="adm-card adm-allclear"><Package size={22} style={{color:'var(--ok)'}}/><div><b>Tudo em dia</b><span className="adm-muted">Nenhum pedido esperando ação sua.</span></div></div>}
 
     <SectionTitle>Vendas</SectionTitle>
     <div className="adm-kpis">

@@ -392,7 +392,7 @@ const AddressDisplay=({address,onEdit})=>{
         {address.cep&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>CEP {address.cep}</div>}
       </>:<span style={{color:'var(--text-faint)'}}>Nenhum endereço cadastrado</span>}
     </div>
-    {onEdit&&<button onClick={onEdit} style={{background:'var(--fill)',border:'1px solid var(--line)',borderRadius:'var(--r-control)',padding:'6px 10px',cursor:'pointer',color:'var(--text-dim)',display:'flex',alignItems:'center',gap:'var(--sp-1)',fontSize:'var(--fs-2xs)',flexShrink:0}}><Edit3 size={12}/> Editar</button>}
+    {onEdit&&<button onClick={onEdit} style={{minHeight:44,background:'none',border:'none',padding:'0 4px',cursor:'pointer',color:'var(--text-strong)',fontSize:'var(--fs-sm)',fontWeight:500,textDecoration:'underline',flexShrink:0,fontFamily:"'Inter',system-ui,sans-serif"}}>Editar</button>}
   </div>);
 };
 
@@ -677,56 +677,52 @@ function WishlistPage({wishlist,cartItems,collectionByCard,onAddToCart,onRemove,
   const missingUnits=pending.reduce((s,w)=>s+w.missing,0);
   const visible=filter==='done'?complete:pending;
   const filtered=searchW?visible.filter(w=>w.card_name.toLowerCase().includes(searchW.toLowerCase())):visible;
+  const tabBtn=active=>({flex:'none',height:36,padding:0,border:'none',borderBottom:'1.5px solid '+(active?'var(--text-strong)':'transparent'),background:'transparent',color:active?'var(--text-strong)':'var(--text-dim)',fontSize:'var(--fs-sm)',fontWeight:500,cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif",whiteSpace:'nowrap'});
 
-  return(<div className="portal-page portal-wants" style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)'}}>
-    <div id="tut-wants-tags" style={{display:'flex',gap:'var(--sp-1)',flexWrap:'wrap',alignItems:'center'}}>
-      <Tag color={theme.primary}><ScrollText size={11}/> {missingUnits} carta{missingUnits!==1?'s':''} faltando</Tag>
-      {complete.length>0&&<Tag color="var(--ok)"><Check size={11}/> {complete.length} completa{complete.length!==1?'s':''}</Tag>}
+  return(<div className="portal-page portal-wants" style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingBottom:96}}>
+    <div id="tut-wants-tags" style={{display:'flex',flexDirection:'column',gap:4}}>
+      <div style={{fontSize:'var(--fs-xl)',fontWeight:600,letterSpacing:-0.3,color:'var(--text-strong)'}}>{missingUnits} carta{missingUnits!==1?'s':''} faltando</div>
+      <div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',lineHeight:1.5}}>Só o que você quer ter. Nada daqui vai para o pedido sozinho.</div>
     </div>
 
-    <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',lineHeight:1.5,padding:'0 2px'}}>
-      Sua lista de desejos é só sua — nada aqui vai pro carrinho sozinho. Quando quiser comprar uma carta, use o botão do carrinho na linha dela.
-    </div>
-
-    {complete.length>0&&<div role="tablist" aria-label="Filtrar lista de desejos" style={{display:'flex',gap:'var(--sp-1)'}}>
-      {[{key:'pending',label:`Falta comprar (${pending.length})`},{key:'done',label:`Já tenho (${complete.length})`}].map(t=>(
-        <button key={t.key} role="tab" aria-selected={filter===t.key} onClick={()=>{SFX.toggle();setFilter(t.key);}} style={{flex:1,padding:'9px 10px',borderRadius:'var(--r-control)',border:'1px solid '+(filter===t.key?wa(theme.primary,'55'):'var(--line-soft)'),background:filter===t.key?wa(theme.primary,'18'):'var(--fill-soft)',color:filter===t.key?theme.primary:'var(--text-dim)',fontWeight:700,fontSize:'var(--fs-xs)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer'}}>{t.label}</button>
-      ))}
+    {(complete.length>0||visible.length>3)&&<div style={{display:'flex',alignItems:'center',gap:18}}>
+      {complete.length>0&&<div role="tablist" aria-label="Filtrar lista de desejos" style={{display:'flex',gap:18}}>
+        {[{key:'pending',label:`Falta comprar (${pending.length})`},{key:'done',label:`Já tenho (${complete.length})`}].map(t=>(
+          <button key={t.key} role="tab" aria-selected={filter===t.key} onClick={()=>{SFX.toggle();setFilter(t.key);}} style={tabBtn(filter===t.key)}>{t.label}</button>
+        ))}
+      </div>}
     </div>}
 
-    {visible.length>3&&<Input icon={Search} placeholder="Buscar na lista..." value={searchW} onChange={e=>setSearchW(e.target.value)}/>}
+    {visible.length>3&&<label style={{display:'flex',alignItems:'center',gap:'var(--sp-2)',height:44,padding:'0 14px',borderRadius:'var(--r-pill)',background:'var(--fill)'}}>
+      <Search size={17} style={{color:'var(--text-dim)',flexShrink:0}} aria-hidden="true"/>
+      <span className="mp-sr-only">Buscar na lista</span>
+      <input value={searchW} onChange={e=>setSearchW(e.target.value)} placeholder="Buscar na lista" style={{flex:1,minWidth:0,border:'none',outline:'none',background:'transparent',color:'var(--text-strong)',fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif"}}/>
+    </label>}
 
-    {filtered.length>0&&<div className="portal-card-grid portal-wants-grid" style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)'}}>
-      {filtered.map((w)=>{const img=w.card_image_url;const done=w.missing<=0;return(
-        <Card key={w.id} style={{padding:'var(--sp-2)',opacity:done?0.72:1}}>
-          <div style={{display:'flex',alignItems:'center',gap:'var(--sp-3)'}}>
-            <div onClick={()=>img&&setZoomSrc(img)} role={img?'button':undefined} tabIndex={img?0:undefined} aria-label={img?`Ampliar imagem de ${w.card_name}`:undefined} onKeyDown={e=>{if(img&&(e.key==='Enter'||e.key===' ')){e.preventDefault();setZoomSrc(img);}}} style={{width:54,flexShrink:0,cursor:img?'zoom-in':'default'}}><CardThumb card={w} radius={9}/></div>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontWeight:700,fontSize:'var(--fs-sm)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{w.card_name}</div>
-              <span style={{fontSize:'var(--fs-2xs)',color:TC[w.card_type],fontWeight:700}}>{w.card_type}</span>
-              <div style={{fontSize:'var(--fs-2xs)',color:done?'var(--ok)':'var(--text-faint)',fontWeight:600,marginTop:2,display:'flex',alignItems:'center',gap:'var(--sp-1)'}}>
-                {done?<><Check size={11}/> {w.ownedQty} de {w.quantity} — completa</>:<>{w.ownedQty} de {w.quantity} na coleção</>}
-              </div>
-              {w.inCartQty>0&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--gold)',fontWeight:700,marginTop:2,display:'flex',alignItems:'center',gap:'var(--sp-1)'}}><ShoppingCart size={11}/> {w.inCartQty} no carrinho</div>}
-              <div style={{display:'flex',alignItems:'center',gap:'var(--sp-1)',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',borderRadius:'var(--r-control)',border:'1px solid var(--line-soft)',width:'fit-content',marginTop:7}}>
-                <button onClick={()=>onUpdateQty(w.id,w.quantity-1)} aria-label={`Diminuir quantidade desejada de ${w.card_name}`} style={{background:'none',border:'none',color:'var(--text-strong)',padding:'10px 12px',cursor:'pointer'}}><Minus size={12}/></button>
-                <span aria-label={`Quantidade desejada de ${w.card_name}: ${w.quantity}`} style={{minWidth:18,textAlign:'center',fontSize:'var(--fs-sm)',fontWeight:700}}>{w.quantity}</span>
-                <button onClick={()=>onUpdateQty(w.id,w.quantity+1)} aria-label={`Aumentar quantidade desejada de ${w.card_name}`} style={{background:'none',border:'none',color:'var(--text-strong)',padding:'10px 12px',cursor:'pointer'}}><Plus size={12}/></button>
-              </div>
-            </div>
-            <div style={{display:'flex',flexDirection:'column',gap:'var(--sp-1)',alignItems:'stretch'}}>
-              {/* Discreto de propósito: a lista é de desejo, comprar é opcional. */}
-              {!done&&<button onClick={()=>onAddToCart(w,w.missing)} title="Adicionar ao carrinho" aria-label={`Adicionar ${w.card_name} ao carrinho`} style={{background:'var(--fill)',border:'1px solid '+wa(theme.primary,'40'),borderRadius:'var(--r-control)',padding:'10px 13px',cursor:'pointer',color:theme.primary,display:'flex',alignItems:'center',justifyContent:'center'}}><ShoppingCart size={14}/></button>}
-              <button onClick={()=>onRemove(w.id)} title="Tirar da lista" aria-label={`Tirar ${w.card_name} da lista de desejos`} style={{background:'rgba(var(--danger-rgb),0.08)',border:'1px solid rgba(var(--danger-rgb),0.15)',borderRadius:'var(--r-control)',padding:'10px 13px',cursor:'pointer',color:'var(--danger)',display:'flex',alignItems:'center',justifyContent:'center'}}><Trash2 size={13}/></button>
-            </div>
+    {filtered.length>0&&<ul className="portal-wants-grid" style={{listStyle:'none',margin:0,padding:0,display:'grid',columnGap:24}}>
+      {filtered.map((w)=>{const img=w.card_image_url;const done=w.missing<=0;
+        const meta=[done?`completa · ${w.ownedQty} na coleção`:`${w.ownedQty} de ${w.quantity} na coleção`,w.card_type&&w.card_type!=='Normal'?w.card_type:null,w.inCartQty>0?`${w.inCartQty} no pedido`:null].filter(Boolean).join(' · ');
+        return(
+        <li key={w.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:'1px solid var(--line-soft)',opacity:done?0.7:1}}>
+          <button onClick={()=>img&&setZoomSrc(img)} disabled={!img} aria-label={img?`Ampliar imagem de ${w.card_name}`:w.card_name} style={{width:48,flexShrink:0,padding:0,border:'none',background:'none',cursor:img?'zoom-in':'default'}}><CardThumb card={w} radius={5} style={{aspectRatio:'63 / 88',border:'none'}}/></button>
+          <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:1}}>
+            <span style={{fontSize:'var(--fs-sm)',fontWeight:500,color:'var(--text-strong)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{w.card_name}</span>
+            <span style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{meta}</span>
+            {/* Discreto de propósito: a lista é de desejo, comprar é opcional. */}
+            {!done&&<button onClick={()=>onAddToCart(w,w.missing)} aria-label={`Pôr ${w.missing} ${w.card_name} no pedido`} style={{alignSelf:'flex-start',minHeight:32,padding:'4px 0',border:'none',background:'none',color:'var(--text-strong)',fontSize:'var(--fs-xs)',fontWeight:500,textDecoration:'underline',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>Pôr {w.missing} no pedido</button>}
           </div>
-        </Card>
+          <div style={{display:'flex',alignItems:'center',borderRadius:22,background:'var(--fill)',flexShrink:0}}>
+            <button onClick={()=>w.quantity<=1?onRemove(w.id):onUpdateQty(w.id,w.quantity-1)} aria-label={w.quantity<=1?`Tirar ${w.card_name} da lista`:`Querer uma ${w.card_name} a menos`} style={{width:44,height:44,border:'none',background:'transparent',color:'var(--text-strong)',display:'grid',placeItems:'center',cursor:'pointer'}}>{w.quantity<=1?<Trash2 size={15}/>:<Minus size={16}/>}</button>
+            <span aria-label={`Quantidade desejada: ${w.quantity}`} style={{minWidth:18,textAlign:'center',fontSize:'var(--fs-sm)',fontWeight:600,color:'var(--text-strong)'}}>{w.quantity}</span>
+            <button onClick={()=>onUpdateQty(w.id,w.quantity+1)} aria-label={`Querer mais uma ${w.card_name}`} style={{width:44,height:44,border:'none',background:'transparent',color:'var(--text-strong)',display:'grid',placeItems:'center',cursor:'pointer'}}><Plus size={16}/></button>
+          </div>
+        </li>
       );})}
-    </div>}
+    </ul>}
 
     {filtered.length===0&&(filter==='done'
       ?<EmptyState icon={Check} title="Nenhum desejo completo ainda" sub="Assim que a coleção cobrir o que você quer, a carta aparece aqui"/>
-      :<EmptyState icon={ScrollText} title={searchW?'Nenhuma carta encontrada':'Sua lista de desejos está vazia'} sub={searchW?'Tente outro termo':'Marque no catálogo as cartas que você quer um dia'} action={!searchW?<Btn onClick={()=>nav&&nav('catalog')} sfx="nav"><BookOpen size={15}/> Ver catálogo</Btn>:undefined}/>)}
+      :<EmptyState icon={ScrollText} title={searchW?'Nenhuma carta encontrada':'Sua lista de desejos está vazia'} sub={searchW?'Tente outro termo':'Abra uma carta no catálogo e toque em "Guardar nos desejos"'} action={!searchW?<Btn onClick={()=>nav&&nav('catalog')} sfx="nav">Ver cartas</Btn>:undefined}/>)}
 
     <ImageLightbox src={zoomSrc} onClose={()=>setZoomSrc(null)}/>
   </div>);
@@ -1037,14 +1033,15 @@ function SuccessPage({lastOrder,theme,nav}){
 // ══════════════════════════════════════════════════════
 
 function ProfileSection({title,icon:Icon,color,children,defaultOpen=false}){
+  // Galeria: linha de lista, não cartão colorido. O ícone recua, o título manda.
   const [open,setOpen]=useState(defaultOpen);
-  return(<div style={{borderRadius:'var(--r-card)',border:'1px solid var(--line-soft)',overflow:'hidden',background:'var(--fill-soft)'}}>
-    <button onClick={()=>setOpen(o=>!o)} style={{width:'100%',background:'none',border:'none',padding:'14px 16px',display:'flex',alignItems:'center',gap:'var(--sp-2)',cursor:'pointer',color:'var(--text)'}}>
-      <div style={{width:32,height:32,borderRadius:'var(--r-control)',background:wa(color,'18'),border:'1px solid '+wa(color,'30'),display:'grid',placeItems:'center',flexShrink:0}}><Icon size={15} style={{color}}/></div>
-      <span style={{flex:1,textAlign:'left',fontWeight:700,fontSize:14,fontFamily:"'Inter',system-ui,sans-serif"}}>{title}</span>
-      <ChevronRight size={15} style={{color:'var(--text-faint)',transform:open?'rotate(90deg)':'none',transition:'transform .2s'}}/>
+  return(<div style={{borderBottom:'1px solid var(--line-soft)'}}>
+    <button onClick={()=>setOpen(o=>!o)} aria-expanded={open} style={{width:'100%',minHeight:56,background:'none',border:'none',padding:'0 2px',display:'flex',alignItems:'center',gap:12,cursor:'pointer',color:'var(--text-strong)'}}>
+      <Icon size={18} strokeWidth={1.75} style={{color:'var(--text-dim)',flexShrink:0}}/>
+      <span style={{flex:1,textAlign:'left',fontWeight:500,fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif"}}>{title}</span>
+      <ChevronRight size={16} style={{color:'var(--text-dim)',transform:open?'rotate(90deg)':'none',transition:'transform .2s'}}/>
     </button>
-    {open&&<div style={{padding:'0 16px 16px',borderTop:'1px solid rgba(var(--ink),calc(0.04*var(--ink-a)))'}}>{children}</div>}
+    {open&&<div style={{padding:'2px 2px 18px 32px'}}>{children}</div>}
   </div>);
 }
 
@@ -1052,18 +1049,21 @@ function ProfileSection({title,icon:Icon,color,children,defaultOpen=false}){
 // Mesma trilha em toda parte (shared/orderStatus.js): o cliente vê aqui o
 // mesmo estágio que o admin avança no console.
 function OrderTrack({stage}){
-  if(stage.terminal)return(<div style={{fontSize:'var(--fs-2xs)',color:stage.color,fontWeight:700,padding:'8px 0'}}>{stage.label} · {stage.hint}</div>);
+  if(stage.terminal)return(<div style={{fontSize:'var(--fs-sm)',color:stage.color,fontWeight:600,padding:'4px 0'}}>{stage.label} · {stage.hint}</div>);
+  // Só pontos na linha e uma legenda: com oito etapas, um rótulo embaixo de
+  // cada ponto não cabe no celular sem encavalar.
   return(<div>
-    <div style={{display:'flex',alignItems:'flex-start'}}>
+    <div role="img" aria-label={`Etapa ${stage.index+1} de ${ORDER_STAGES.length}: ${stage.label}`} style={{display:'flex',alignItems:'center'}}>
       {ORDER_STAGES.map((s,i)=>(<Fragment key={s.key}>
-        {i>0&&<div style={{flex:1,height:2,background:i<=stage.index?'var(--ok)':'var(--fill)',marginTop:7}}/>}
-        <div style={{display:'flex',flexDirection:'column',alignItems:'center',width:40,flexShrink:0}}>
-          <div style={{width:15,height:15,borderRadius:'var(--r-control)',background:i<=stage.index?'var(--ok)':'var(--fill)',display:'grid',placeItems:'center'}}>{i<stage.index?<Check size={9} style={{color:'var(--ok-ink)'}}/>:null}</div>
-          <div style={{fontSize:8,color:i<=stage.index?'var(--ok)':'var(--text-faint)',marginTop:3,textAlign:'center',lineHeight:1.2}}>{s.short}</div>
-        </div>
+        {i>0&&<div style={{flex:1,height:2,background:i<=stage.index?'var(--text-strong)':'var(--line)'}}/>}
+        <div title={s.label} style={{width:i===stage.index?14:10,height:i===stage.index?14:10,borderRadius:'50%',flexShrink:0,background:i<=stage.index?'var(--text-strong)':'var(--line)',boxShadow:i===stage.index?'0 0 0 4px var(--fill)':'none'}}/>
       </Fragment>))}
     </div>
-    <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-dim)',marginTop:9,lineHeight:1.45}}>{stage.hint}</div>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',gap:8,marginTop:12}}>
+      <span style={{fontSize:'var(--fs-md)',fontWeight:600,color:'var(--text-strong)'}}>{stage.label}</span>
+      <span style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)',whiteSpace:'nowrap'}}>etapa {stage.index+1} de {ORDER_STAGES.length}</span>
+    </div>
+    <div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',marginTop:4,lineHeight:1.45}}>{stage.hint}</div>
   </div>);
 }
 
@@ -1119,60 +1119,60 @@ function CollectionAlbum({token,collection,onSetExtra,theme}){
     try{await onSetExtra(cardId,next);}finally{setBusy(null);}
   }
 
+  const filterBtn=active=>({flex:'none',height:36,padding:0,border:'none',borderBottom:'1.5px solid '+(active?'var(--text-strong)':'transparent'),background:'transparent',color:active?'var(--text-strong)':'var(--text-dim)',fontSize:'var(--fs-sm)',fontWeight:500,cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif",whiteSpace:'nowrap'});
   return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)'}}>
-    <Card style={{padding:'var(--sp-3)'}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',marginBottom:9}}>
-        <div>
-          <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',textTransform:'uppercase',letterSpacing:1,fontWeight:600}}>Álbum</div>
-          <div style={{fontSize:'var(--fs-xl)',fontWeight:800,color:theme.primary}}>{collection.stats.distinct} <span style={{fontSize:14,color:'var(--text-faint)',fontWeight:400}}>de {collection.stats.total} cartas</span></div>
-        </div>
-        <div style={{textAlign:'right'}}>
-          <div style={{fontSize:'var(--fs-lg)',fontWeight:800,color:'var(--ok)'}}>{collection.stats.percent}%</div>
-          <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{collection.stats.copies} cópias</div>
-        </div>
+    <div style={{display:'flex',flexDirection:'column',gap:8}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',gap:12}}>
+        <div style={{fontSize:'var(--fs-xl)',fontWeight:600,letterSpacing:-0.3,color:'var(--text-strong)'}}>{collection.stats.distinct} <span style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',fontWeight:400}}>de {collection.stats.total} cartas</span></div>
+        <div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}>{collection.stats.percent}% · {collection.stats.copies} cópias</div>
       </div>
-      <div style={{background:'rgba(var(--sunk),calc(0.35*var(--sunk-a)))',borderRadius:'var(--r-pill)',height:8,overflow:'hidden'}}>
-        <div style={{width:collection.stats.percent+'%',height:'100%',borderRadius:'var(--r-pill)',background:'linear-gradient(90deg,'+theme.primary+',var(--ok))',transition:'width .5s'}}/>
+      <div role="progressbar" aria-valuenow={collection.stats.percent} aria-valuemin={0} aria-valuemax={100} aria-label="Progresso do álbum" style={{background:'var(--fill)',borderRadius:2,height:4,overflow:'hidden'}}>
+        <div style={{width:collection.stats.percent+'%',height:'100%',background:'var(--gp)',transition:'width .5s'}}/>
       </div>
-    </Card>
-
-    <Input icon={Search} placeholder="Buscar no álbum..." value={search} onChange={e=>setSearch(e.target.value)}/>
-    <div style={{display:'flex',gap:'var(--sp-1)',flexWrap:'wrap'}}>
-      {['Todos',...CATALOG_TYPES].map(t=>(
-        <button key={t} onClick={()=>{SFX.toggle();setTypeF(t);}} style={{flex:'1 1 60px',padding:'7px 6px',borderRadius:'var(--r-control)',border:'none',background:typeF===t?theme.primary:'var(--text-faint)',color:typeF===t?'var(--gp-ink)':'var(--text-faint)',fontWeight:600,fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>{t}</button>
-      ))}
-      <button onClick={()=>{SFX.toggle();setOnlyOwned(v=>!v);}} aria-pressed={onlyOwned} style={{flex:'1 1 100px',padding:'7px 6px',borderRadius:'var(--r-control)',border:'1px solid '+(onlyOwned?'rgba(var(--ok-rgb),0.4)':'var(--line-soft)'),background:onlyOwned?'rgba(var(--ok-rgb),0.14)':'var(--fill-soft)',color:onlyOwned?'var(--ok)':'var(--text-dim)',fontWeight:700,fontSize:'var(--fs-2xs)',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>Só as que tenho</button>
     </div>
+
+    <label style={{display:'flex',alignItems:'center',gap:'var(--sp-2)',height:44,padding:'0 14px',borderRadius:'var(--r-pill)',background:'var(--fill)'}}>
+      <Search size={17} style={{color:'var(--text-dim)',flexShrink:0}} aria-hidden="true"/>
+      <span className="mp-sr-only">Buscar no álbum</span>
+      <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar no álbum" style={{flex:1,minWidth:0,border:'none',outline:'none',background:'transparent',color:'var(--text-strong)',fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif"}}/>
+    </label>
+    <nav aria-label="Filtros do álbum" style={{display:'flex',gap:18,overflowX:'auto',scrollbarWidth:'none'}}>
+      {['Todos',...CATALOG_TYPES].map(t=>(
+        <button key={t} aria-pressed={typeF===t} onClick={()=>{SFX.toggle();setTypeF(t);}} style={filterBtn(typeF===t)}>{t==='Todos'?'Todas':t}</button>
+      ))}
+      <span aria-hidden="true" style={{width:1,alignSelf:'center',height:16,background:'var(--line)',flexShrink:0}}/>
+      <button onClick={()=>{SFX.toggle();setOnlyOwned(v=>!v);}} aria-pressed={onlyOwned} style={filterBtn(onlyOwned)}>Só as que tenho</button>
+    </nav>
 
     <div className="portal-card-grid portal-catalog-grid" style={{opacity:loading?0.55:1,transition:'opacity .15s'}}>
       {cards.map(c=>{
         const bought=collection.bought.get(c.id)||0;
         const extra=collection.extras.get(c.id)||0;
         const owned=bought+extra;
-        return(<Card key={c.id} style={{padding:'var(--sp-2)',opacity:owned>0?1:0.55}}>
-          <div style={{position:'relative'}} onClick={()=>c.image_url&&setZoomSrc(c.image_url)}>
-            <CardThumb card={c}/>
-            {owned>0
-              ?<div style={{position:'absolute',top:7,left:7}}><Tag color="var(--ok)" style={{fontSize:'var(--fs-2xs)',padding:'2px 7px'}}><Check size={10}/> {owned}</Tag></div>
-              :<div style={{position:'absolute',inset:0,borderRadius:12,background:'rgba(var(--sunk),calc(0.45*var(--sunk-a)))',pointerEvents:'none'}}/>}
-          </div>
-          <div style={{padding:'8px 3px 2px'}}>
-            <div style={{fontWeight:700,fontSize:'var(--fs-xs)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</div>
-            <div style={{fontSize:'var(--fs-2xs)',color:TC[c.type],fontWeight:700,marginTop:2}}>{c.type}</div>
-            <div style={{fontSize:8,color:'var(--text-faint)',marginTop:3,lineHeight:1.3}}>{bought>0?`${bought} do portal`:'nenhuma do portal'}{extra>0?` · ${extra} manual`:''}</div>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:4,marginTop:6,background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',borderRadius:'var(--r-control)',border:'1px solid var(--line-soft)'}}>
-              <button onClick={()=>adjust(c.id,-1)} disabled={extra===0||busy===c.id} title="Tirar uma cópia do ajuste manual" aria-label={`Tirar uma cópia manual de ${c.name}`} style={{background:'none',border:'none',color:extra===0?'var(--text-faint)':'var(--text-strong)',padding:'7px 10px',cursor:extra===0?'not-allowed':'pointer'}}><Minus size={11}/></button>
-              <span style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-dim)'}}>{busy===c.id?'…':`+${extra}`}</span>
-              <button onClick={()=>adjust(c.id,1)} disabled={busy===c.id} title="Já tenho mais uma cópia desta carta" aria-label={`Marcar mais uma cópia de ${c.name}`} style={{background:'none',border:'none',color:'var(--text-strong)',padding:'7px 10px',cursor:'pointer'}}><Plus size={11}/></button>
+        return(<article key={c.id} style={{display:'flex',flexDirection:'column',gap:6,minWidth:0}}>
+          <button onClick={()=>c.image_url&&setZoomSrc(c.image_url)} aria-label={`Ampliar ${c.name}`} style={{position:'relative',display:'block',width:'100%',padding:0,border:'none',background:'none',cursor:c.image_url?'zoom-in':'default',borderRadius:9}}>
+            {/* Carta que você não tem fica em tons de cinza: o álbum se lê de longe. */}
+            <CardThumb card={c} radius={9} style={{aspectRatio:'63 / 88',border:'none',filter:owned>0?'none':'grayscale(1)',opacity:owned>0?1:.45}}/>
+            {owned>0&&<span style={{position:'absolute',left:8,top:8,minWidth:26,height:26,padding:'0 7px',borderRadius:13,background:'var(--ga)',color:'var(--ga-ink)',fontSize:'var(--fs-xs)',fontWeight:600,display:'grid',placeItems:'center'}}>×{owned}</span>}
+          </button>
+          <div style={{display:'flex',alignItems:'center',gap:4}}>
+            <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:1}}>
+              <span style={{fontSize:'var(--fs-sm)',fontWeight:500,color:'var(--text-strong)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name}</span>
+              <span style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{bought>0?`${bought} do portal`:'nenhuma do portal'}{extra>0?` · ${extra} manual`:''}</span>
             </div>
           </div>
-        </Card>);
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',borderRadius:22,background:'var(--fill)'}}>
+            <button onClick={()=>adjust(c.id,-1)} disabled={extra===0||busy===c.id} title="Tirar uma cópia do ajuste manual" aria-label={`Tirar uma cópia manual de ${c.name}`} style={{width:44,height:40,border:'none',background:'none',color:'var(--text-strong)',opacity:extra===0?.3:1,display:'grid',placeItems:'center',cursor:extra===0?'not-allowed':'pointer'}}><Minus size={14}/></button>
+            <span style={{fontSize:'var(--fs-xs)',fontWeight:500,color:'var(--text-dim)'}}>{busy===c.id?'…':extra>0?`+${extra} manual`:'tenho fora'}</span>
+            <button onClick={()=>adjust(c.id,1)} disabled={busy===c.id} title="Já tenho mais uma cópia desta carta" aria-label={`Marcar mais uma cópia de ${c.name}`} style={{width:44,height:40,border:'none',background:'none',color:'var(--text-strong)',display:'grid',placeItems:'center',cursor:'pointer'}}><Plus size={14}/></button>
+          </div>
+        </article>);
       })}
       {cards.length===0&&!loading&&<div style={{gridColumn:'1 / -1'}}><EmptyState icon={BookOpen} title={onlyOwned?'Nenhuma carta na coleção ainda':'Nenhuma carta encontrada'} sub={onlyOwned?'Suas compras entram aqui sozinhas quando o pagamento é confirmado':'Tente outro termo'}/></div>}
     </div>
 
     {cards.length>0&&<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'var(--sp-2)',padding:'4px 0 8px'}}>
-      <div aria-live="polite" style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)'}}>{cards.length} de {total}</div>
+      <div aria-live="polite" style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)'}}>{cards.length} de {total}</div>
       {cards.length<total&&<Btn variant="secondary" disabled={loading} onClick={()=>setPage(p=>p+1)} sfx="nav" style={{minWidth:200}}>{loading?<><Spin size={14}/> Carregando…</>:<>Carregar mais</>}</Btn>}
     </div>}
     <ImageLightbox src={zoomSrc} onClose={()=>setZoomSrc(null)}/>
@@ -1239,14 +1239,14 @@ function ShipmentAddressEditor({order,allBatches,token,toastFn,onReloadOrders}){
     setBusy(false);
   }
 
-  const label={fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-faint)',marginBottom:6,textTransform:'uppercase',letterSpacing:1};
+  const label={fontSize:'var(--fs-xs)',fontWeight:500,color:'var(--text-dim)',marginBottom:6};
   return(<div style={{marginTop:10}}>
     <div style={label}>Endereço de entrega</div>
     {!editing&&<>
       {current?<AddressDisplay address={current} onEdit={canChange?startEdit:undefined}/>:
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,fontSize:'var(--fs-xs)',color:'var(--text-dim)'}}>
           <span>Endereço do seu cadastro</span>
-          {canChange&&<Btn variant="secondary" onClick={startEdit} style={{fontSize:'var(--fs-2xs)',padding:'6px 10px'}} sfx="nav"><Edit3 size={12}/> Trocar</Btn>}
+          {canChange&&<button onClick={()=>{SFX.nav();startEdit();}} style={{minHeight:44,background:'none',border:'none',padding:'0 4px',cursor:'pointer',color:'var(--text-strong)',fontSize:'var(--fs-sm)',fontWeight:500,textDecoration:'underline',flexShrink:0,fontFamily:"'Inter',system-ui,sans-serif"}}>Trocar</button>}
         </div>}
       {pending&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--gold)',marginTop:6,lineHeight:1.4}}>
         Troca para {pending.shipping_address?.rua}{pending.shipping_address?.numero?', '+pending.shipping_address.numero:''} ({pending.shipping_address?.cidade}/{pending.shipping_address?.uf}) aguardando o pagamento da diferença de {fmt(pending.total_locked)}.
@@ -1295,50 +1295,47 @@ function ClientOrderCard({order,allBatches,token,theme,expanded,onToggle,onAddCa
     return()=>{alive=false;};
   },[expanded]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return(<div style={{borderRadius:'var(--r-control)',border:`1px solid ${wa(stage.color,'2a')}`,overflow:'hidden',background:'rgba(var(--sunk),calc(0.2*var(--sunk-a)))'}}>
-    <button onClick={onToggle} style={{width:'100%',padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',gap:'var(--sp-2)',background:'none',border:'none',cursor:'pointer',color:'var(--text)',fontFamily:"'Inter',system-ui,sans-serif",textAlign:'left'}}>
-      <div style={{display:'flex',alignItems:'center',gap:'var(--sp-2)',minWidth:0}}>
-        <div style={{width:36,height:36,borderRadius:'var(--r-control)',background:wa(stage.color,'1a'),display:'grid',placeItems:'center',flexShrink:0}}><Package size={15} style={{color:stage.color}}/></div>
-        <div style={{minWidth:0}}>
-          <div style={{fontSize:'var(--fs-xs)',fontWeight:700}}>#{order.shortId} · R$ {order.total.toFixed(2).replace('.',',')}</div>
-          <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{order.qty} carta{order.qty!==1?'s':''} · {new Date(order.createdAt).toLocaleDateString('pt-BR')}{order.batches.length>1?` · ${order.batches.length} lotes`:''}</div>
-        </div>
+  return(<div style={{borderBottom:'1px solid var(--line-soft)'}}>
+    <button onClick={onToggle} aria-expanded={expanded} style={{width:'100%',minHeight:64,padding:'10px 2px',display:'flex',justifyContent:'space-between',alignItems:'center',gap:'var(--sp-3)',background:'none',border:'none',cursor:'pointer',color:'var(--text-strong)',fontFamily:"'Inter',system-ui,sans-serif",textAlign:'left'}}>
+      <div style={{minWidth:0,display:'flex',flexDirection:'column',gap:2}}>
+        <div style={{fontSize:'var(--fs-md)',fontWeight:500}}>#{order.shortId} · R$ {order.total.toFixed(2).replace('.',',')}</div>
+        <div style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)'}}>{order.qty} carta{order.qty!==1?'s':''} · {new Date(order.createdAt).toLocaleDateString('pt-BR')}{order.batches.length>1?` · ${order.batches.length} lotes`:''}</div>
       </div>
-      <div style={{display:'flex',alignItems:'center',gap:'var(--sp-1)',flexShrink:0}}>
-        <Tag color={stage.color} style={{fontSize:'var(--fs-2xs)'}}>{stage.short}</Tag>
-        <ChevronRight size={13} style={{color:'var(--text-faint)',transform:expanded?'rotate(90deg)':'none',transition:'transform .2s'}}/>
+      <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+        <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:'var(--fs-xs)',fontWeight:500,color:'var(--text-strong)'}}><span aria-hidden="true" style={{width:8,height:8,borderRadius:'50%',background:stage.color}}/>{stage.short}</span>
+        <ChevronRight size={16} style={{color:'var(--text-dim)',transform:expanded?'rotate(90deg)':'none',transition:'transform .2s'}}/>
       </div>
     </button>
-    {expanded&&<div style={{padding:'0 14px 12px',borderTop:'1px solid rgba(var(--ink),calc(0.04*var(--ink-a)))'}}>
-      <div style={{marginTop:12,padding:'10px 12px',borderRadius:'var(--r-control)',background:'rgba(var(--sunk),calc(0.22*var(--sunk-a)))'}}>
-        <div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-faint)',marginBottom:8,textTransform:'uppercase',letterSpacing:1}}>Status</div>
+    {expanded&&<div style={{padding:'0 2px 18px'}}>
+      <div style={{marginTop:4,padding:'14px',borderRadius:'var(--r-card)',background:'var(--fill-soft)'}}>
+        <div style={{fontSize:'var(--fs-xs)',fontWeight:500,color:'var(--text-dim)',marginBottom:10}}>Status</div>
         <OrderTrack stage={stage}/>
-        {order.tracking&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--ok)',marginTop:10,fontWeight:600}}>Rastreio: {order.tracking}{order.trackingStatus?` · ${order.trackingStatus}`:''}</div>}
+        {order.tracking&&<div style={{fontSize:'var(--fs-sm)',color:'var(--text-strong)',marginTop:10,fontWeight:500}}>Rastreio: {order.tracking}{order.trackingStatus?` · ${order.trackingStatus}`:''}</div>}
       </div>
 
-      <div style={{marginTop:10}}>
-        <div style={{fontSize:'var(--fs-2xs)',fontWeight:700,color:'var(--text-faint)',marginBottom:6,textTransform:'uppercase',letterSpacing:1}}>Cartas</div>
+      <div style={{marginTop:16}}>
+        <div style={{fontSize:'var(--fs-xs)',fontWeight:500,color:'var(--text-dim)',marginBottom:6}}>Cartas</div>
         {loadingCards?<div style={{textAlign:'center',padding:10}}><Spin size={16}/></div>:
         (cards&&cards.length>0)?cards.map((c,ci,arr)=>(
-          <div key={ci} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:'var(--fs-xs)',borderBottom:ci<arr.length-1?'1px solid rgba(var(--ink),calc(0.03*var(--ink-a)))':'none'}}>
-            <span style={{color:'var(--text-dim)'}}>{c.name} <span style={{color:TC[c.type]||'var(--text-faint)',fontSize:'var(--fs-2xs)',fontWeight:700}}>{c.type||''}</span></span>
-            <span style={{fontWeight:700}}>x{c.qty}</span>
+          <div key={ci} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',fontSize:'var(--fs-sm)',borderBottom:ci<arr.length-1?'1px solid var(--line-soft)':'none'}}>
+            <span style={{color:'var(--text-strong)'}}>{c.name}{c.type&&c.type!=='Normal'?<span style={{color:'var(--text-dim)'}}> · {c.type}</span>:null}</span>
+            <span style={{color:'var(--text-dim)'}}>×{c.qty}</span>
           </div>
         )):<div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>Detalhes não disponíveis</div>}
       </div>
 
       <ShipmentAddressEditor order={order} allBatches={allBatches} token={token} toastFn={toastFn} onReloadOrders={onReloadOrders}/>
 
-      {canAdd&&<div style={{marginTop:12,paddingTop:10,borderTop:'1px solid rgba(var(--ink),calc(0.05*var(--ink-a)))'}}>
-        <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-dim)',lineHeight:1.4,marginBottom:8}}>A compra no fornecedor ainda não foi feita — dá tempo de mandar mais cartas para este mesmo pedido, sem pagar frete de novo.</div>
-        <Btn full variant="secondary" onClick={()=>onAddCards(order)} style={{fontSize:'var(--fs-2xs)',padding:'9px 12px'}} sfx="nav"><Plus size={13}/> Adicionar cartas a este pedido</Btn>
+      {canAdd&&<div style={{marginTop:16}}>
+        <div style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)',lineHeight:1.45,marginBottom:8}}>A compra no fornecedor ainda não foi feita — dá tempo de mandar mais cartas para este mesmo pedido, sem pagar frete de novo.</div>
+        <Btn full variant="secondary" onClick={()=>onAddCards(order)} sfx="nav"><Plus size={13}/> Adicionar cartas a este pedido</Btn>
       </div>}
 
       {pendingBatches.map(b=>(
         <div key={b.id} style={{display:'grid',gridTemplateColumns:'1fr auto auto',gap:'var(--sp-2)',marginTop:10}}>
-          <Btn variant="warn" onClick={()=>pagarAgoraPedido(b,toastFn)} style={{width:'100%',fontSize:'var(--fs-2xs)',justifyContent:'center'}} sfx="nav"><CreditCard size={12}/> {isShippingAdjustment(b)?'Pagar diferença de frete':'Pagar'} R$ {Number(b.total_locked||0).toFixed(2).replace('.',',')}</Btn>
-          <Btn variant="ghost" title="Conferir pagamento" onClick={async()=>{try{await mpSync(b.id);onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{fontSize:'var(--fs-2xs)',justifyContent:'center'}} sfx=""><RefreshCw size={12}/></Btn>
-          <Btn variant="danger" onClick={async()=>{if(!confirm(isShippingAdjustment(b)?'Cancelar a troca de endereço? O envio segue para o endereço atual.':'Cancelar este pedido?'))return;try{const res=await fetch('/api/cancel-order',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:String(b.id),orderId:String(b.order_id||'')})});const j=await res.json().catch(()=>({}));if(!res.ok||!j.ok)throw new Error(j.error||'Falha');toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{fontSize:'var(--fs-2xs)',justifyContent:'center'}} sfx=""><X size={12}/></Btn>
+          <Btn onClick={()=>pagarAgoraPedido(b,toastFn)} style={{width:'100%',fontSize:'var(--fs-sm)',justifyContent:'center'}} sfx="nav"> {isShippingAdjustment(b)?'Pagar diferença de frete':'Pagar'} R$ {Number(b.total_locked||0).toFixed(2).replace('.',',')}</Btn>
+          <Btn variant="secondary" title="Conferir pagamento" onClick={async()=>{try{await mpSync(b.id);onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:48,padding:0,justifyContent:'center'}} sfx=""><RefreshCw size={15}/></Btn>
+          <Btn variant="secondary" title="Cancelar" onClick={async()=>{if(!confirm(isShippingAdjustment(b)?'Cancelar a troca de endereço? O envio segue para o endereço atual.':'Cancelar este pedido?'))return;try{const res=await fetch('/api/cancel-order',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({batchId:String(b.id),orderId:String(b.order_id||'')})});const j=await res.json().catch(()=>({}));if(!res.ok||!j.ok)throw new Error(j.error||'Falha');toastFn('Pedido cancelado','success');onReloadOrders();}catch(err){toastFn('Erro: '+(err.message||String(err)),'error');}}} style={{width:48,padding:0,justifyContent:'center',color:'var(--danger)'}} sfx=""><X size={15}/></Btn>
         </div>
       ))}
     </div>}
@@ -1394,49 +1391,35 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
 
   return(<div className="portal-page portal-profile" style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)'}}>
 
-    {/* Cabeçalho da conta */}
-    <div style={{borderRadius:'var(--r-card)',padding:'var(--sp-4)',background:`linear-gradient(135deg,${gT?wa(gT.primary,'22'):'var(--text-faint)'} 0%,rgba(var(--sunk),0) 100%)`,border:`1px solid ${gT?wa(gT.primary,'30'):'var(--line)'}`,position:'relative',overflow:'hidden'}}>
-      {gT&&<div style={{position:'absolute',inset:0,background:`radial-gradient(ellipse at 80% 50%,${gT.glow||gT.primary}18 0%,transparent 70%)`,pointerEvents:'none'}}/>}
-      <div style={{display:'flex',alignItems:'center',gap:'var(--sp-3)',position:'relative'}}>
-        <div style={{width:56,height:56,borderRadius:'var(--r-card)',background:gT?`linear-gradient(135deg,${gT.primary},${gT.secondary})`:'var(--text-faint)',display:'grid',placeItems:'center',fontSize:24,flexShrink:0,boxShadow:gT?`0 0 20px ${gT.glow||gT.primary}40`:'none'}}>
-          {guild?'⚔️':'👤'}
-        </div>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontWeight:800,fontSize:'var(--fs-lg)',fontFamily:"'Inter',system-ui,sans-serif",overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{profile?.name||'Aventureiro'}</div>
-          <div style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)',marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{profile?.email||guild||'Escolha sua guilda'}</div>
-        </div>
+    {/* Cabeçalho da conta — sem cartão nem brilho: a guilda é o anel do avatar. */}
+    <div style={{display:'flex',alignItems:'center',gap:'var(--sp-3)',padding:'4px 0'}}>
+      <div style={{width:56,height:56,borderRadius:'50%',background:'var(--fill)',color:'var(--text-strong)',display:'grid',placeItems:'center',flexShrink:0,boxShadow:'0 0 0 2px var(--bg), 0 0 0 4px '+(gT?gT.primary:'var(--line)')}}>
+        <User size={24} strokeWidth={1.5}/>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'var(--sp-2)',marginTop:14,position:'relative'}}>
-        {[
-          {v:orders.length,l:'pedidos'},
-          {v:collection?.stats?.copies||0,l:'cartas'},
-          {v:'R$ '+totalSpent.toFixed(0),l:'comprados'},
-        ].map(x=>(<div key={x.l} style={{textAlign:'center',padding:'8px 4px',borderRadius:'var(--r-control)',background:'rgba(var(--sunk),calc(0.25*var(--sunk-a)))'}}>
-          <div style={{fontSize:'var(--fs-md)',fontWeight:800,color:'var(--text-strong)'}}>{x.v}</div>
-          <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>{x.l}</div>
-        </div>))}
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontWeight:600,fontSize:'var(--fs-xl)',letterSpacing:-0.3,color:'var(--text-strong)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{profile?.name||'Aventureiro'}</div>
+        {guild&&<div style={{fontSize:'var(--fs-sm)',color:'var(--text-strong)',marginTop:2}}>{guild}</div>}
+        <div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',marginTop:1,lineHeight:1.4}}>{`${orders.length} pedido${orders.length!==1?'s':''} · ${collection?.stats?.copies||0} cartas · R$ ${totalSpent.toFixed(0)} comprados`}</div>
       </div>
     </div>
 
-    {/* Abas da conta */}
-    <div role="tablist" aria-label="Seções da conta" style={{display:'flex',gap:'var(--sp-1)'}}>
+    {/* Abas da conta — texto sublinhado, como os filtros do catálogo */}
+    <div role="tablist" aria-label="Seções da conta" style={{display:'flex',gap:22,borderBottom:'1px solid var(--line-soft)'}}>
       {ACCOUNT_TABS.map(t=>{
         const active=tab===t.key;
-        return(<button key={t.key} role="tab" aria-selected={active} onClick={()=>{SFX.toggle();setTab(t.key);}} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'10px 8px',borderRadius:'var(--r-control)',border:'1px solid '+(active?wa(theme.primary,'55'):'var(--line-soft)'),background:active?wa(theme.primary,'18'):'var(--fill-soft)',color:active?theme.primary:'var(--text-dim)',fontWeight:700,fontSize:'var(--fs-xs)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer'}}>
-          <t.icon size={14}/>{t.label}
-        </button>);
+        return(<button key={t.key} role="tab" aria-selected={active} onClick={()=>{SFX.toggle();setTab(t.key);}} style={{height:44,padding:0,marginBottom:-1,border:'none',borderBottom:'1.5px solid '+(active?'var(--text-strong)':'transparent'),background:'transparent',color:active?'var(--text-strong)':'var(--text-dim)',fontWeight:500,fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer'}}>{t.label}</button>);
       })}
     </div>
 
-    {tab==='orders'&&<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)'}}>
-      {orders.length===0&&<EmptyState icon={Package} title="Nenhum pedido ainda" sub="Monte sua primeira encomenda pelo catálogo" action={<Btn onClick={()=>nav('catalog')} sfx="nav"><BookOpen size={15}/> Ver catálogo</Btn>}/>}
+    {tab==='orders'&&<div style={{display:'flex',flexDirection:'column'}}>
+      {orders.length===0&&<EmptyState icon={Package} title="Nenhum pedido ainda" sub="Monte sua primeira encomenda pelo catálogo" action={<Btn onClick={()=>nav('catalog')} sfx="nav">Ver cartas</Btn>}/>}
       {liveOrders.map(o=>{
         const addOpen=openIndividualOrders[String(o.orderId)];
         return <ClientOrderCard key={o.orderId} order={o} allBatches={myOrders} token={token} theme={theme} expanded={expandedOrder===o.orderId} onToggle={()=>setExpandedOrder(expandedOrder===o.orderId?null:o.orderId)} onAddCards={()=>onAddCards&&onAddCards(o)} canAdd={!!onAddCards&&!!addOpen} onReloadOrders={onReloadOrders} toastFn={toastFn}/>;
       })}
       {doneOrders.length>0&&<>
-        <button onClick={()=>{SFX.toggle();setShowArchived(v=>!v);}} style={{background:'none',border:'none',color:'var(--text-faint)',fontSize:'var(--fs-2xs)',fontWeight:700,cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif",padding:'6px 2px',textAlign:'left',display:'flex',alignItems:'center',gap:4}}>
-          <Archive size={12}/> Concluídos ({doneOrders.length}) <ChevronRight size={12} style={{transform:showArchived?'rotate(90deg)':'none',transition:'transform .2s'}}/>
+        <button onClick={()=>{SFX.toggle();setShowArchived(v=>!v);}} aria-expanded={showArchived} style={{minHeight:48,background:'none',border:'none',color:'var(--text-dim)',fontSize:'var(--fs-sm)',fontWeight:500,cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif",padding:'6px 2px',textAlign:'left',display:'flex',alignItems:'center',gap:6}}>
+          Concluídos ({doneOrders.length}) <ChevronRight size={14} style={{transform:showArchived?'rotate(90deg)':'none',transition:'transform .2s'}}/>
         </button>
         {showArchived&&doneOrders.map(o=>(
           <ClientOrderCard key={o.orderId} order={o} allBatches={myOrders} token={token} theme={theme} expanded={expandedOrder===o.orderId} onToggle={()=>setExpandedOrder(expandedOrder===o.orderId?null:o.orderId)} canAdd={false} onReloadOrders={onReloadOrders} toastFn={toastFn}/>
@@ -1446,7 +1429,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
 
     {tab==='collection'&&<CollectionAlbum token={token} collection={collection} onSetExtra={onSetExtra} theme={theme}/>}
 
-    {tab==='account'&&<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)'}}>
+    {tab==='account'&&<div style={{display:'flex',flexDirection:'column'}}>
       {/* Dados pessoais */}
       <ProfileSection title="Dados pessoais" icon={User} color={theme.primary} defaultOpen={true}>
         <div style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)',marginTop:12}}>
@@ -1454,19 +1437,19 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
             <Input icon={User} placeholder="Seu nome" value={nameVal} onChange={e=>setNameVal(e.target.value)}/>
             <Input icon={Phone} placeholder="WhatsApp" value={wppVal} onChange={e=>setWppVal(e.target.value.replace(/\D/g,'').slice(0,11))}/>
             <div style={{display:'flex',gap:'var(--sp-2)'}}>
-              <Btn variant="success" onClick={savePessoal} disabled={saving} style={{flex:1}} sfx="success">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar</>}</Btn>
+              <Btn variant="primary" onClick={savePessoal} disabled={saving} style={{flex:1}} sfx="success">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar</>}</Btn>
               <Btn variant="ghost" onClick={()=>setEditName(false)} style={{flex:1}} sfx="click">Cancelar</Btn>
             </div>
           </>:<div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div>
-              <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginBottom:2}}>Nome</div>
-              <div style={{fontSize:14,fontWeight:600}}>{profile?.name||'—'}</div>
+              <div style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)',marginBottom:2}}>Nome</div>
+              <div style={{fontSize:'var(--fs-md)',color:'var(--text-strong)'}}>{profile?.name||'—'}</div>
             </div>
             <div>
-              <div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)',marginBottom:2}}>WhatsApp</div>
-              <div style={{fontSize:14,fontWeight:600}}>{profile?.whatsapp||'—'}</div>
+              <div style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)',marginBottom:2}}>WhatsApp</div>
+              <div style={{fontSize:'var(--fs-md)',color:'var(--text-strong)'}}>{profile?.whatsapp||'—'}</div>
             </div>
-            <button onClick={()=>setEditName(true)} style={{background:'var(--fill)',border:'1px solid var(--line)',borderRadius:'var(--r-control)',padding:'6px 10px',cursor:'pointer',color:'var(--text-dim)',display:'flex',alignItems:'center',gap:'var(--sp-1)',fontSize:'var(--fs-2xs)'}}><Edit3 size={12}/> Editar</button>
+            <button onClick={()=>setEditName(true)} style={{minHeight:44,background:'none',border:'none',padding:'0 4px',cursor:'pointer',color:'var(--text-strong)',fontSize:'var(--fs-sm)',fontWeight:500,textDecoration:'underline',fontFamily:"'Inter',system-ui,sans-serif"}}>Editar</button>
           </div>}
         </div>
       </ProfileSection>
@@ -1477,7 +1460,7 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
           {editAddr?<>
             <AddressForm address={addr} setAddress={setAddr}/>
             <div style={{display:'flex',gap:'var(--sp-2)',marginTop:10}}>
-              <Btn variant="success" onClick={saveAddr} disabled={saving} style={{flex:1}} sfx="success">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar</>}</Btn>
+              <Btn variant="primary" onClick={saveAddr} disabled={saving} style={{flex:1}} sfx="success">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar</>}</Btn>
               <Btn variant="ghost" onClick={()=>setEditAddr(false)} style={{flex:1}} sfx="click">Cancelar</Btn>
             </div>
           </>:<AddressDisplay address={addr} onEdit={()=>setEditAddr(true)}/>}
@@ -1485,11 +1468,11 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
       </ProfileSection>
 
       <ProfileSection title="Aparência" icon={colorMode==='light'?Sun:Moon} color="var(--gold)">
-        <div style={{fontSize:'var(--fs-xs)',color:'var(--text-faint)',marginBottom:10,lineHeight:1.5}}>Escolha como o portal aparece neste aparelho. A preferência fica salva aqui mesmo.</div>
-        <div style={{display:'flex',gap:'var(--sp-1)'}}>
+        <div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',marginBottom:10,lineHeight:1.5}}>Escolha como o portal aparece neste aparelho. A preferência fica salva aqui mesmo.</div>
+        <div role="radiogroup" aria-label="Tema" style={{display:'flex',gap:4,padding:4,borderRadius:'var(--r-pill)',background:'var(--fill)'}}>
           {[{key:'dark',label:'Escuro',icon:Moon},{key:'light',label:'Claro',icon:Sun}].map(opt=>{
             const active=colorMode===opt.key;
-            return(<button key={opt.key} onClick={()=>{SFX.toggle();onColorModeChange(opt.key);}} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:'var(--sp-1)',padding:'11px 8px',borderRadius:'var(--r-control)',border:'1px solid '+(active?wa(theme.primary,'55'):'var(--line)'),background:active?wa(theme.primary,'18'):'var(--text-faint)',color:active?theme.primary:'var(--text-dim)',fontSize:'var(--fs-sm)',fontWeight:700,cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>
+            return(<button key={opt.key} role="radio" aria-checked={active} onClick={()=>{SFX.toggle();onColorModeChange(opt.key);}} style={{flex:1,minHeight:40,display:'flex',alignItems:'center',justifyContent:'center',gap:'var(--sp-1)',padding:'8px',borderRadius:'var(--r-pill)',border:'none',background:active?'var(--sheet-bg)':'transparent',boxShadow:active?'0 1px 3px rgba(var(--sunk),calc(0.2*var(--sunk-a)))':'none',color:active?'var(--text-strong)':'var(--text-dim)',fontSize:'var(--fs-sm)',fontWeight:500,cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>
               <opt.icon size={15}/>{opt.label}
             </button>);
           })}
@@ -1500,36 +1483,36 @@ function ProfileView({profile,token,theme,nav,isAdmin,setShowTutorial,onSaveProf
         <div style={{marginTop:12}}>
           <div style={{display:'flex',justifyContent:'center',gap:'var(--sp-3)',margin:'10px 0'}}>{MANA_COLORS.map(m=><ManaOrb key={m.key} mana={m.key} selected={colors.includes(m.key)} onClick={()=>toggleC(m.key)} size={44}/>)}</div>
           {guild&&<div style={{textAlign:'center',marginBottom:10,display:'flex',alignItems:'center',justifyContent:'center',gap:'var(--sp-2)'}}><GuildBadge guild={guild} size={16}/><span style={{fontWeight:700,fontSize:14,color:gT?gT.primary:'var(--text-strong)'}}>{guild}</span></div>}
-          {changed&&guild&&<Btn full variant="success" onClick={saveGuild} disabled={saving} sfx="success">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar guilda</>}</Btn>}
+          {changed&&guild&&<Btn full variant="primary" onClick={saveGuild} disabled={saving} sfx="success">{saving?<Spin size={14}/>:<><Check size={14}/> Salvar guilda</>}</Btn>}
         </div>
       </ProfileSection>
 
       <ProfileSection title="Alterar senha" icon={Lock} color="var(--danger)">
         <div style={{marginTop:12}}>
-          {!showChangePw?<Btn full variant="ghost" onClick={()=>setShowChangePw(true)} sfx="click"><Lock size={14}/> Alterar senha</Btn>:
+          {!showChangePw?<Btn full variant="secondary" onClick={()=>setShowChangePw(true)} sfx="click">Escolher nova senha</Btn>:
           <div style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)'}}>
-            <div onClick={()=>{setPwVKTarget('pw1');setPwVK(true);}} style={{padding:'12px 14px 12px 42px',borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',cursor:'pointer',position:'relative',minHeight:44}}>
+            <div onClick={()=>{setPwVKTarget('pw1');setPwVK(true);}} style={{padding:'12px 14px 12px 42px',borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'var(--field-bg)',cursor:'pointer',position:'relative',minHeight:44}}>
               <Lock size={16} style={{position:'absolute',left:13,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
               {newPw?<span style={{letterSpacing:6}}>{'●'.repeat(newPw.length)}</span>:<span style={{color:'var(--text-faint)',fontSize:'var(--fs-sm)'}}>Nova senha (6 dígitos)</span>}
             </div>
-            <div onClick={()=>{setPwVKTarget('pw2');setPwVK(true);}} style={{padding:'12px 14px 12px 42px',borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',cursor:'pointer',position:'relative',minHeight:44}}>
+            <div onClick={()=>{setPwVKTarget('pw2');setPwVK(true);}} style={{padding:'12px 14px 12px 42px',borderRadius:'var(--r-control)',border:'1px solid var(--line)',background:'var(--field-bg)',cursor:'pointer',position:'relative',minHeight:44}}>
               <Lock size={16} style={{position:'absolute',left:13,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
               {newPw2?<span style={{letterSpacing:6}}>{'●'.repeat(newPw2.length)}</span>:<span style={{color:'var(--text-faint)',fontSize:'var(--fs-sm)'}}>Confirmar senha</span>}
             </div>
             {pwVK&&<VirtualKeyboard onKey={pwVKKey} onBackspace={pwVKBack} onDone={()=>setPwVK(false)} maxLen={6} currentLen={pwVKTarget==='pw1'?newPw.length:newPw2.length} doneLabel="Fechar"/>}
             {pwMsg&&<div style={{fontSize:'var(--fs-xs)',color:pwMsg.t==='error'?'var(--danger)':'var(--ok)',textAlign:'center'}}>{pwMsg.m}</div>}
             <div style={{display:'flex',gap:'var(--sp-2)'}}>
-              <Btn variant="success" onClick={changePassword} disabled={pwLoading} style={{flex:1}} sfx="success">{pwLoading?<Spin size={14}/>:<><Check size={14}/> Confirmar</>}</Btn>
+              <Btn variant="primary" onClick={changePassword} disabled={pwLoading} style={{flex:1}} sfx="success">{pwLoading?<Spin size={14}/>:<><Check size={14}/> Confirmar</>}</Btn>
               <Btn variant="ghost" onClick={()=>{setShowChangePw(false);setNewPw('');setNewPw2('');setPwMsg(null);}} style={{flex:1}} sfx="click">Cancelar</Btn>
             </div>
           </div>}
         </div>
       </ProfileSection>
 
-      <div style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)',marginTop:4}}>
-        <Btn full variant="secondary" onClick={()=>{SFX.nav();setShowTutorial(true);}} sfx=""><HelpCircle size={15}/> Ver tutorial</Btn>
-        {isAdmin&&<Btn full variant="warn" onClick={()=>nav('admin')} sfx="nav"><Shield size={15}/> Painel Admin</Btn>}
-        <Btn full variant="danger" onClick={onLogout} sfx="click"><LogOut size={14}/> Sair</Btn>
+      {/* Admin e tema também moram no menu do avatar; aqui fica o que é da conta. */}
+      <div style={{display:'flex',flexDirection:'column',gap:'var(--sp-2)',marginTop:20}}>
+        <Btn full variant="secondary" onClick={()=>{SFX.nav();setShowTutorial(true);}} sfx="">Ver tutorial de novo</Btn>
+        <Btn full variant="ghost" onClick={onLogout} sfx="click" style={{color:'var(--danger)'}}>Sair da conta</Btn>
       </div>
     </div>}
 
@@ -1599,35 +1582,35 @@ function AuthPage({onLogin,theme}){
   }
 
   if(forgotMode)return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingTop:16}}>
-    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>🔑</div><h1 style={{margin:0,fontFamily:"'Inter',system-ui,sans-serif",fontSize:'var(--fs-xl)'}}>Recuperar Senha</h1></div>
-    {resetSent?<Card glow="rgba(var(--ok-rgb),0.15)" style={{padding:'var(--sp-4)',textAlign:'center'}}>
-      <Check size={32} style={{color:'var(--ok)',marginBottom:8}}/>
-      <div style={{fontWeight:700,color:'var(--ok)',fontSize:'var(--fs-md)'}}>Email enviado!</div>
+    <div style={{display:'flex',flexDirection:'column',gap:6,padding:'24px 0 8px'}}><span style={{fontSize:'var(--fs-sm)',fontWeight:600,color:'var(--text-dim)'}}>Cartas para Jogar</span><h1 style={{margin:0,fontSize:'var(--fs-2xl)',fontWeight:600,letterSpacing:-0.5,color:'var(--text-strong)'}}>Recuperar senha</h1></div>
+    {resetSent?<Card style={{padding:'var(--sp-4)',textAlign:'center'}}>
+      <Check size={28} style={{color:'var(--text-strong)',marginBottom:8}}/>
+      <div style={{fontWeight:600,color:'var(--text-strong)',fontSize:'var(--fs-md)'}}>Email enviado</div>
       <div style={{fontSize:'var(--fs-xs)',color:'var(--text-dim)',marginTop:6}}>Verifique sua caixa de entrada e spam. Clique no link para redefinir sua senha.</div>
       <Btn full variant="secondary" onClick={()=>{setForgotMode(false);setResetSent(false);}} style={{marginTop:16}} sfx="nav">Voltar ao login</Btn>
     </Card>:<>
       <div style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',textAlign:'center'}}>Digite seu email e enviaremos um link para redefinir sua senha.</div>
       <Input icon={Mail} type="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="seu@email.com" value={email} onChange={e=>setEmail(e.target.value)}/>
       {err&&<div style={{fontSize:'var(--fs-xs)',color:'var(--danger)',textAlign:'center',padding:'var(--sp-1)'}}><AlertTriangle size={12}/> {err}</div>}
-      <Btn full onClick={handleForgot} disabled={!email.includes('@')||loading} sfx="">{loading?<Spin size={16}/>:<><Mail size={16}/> Enviar link de recuperação</>}</Btn>
-      <button onClick={()=>{setForgotMode(false);setErr('');}} style={{background:'none',border:'none',color:'var(--gp)',fontSize:'var(--fs-sm)',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif",padding:'var(--sp-2)',textAlign:'center'}}>Voltar ao login</button>
+      <Btn full onClick={handleForgot} disabled={!email.includes('@')||loading} sfx="">{loading?<Spin size={16}/>:<>Enviar link de recuperação</>}</Btn>
+      <button onClick={()=>{setForgotMode(false);setErr('');}} style={{background:'none',border:'none',color:'var(--text-strong)',fontSize:'var(--fs-sm)',textDecoration:'underline',minHeight:44,cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif",padding:'var(--sp-2)',textAlign:'center'}}>Voltar ao login</button>
     </>}
   </div>);
 
   return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingTop:16}}>
-    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>⚔️</div><h1 style={{margin:0,fontFamily:"'Inter',system-ui,sans-serif",fontSize:'var(--fs-xl)'}}>{mode==='login'?'Bem-vindo':'Junte-se'}</h1></div>
-    <div style={{display:'flex',borderRadius:'var(--r-control)',background:'var(--fill-soft)',padding:'var(--sp-1)',gap:'var(--sp-1)'}}>{['login','signup'].map(m=>(<button key={m} onClick={()=>{SFX.toggle();setMode(m);setErr('');setSenha('');setSenha2('');setShowVK(false);}} style={{flex:1,padding:'9px 0',borderRadius:'var(--r-control)',border:'none',background:mode===m?'var(--fill)':'transparent',color:mode===m?'var(--text-strong)':'var(--text-faint)',fontWeight:700,fontSize:'var(--fs-sm)',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>{m==='login'?'Entrar':'Criar conta'}</button>))}</div>
+    <div style={{display:'flex',flexDirection:'column',gap:6,padding:'24px 0 8px'}}><span style={{fontSize:'var(--fs-sm)',fontWeight:600,color:'var(--text-dim)'}}>Cartas para Jogar</span><h1 style={{margin:0,fontSize:'var(--fs-2xl)',fontWeight:600,letterSpacing:-0.5,color:'var(--text-strong)'}}>{mode==='login'?'Boas-vindas de volta':'Crie sua conta'}</h1><p style={{margin:0,fontSize:'var(--fs-sm)',color:'var(--text-dim)',lineHeight:1.5}}>Suas cartas de Magic, encomendadas uma a uma.</p></div>
+    <div role="tablist" aria-label="Entrar ou criar conta" style={{display:'flex',borderRadius:'var(--r-pill)',background:'var(--fill)',padding:4,gap:4}}>{['login','signup'].map(m=>(<button key={m} role="tab" aria-selected={mode===m} onClick={()=>{SFX.toggle();setMode(m);setErr('');setSenha('');setSenha2('');setShowVK(false);}} style={{flex:1,minHeight:40,padding:'8px 0',borderRadius:'var(--r-pill)',border:'none',background:mode===m?'var(--sheet-bg)':'transparent',boxShadow:mode===m?'0 1px 3px rgba(var(--sunk),calc(0.2*var(--sunk-a)))':'none',color:mode===m?'var(--text-strong)':'var(--text-dim)',fontWeight:500,fontSize:'var(--fs-sm)',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>{m==='login'?'Entrar':'Criar conta'}</button>))}</div>
     {mode==='signup'&&<Input icon={User} placeholder="Seu nome" value={name} onChange={e=>setName(e.target.value)}/>}
     <Input icon={Mail} type="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="seu@email.com" value={email} onChange={e=>setEmail(e.target.value)}/>
     {mode==='signup'&&<Input icon={Phone} placeholder="WhatsApp (11999999999)" value={whatsapp} onChange={e=>setWhatsapp(e.target.value.replace(/\D/g,'').slice(0,11))}/>}
     <div>
-      <div onClick={()=>openVK('senha')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-card)',border:'1px solid '+(showVK&&vkTarget==='senha'?'var(--gp)':'var(--line)'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:senha?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+      <div onClick={()=>openVK('senha')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-control)',border:'1px solid '+(showVK&&vkTarget==='senha'?'var(--gp)':'var(--line)'),background:'var(--field-bg)',color:senha?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
         <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
         {senha?<span style={{letterSpacing:6}}>{'●'.repeat(senha.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-senha.length)}</span></span>:'Senha (6 dígitos)'}
       </div>
     </div>
     {mode==='signup'&&<div>
-      <div onClick={()=>openVK('senha2')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-card)',border:'1px solid '+(showVK&&vkTarget==='senha2'?'var(--gp)':'var(--line)'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:senha2?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+      <div onClick={()=>openVK('senha2')} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-control)',border:'1px solid '+(showVK&&vkTarget==='senha2'?'var(--gp)':'var(--line)'),background:'var(--field-bg)',color:senha2?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
         <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
         {senha2?<span style={{letterSpacing:6}}>{'●'.repeat(senha2.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-senha2.length)}</span></span>:'Confirmar senha'}
       </div>
@@ -1635,8 +1618,8 @@ function AuthPage({onLogin,theme}){
     </div>}
     {showVK&&<div style={{marginTop:4}}><VirtualKeyboard onKey={vkKey} onBackspace={vkBack} onDone={()=>setShowVK(false)} maxLen={6} currentLen={currentVKLen} doneLabel="Fechar"/></div>}
     {err&&<div style={{fontSize:'var(--fs-xs)',color:'var(--danger)',textAlign:'center',padding:'var(--sp-1)'}}><AlertTriangle size={12}/> {err}</div>}
-    <Btn full onClick={submit} disabled={!canSubmit} sfx="">{loading?<Spin size={16}/>:<>{mode==='login'?'Entrar':'Criar conta'} <ArrowRight size={16}/></>}</Btn>
-    {mode==='login'&&<button onClick={()=>{setForgotMode(true);setErr('');}} style={{background:'none',border:'none',color:'var(--text-faint)',fontSize:'var(--fs-xs)',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif",padding:'var(--sp-1)',textAlign:'center'}}>Esqueci minha senha</button>}
+    <Btn full onClick={submit} disabled={!canSubmit} sfx="">{loading?<Spin size={16}/>:<>{mode==='login'?'Entrar':'Criar conta'}</>}</Btn>
+    {mode==='login'&&<button onClick={()=>{setForgotMode(true);setErr('');}} style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:'var(--fs-sm)',minHeight:44,cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif",padding:'var(--sp-1)',textAlign:'center'}}>Esqueci minha senha</button>}
   </div>);
 }
 
@@ -1660,19 +1643,19 @@ function RecoveryPage({token,onDone,theme}){
     setLoading(false);
   }
   return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-3)',paddingTop:16}}>
-    <div style={{textAlign:'center'}}><div style={{fontSize:34,marginBottom:4}}>🔑</div><h1 style={{margin:0,fontFamily:"'Inter',system-ui,sans-serif",fontSize:'var(--fs-xl)'}}>Nova Senha</h1><p style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',marginTop:6}}>Digite sua nova senha de 6 dígitos</p></div>
-    <div onClick={()=>{setVkTarget('pw');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-card)',border:'1px solid '+(showVK&&vkTarget==='pw'?'var(--gp)':'var(--line)'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:pw?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+    <div style={{display:'flex',flexDirection:'column',gap:6,padding:'24px 0 8px'}}><span style={{fontSize:'var(--fs-sm)',fontWeight:600,color:'var(--text-dim)'}}>Cartas para Jogar</span><h1 style={{margin:0,fontSize:'var(--fs-2xl)',fontWeight:600,letterSpacing:-0.5,color:'var(--text-strong)'}}>Nova senha</h1><p style={{margin:0,fontSize:'var(--fs-sm)',color:'var(--text-dim)'}}>Digite sua nova senha de 6 dígitos</p></div>
+    <div onClick={()=>{setVkTarget('pw');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-control)',border:'1px solid '+(showVK&&vkTarget==='pw'?'var(--gp)':'var(--line)'),background:'var(--field-bg)',color:pw?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
       <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
       {pw?<span style={{letterSpacing:6}}>{'●'.repeat(pw.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-pw.length)}</span></span>:'Nova senha'}
     </div>
-    <div onClick={()=>{setVkTarget('pw2');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-card)',border:'1px solid '+(showVK&&vkTarget==='pw2'?'var(--gp)':'var(--line)'),background:'rgba(var(--sunk),calc(0.3*var(--sunk-a)))',color:pw2?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
+    <div onClick={()=>{setVkTarget('pw2');setShowVK(true);}} style={{width:'100%',padding:'13px 14px 13px 42px',borderRadius:'var(--r-control)',border:'1px solid '+(showVK&&vkTarget==='pw2'?'var(--gp)':'var(--line)'),background:'var(--field-bg)',color:pw2?'var(--text)':'var(--text-faint)',fontSize:'var(--fs-md)',fontFamily:"'Inter',system-ui,sans-serif",cursor:'pointer',position:'relative',boxSizing:'border-box',minHeight:46}}>
       <Lock size={18} style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--text-faint)'}}/>
       {pw2?<span style={{letterSpacing:6}}>{'●'.repeat(pw2.length)}<span style={{color:'var(--text-faint)',letterSpacing:4}}>{'○'.repeat(6-pw2.length)}</span></span>:'Confirmar senha'}
     </div>
     {pw2.length===6&&pw!==pw2&&<div style={{fontSize:'var(--fs-2xs)',color:'var(--danger)',marginTop:4,textAlign:'center'}}>As senhas não coincidem</div>}
     {showVK&&<div style={{marginTop:4}}><VirtualKeyboard onKey={vkKey} onBackspace={vkBack} onDone={()=>setShowVK(false)} maxLen={6} currentLen={currentVKLen}/></div>}
     {err&&<div style={{fontSize:'var(--fs-xs)',color:'var(--danger)',textAlign:'center'}}><AlertTriangle size={12}/> {err}</div>}
-    <Btn full onClick={save} disabled={pw.length<6||pw!==pw2||loading} sfx="">{loading?<Spin size={14}/>:<><Check size={16}/> Salvar nova senha</>}</Btn>
+    <Btn full onClick={save} disabled={pw.length<6||pw!==pw2||loading} sfx="">{loading?<Spin size={14}/>:<>Salvar nova senha</>}</Btn>
   </div>);
 }
 
@@ -1684,35 +1667,35 @@ function OnboardingPage({onComplete,theme}){
   const [step,setStep]=useState(0);const [colors,setColors]=useState([]);const [askTutorial,setAskTutorial]=useState(false);
   function toggleC(k){setColors(p=>{if(p.includes(k))return p.filter(c=>c!==k);if(p.length>=2)return[p[1],k];return[...p,k];});}
   const guild=colors.length===2?getGuild(colors[0],colors[1]):null;const gT=guild?GT[guild]:theme;
+  // Texto alinhado ao produto de hoje: encomenda individual, mínimo por
+  // pedido e preço por volume. (Pedido em grupo e cartas bônus não existem mais.)
   const steps=[
-    {mood:'🌟',title:'Bem-vindo ao Magic Portal!',body:'"Você acabou de entrar no portal onde fãs de Magic se unem para montar pedidos em grupo e economizar de verdade."'},
-    {mood:'📦',title:'Como funciona',body:'"Escolha suas cartas no catálogo, monte seu carrinho e finalize quando estiver pronto. Pagamentos via Mercado Pago com frete calculado na hora."'},
-    {mood:'🎁',title:'Bônus especiais',body:'"O administrador pode conceder cartas bônus para você a qualquer momento. Quando disponíveis, elas aparecem no seu carrinho e saem de graça!"'},
-    {mood:'🔮',title:'Escolha sua Guilda',body:'"Duas cores de mana definem sua essência. Cada combinação invoca uma guilda diferente — personalize sua jornada!"',hasColors:true},
+    {title:'Cartas de Magic, uma a uma',body:'Escolha no catálogo exatamente as cartas que você quer. A gente encomenda e entrega na sua casa.'},
+    {title:'Como funciona',body:'Toque no + das cartas para montar o pedido. A partir de 15 cartas ele fecha — e quanto mais cartas, menor o preço de cada uma. O pagamento é pelo Mercado Pago, com o frete calculado na hora.'},
+    {title:'Escolha sua guilda',body:'Duas cores de mana definem sua guilda. Ela vira a cor da sua conta.',hasColors:true},
   ];
   const s=steps[step];
 
   if(askTutorial)return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-4)',paddingTop:40,alignItems:'center',textAlign:'center'}}>
-    <div style={{width:56,height:56,borderRadius:'var(--r-card)',background:'var(--fill-soft)',border:'1px solid var(--line-soft)',display:'grid',placeItems:'center',fontSize:28}}>🧙</div>
-    <h2 style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:20}}>"Vamos explorar o portal juntos!"</h2>
-    <p style={{fontSize:'var(--fs-sm)',color:'var(--text-dim)',maxWidth:300,fontStyle:'italic'}}>Um guia rápido sobre o ritual da encomenda — leva menos de 1 minuto</p>
+    <h2 style={{margin:0,fontSize:'var(--fs-xl)',fontWeight:600,color:'var(--text-strong)'}}>Quer um tour rápido?</h2>
+    <p style={{margin:0,fontSize:'var(--fs-sm)',color:'var(--text-dim)',maxWidth:300,lineHeight:1.5}}>Mostramos onde fica cada coisa. Leva menos de um minuto.</p>
     <div style={{display:'flex',gap:'var(--sp-2)',width:'100%',maxWidth:300}}>
-      <Btn onClick={()=>onComplete(colors,guild,true)} style={{flex:1}} sfx="confirm">Vamos lá! 🔮</Btn>
+      <Btn onClick={()=>onComplete(colors,guild,true)} style={{flex:1}} sfx="confirm">Ver o tour</Btn>
     </div>
-    <button onClick={()=>onComplete(colors,guild,false)} style={{background:'none',border:'none',color:'var(--text-faint)',fontSize:'var(--fs-xs)',cursor:'pointer',marginTop:4}}>Pular tutorial</button>
+    <button onClick={()=>onComplete(colors,guild,false)} style={{minHeight:44,background:'none',border:'none',color:'var(--text-dim)',fontSize:'var(--fs-sm)',cursor:'pointer',fontFamily:"'Inter',system-ui,sans-serif"}}>Agora não</button>
   </div>);
 
   return(<div style={{display:'flex',flexDirection:'column',gap:'var(--sp-4)',paddingTop:16,minHeight:'70vh',justifyContent:'space-between'}}>
     <div>
-      <div style={{display:'flex',alignItems:'center',gap:'var(--sp-2)',marginBottom:18}}><div style={{width:44,height:44,borderRadius:'var(--r-control)',background:'var(--fill-soft)',border:'1px solid var(--line-soft)',display:'grid',placeItems:'center',fontSize:'var(--fs-xl)'}}>{s.mood}</div><div><div style={{fontWeight:800,fontSize:14}}>Goblin Guia</div><div style={{fontSize:'var(--fs-2xs)',color:'var(--text-faint)'}}>Guardião do Portal</div></div></div>
-      <h1 style={{margin:0,fontFamily:"'Inter',system-ui,sans-serif",fontSize:'var(--fs-xl)'}}>{s.title}</h1>
-      <p style={{fontSize:14,lineHeight:1.7,color:'var(--text-muted)',marginTop:10,fontStyle:'italic'}}>{s.body}</p>
+      <div style={{fontSize:'var(--fs-sm)',fontWeight:500,color:'var(--text-dim)',marginBottom:10}}>{step+1} de {steps.length}</div>
+      <h1 style={{margin:0,fontSize:'var(--fs-2xl)',fontWeight:600,letterSpacing:-0.5,color:'var(--text-strong)',lineHeight:1.15}}>{s.title}</h1>
+      <p style={{fontSize:'var(--fs-md)',lineHeight:1.6,color:'var(--text-muted)',marginTop:12}}>{s.body}</p>
       {s.illus&&s.illus()}
-      {s.hasColors&&<div style={{marginTop:18}}><div style={{display:'flex',justifyContent:'center',gap:'var(--sp-3)',marginBottom:14}}>{MANA_COLORS.map(m=><ManaOrb key={m.key} mana={m.key} selected={colors.includes(m.key)} onClick={()=>toggleC(m.key)} size={50}/>)}</div>{guild&&<div style={{textAlign:'center'}}><GuildBadge guild={guild} size={24}/><span style={{fontFamily:"'Inter',system-ui,sans-serif",fontSize:'var(--fs-lg)',fontWeight:700,color:gT.primary,marginLeft:8}}>{guild}</span></div>}</div>}
+      {s.hasColors&&<div style={{marginTop:18}}><div style={{display:'flex',justifyContent:'center',gap:'var(--sp-3)',marginBottom:14}}>{MANA_COLORS.map(m=><ManaOrb key={m.key} mana={m.key} selected={colors.includes(m.key)} onClick={()=>toggleC(m.key)} size={50}/>)}</div>{guild&&<div style={{textAlign:'center'}}><GuildBadge guild={guild} size={24}/><span style={{fontSize:'var(--fs-lg)',fontWeight:600,color:'var(--text-strong)',marginLeft:8}}>{guild}</span></div>}</div>}
     </div>
     <div>
-      <div style={{display:'flex',gap:'var(--sp-1)',justifyContent:'center',marginBottom:12}}>{steps.map((_,i)=><div key={i} style={{width:i===step?20:6,height:6,borderRadius:3,background:i===step?gT.primary:'var(--fill)'}}/>)}</div>
-      <div style={{display:'flex',gap:'var(--sp-2)'}}>{step>0&&<Btn variant="secondary" onClick={()=>setStep(s=>s-1)} style={{flex:1}} sfx="nav"><ChevronLeft size={15}/></Btn>}{step<steps.length-1?<Btn onClick={()=>setStep(s=>s+1)} style={{flex:1}} sfx="click">Próximo <ChevronRight size={15}/></Btn>:<Btn onClick={()=>{if(!guild)return;SFX.confirm();setAskTutorial(true);}} disabled={!guild} style={{flex:1}} sfx=""><Sparkles size={15}/> Continuar</Btn>}</div>
+      <div style={{display:'flex',gap:'var(--sp-1)',justifyContent:'center',marginBottom:12}}>{steps.map((_,i)=><div key={i} style={{width:i===step?20:6,height:6,borderRadius:3,background:i===step?'var(--text-strong)':'var(--fill)'}}/>)}</div>
+      <div style={{display:'flex',gap:'var(--sp-2)'}}>{step>0&&<Btn variant="secondary" onClick={()=>setStep(s=>s-1)} style={{flex:1}} sfx="nav"><ChevronLeft size={15}/></Btn>}{step<steps.length-1?<Btn onClick={()=>setStep(s=>s+1)} style={{flex:1}} sfx="click">Próximo <ChevronRight size={15}/></Btn>:<Btn onClick={()=>{if(!guild)return;SFX.confirm();setAskTutorial(true);}} disabled={!guild} style={{flex:1}} sfx="">Continuar</Btn>}</div>
     </div>
   </div>);
 }

@@ -36,7 +36,7 @@ test('páginas prioritárias usam wrappers e grids responsivos reutilizáveis', 
     assert.match(app, new RegExp(`portal-page portal-${page}`));
   }
   assert.match(app, /portal-card-grid portal-catalog-grid/);
-  assert.match(app, /portal-card-grid portal-wants-grid/);
+  assert.match(app, /className="portal-wants-grid"/);
   // Carrinho e checkout viraram uma folha só, aberta pela pílula.
   assert.match(app, /className="portal-modal portal-order-sheet"/);
 });

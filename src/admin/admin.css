@@ -30,7 +30,7 @@
 .adm-card { background:var(--card-bg); border:1px solid var(--card-border); border-radius:var(--r-card); box-shadow:var(--card-shadow); }
 .adm-pad { padding:14px; }
 .adm-section-title { display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin:4px 2px -4px; }
-.adm-section-title h2 { margin:0; font-size:var(--fs-sm); font-weight:800; color:var(--text-strong); text-transform:uppercase; letter-spacing:.7px; }
+.adm-section-title h2 { margin:0; font-size:var(--fs-md); font-weight:600; color:var(--text-strong); letter-spacing:-0.1px; }
 .adm-section-title button { border:none; background:none; color:var(--gp); font:700 var(--fs-xs) 'Inter',system-ui,sans-serif; cursor:pointer; padding:4px; }
 .adm-muted { color:var(--text-faint); font-size:var(--fs-xs); line-height:1.5; }
 .adm-mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
