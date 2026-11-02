@@ -4,6 +4,7 @@ import { Copy, Mail, Megaphone, MessageCircle, Package, Users, Wallet } from 'lu
 import { DEFAULT_WHATSAPP_MESSAGES, WHATSAPP_AUDIENCES, buildWhatsAppUrl, getWhatsAppRecipients, normalizeWhatsAppNumber } from '../../whatsappCommunication';
 import { Badge, Chips, Empty, Loading, SearchBox, Segmented, Sheet, brl, initials, timeAgo } from '../ui';
 import { OrderRow } from './OrdersView';
+import { CartsPanel, WishPanel } from './SalesViews';
 
 function Broadcast({ctx,clients}){
   const [audience,setAudience]=useState(WHATSAPP_AUDIENCES.BUYERS);
@@ -45,8 +46,17 @@ export default function ClientsView({ctx}){
     return l;
   },[clients,filter,searchClients]);
   const open=clients.find(c=>c.userId===openId);
+  const {clientsTab='clients',setClientsTab,carts=[],wishDemand=[]}=ctx;
 
   return(<>
+    <Segmented value={clientsTab} onChange={setClientsTab} options={[
+      {key:'clients',label:'Clientes'},
+      {key:'carts',label:'Carrinhos',count:carts.length},
+      {key:'wishes',label:'Desejos',count:wishDemand.filter(c=>c.isNew).length},
+    ]}/>
+    {clientsTab==='carts'&&<CartsPanel ctx={ctx}/>}
+    {clientsTab==='wishes'&&<WishPanel ctx={ctx}/>}
+    {clientsTab==='clients'&&<>
     <button className="adm-card adm-auto" onClick={()=>setBroadcast(true)} style={{cursor:'pointer',textAlign:'left',fontFamily:'inherit',color:'inherit'}}>
       <Megaphone size={18} style={{color:'var(--wa)',flexShrink:0}}/>
       <div style={{flex:1}}><div style={{fontSize:'var(--fs-sm)',fontWeight:700,color:'var(--text-strong)'}}>Mensagem para vários clientes</div><div className="adm-muted">WhatsApp em sequência, com o nome de cada um</div></div>
@@ -74,6 +84,8 @@ export default function ClientsView({ctx}){
           </button>))}
         </div>}
     </div>
+
+    </>}
 
     <Sheet open={!!open} onClose={()=>setOpenId(null)} title={open?.name} sub={open?(open.hasOrder?`${open.orders.length} pedido(s) · ${brl(open.totalSpent)}`:'Ainda não comprou'):''}>
       {open&&<>

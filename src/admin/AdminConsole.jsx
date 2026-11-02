@@ -17,6 +17,7 @@ import { aggregateOrderCards, formatSupplierCardList, totalCardQty } from '../..
 import { ORDER_STAGES, groupBatchesIntoOrders, isPaid as isPaidBatchStatus, resolveOrderStage, resolveOrderStageFromBatches } from '../../shared/orderStatus';
 import { shipmentPhase } from '../../shared/mandabemStatus';
 import { buildShipmentWhatsAppUrl } from '../whatsappCommunication';
+import { abandonedCarts, customerStats, monthKey, profitSummary, wishlistDemand } from '../../shared/adminInsights';
 import { getPushState } from '../push';
 import { SFX, ImageLightbox } from '../kit';
 import { mpSync } from '../config';
@@ -72,6 +73,13 @@ export default function AdminConsole({theme,token,nav,onReload,toast:toastFn,ini
   const [automation,setAutomation]=useState(null);
   const [automationBusy,setAutomationBusy]=useState('');
   const [pushState,setPushState]=useState(null);
+  // Indicadores de venda: carrinhos parados, demanda de desejos e o preço
+  // vigente (faixas + dólar), que é a base do custo estimado.
+  const [cartRows,setCartRows]=useState(null);
+  const [wishRows,setWishRows]=useState(null);
+  const [pricingInfo,setPricingInfo]=useState(null);
+  const [profitMonth,setProfitMonth]=useState(()=>monthKey(new Date()));
+  const [clientsTab,setClientsTab]=useState('clients'); // 'clients' | 'carts' | 'wishes'
 
   // ── Estado de interface compartilhado entre telas ───
   const [orderFilter,setOrderFilter]=useState('ALL');
@@ -99,6 +107,16 @@ export default function AdminConsole({theme,token,nav,onReload,toast:toastFn,ini
     try{setIndivOrders((await apiPost('/api/admin-individual-orders')).orders||[]);}
     catch(e){fail('Erro ao carregar pedidos: ',e);}
     setLoading(false);
+  }
+  async function loadInsights(){
+    const [carts,wishes,price]=await Promise.allSettled([
+      apiPost('/api/admin-insights',{action:'carts'}),
+      apiPost('/api/admin-insights',{action:'wishlist'}),
+      fetch('/api/pricing-individual').then(r=>r.json()),
+    ]);
+    if(carts.status==='fulfilled')setCartRows(carts.value.items||[]);else{console.warn('carts:',carts.reason);setCartRows(r=>r||[]);}
+    if(wishes.status==='fulfilled')setWishRows(wishes.value.items||[]);else{console.warn('wishlist:',wishes.reason);setWishRows(r=>r||[]);}
+    if(price.status==='fulfilled'&&price.value?.ok)setPricingInfo(price.value);
   }
   async function loadProfiles(){
     try{setAllProfiles((await apiPost('/api/admin-profiles')).profiles||[]);}
@@ -148,12 +166,12 @@ export default function AdminConsole({theme,token,nav,onReload,toast:toastFn,ini
     setAutomationBusy('');
   }
 
-  useEffect(()=>{loadOrders();loadNotifications();loadProfiles();loadAutomation();refreshPushState();},[]);
+  useEffect(()=>{loadOrders();loadNotifications();loadProfiles();loadAutomation();refreshPushState();loadInsights();},[]);
   // O push avisa no celular; aqui a tela de quem está com o console aberto acompanha.
   useEffect(()=>{const id=setInterval(()=>loadNotifications(true),60000);return ()=>clearInterval(id);},[]);
 
   async function reloadAll(){
-    await Promise.all([loadOrders(),loadNotifications(),loadProfiles(),loadAutomation()]);
+    await Promise.all([loadOrders(),loadNotifications(),loadProfiles(),loadAutomation(),loadInsights()]);
     if(onReload)onReload();
   }
 
@@ -278,6 +296,14 @@ export default function AdminConsole({theme,token,nav,onReload,toast:toastFn,ini
     });
     return Object.values(groups).sort((a,b)=>b.hasActiveOrder-a.hasActiveOrder||b.hasOrder-a.hasOrder||a.name.localeCompare(b.name));
   },[orders,allProfiles]);
+
+  // ─── Indicadores ───────────────────────────────────
+  const minCards=Number(pricingInfo?.pricing?.min_cards)||15;
+  const carts=useMemo(()=>abandonedCarts(cartRows||[],{minCards}),[cartRows,minCards]);
+  const wishDemand=useMemo(()=>wishlistDemand(wishRows||[]),[wishRows]);
+  const fxRate=Number(pricingInfo?.fx?.rate)||0;
+  const profit=useMemo(()=>profitSummary(orders,{tiers:pricingInfo?.tiers||[],fxRate,month:profitMonth}),[orders,pricingInfo,fxRate,profitMonth]);
+  const custStats=useMemo(()=>customerStats(clients),[clients]);
 
   // ─── Ações de pedido ───────────────────────────────
   async function loadBatchCards(batchIds){
@@ -433,6 +459,7 @@ export default function AdminConsole({theme,token,nav,onReload,toast:toastFn,ini
     copyOrderCards,cancelBatch,markBatchPaid,syncBatchMP,moveStage,generateLabel,markDelivered,sendTrackingWhatsApp,copyText,
     openNotification,openNotifications:()=>{setShowNotifications(true);loadNotifications();},
     go,morePage,setMorePage,onReload,reloadOrders:loadOrders,
+    carts,cartsLoading:cartRows===null,wishDemand,wishLoading:wishRows===null,profit,profitMonth,setProfitMonth,custStats,pricingInfo,fxRate,clientsTab,setClientsTab,reloadInsights:loadInsights,
   };
 
   const current=SECTIONS.find(s=>s.key===section)||SECTIONS[0];
